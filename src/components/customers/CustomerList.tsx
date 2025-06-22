@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,9 +9,10 @@ import { useCustomers } from "@/hooks/useCustomers";
 interface CustomerListProps {
   onAddCustomer: () => void;
   userRole: "admin" | "worker";
+  onNewQuote: () => void;
 }
 
-export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => {
+export const CustomerList = ({ onAddCustomer, userRole, onNewQuote }: CustomerListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: customers = [], isLoading } = useCustomers();
   
@@ -97,7 +97,11 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
                 <Button size="sm" variant="outline" className="flex-1 text-xs">
                   View Details
                 </Button>
-                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                <Button 
+                  size="sm" 
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                  onClick={onNewQuote}
+                >
                   New Quote
                 </Button>
               </div>
