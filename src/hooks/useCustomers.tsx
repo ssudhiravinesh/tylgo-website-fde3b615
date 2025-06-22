@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +13,7 @@ export interface Customer {
 }
 
 const fetchCustomers = async (): Promise<Customer[]> => {
+  console.log('Fetching customers from database...');
   const { data, error } = await supabase
     .from('customers')
     .select('*')
@@ -24,6 +24,7 @@ const fetchCustomers = async (): Promise<Customer[]> => {
     throw error;
   }
 
+  console.log('Customers fetched:', data?.length || 0);
   return data || [];
 };
 
@@ -39,7 +40,10 @@ export const useCreateCustomer = () => {
 
   return useMutation({
     mutationFn: async (customerData: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
+      console.log('Creating customer with data:', customerData);
+      
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user?.id);
       
       const { data, error } = await supabase
         .from('customers')
@@ -55,14 +59,16 @@ export const useCreateCustomer = () => {
         throw error;
       }
 
+      console.log('Customer created successfully:', data);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Customer creation mutation succeeded:', data);
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer created successfully');
     },
     onError: (error: any) => {
-      console.error('Error creating customer:', error);
+      console.error('Customer creation mutation failed:', error);
       toast.error(error.message || 'Error creating customer');
     },
   });

@@ -38,13 +38,16 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
           <p className="text-gray-600">Manage your customer database and quotations</p>
         </div>
         
-        <Button
-          onClick={onAddCustomer}
-          className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
-        >
-          <UserPlus className="h-4 w-4" />
-          Add Customer
-        </Button>
+        {/* Only show Add Customer button for workers */}
+        {userRole === "worker" && (
+          <Button
+            onClick={onAddCustomer}
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add Customer
+          </Button>
+        )}
       </div>
 
       <div className="relative">
@@ -110,7 +113,7 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
           <p className="text-gray-500 mb-4">
             {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first customer"}
           </p>
-          {!searchTerm && (
+          {!searchTerm && userRole === "worker" && (
             <Button onClick={onAddCustomer} className="bg-blue-600 hover:bg-blue-700 text-white">
               <UserPlus className="h-4 w-4 mr-2" />
               Add Your First Customer

@@ -36,7 +36,8 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "customers":
         return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
       case "add-customer":
-        return <CustomerForm onBack={() => setActiveView("customers")} />;
+        // Only allow workers to add customers
+        return user.role === "worker" ? <CustomerForm onBack={() => setActiveView("customers")} /> : <div>Access denied</div>;
       case "tiles":
         return <TileCatalog />;
       case "quotations":
