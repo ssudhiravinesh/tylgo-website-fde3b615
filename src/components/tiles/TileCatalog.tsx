@@ -60,7 +60,15 @@ export const TileCatalog = () => {
           >
             <CardContent className="p-4">
               <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                <Grid3X3 className="h-12 w-12 text-gray-400" />
+                {tile.image_url ? (
+                  <img 
+                    src={tile.image_url} 
+                    alt={tile.name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <Grid3X3 className="h-12 w-12 text-gray-400" />
+                )}
               </div>
               
               <div className="space-y-2">

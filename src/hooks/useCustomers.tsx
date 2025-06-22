@@ -1,6 +1,7 @@
 
-import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Customer {
   id: string;
@@ -12,106 +13,115 @@ export interface Customer {
   updated_at?: string;
 }
 
-// Mock data for demonstration
-const mockCustomers: Customer[] = [
-  {
-    id: '1',
-    name: 'Rajesh Kumar',
-    mobile: '+91 98765 43210',
-    address: '123 Main Street, Mumbai, Maharashtra 400001',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: '2',
-    name: 'Priya Sharma',
-    mobile: '+91 87654 32109',
-    address: '456 Park Avenue, Delhi 110001',
-    created_at: new Date().toISOString()
+const fetchCustomers = async (): Promise<Customer[]> => {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching customers:', error);
+    throw error;
   }
-];
+
+  return data || [];
+};
 
 export const useCustomers = () => {
-  const [customers] = useState<Customer[]>(mockCustomers);
-  const [isLoading] = useState(false);
-
-  return {
-    data: customers,
-    isLoading
-  };
+  return useQuery({
+    queryKey: ['customers'],
+    queryFn: fetchCustomers,
+  });
 };
 
 export const useCreateCustomer = () => {
-  const [isPending, setIsPending] = useState(false);
+  const queryClient = useQueryClient();
 
-  const mutateAsync = useCallback(async (customerData: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
-    setIsPending(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  return useMutation({
+    mutationFn: async (customerData: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
+      const { data: { user } } = await supabase.auth.getUser();
       
-      const newCustomer: Customer = {
-        ...customerData,
-        id: Date.now().toString(),
-        created_at: new Date().toISOString()
-      };
-      
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([{
+          ...customerData,
+          attended_by: user?.id
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating customer:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer created successfully');
-      return newCustomer;
-    } catch (error) {
-      toast.error('Error creating customer');
-      throw error;
-    } finally {
-      setIsPending(false);
-    }
-  }, []);
-
-  return {
-    mutateAsync,
-    isPending
-  };
+    },
+    onError: (error: any) => {
+      console.error('Error creating customer:', error);
+      toast.error(error.message || 'Error creating customer');
+    },
+  });
 };
 
 export const useUpdateCustomer = () => {
-  const [isPending, setIsPending] = useState(false);
+  const queryClient = useQueryClient();
 
-  const mutateAsync = useCallback(async (updateData: Partial<Customer> & { id: string }) => {
-    setIsPending(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  return useMutation({
+    mutationFn: async (updateData: Partial<Customer> & { id: string }) => {
+      const { id, ...updates } = updateData;
+      
+      const { data, error } = await supabase
+        .from('customers')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating customer:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer updated successfully');
-      return updateData;
-    } catch (error) {
-      toast.error('Error updating customer');
-      throw error;
-    } finally {
-      setIsPending(false);
-    }
-  }, []);
-
-  return {
-    mutateAsync,
-    isPending
-  };
+    },
+    onError: (error: any) => {
+      console.error('Error updating customer:', error);
+      toast.error(error.message || 'Error updating customer');
+    },
+  });
 };
 
 export const useDeleteCustomer = () => {
-  const [isPending, setIsPending] = useState(false);
+  const queryClient = useQueryClient();
 
-  const mutateAsync = useCallback(async (customerId: string) => {
-    setIsPending(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  return useMutation({
+    mutationFn: async (customerId: string) => {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
+
+      if (error) {
+        console.error('Error deleting customer:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer deleted successfully');
-    } catch (error) {
-      toast.error('Error deleting customer');
-      throw error;
-    } finally {
-      setIsPending(false);
-    }
-  }, []);
-
-  return {
-    mutateAsync,
-    isPending
-  };
+    },
+    onError: (error: any) => {
+      console.error('Error deleting customer:', error);
+      toast.error(error.message || 'Error deleting customer');
+    },
+  });
 };
