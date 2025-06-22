@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -5,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Edit } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
-import { generateQuotationPDF } from "@/utils/pdfGenerator";
 import { toast } from "sonner";
 
 interface QuotationListProps {
@@ -18,6 +18,8 @@ interface QuotationListProps {
 export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEditQuotation }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: quotations = [], isLoading } = useQuotations();
+  
+  console.log("QuotationList render - isLoading:", isLoading, "quotations count:", quotations.length);
   
   const filteredQuotations = quotations.filter(quotation =>
     quotation.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -33,9 +35,8 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEdi
         return;
       }
 
-      // We need to fetch the full quotation details including items
-      // For now, we'll show a message that PDF generation requires full quotation data
-      toast.error("PDF generation requires full quotation data. Please use the PDF button from the quotation details page.");
+      // Temporarily disabled PDF generation until we can fix the import issue
+      toast.info("PDF generation is temporarily disabled. Please use the PDF button from the quotation details page.");
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast.error("Failed to generate PDF");
@@ -58,12 +59,18 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEdi
   };
 
   if (isLoading) {
+    console.log("QuotationList showing loading state");
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading quotations...</p>
+        </div>
       </div>
     );
   }
+
+  console.log("QuotationList rendering content with", filteredQuotations.length, "quotations");
 
   return (
     <div className="space-y-6">
