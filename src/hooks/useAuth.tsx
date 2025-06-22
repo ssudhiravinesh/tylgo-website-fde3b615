@@ -1,4 +1,3 @@
-
 import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,8 +27,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("Auth provider initializing...");
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Initial session:", session?.user ? "User found" : "No user");
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
@@ -40,6 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state change:", event, session?.user ? "User present" : "No user");
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchProfile(session.user.id);
@@ -54,6 +57,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log("Fetching profile for user:", userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -62,13 +67,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error('Error fetching profile:', error);
+        
+        // If profile doesn't exist, create one from user metadata
+        if (error.code === 'PGRST116') {
+          console.log("Profile not found, attempting to create from user metadata");
+          await createProfileFromUser(userId);
+          return;
+        }
+        
         toast.error('Error loading profile');
+        // Don't keep loading forever if profile fetch fails
+        setLoading(false);
       } else if (data) {
+        console.log("Profile fetched successfully:", data.name);
         setProfile(data);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createProfileFromUser = async (userId: string) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      
+      if (user && user.user_metadata) {
+        console.log("Creating profile from user metadata:", user.user_metadata);
+        
+        const { data, error } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            name: user.user_metadata.name || user.email?.split('@')[0] || 'User',
+            email: user.email || '',
+            role: user.user_metadata.role || 'worker'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating profile:', error);
+          toast.error('Error creating profile');
+          setLoading(false);
+        } else {
+          console.log("Profile created successfully:", data.name);
+          setProfile(data);
+          setLoading(false);
+        }
+      } else {
+        console.error("No user metadata available for profile creation");
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error creating profile from user:', error);
       setLoading(false);
     }
   };
