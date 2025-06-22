@@ -38,7 +38,11 @@ const fetchQuotations = async (): Promise<Quotation[]> => {
     throw error;
   }
 
-  return data || [];
+  // Type assertion to ensure status is properly typed
+  return (data || []).map(quotation => ({
+    ...quotation,
+    status: quotation.status as 'draft' | 'sent' | 'approved' | 'rejected'
+  }));
 };
 
 export const useQuotations = () => {
