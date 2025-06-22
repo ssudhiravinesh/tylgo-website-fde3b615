@@ -1,4 +1,3 @@
-
 import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,6 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         toast.error('Error loading profile');
+        // Always set loading to false on error
         setLoading(false);
       } else if (data) {
         console.log("Profile fetched successfully:", data.name);
@@ -95,6 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      // Ensure loading is always set to false on error
       setLoading(false);
     }
   };
@@ -121,11 +122,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (error) {
           console.error('Error creating profile:', error);
           toast.error('Error creating profile');
-          setLoading(false);
         } else {
           console.log("Profile created successfully:", data.name);
           setProfile(data);
-          setLoading(false);
         }
       } else {
         console.error("No user metadata available for profile creation");
@@ -134,6 +133,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Error creating profile from user:', error);
+    } finally {
+      // Always set loading to false regardless of success or failure
       setLoading(false);
     }
   };
