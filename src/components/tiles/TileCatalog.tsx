@@ -96,17 +96,6 @@ export const TileCatalog = () => {
                   <IndianRupee className="h-4 w-4" />
                   {tile.price_per_sqm}/m²
                 </div>
-                
-                <Button 
-                  size="sm" 
-                  className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log("Add to quotation:", tile);
-                  }}
-                >
-                  Add to Quote
-                </Button>
               </div>
             </CardContent>
           </Card>
