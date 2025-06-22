@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -7,8 +6,7 @@ import { CustomerForm } from "@/components/customers/CustomerForm";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationList } from "@/components/quotations/QuotationList";
 import { AdminPanel } from "@/components/admin/AdminPanel";
-import { RoomList } from "@/components/rooms/RoomList";
-import { RoomForm } from "@/components/rooms/RoomForm";
+import { RoomManagement } from "@/components/rooms/RoomManagement";
 
 interface User {
   id: string;
@@ -28,8 +26,7 @@ export type ActiveView =
   | "tiles" 
   | "quotations" 
   | "admin"
-  | "view-rooms"
-  | "add-room";
+  | "rooms";
 
 export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
@@ -47,10 +44,8 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
         return <QuotationList userRole={user.role} />;
       case "admin":
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
-      case "view-rooms":
-        return user.role === "worker" ? <RoomList onAddRoom={() => setActiveView("add-room")} /> : <div>Access denied</div>;
-      case "add-room":
-        return user.role === "worker" ? <RoomForm onBack={() => setActiveView("view-rooms")} /> : <div>Access denied</div>;
+      case "rooms":
+        return user.role === "worker" ? <RoomManagement /> : <div>Access denied</div>;
       default:
         return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
     }
