@@ -23,6 +23,26 @@ export interface Quotation {
   };
 }
 
+// Type for the raw data from Supabase before transformation
+interface RawQuotationData {
+  id: string;
+  quotation_number: string;
+  customer_id: string;
+  worker_id: string;
+  status: string | null;
+  total_cost: number | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  customer: {
+    name: string;
+    mobile: string;
+  } | null;
+  worker: {
+    name: string;
+  } | null;
+}
+
 const fetchQuotations = async (): Promise<Quotation[]> => {
   const { data, error } = await supabase
     .from('quotations')
@@ -38,10 +58,19 @@ const fetchQuotations = async (): Promise<Quotation[]> => {
     throw error;
   }
 
-  // Type assertion to ensure status is properly typed
-  return (data || []).map(quotation => ({
-    ...quotation,
-    status: quotation.status as 'draft' | 'sent' | 'approved' | 'rejected'
+  // Transform the raw data to match our Quotation interface
+  return (data as RawQuotationData[] || []).map(quotation => ({
+    id: quotation.id,
+    quotation_number: quotation.quotation_number,
+    customer_id: quotation.customer_id,
+    worker_id: quotation.worker_id,
+    status: (quotation.status as 'draft' | 'sent' | 'approved' | 'rejected') || 'draft',
+    total_cost: quotation.total_cost || 0,
+    notes: quotation.notes || undefined,
+    created_at: quotation.created_at || new Date().toISOString(),
+    updated_at: quotation.updated_at || undefined,
+    customer: quotation.customer || undefined,
+    worker: quotation.worker || undefined,
   }));
 };
 
