@@ -85,12 +85,9 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
         </form>
         
         <div className="mt-6 text-center">
-          <button
-            onClick={onShowSignUp}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            Don't have an account? Sign Up
-          </button>
+          <p className="text-sm text-gray-500">
+            Contact your administrator for account access
+          </p>
         </div>
       </CardContent>
     </Card>

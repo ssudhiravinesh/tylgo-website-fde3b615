@@ -162,6 +162,59 @@ export const useWorkerManagement = () => {
     },
   });
 
+  const addWorkerMutation = useMutation({
+    mutationFn: async ({ name, email, password }: { name: string; email: string; password: string }) => {
+      console.log('Creating new worker account:', email);
+      
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            name,
+            role: 'worker'
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('Error creating auth user:', authError);
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create user account');
+      }
+
+      // Create profile record
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          name,
+          email,
+          role: 'worker'
+        });
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        throw profileError;
+      }
+
+      return authData.user;
+    },
+    onSuccess: () => {
+      toast.success('Worker account created successfully');
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
+    },
+    onError: (error: any) => {
+      console.error('Error creating worker:', error);
+      toast.error(error.message || 'Error creating worker account');
+    },
+  });
+
   const fetchWorkerQuotations = async (workerId: string) => {
     console.log('Fetching quotations for worker:', workerId);
     
@@ -201,6 +254,7 @@ export const useWorkerManagement = () => {
     quotationStats,
     isLoading: workersLoading || statsLoading,
     resetPasswordMutation,
+    addWorkerMutation,
     fetchWorkerQuotations,
   };
 };

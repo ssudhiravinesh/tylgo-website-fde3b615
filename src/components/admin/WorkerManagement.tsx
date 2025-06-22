@@ -11,7 +11,8 @@ import {
   Key,
   Search,
   Eye,
-  BarChart3
+  BarChart3,
+  UserPlus
 } from "lucide-react";
 import {
   Dialog,
@@ -47,13 +48,25 @@ const passwordResetSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const addWorkerSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 type PasswordResetFormData = z.infer<typeof passwordResetSchema>;
+type AddWorkerFormData = z.infer<typeof addWorkerSchema>;
 
 export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isQuotationsDialogOpen, setIsQuotationsDialogOpen] = useState(false);
+  const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] = useState(false);
 
   const { 
     workers, 
@@ -61,13 +74,24 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
     quotationStats,
     isLoading, 
     resetPasswordMutation,
+    addWorkerMutation,
     fetchWorkerQuotations 
   } = useWorkerManagement();
 
-  const form = useForm<PasswordResetFormData>({
+  const passwordForm = useForm<PasswordResetFormData>({
     resolver: zodResolver(passwordResetSchema),
     defaultValues: {
       newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
+  const addWorkerForm = useForm<AddWorkerFormData>({
+    resolver: zodResolver(addWorkerSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
       confirmPassword: "",
     },
   });
@@ -85,12 +109,29 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
           onSuccess: () => {
             setIsPasswordDialogOpen(false);
             setSelectedWorker(null);
-            form.reset();
+            passwordForm.reset();
             toast.success("Password reset successfully");
           },
         }
       );
     }
+  };
+
+  const handleAddWorker = (data: AddWorkerFormData) => {
+    addWorkerMutation.mutate(
+      { 
+        name: data.name, 
+        email: data.email, 
+        password: data.password 
+      },
+      {
+        onSuccess: () => {
+          setIsAddWorkerDialogOpen(false);
+          addWorkerForm.reset();
+          toast.success("Worker account created successfully");
+        },
+      }
+    );
   };
 
   const handleViewQuotations = (worker: any) => {
@@ -124,10 +165,90 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-800">Worker Management</h1>
           <p className="text-gray-600">Manage worker accounts and track their quotations</p>
         </div>
+        <Dialog open={isAddWorkerDialogOpen} onOpenChange={setIsAddWorkerDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add New Worker
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Worker</DialogTitle>
+              <DialogDescription>
+                Create a new worker account with login credentials
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...addWorkerForm}>
+              <form onSubmit={addWorkerForm.handleSubmit(handleAddWorker)} className="space-y-4">
+                <FormField
+                  control={addWorkerForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter worker's full name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={addWorkerForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email Address</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Enter worker's email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={addWorkerForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Enter password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={addWorkerForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Confirm password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsAddWorkerDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={addWorkerMutation.isPending}>
+                    {addWorkerMutation.isPending ? "Creating..." : "Create Worker"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Worker Stats */}
@@ -237,10 +358,10 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
               Reset password for {selectedWorker?.name}
             </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handlePasswordReset)} className="space-y-4">
+          <Form {...passwordForm}>
+            <form onSubmit={passwordForm.handleSubmit(handlePasswordReset)} className="space-y-4">
               <FormField
-                control={form.control}
+                control={passwordForm.control}
                 name="newPassword"
                 render={({ field }) => (
                   <FormItem>
@@ -253,7 +374,7 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
                 )}
               />
               <FormField
-                control={form.control}
+                control={passwordForm.control}
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
