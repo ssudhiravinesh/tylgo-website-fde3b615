@@ -7,12 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, User, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CustomerFormProps {
   onBack: () => void;
 }
 
 export const CustomerForm = ({ onBack }: CustomerFormProps) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     mobile: "",
@@ -26,16 +29,38 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast.error("You must be logged in to add customers");
+      return;
+    }
+
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log("New customer:", formData);
-    toast.success("Customer added successfully!");
-    
-    setIsLoading(false);
-    onBack();
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .insert({
+          name: formData.name,
+          mobile: formData.mobile,
+          address: formData.address,
+          attended_by: user.id
+        });
+
+      if (error) {
+        console.error('Error creating customer:', error);
+        toast.error('Failed to create customer');
+        return;
+      }
+
+      toast.success("Customer added successfully!");
+      onBack();
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      toast.error('Failed to create customer');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -125,6 +150,7 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
                 variant="outline"
                 onClick={onBack}
                 className="flex-1"
+                disabled={isLoading}
               >
                 Cancel
               </Button>

@@ -38,11 +38,16 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "add-customer":
         return <CustomerForm onBack={() => setActiveView("customers")} />;
       case "tiles":
-        return <TileCatalog />;
+        return <TileCatalog userRole={user.role} />;
       case "quotations":
         return <QuotationList userRole={user.role} />;
       case "admin":
-        return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
+        return user.role === "admin" ? <AdminPanel /> : (
+          <div className="text-center py-12">
+            <div className="text-red-500 text-lg font-semibold mb-2">Access Denied</div>
+            <p className="text-gray-600">You don't have permission to access the admin panel.</p>
+          </div>
+        );
       default:
         return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
     }

@@ -9,7 +9,257 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      customers: {
+        Row: {
+          address: string | null
+          attended_by: string | null
+          created_at: string | null
+          id: string
+          mobile: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          attended_by?: string | null
+          created_at?: string | null
+          id?: string
+          mobile: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          attended_by?: string | null
+          created_at?: string | null
+          id?: string
+          mobile?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_attended_by_fkey"
+            columns: ["attended_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id: string
+          name: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      quotation_items: {
+        Row: {
+          area: number
+          boxes_needed: number
+          created_at: string | null
+          id: string
+          item_cost: number
+          quotation_id: string | null
+          room_id: string | null
+          tile_id: string | null
+          tiles_required: number
+        }
+        Insert: {
+          area: number
+          boxes_needed: number
+          created_at?: string | null
+          id?: string
+          item_cost: number
+          quotation_id?: string | null
+          room_id?: string | null
+          tile_id?: string | null
+          tiles_required: number
+        }
+        Update: {
+          area?: number
+          boxes_needed?: number
+          created_at?: string | null
+          id?: string
+          item_cost?: number
+          quotation_id?: string | null
+          room_id?: string | null
+          tile_id?: string | null
+          tiles_required?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_items_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_items_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_items_tile_id_fkey"
+            columns: ["tile_id"]
+            isOneToOne: false
+            referencedRelation: "tiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotations: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          id: string
+          pdf_url: string | null
+          status: string | null
+          total_cost: number
+          updated_at: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          pdf_url?: string | null
+          status?: string | null
+          total_cost: number
+          updated_at?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          pdf_url?: string | null
+          status?: string | null
+          total_cost?: number
+          updated_at?: string | null
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          area: number | null
+          breadth: number
+          created_at: string | null
+          customer_id: string | null
+          id: string
+          length: number
+          name: string
+          surface_type: string
+          unit: string
+        }
+        Insert: {
+          area?: number | null
+          breadth: number
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          length: number
+          name: string
+          surface_type?: string
+          unit?: string
+        }
+        Update: {
+          area?: number | null
+          breadth?: number
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          length?: number
+          name?: string
+          surface_type?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tiles: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price_per_sqm: number
+          size_breadth: number
+          size_length: number
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price_per_sqm: number
+          size_breadth: number
+          size_length: number
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price_per_sqm?: number
+          size_breadth?: number
+          size_length?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +268,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "worker"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +383,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["admin", "worker"],
+    },
   },
 } as const
