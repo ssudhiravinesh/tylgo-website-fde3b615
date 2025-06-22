@@ -6,6 +6,7 @@ import { CustomerList } from "@/components/customers/CustomerList";
 import { CustomerForm } from "@/components/customers/CustomerForm";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationList } from "@/components/quotations/QuotationList";
+import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 
 interface User {
@@ -25,6 +26,7 @@ export type ActiveView =
   | "add-customer" 
   | "tiles" 
   | "quotations" 
+  | "add-quotation"
   | "admin";
 
 export const Dashboard = ({ user, onLogout }: DashboardProps) => {
@@ -40,7 +42,9 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "tiles":
         return <TileCatalog />;
       case "quotations":
-        return <QuotationList userRole={user.role} />;
+        return <QuotationList onAddQuotation={() => setActiveView("add-quotation")} userRole={user.role} />;
+      case "add-quotation":
+        return <QuotationForm onBack={() => setActiveView("quotations")} />;
       case "admin":
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
       default:

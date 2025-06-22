@@ -4,14 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Calendar, IndianRupee, User, Download } from "lucide-react";
+import { Search, FileText, Calendar, IndianRupee, User, Download, Plus } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
+  onAddQuotation: () => void;
 }
 
-export const QuotationList = ({ userRole }: QuotationListProps) => {
+export const QuotationList = ({ userRole, onAddQuotation }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: quotations = [], isLoading } = useQuotations();
   
@@ -51,6 +52,10 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
           <h1 className="text-2xl font-bold text-gray-800">Quotations</h1>
           <p className="text-gray-600">Manage customer quotations and proposals</p>
         </div>
+        <Button onClick={onAddQuotation} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Create Quotation
+        </Button>
       </div>
 
       <div className="relative">
