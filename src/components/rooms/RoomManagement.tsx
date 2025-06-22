@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Calendar, Edit, Trash2, User } from "lucide-react";
+import { Home, Plus, Calendar, Edit, Trash2 } from "lucide-react";
 import { useRooms, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { toast } from "sonner";
@@ -51,7 +51,7 @@ export const RoomManagement = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Room Management</h1>
-          <p className="text-gray-600">Manage room details with customer information and dimensions</p>
+          <p className="text-gray-600">Manage room details for your projects</p>
         </div>
         
         <Button 
@@ -107,24 +107,6 @@ export const RoomManagement = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {room.customer && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <User className="h-4 w-4" />
-                    <span className="font-medium">{room.customer.name}</span>
-                  </div>
-                )}
-                
-                {room.length && room.width && (
-                  <div className="text-sm text-gray-600">
-                    <div className="font-medium mb-1">Dimensions:</div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>Length: {room.length} {room.unit}</div>
-                      <div>Width: {room.width} {room.unit}</div>
-                      {room.height && <div>Height: {room.height} {room.unit}</div>}
-                    </div>
-                  </div>
-                )}
-                
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="h-4 w-4" />
                   Created: {new Date(room.created_at).toLocaleDateString()}

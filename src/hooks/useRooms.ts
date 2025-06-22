@@ -5,29 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 export interface Room {
   id: string;
   name: string;
-  customer_id?: string;
-  unit?: 'metre' | 'inches' | 'mm';
-  length?: number;
-  width?: number;
-  height?: number;
   created_at: string;
-  updated_at?: string;
-  customer?: {
-    id: string;
-    name: string;
-  };
 }
 
 const fetchRooms = async (): Promise<Room[]> => {
   const { data, error } = await supabase
     .from('rooms')
-    .select(`
-      *,
-      customers!rooms_customer_id_fkey (
-        id,
-        name
-      )
-    `)
+    .select('*')
     .order('name');
 
   if (error) {
@@ -35,33 +19,16 @@ const fetchRooms = async (): Promise<Room[]> => {
     throw error;
   }
 
-  return (data || []).map(room => ({
-    ...room,
-    customer: room.customers ? {
-      id: room.customers.id,
-      name: room.customers.name
-    } : undefined
-  }));
+  return data || [];
 };
 
 const createRoom = async (roomData: { 
   name: string; 
-  customer_id?: string;
-  unit?: 'metre' | 'inches' | 'mm';
-  length?: number;
-  width?: number;
-  height?: number;
 }): Promise<Room> => {
   const { data, error } = await supabase
     .from('rooms')
     .insert([roomData])
-    .select(`
-      *,
-      customers!rooms_customer_id_fkey (
-        id,
-        name
-      )
-    `)
+    .select('*')
     .single();
 
   if (error) {
@@ -69,23 +36,12 @@ const createRoom = async (roomData: {
     throw error;
   }
 
-  return {
-    ...data,
-    customer: data.customers ? {
-      id: data.customers.id,
-      name: data.customers.name
-    } : undefined
-  };
+  return data;
 };
 
 const updateRoom = async (roomData: { 
   id: string;
   name: string; 
-  customer_id?: string;
-  unit?: 'metre' | 'inches' | 'mm';
-  length?: number;
-  width?: number;
-  height?: number;
 }): Promise<Room> => {
   const { id, ...updates } = roomData;
   
@@ -93,13 +49,7 @@ const updateRoom = async (roomData: {
     .from('rooms')
     .update(updates)
     .eq('id', id)
-    .select(`
-      *,
-      customers!rooms_customer_id_fkey (
-        id,
-        name
-      )
-    `)
+    .select('*')
     .single();
 
   if (error) {
@@ -107,13 +57,7 @@ const updateRoom = async (roomData: {
     throw error;
   }
 
-  return {
-    ...data,
-    customer: data.customers ? {
-      id: data.customers.id,
-      name: data.customers.name
-    } : undefined
-  };
+  return data;
 };
 
 const deleteRoom = async (roomId: string): Promise<void> => {
