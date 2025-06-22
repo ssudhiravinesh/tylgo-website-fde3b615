@@ -10,9 +10,10 @@ import { useQuotations } from "@/hooks/useQuotations";
 interface QuotationListProps {
   userRole: "admin" | "worker";
   onAddQuotation: () => void;
+  onViewQuotation: (quotationId: string) => void;
 }
 
-export const QuotationList = ({ userRole, onAddQuotation }: QuotationListProps) => {
+export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: quotations = [], isLoading } = useQuotations();
   
@@ -109,7 +110,12 @@ export const QuotationList = ({ userRole, onAddQuotation }: QuotationListProps) 
               </div>
               
               <div className="flex gap-2 pt-2">
-                <Button size="sm" variant="outline" className="flex-1 text-xs">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1 text-xs"
+                  onClick={() => onViewQuotation(quotation.id)}
+                >
                   <FileText className="h-3 w-3 mr-1" />
                   View
                 </Button>

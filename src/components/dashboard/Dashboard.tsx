@@ -7,6 +7,7 @@ import { CustomerForm } from "@/components/customers/CustomerForm";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationList } from "@/components/quotations/QuotationList";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
+import { QuotationDetails } from "@/components/quotations/QuotationDetails";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 
 interface User {
@@ -27,11 +28,18 @@ export type ActiveView =
   | "tiles" 
   | "quotations" 
   | "add-quotation"
+  | "view-quotation"
   | "admin";
 
 export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
+
+  const handleViewQuotation = (quotationId: string) => {
+    setSelectedQuotationId(quotationId);
+    setActiveView("view-quotation");
+  };
 
   const renderContent = () => {
     switch (activeView) {
@@ -42,9 +50,24 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "tiles":
         return <TileCatalog />;
       case "quotations":
-        return <QuotationList onAddQuotation={() => setActiveView("add-quotation")} userRole={user.role} />;
+        return (
+          <QuotationList 
+            onAddQuotation={() => setActiveView("add-quotation")} 
+            onViewQuotation={handleViewQuotation}
+            userRole={user.role} 
+          />
+        );
       case "add-quotation":
         return <QuotationForm onBack={() => setActiveView("quotations")} />;
+      case "view-quotation":
+        return selectedQuotationId ? (
+          <QuotationDetails 
+            quotationId={selectedQuotationId}
+            onBack={() => setActiveView("quotations")}
+            onEdit={() => setActiveView("add-quotation")} // TODO: Implement edit mode
+            userRole={user.role}
+          />
+        ) : <div>Quotation not found</div>;
       case "admin":
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
       default:
