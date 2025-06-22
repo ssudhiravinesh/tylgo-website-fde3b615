@@ -5,13 +5,34 @@ import { supabase } from '@/integrations/supabase/client';
 export interface Room {
   id: string;
   name: string;
+  customer_id: string;
+  length: number;
+  width: number;
+  height: number;
+  unit: 'metre' | 'inches' | 'mm';
   created_at: string;
 }
 
-const fetchRooms = async (): Promise<Room[]> => {
+export interface CreateRoomData {
+  name: string;
+  customer_id: string;
+  length: number;
+  width: number;
+  height: number;
+  unit: 'metre' | 'inches' | 'mm';
+}
+
+export interface UpdateRoomData extends CreateRoomData {
+  id: string;
+}
+
+const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
+  if (!customerId) return [];
+  
   const { data, error } = await supabase
     .from('rooms')
     .select('*')
+    .eq('customer_id', customerId)
     .order('name');
 
   if (error) {
@@ -22,9 +43,7 @@ const fetchRooms = async (): Promise<Room[]> => {
   return data || [];
 };
 
-const createRoom = async (roomData: { 
-  name: string; 
-}): Promise<Room> => {
+const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
   const { data, error } = await supabase
     .from('rooms')
     .insert([roomData])
@@ -39,10 +58,7 @@ const createRoom = async (roomData: {
   return data;
 };
 
-const updateRoom = async (roomData: { 
-  id: string;
-  name: string; 
-}): Promise<Room> => {
+const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
   const { id, ...updates } = roomData;
   
   const { data, error } = await supabase
@@ -72,10 +88,11 @@ const deleteRoom = async (roomId: string): Promise<void> => {
   }
 };
 
-export const useRooms = () => {
+export const useRoomsByCustomer = (customerId: string) => {
   return useQuery({
-    queryKey: ['rooms'],
-    queryFn: fetchRooms,
+    queryKey: ['rooms', customerId],
+    queryFn: () => fetchRoomsByCustomer(customerId),
+    enabled: !!customerId,
   });
 };
 
@@ -84,8 +101,8 @@ export const useCreateRoom = () => {
   
   return useMutation({
     mutationFn: createRoom,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['rooms', data.customer_id] });
     },
   });
 };
@@ -95,8 +112,8 @@ export const useUpdateRoom = () => {
   
   return useMutation({
     mutationFn: updateRoom,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['rooms', data.customer_id] });
     },
   });
 };

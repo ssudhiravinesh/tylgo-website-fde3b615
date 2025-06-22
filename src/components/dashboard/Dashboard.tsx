@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -6,7 +7,7 @@ import { CustomerForm } from "@/components/customers/CustomerForm";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationList } from "@/components/quotations/QuotationList";
 import { AdminPanel } from "@/components/admin/AdminPanel";
-import { RoomManagement } from "@/components/rooms/RoomManagement";
+import { CustomerRoomManagement } from "@/components/rooms/CustomerRoomManagement";
 
 interface User {
   id: string;
@@ -45,7 +46,7 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "admin":
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
       case "rooms":
-        return user.role === "worker" ? <RoomManagement /> : <div>Access denied</div>;
+        return user.role === "worker" ? <CustomerRoomManagement /> : <div>Access denied</div>;
       default:
         return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
     }

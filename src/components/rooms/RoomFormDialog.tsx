@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
@@ -12,10 +13,17 @@ interface RoomFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
   room?: Room | null;
+  customerId: string;
 }
 
-export const RoomFormDialog = ({ isOpen, onClose, room }: RoomFormDialogProps) => {
-  const [name, setName] = useState("");
+export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDialogProps) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    length: "",
+    width: "",
+    height: "",
+    unit: "metre" as "metre" | "inches" | "mm"
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const createRoomMutation = useCreateRoom();
@@ -23,33 +31,76 @@ export const RoomFormDialog = ({ isOpen, onClose, room }: RoomFormDialogProps) =
 
   useEffect(() => {
     if (room) {
-      setName(room.name);
+      setFormData({
+        name: room.name,
+        length: room.length.toString(),
+        width: room.width.toString(),
+        height: room.height.toString(),
+        unit: room.unit,
+      });
     } else {
-      setName("");
+      setFormData({
+        name: "",
+        length: "",
+        width: "",
+        height: "",
+        unit: "metre"
+      });
     }
   }, [room]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim()) {
+    if (!formData.name.trim()) {
       toast.error("Room name is required");
+      return;
+    }
+
+    if (!customerId) {
+      toast.error("Please select a customer first");
+      return;
+    }
+
+    const length = parseFloat(formData.length);
+    const width = parseFloat(formData.width);
+    const height = parseFloat(formData.height);
+
+    if (isNaN(length) || length <= 0) {
+      toast.error("Please enter a valid length");
+      return;
+    }
+
+    if (isNaN(width) || width <= 0) {
+      toast.error("Please enter a valid width");
+      return;
+    }
+
+    if (isNaN(height) || height <= 0) {
+      toast.error("Please enter a valid height");
       return;
     }
 
     setIsLoading(true);
 
     try {
+      const roomData = {
+        name: formData.name.trim(),
+        customer_id: customerId,
+        length,
+        width,
+        height,
+        unit: formData.unit,
+      };
+
       if (room) {
         await updateRoomMutation.mutateAsync({
           id: room.id,
-          name: name.trim(),
+          ...roomData,
         });
         toast.success("Room updated successfully!");
       } else {
-        await createRoomMutation.mutateAsync({
-          name: name.trim(),
-        });
+        await createRoomMutation.mutateAsync(roomData);
         toast.success("Room created successfully!");
       }
       
@@ -57,7 +108,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room }: RoomFormDialogProps) =
     } catch (error: any) {
       console.error("Error saving room:", error);
       if (error?.message?.includes("duplicate") || error?.code === "23505") {
-        toast.error("A room with this name already exists");
+        toast.error("A room with this name already exists for this customer");
       } else {
         toast.error("Failed to save room");
       }
@@ -70,6 +121,10 @@ export const RoomFormDialog = ({ isOpen, onClose, room }: RoomFormDialogProps) =
     if (!isLoading) {
       onClose();
     }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -87,13 +142,89 @@ export const RoomFormDialog = ({ isOpen, onClose, room }: RoomFormDialogProps) =
             <Input
               id="name"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter room name"
+              value={formData.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              placeholder="e.g., Living Room, Bedroom"
               disabled={isLoading}
               required
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="unit">Measurement Unit *</Label>
+            <Select 
+              value={formData.unit} 
+              onValueChange={(value: "metre" | "inches" | "mm") => handleInputChange("unit", value)}
+              disabled={isLoading}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="metre">Metres</SelectItem>
+                <SelectItem value="inches">Inches</SelectItem>
+                <SelectItem value="mm">Millimeters</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="length">Length *</Label>
+              <Input
+                id="length"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.length}
+                onChange={(e) => handleInputChange("length", e.target.value)}
+                placeholder="0.00"
+                disabled={isLoading}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="width">Width *</Label>
+              <Input
+                id="width"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.width}
+                onChange={(e) => handleInputChange("width", e.target.value)}
+                placeholder="0.00"
+                disabled={isLoading}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="height">Height *</Label>
+              <Input
+                id="height"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.height}
+                onChange={(e) => handleInputChange("height", e.target.value)}
+                placeholder="0.00"
+                disabled={isLoading}
+                required
+              />
+            </div>
+          </div>
+
+          {formData.length && formData.width && (
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="text-sm text-green-700">
+                <p><strong>Floor Area:</strong> {(parseFloat(formData.length || "0") * parseFloat(formData.width || "0")).toFixed(2)} {formData.unit}²</p>
+                {formData.height && (
+                  <p><strong>Volume:</strong> {(parseFloat(formData.length || "0") * parseFloat(formData.width || "0") * parseFloat(formData.height || "0")).toFixed(2)} {formData.unit}³</p>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button
@@ -106,7 +237,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room }: RoomFormDialogProps) =
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !name.trim()}
+              disabled={isLoading || !formData.name.trim() || !formData.length || !formData.width || !formData.height}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? "Saving..." : room ? "Update Room" : "Create Room"}
