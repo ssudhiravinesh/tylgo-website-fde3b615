@@ -8,15 +8,14 @@ import {
   FileText, 
   Grid3X3, 
   TrendingUp, 
-  UserPlus,
-  Settings,
-  BarChart3,
+  UserCog,
   Calendar
 } from "lucide-react";
 import { TileManagement } from "./TileManagement";
+import { WorkerManagement } from "./WorkerManagement";
 
 export const AdminPanel = () => {
-  const [activeView, setActiveView] = useState<"dashboard" | "tile-management">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management">("dashboard");
 
   const stats = [
     { label: "Total Customers", value: "1,234", icon: Users, change: "+12%", color: "text-blue-600" },
@@ -34,6 +33,10 @@ export const AdminPanel = () => {
 
   if (activeView === "tile-management") {
     return <TileManagement onBack={() => setActiveView("dashboard")} />;
+  }
+
+  if (activeView === "worker-management") {
+    return <WorkerManagement onBack={() => setActiveView("dashboard")} />;
   }
 
   return (
@@ -71,14 +74,17 @@ export const AdminPanel = () => {
         <Card className="border-gray-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-blue-600" />
+              <UserCog className="h-5 w-5 text-blue-600" />
               Quick Actions
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full justify-start gap-3 h-12 bg-blue-600 hover:bg-blue-700 text-white">
-              <UserPlus className="h-4 w-4" />
-              Add New Worker
+            <Button 
+              className="w-full justify-start gap-3 h-12 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => setActiveView("worker-management")}
+            >
+              <UserCog className="h-4 w-4" />
+              Manage Workers
             </Button>
             <Button 
               variant="outline" 
@@ -87,14 +93,6 @@ export const AdminPanel = () => {
             >
               <Grid3X3 className="h-4 w-4" />
               Manage Tile Catalog
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-3 h-12">
-              <BarChart3 className="h-4 w-4" />
-              View Reports
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-3 h-12">
-              <Settings className="h-4 w-4" />
-              System Settings
             </Button>
           </CardContent>
         </Card>
