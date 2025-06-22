@@ -1,3 +1,4 @@
+
 import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     try {
       console.log("Fetching profile for user:", userId);
+      setLoading(true);
       
       const { data, error } = await supabase
         .from('profiles')
@@ -76,7 +78,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         toast.error('Error loading profile');
-        // Don't keep loading forever if profile fetch fails
         setLoading(false);
       } else if (data) {
         console.log("Profile fetched successfully:", data.name);
@@ -119,7 +120,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         console.error("No user metadata available for profile creation");
-        setLoading(false);
+        // Force sign out if we can't create a profile
+        await signOut();
       }
     } catch (error) {
       console.error('Error creating profile from user:', error);
@@ -181,6 +183,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     try {
+      setLoading(true);
+      setUser(null);
+      setProfile(null);
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
         throw error;
@@ -189,6 +195,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast.error(error.message || 'Error signing out');
+    } finally {
+      setLoading(false);
     }
   };
 
