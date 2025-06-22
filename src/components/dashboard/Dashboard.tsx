@@ -7,6 +7,8 @@ import { CustomerForm } from "@/components/customers/CustomerForm";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationList } from "@/components/quotations/QuotationList";
 import { AdminPanel } from "@/components/admin/AdminPanel";
+import { RoomList } from "@/components/rooms/RoomList";
+import { RoomForm } from "@/components/rooms/RoomForm";
 
 interface User {
   id: string;
@@ -25,7 +27,9 @@ export type ActiveView =
   | "add-customer" 
   | "tiles" 
   | "quotations" 
-  | "admin";
+  | "admin"
+  | "view-rooms"
+  | "add-room";
 
 export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
@@ -34,9 +38,8 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const renderContent = () => {
     switch (activeView) {
       case "customers":
-        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
+        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} onNewQuote={() => setActiveView("view-rooms")} />;
       case "add-customer":
-        // Only allow workers to add customers
         return user.role === "worker" ? <CustomerForm onBack={() => setActiveView("customers")} /> : <div>Access denied</div>;
       case "tiles":
         return <TileCatalog />;
@@ -44,8 +47,12 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
         return <QuotationList userRole={user.role} />;
       case "admin":
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
+      case "view-rooms":
+        return user.role === "worker" ? <RoomList onAddRoom={() => setActiveView("add-room")} /> : <div>Access denied</div>;
+      case "add-room":
+        return user.role === "worker" ? <RoomForm onBack={() => setActiveView("view-rooms")} /> : <div>Access denied</div>;
       default:
-        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
+        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} onNewQuote={() => setActiveView("view-rooms")} />;
     }
   };
 
