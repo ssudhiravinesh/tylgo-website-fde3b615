@@ -1,5 +1,5 @@
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Room {
@@ -22,9 +22,35 @@ const fetchRooms = async (): Promise<Room[]> => {
   return data || [];
 };
 
+const createRoom = async (roomData: { name: string }): Promise<Room> => {
+  const { data, error } = await supabase
+    .from('rooms')
+    .insert([roomData])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating room:', error);
+    throw error;
+  }
+
+  return data;
+};
+
 export const useRooms = () => {
   return useQuery({
     queryKey: ['rooms'],
     queryFn: fetchRooms,
+  });
+};
+
+export const useCreateRoom = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: createRoom,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    },
   });
 };
