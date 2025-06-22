@@ -2,11 +2,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Palette, Calculator, Package, DollarSign, ArrowLeft, QrCode, Plus, X } from "lucide-react";
+import { Palette, Calculator, Package, DollarSign, ArrowLeft, X, MousePointer } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections } from "@/hooks/useRooms";
+import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
@@ -32,7 +32,8 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const saveSelectionsMutation = useSaveRoomTileSelections();
   
   const [tileSelections, setTileSelections] = useState<{ [roomId: string]: string[] }>({});
-  const [tileCodeInputs, setTileCodeInputs] = useState<{ [roomId: string]: string }>({});
+  const [showTileCatalog, setShowTileCatalog] = useState(false);
+  const [selectedRoomForTile, setSelectedRoomForTile] = useState<string | null>(null);
 
   useEffect(() => {
     // Initialize selections from database
@@ -46,30 +47,33 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     setTileSelections(initialSelections);
   }, [selections]);
 
-  const addTileByCode = (roomId: string, tileCode: string) => {
-    const tile = tiles.find(t => t.code.toLowerCase() === tileCode.toLowerCase());
-    if (!tile) {
-      toast.error(`Tile with code "${tileCode}" not found`);
-      return;
-    }
+  const handleChooseTile = (roomId: string) => {
+    setSelectedRoomForTile(roomId);
+    setShowTileCatalog(true);
+  };
 
-    const roomSelections = tileSelections[roomId] || [];
-    if (roomSelections.includes(tile.id)) {
+  const handleTileSelected = (tileId: string) => {
+    if (!selectedRoomForTile) return;
+
+    const roomSelections = tileSelections[selectedRoomForTile] || [];
+    if (roomSelections.includes(tileId)) {
       toast.error("This tile is already selected for this room");
+      setShowTileCatalog(false);
       return;
     }
 
-    setTileSelections(prev => ({
-      ...prev,
-      [roomId]: [...roomSelections, tile.id]
-    }));
-
-    setTileCodeInputs(prev => ({
-      ...prev,
-      [roomId]: ""
-    }));
-
-    toast.success(`Tile "${tile.name}" added to room`);
+    const tile = tiles.find(t => t.id === tileId);
+    if (tile) {
+      setTileSelections(prev => ({
+        ...prev,
+        [selectedRoomForTile]: [...roomSelections, tileId]
+      }));
+      
+      toast.success(`Tile "${tile.name}" added to room`);
+    }
+    
+    setShowTileCatalog(false);
+    setSelectedRoomForTile(null);
   };
 
   const removeTileSelection = (roomId: string, tileId: string) => {
@@ -77,20 +81,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       ...prev,
       [roomId]: (prev[roomId] || []).filter(id => id !== tileId)
     }));
-  };
-
-  const handleKeyPress = (roomId: string, e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      const tileCode = tileCodeInputs[roomId]?.trim();
-      if (tileCode) {
-        addTileByCode(roomId, tileCode);
-      }
-    }
-  };
-
-  const handleScanQR = () => {
-    toast.info("QR scanning functionality would be implemented here");
-    // In a real implementation, this would open a camera/QR scanner
   };
 
   const handleSaveSelections = async () => {
@@ -166,6 +156,29 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     );
   }
 
+  if (showTileCatalog) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => setShowTileCatalog(false)} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Room Selection
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Choose Tile</h2>
+            <p className="text-gray-600">
+              Select a tile for: {rooms.find(r => r.id === selectedRoomForTile)?.name}
+            </p>
+          </div>
+        </div>
+        <TileCatalog 
+          onTileSelected={handleTileSelected}
+          showAssignButton={false}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -175,7 +188,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
         </Button>
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Select Tiles for Rooms</h2>
-          <p className="text-gray-600">Enter tile codes or scan QR codes to select tiles</p>
+          <p className="text-gray-600">Choose tiles from the catalog for each room</p>
         </div>
       </div>
 
@@ -189,13 +202,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex gap-2">
-              <Button onClick={handleScanQR} className="gap-2 bg-green-600 hover:bg-green-700">
-                <QrCode className="h-4 w-4" />
-                Scan QR Code
-              </Button>
-            </div>
-
             {rooms.map(room => (
               <div key={room.id} className="space-y-3 p-4 border rounded-lg">
                 <div className="flex items-center justify-between">
@@ -205,31 +211,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                   </Badge>
                 </div>
                 
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter tile code..."
-                    value={tileCodeInputs[room.id] || ""}
-                    onChange={(e) => setTileCodeInputs(prev => ({
-                      ...prev,
-                      [room.id]: e.target.value
-                    }))}
-                    onKeyPress={(e) => handleKeyPress(room.id, e)}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={() => {
-                      const tileCode = tileCodeInputs[room.id]?.trim();
-                      if (tileCode) {
-                        addTileByCode(room.id, tileCode);
-                      }
-                    }}
-                    size="sm"
-                    className="gap-1"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => handleChooseTile(room.id)}
+                  variant="outline"
+                  className="w-full gap-2"
+                >
+                  <MousePointer className="h-4 w-4" />
+                  Choose Tile
+                </Button>
 
                 {/* Selected tiles for this room */}
                 <div className="space-y-2">
