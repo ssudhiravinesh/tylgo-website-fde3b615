@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,6 +64,43 @@ export const useQuotations = () => {
   return useQuery({
     queryKey: ['quotations'],
     queryFn: fetchQuotations,
+  });
+};
+
+const fetchQuotationForEdit = async (quotationId: string) => {
+  const { data, error } = await supabase
+    .from('quotations')
+    .select(`
+      *,
+      customer:customers(name, mobile),
+      quotation_items(
+        id,
+        tile_id,
+        room_id,
+        quantity,
+        unit_price,
+        total_price
+      )
+    `)
+    .eq('id', quotationId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching quotation for edit:', error);
+    throw error;
+  }
+
+  return {
+    ...data,
+    status: data.status as 'draft' | 'sent' | 'approved' | 'rejected'
+  };
+};
+
+export const useQuotationForEdit = (quotationId: string) => {
+  return useQuery({
+    queryKey: ['quotation-edit', quotationId],
+    queryFn: () => fetchQuotationForEdit(quotationId),
+    enabled: !!quotationId,
   });
 };
 
@@ -139,6 +175,83 @@ export const useCreateQuotation = () => {
     onError: (error: any) => {
       console.error('Error creating quotation:', error);
       toast.error(error.message || 'Error creating quotation');
+    },
+  });
+};
+
+export const useUpdateQuotation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ quotationId, quotationData }: { quotationId: string, quotationData: CreateQuotationData }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Update the quotation
+      const { data: quotation, error: quotationError } = await supabase
+        .from('quotations')
+        .update({
+          customer_id: quotationData.customer_id,
+          status: quotationData.status,
+          total_cost: quotationData.total_cost,
+          notes: quotationData.notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', quotationId)
+        .select()
+        .single();
+
+      if (quotationError) {
+        console.error('Error updating quotation:', quotationError);
+        throw quotationError;
+      }
+
+      // Delete existing quotation items
+      const { error: deleteError } = await supabase
+        .from('quotation_items')
+        .delete()
+        .eq('quotation_id', quotationId);
+
+      if (deleteError) {
+        console.error('Error deleting old quotation items:', deleteError);
+        throw deleteError;
+      }
+
+      // Insert new quotation items
+      if (quotationData.items.length > 0) {
+        const itemsToInsert = quotationData.items.map(item => ({
+          quotation_id: quotationId,
+          tile_id: item.tile_id,
+          room_id: item.room_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('quotation_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('Error creating updated quotation items:', itemsError);
+          throw itemsError;
+        }
+      }
+
+      return quotation;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['quotation-edit'] });
+      queryClient.invalidateQueries({ queryKey: ['quotation-details'] });
+      toast.success('Quotation updated successfully');
+    },
+    onError: (error: any) => {
+      console.error('Error updating quotation:', error);
+      toast.error(error.message || 'Error updating quotation');
     },
   });
 };

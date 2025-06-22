@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,11 +10,13 @@ import { ArrowLeft, Plus, Trash2, IndianRupee } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTiles } from "@/hooks/useTiles";
 import { useRooms } from "@/hooks/useRooms";
-import { useCreateQuotation } from "@/hooks/useQuotations";
+import { useCreateQuotation, useUpdateQuotation, useQuotationForEdit } from "@/hooks/useQuotations";
 import { toast } from "sonner";
 
 interface QuotationFormProps {
   onBack: () => void;
+  quotationId?: string;
+  isEditing?: boolean;
 }
 
 interface QuotationItem {
@@ -32,12 +33,18 @@ interface QuotationFormData {
   items: QuotationItem[];
 }
 
-export const QuotationForm = ({ onBack }: QuotationFormProps) => {
+export const QuotationForm = ({ onBack, quotationId, isEditing = false }: QuotationFormProps) => {
   const [items, setItems] = useState<QuotationItem[]>([]);
   const { data: customers = [] } = useCustomers();
   const { data: tiles = [] } = useTiles();
   const { data: rooms = [] } = useRooms();
   const createQuotation = useCreateQuotation();
+  const updateQuotation = useUpdateQuotation();
+  
+  // Fetch quotation data for editing
+  const { data: quotationData, isLoading: isLoadingQuotation } = useQuotationForEdit(
+    isEditing && quotationId ? quotationId : ''
+  );
 
   const form = useForm<QuotationFormData>({
     defaultValues: {
@@ -46,6 +53,25 @@ export const QuotationForm = ({ onBack }: QuotationFormProps) => {
       items: [],
     },
   });
+
+  // Populate form when editing
+  useEffect(() => {
+    if (isEditing && quotationData) {
+      form.setValue('customer_id', quotationData.customer_id);
+      form.setValue('notes', quotationData.notes || '');
+      
+      // Convert quotation items to form items
+      const formItems = quotationData.quotation_items.map(item => ({
+        tile_id: item.tile_id,
+        room_id: item.room_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+      }));
+      
+      setItems(formItems);
+    }
+  }, [quotationData, isEditing, form]);
 
   const addItem = () => {
     setItems([...items, {
@@ -101,12 +127,24 @@ export const QuotationForm = ({ onBack }: QuotationFormProps) => {
     };
 
     try {
-      await createQuotation.mutateAsync(quotationData);
+      if (isEditing && quotationId) {
+        await updateQuotation.mutateAsync({ quotationId, quotationData });
+      } else {
+        await createQuotation.mutateAsync(quotationData);
+      }
       onBack();
     } catch (error) {
-      console.error('Error creating quotation:', error);
+      console.error('Error saving quotation:', error);
     }
   };
+
+  if (isEditing && isLoadingQuotation) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -116,8 +154,12 @@ export const QuotationForm = ({ onBack }: QuotationFormProps) => {
           Back to Quotations
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Create New Quotation</h1>
-          <p className="text-gray-600">Add items and calculate pricing for customer</p>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {isEditing ? 'Edit Quotation' : 'Create New Quotation'}
+          </h1>
+          <p className="text-gray-600">
+            {isEditing ? 'Modify quotation details and items' : 'Add items and calculate pricing for customer'}
+          </p>
         </div>
       </div>
 
@@ -281,8 +323,11 @@ export const QuotationForm = ({ onBack }: QuotationFormProps) => {
             <Button type="button" variant="outline" onClick={onBack}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createQuotation.isPending || items.length === 0}>
-              {createQuotation.isPending ? "Creating..." : "Create Quotation"}
+            <Button type="submit" disabled={createQuotation.isPending || updateQuotation.isPending || items.length === 0}>
+              {createQuotation.isPending || updateQuotation.isPending 
+                ? (isEditing ? "Updating..." : "Creating...") 
+                : (isEditing ? "Update Quotation" : "Create Quotation")
+              }
             </Button>
           </div>
         </form>

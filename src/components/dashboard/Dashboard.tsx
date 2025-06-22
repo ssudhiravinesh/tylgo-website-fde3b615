@@ -28,6 +28,7 @@ export type ActiveView =
   | "tiles" 
   | "quotations" 
   | "add-quotation"
+  | "edit-quotation"
   | "view-quotation"
   | "admin";
 
@@ -39,6 +40,11 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const handleViewQuotation = (quotationId: string) => {
     setSelectedQuotationId(quotationId);
     setActiveView("view-quotation");
+  };
+
+  const handleEditQuotation = (quotationId: string) => {
+    setSelectedQuotationId(quotationId);
+    setActiveView("edit-quotation");
   };
 
   const renderContent = () => {
@@ -54,17 +60,26 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
           <QuotationList 
             onAddQuotation={() => setActiveView("add-quotation")} 
             onViewQuotation={handleViewQuotation}
+            onEditQuotation={handleEditQuotation}
             userRole={user.role} 
           />
         );
       case "add-quotation":
         return <QuotationForm onBack={() => setActiveView("quotations")} />;
+      case "edit-quotation":
+        return selectedQuotationId ? (
+          <QuotationForm 
+            onBack={() => setActiveView("quotations")} 
+            quotationId={selectedQuotationId}
+            isEditing={true}
+          />
+        ) : <div>Quotation not found</div>;
       case "view-quotation":
         return selectedQuotationId ? (
           <QuotationDetails 
             quotationId={selectedQuotationId}
             onBack={() => setActiveView("quotations")}
-            onEdit={() => setActiveView("add-quotation")} // TODO: Implement edit mode
+            onEdit={() => handleEditQuotation(selectedQuotationId)}
             userRole={user.role}
           />
         ) : <div>Quotation not found</div>;

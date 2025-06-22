@@ -4,16 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Calendar, IndianRupee, User, Download, Plus } from "lucide-react";
+import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Edit } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
   onAddQuotation: () => void;
   onViewQuotation: (quotationId: string) => void;
+  onEditQuotation: (quotationId: string) => void;
 }
 
-export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation }: QuotationListProps) => {
+export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEditQuotation }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: quotations = [], isLoading } = useQuotations();
   
@@ -123,7 +124,12 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation }: Quo
                   <Download className="h-3 w-3 mr-1" />
                   PDF
                 </Button>
-                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                <Button 
+                  size="sm" 
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                  onClick={() => onEditQuotation(quotation.id)}
+                >
+                  <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
               </div>
