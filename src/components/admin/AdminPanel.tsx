@@ -9,13 +9,14 @@ import {
   Grid3X3, 
   TrendingUp, 
   UserCog,
-  Calendar
+  Calendar,
+  BarChart3
 } from "lucide-react";
 import { TileManagement } from "./TileManagement";
 import { WorkerManagement } from "./WorkerManagement";
 
 export const AdminPanel = () => {
-  const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management" | "customer-analytics">("dashboard");
 
   const stats = [
     { label: "Total Customers", value: "1,234", icon: Users, change: "+12%", color: "text-blue-600" },
@@ -37,6 +38,87 @@ export const AdminPanel = () => {
 
   if (activeView === "worker-management") {
     return <WorkerManagement onBack={() => setActiveView("dashboard")} />;
+  }
+
+  if (activeView === "customer-analytics") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Customer Analytics</h1>
+            <p className="text-gray-600">Analyze customer behavior and business performance</p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setActiveView("dashboard")}
+            className="gap-2"
+          >
+            ← Back to Dashboard
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card className="border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-lg">Top Customers</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Priya Sharma</span>
+                  <span className="text-sm text-gray-600">₹2.5L</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Rajesh Kumar</span>
+                  <span className="text-sm text-gray-600">₹1.8L</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Anjali Gupta</span>
+                  <span className="text-sm text-gray-600">₹1.2L</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-lg">Conversion Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-600">68%</div>
+                <p className="text-sm text-gray-600 mt-2">Quotations to Sales</p>
+                <Badge variant="outline" className="mt-2 text-green-600 border-green-200">
+                  +5% from last month
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-lg">Popular Tiles</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="text-sm">
+                  <span className="font-medium">Marble Classic</span>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                    <div className="bg-blue-600 h-2 rounded-full" style={{width: '85%'}}></div>
+                  </div>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Ceramic Modern</span>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                    <div className="bg-blue-600 h-2 rounded-full" style={{width: '70%'}}></div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -89,10 +171,10 @@ export const AdminPanel = () => {
             <Button 
               variant="outline" 
               className="w-full justify-start gap-3 h-12"
-              onClick={() => setActiveView("tile-management")}
+              onClick={() => setActiveView("customer-analytics")}
             >
-              <Grid3X3 className="h-4 w-4" />
-              Manage Tile Catalog
+              <BarChart3 className="h-4 w-4" />
+              Customer Analytics
             </Button>
           </CardContent>
         </Card>
