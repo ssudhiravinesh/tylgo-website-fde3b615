@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, User, Phone, MapPin } from "lucide-react";
 import { useCreateCustomer } from "@/hooks/useCustomers";
-import { useAuth } from "@/hooks/useAuth";
 
 interface CustomerFormProps {
   onBack: () => void;
@@ -20,7 +19,6 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
     address: ""
   });
   
-  const { user, profile } = useAuth();
   const createCustomer = useCreateCustomer();
 
   const handleInputChange = (field: string, value: string) => {
@@ -30,16 +28,8 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || !profile) {
-      console.error("User not authenticated");
-      return;
-    }
-
     try {
-      await createCustomer.mutateAsync({
-        ...formData,
-        attended_by: profile.id
-      });
+      await createCustomer.mutateAsync(formData);
       onBack();
     } catch (error) {
       console.error("Error creating customer:", error);
