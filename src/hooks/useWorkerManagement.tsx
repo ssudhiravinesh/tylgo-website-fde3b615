@@ -181,7 +181,14 @@ export const useWorkerManagement = () => {
       }
 
       console.log('Worker quotations fetched:', data);
-      setWorkerQuotations(data || []);
+      
+      // Type cast the status field to match our interface
+      const typedQuotations: WorkerQuotation[] = (data || []).map(quotation => ({
+        ...quotation,
+        status: quotation.status as 'draft' | 'sent' | 'approved' | 'rejected'
+      }));
+      
+      setWorkerQuotations(typedQuotations);
     } catch (error) {
       console.error('Error fetching worker quotations:', error);
       toast.error('Error fetching quotations');
