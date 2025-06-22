@@ -23,24 +23,20 @@ export interface Quotation {
   };
 }
 
-// Type for the raw data from Supabase before transformation
-interface RawQuotationData {
-  id: string;
-  quotation_number: string;
+export interface QuotationItem {
+  tile_id: string;
+  room_id: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+export interface CreateQuotationData {
   customer_id: string;
-  worker_id: string;
-  status: string | null;
-  total_cost: number | null;
-  notes: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  customer: {
-    name: string;
-    mobile: string;
-  } | null;
-  worker: {
-    name: string;
-  } | null;
+  status: 'draft' | 'sent' | 'approved' | 'rejected';
+  total_cost: number;
+  notes?: string;
+  items: QuotationItem[];
 }
 
 const fetchQuotations = async (): Promise<Quotation[]> => {
@@ -58,19 +54,10 @@ const fetchQuotations = async (): Promise<Quotation[]> => {
     throw error;
   }
 
-  // Transform the raw data to match our Quotation interface
-  return (data as RawQuotationData[] || []).map(quotation => ({
-    id: quotation.id,
-    quotation_number: quotation.quotation_number,
-    customer_id: quotation.customer_id,
-    worker_id: quotation.worker_id,
-    status: (quotation.status as 'draft' | 'sent' | 'approved' | 'rejected') || 'draft',
-    total_cost: quotation.total_cost || 0,
-    notes: quotation.notes || undefined,
-    created_at: quotation.created_at || new Date().toISOString(),
-    updated_at: quotation.updated_at || undefined,
-    customer: quotation.customer || undefined,
-    worker: quotation.worker || undefined,
+  // Type assertion to ensure status is properly typed
+  return (data || []).map(quotation => ({
+    ...quotation,
+    status: quotation.status as 'draft' | 'sent' | 'approved' | 'rejected'
   }));
 };
 
@@ -94,29 +81,56 @@ export const useCreateQuotation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (quotationData: Omit<Quotation, 'id' | 'quotation_number' | 'worker_id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (quotationData: CreateQuotationData) => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      const { data, error } = await supabase
+      // Start a Supabase transaction
+      const { data: quotation, error: quotationError } = await supabase
         .from('quotations')
         .insert([{
-          ...quotationData,
+          customer_id: quotationData.customer_id,
+          status: quotationData.status,
+          total_cost: quotationData.total_cost,
+          notes: quotationData.notes,
           quotation_number: generateQuotationNumber(),
           worker_id: user.id
         }])
         .select()
         .single();
 
-      if (error) {
-        console.error('Error creating quotation:', error);
-        throw error;
+      if (quotationError) {
+        console.error('Error creating quotation:', quotationError);
+        throw quotationError;
       }
 
-      return data;
+      // Insert quotation items
+      if (quotationData.items.length > 0) {
+        const itemsToInsert = quotationData.items.map(item => ({
+          quotation_id: quotation.id,
+          tile_id: item.tile_id,
+          room_id: item.room_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('quotation_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('Error creating quotation items:', itemsError);
+          // Clean up the quotation if items failed to insert
+          await supabase.from('quotations').delete().eq('id', quotation.id);
+          throw itemsError;
+        }
+      }
+
+      return quotation;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
