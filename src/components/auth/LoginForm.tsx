@@ -5,25 +5,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Lock, Mail } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LoginFormProps {
-  onLogin: (email: string, password: string) => void;
+  onShowSignUp: () => void;
 }
 
-export const LoginForm = ({ onLogin }: LoginFormProps) => {
+export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, loading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    onLogin(email, password);
-    setIsLoading(false);
+    try {
+      await signIn(email, password);
+    } catch (error) {
+      console.error('Login error:', error);
+    }
   };
 
   return (
@@ -79,16 +78,19 @@ export const LoginForm = ({ onLogin }: LoginFormProps) => {
           <Button 
             type="submit" 
             className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-            disabled={isLoading}
+            disabled={loading}
           >
-            {isLoading ? "Signing in..." : "Sign In"}
+            {loading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
         
         <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
-            Demo credentials: any email/password combination
-          </p>
+          <button
+            onClick={onShowSignUp}
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          >
+            Don't have an account? Sign Up
+          </button>
         </div>
       </CardContent>
     </Card>
