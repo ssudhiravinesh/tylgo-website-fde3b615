@@ -21,7 +21,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     name: "",
     length: "",
     width: "",
-    height: "",
     unit: "metre" as "metre" | "inches" | "mm"
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +34,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         name: room.name,
         length: room.length.toString(),
         width: room.width.toString(),
-        height: room.height.toString(),
         unit: room.unit,
       });
     } else {
@@ -43,7 +41,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         name: "",
         length: "",
         width: "",
-        height: "",
         unit: "metre"
       });
     }
@@ -64,7 +61,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
     const length = parseFloat(formData.length);
     const width = parseFloat(formData.width);
-    const height = parseFloat(formData.height);
 
     if (isNaN(length) || length <= 0) {
       toast.error("Please enter a valid length");
@@ -76,11 +72,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       return;
     }
 
-    if (isNaN(height) || height <= 0) {
-      toast.error("Please enter a valid height");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -89,7 +80,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         customer_id: customerId,
         length,
         width,
-        height,
         unit: formData.unit,
       };
 
@@ -168,7 +158,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Select>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="length">Length *</Label>
               <Input
@@ -198,30 +188,12 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 required
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="height">Height *</Label>
-              <Input
-                id="height"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.height}
-                onChange={(e) => handleInputChange("height", e.target.value)}
-                placeholder="0.00"
-                disabled={isLoading}
-                required
-              />
-            </div>
           </div>
 
           {formData.length && formData.width && (
             <div className="p-3 bg-green-50 rounded-lg border border-green-200">
               <div className="text-sm text-green-700">
                 <p><strong>Floor Area:</strong> {(parseFloat(formData.length || "0") * parseFloat(formData.width || "0")).toFixed(2)} {formData.unit}²</p>
-                {formData.height && (
-                  <p><strong>Volume:</strong> {(parseFloat(formData.length || "0") * parseFloat(formData.width || "0") * parseFloat(formData.height || "0")).toFixed(2)} {formData.unit}³</p>
-                )}
               </div>
             </div>
           )}
@@ -237,7 +209,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !formData.name.trim() || !formData.length || !formData.width || !formData.height}
+              disabled={isLoading || !formData.name.trim() || !formData.length || !formData.width}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? "Saving..." : room ? "Update Room" : "Create Room"}

@@ -180,23 +180,89 @@ export type Database = {
           },
         ]
       }
+      room_tile_selections: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          room_id: string
+          tile_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          room_id: string
+          tile_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          room_id?: string
+          tile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_tile_selections_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_tile_selections_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_tile_selections_tile_id_fkey"
+            columns: ["tile_id"]
+            isOneToOne: false
+            referencedRelation: "tiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rooms: {
         Row: {
           created_at: string | null
+          customer_id: string | null
           id: string
+          length: number
           name: string
+          unit: string
+          width: number
         }
         Insert: {
           created_at?: string | null
+          customer_id?: string | null
           id?: string
+          length?: number
           name: string
+          unit?: string
+          width?: number
         }
         Update: {
           created_at?: string | null
+          customer_id?: string | null
           id?: string
+          length?: number
           name?: string
+          unit?: string
+          width?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rooms_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tiles: {
         Row: {

@@ -8,7 +8,6 @@ export interface Room {
   customer_id: string;
   length: number;
   width: number;
-  height: number;
   unit: 'metre' | 'inches' | 'mm';
   created_at: string;
 }
@@ -18,12 +17,19 @@ export interface CreateRoomData {
   customer_id: string;
   length: number;
   width: number;
-  height: number;
   unit: 'metre' | 'inches' | 'mm';
 }
 
 export interface UpdateRoomData extends CreateRoomData {
   id: string;
+}
+
+export interface RoomTileSelection {
+  id: string;
+  customer_id: string;
+  room_id: string;
+  tile_id: string;
+  created_at: string;
 }
 
 const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
@@ -88,6 +94,48 @@ const deleteRoom = async (roomId: string): Promise<void> => {
   }
 };
 
+const fetchRoomTileSelections = async (customerId: string): Promise<RoomTileSelection[]> => {
+  if (!customerId) return [];
+  
+  const { data, error } = await supabase
+    .from('room_tile_selections')
+    .select('*')
+    .eq('customer_id', customerId);
+
+  if (error) {
+    console.error('Error fetching room tile selections:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+const saveRoomTileSelections = async (selections: { customer_id: string; room_id: string; tile_id: string }[]): Promise<void> => {
+  if (selections.length === 0) return;
+
+  const { error } = await supabase
+    .from('room_tile_selections')
+    .upsert(selections, { onConflict: 'room_id,tile_id' });
+
+  if (error) {
+    console.error('Error saving room tile selections:', error);
+    throw error;
+  }
+};
+
+const deleteRoomTileSelection = async (roomId: string, tileId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('room_tile_selections')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('tile_id', tileId);
+
+  if (error) {
+    console.error('Error deleting room tile selection:', error);
+    throw error;
+  }
+};
+
 export const useRoomsByCustomer = (customerId: string) => {
   return useQuery({
     queryKey: ['rooms', customerId],
@@ -125,6 +173,39 @@ export const useDeleteRoom = () => {
     mutationFn: deleteRoom,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    },
+  });
+};
+
+export const useRoomTileSelections = (customerId: string) => {
+  return useQuery({
+    queryKey: ['room-tile-selections', customerId],
+    queryFn: () => fetchRoomTileSelections(customerId),
+    enabled: !!customerId,
+  });
+};
+
+export const useSaveRoomTileSelections = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: saveRoomTileSelections,
+    onSuccess: (_, variables) => {
+      if (variables.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['room-tile-selections', variables[0].customer_id] });
+      }
+    },
+  });
+};
+
+export const useDeleteRoomTileSelection = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ roomId, tileId }: { roomId: string; tileId: string }) => 
+      deleteRoomTileSelection(roomId, tileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
     },
   });
 };
