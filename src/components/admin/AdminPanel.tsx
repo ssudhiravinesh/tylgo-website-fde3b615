@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +13,11 @@ import {
   BarChart3,
   Calendar
 } from "lucide-react";
+import { TileManagement } from "./TileManagement";
 
 export const AdminPanel = () => {
+  const [activeView, setActiveView] = useState<"dashboard" | "tile-management">("dashboard");
+
   const stats = [
     { label: "Total Customers", value: "1,234", icon: Users, change: "+12%", color: "text-blue-600" },
     { label: "Active Quotations", value: "56", icon: FileText, change: "+8%", color: "text-green-600" },
@@ -27,6 +31,10 @@ export const AdminPanel = () => {
     { type: "tile", message: "15 new tiles added to catalog", time: "1 day ago" },
     { type: "user", message: "New worker account created for Mike Johnson", time: "2 days ago" }
   ];
+
+  if (activeView === "tile-management") {
+    return <TileManagement onBack={() => setActiveView("dashboard")} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -72,7 +80,11 @@ export const AdminPanel = () => {
               <UserPlus className="h-4 w-4" />
               Add New Worker
             </Button>
-            <Button variant="outline" className="w-full justify-start gap-3 h-12">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-3 h-12"
+              onClick={() => setActiveView("tile-management")}
+            >
               <Grid3X3 className="h-4 w-4" />
               Manage Tile Catalog
             </Button>
