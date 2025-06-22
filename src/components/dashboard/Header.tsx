@@ -3,7 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Building2, LogOut, Menu } from "lucide-react";
-import type { User } from "@/types/dashboard";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "worker";
+}
 
 interface HeaderProps {
   user: User;

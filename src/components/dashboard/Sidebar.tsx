@@ -9,7 +9,7 @@ import {
   Settings,
   ChevronLeft
 } from "lucide-react";
-import type { ActiveView } from "@/types/dashboard";
+import { ActiveView } from "./Dashboard";
 
 interface SidebarProps {
   isOpen: boolean;

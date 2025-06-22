@@ -4,44 +4,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Edit } from "lucide-react";
+import { Search, FileText, Calendar, IndianRupee, User, Download } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
-import { toast } from "sonner";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
-  onAddQuotation: () => void;
-  onViewQuotation: (quotationId: string) => void;
-  onEditQuotation: (quotationId: string) => void;
 }
 
-export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEditQuotation }: QuotationListProps) => {
+export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: quotations = [], isLoading } = useQuotations();
-  
-  console.log("QuotationList render - isLoading:", isLoading, "quotations count:", quotations.length);
   
   const filteredQuotations = quotations.filter(quotation =>
     quotation.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quotation.quotation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quotation.customer?.mobile.includes(searchTerm)
   );
-
-  const handleDownloadPDF = async (quotationId: string) => {
-    try {
-      const quotation = quotations.find(q => q.id === quotationId);
-      if (!quotation) {
-        toast.error("Quotation not found");
-        return;
-      }
-
-      // Temporarily disabled PDF generation until we can fix the import issue
-      toast.info("PDF generation is temporarily disabled. Please use the PDF button from the quotation details page.");
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF");
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -59,18 +37,12 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEdi
   };
 
   if (isLoading) {
-    console.log("QuotationList showing loading state");
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-600">Loading quotations...</p>
-        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
-
-  console.log("QuotationList rendering content with", filteredQuotations.length, "quotations");
 
   return (
     <div className="space-y-6">
@@ -79,12 +51,8 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEdi
           <h1 className="text-2xl font-bold text-gray-800">Quotations</h1>
           <p className="text-gray-600">Manage customer quotations and proposals</p>
         </div>
-        <Button onClick={onAddQuotation} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Create Quotation
-        </Button>
       </div>
-      
+
       <div className="relative">
         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
         <Input
@@ -136,30 +104,15 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEdi
               </div>
               
               <div className="flex gap-2 pt-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="flex-1 text-xs"
-                  onClick={() => onViewQuotation(quotation.id)}
-                >
+                <Button size="sm" variant="outline" className="flex-1 text-xs">
                   <FileText className="h-3 w-3 mr-1" />
                   View
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="flex-1 text-xs"
-                  onClick={() => handleDownloadPDF(quotation.id)}
-                >
+                <Button size="sm" variant="outline" className="flex-1 text-xs">
                   <Download className="h-3 w-3 mr-1" />
                   PDF
                 </Button>
-                <Button 
-                  size="sm" 
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                  onClick={() => onEditQuotation(quotation.id)}
-                >
-                  <Edit className="h-3 w-3 mr-1" />
+                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
                   Edit
                 </Button>
               </div>
