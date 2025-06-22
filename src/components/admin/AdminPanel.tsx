@@ -11,11 +11,10 @@ import {
   UserCog,
   Calendar
 } from "lucide-react";
-import { TileManagement } from "./TileManagement";
 import { WorkerManagement } from "./WorkerManagement";
 
 export const AdminPanel = () => {
-  const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "worker-management">("dashboard");
 
   const stats = [
     { label: "Total Customers", value: "1,234", icon: Users, change: "+12%", color: "text-blue-600" },
@@ -30,10 +29,6 @@ export const AdminPanel = () => {
     { type: "tile", message: "15 new tiles added to catalog", time: "1 day ago" },
     { type: "user", message: "New worker account created for Mike Johnson", time: "2 days ago" }
   ];
-
-  if (activeView === "tile-management") {
-    return <TileManagement onBack={() => setActiveView("dashboard")} />;
-  }
 
   if (activeView === "worker-management") {
     return <WorkerManagement onBack={() => setActiveView("dashboard")} />;
@@ -85,14 +80,6 @@ export const AdminPanel = () => {
             >
               <UserCog className="h-4 w-4" />
               Manage Workers
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-3 h-12"
-              onClick={() => setActiveView("tile-management")}
-            >
-              <Grid3X3 className="h-4 w-4" />
-              Manage Tile Catalog
             </Button>
           </CardContent>
         </Card>
