@@ -26,7 +26,7 @@ interface SidebarProps {
 const sidebarItems = [
   { id: "customers" as ActiveView, label: "Customers", icon: Users, roles: ["admin", "worker"] },
   { id: "add-customer" as ActiveView, label: "Add Customer", icon: UserPlus, roles: ["worker"] },
-  { id: "tiles" as ActiveView, label: "Tile Catalog", icon: Grid3X3, roles: ["admin", "worker"] },
+  { id: "tiles" as ActiveView, label: "Tile Catalog", icon: Grid3X3, roles: ["worker"] },
   { id: "quotations" as ActiveView, label: "Quotations", icon: FileText, roles: ["admin", "worker"] },
   { id: "admin" as ActiveView, label: "Admin Panel", icon: Settings, roles: ["admin"] },
 ];

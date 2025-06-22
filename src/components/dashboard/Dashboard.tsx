@@ -38,11 +38,11 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const renderContent = () => {
     switch (activeView) {
       case "customers":
-        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} onNewQuote={() => setActiveView("view-rooms")} />;
+        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
       case "add-customer":
         return user.role === "worker" ? <CustomerForm onBack={() => setActiveView("customers")} /> : <div>Access denied</div>;
       case "tiles":
-        return <TileCatalog />;
+        return user.role === "worker" ? <TileCatalog /> : <div>Access denied</div>;
       case "quotations":
         return <QuotationList userRole={user.role} />;
       case "admin":
@@ -52,7 +52,7 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "add-room":
         return user.role === "worker" ? <RoomForm onBack={() => setActiveView("view-rooms")} /> : <div>Access denied</div>;
       default:
-        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} onNewQuote={() => setActiveView("view-rooms")} />;
+        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
     }
   };
 
