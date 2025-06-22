@@ -58,7 +58,17 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   );
 
   const handleAddTile = (data: TileFormData) => {
-    createTileMutation.mutate(data, {
+    // Ensure all required fields are present and convert image_url to proper format
+    const tileData = {
+      code: data.code,
+      name: data.name,
+      size_length: data.size_length,
+      size_breadth: data.size_breadth,
+      price_per_sqm: data.price_per_sqm,
+      image_url: data.image_url || null,
+    };
+    
+    createTileMutation.mutate(tileData, {
       onSuccess: () => {
         setIsAddDialogOpen(false);
         form.reset();
@@ -68,16 +78,23 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
   const handleEditTile = (data: TileFormData) => {
     if (editingTile) {
-      updateTileMutation.mutate(
-        { id: editingTile.id, ...data },
-        {
-          onSuccess: () => {
-            setIsEditDialogOpen(false);
-            setEditingTile(null);
-            form.reset();
-          },
-        }
-      );
+      const updateData = {
+        id: editingTile.id,
+        code: data.code,
+        name: data.name,
+        size_length: data.size_length,
+        size_breadth: data.size_breadth,
+        price_per_sqm: data.price_per_sqm,
+        image_url: data.image_url || null,
+      };
+      
+      updateTileMutation.mutate(updateData, {
+        onSuccess: () => {
+          setIsEditDialogOpen(false);
+          setEditingTile(null);
+          form.reset();
+        },
+      });
     }
   };
 
@@ -147,6 +164,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleAddTile)} className="space-y-4">
+                
                 <FormField
                   control={form.control}
                   name="code"
@@ -265,6 +283,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         </Dialog>
       </div>
 
+      
       <Card>
         <CardHeader>
           <CardTitle>Tile Database ({filteredTiles.length} tiles)</CardTitle>
@@ -369,6 +388,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleEditTile)} className="space-y-4">
+              
               <FormField
                 control={form.control}
                 name="code"
