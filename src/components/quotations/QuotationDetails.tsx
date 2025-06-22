@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, FileText, Calendar, IndianRupee, User, Phone, MapPin, Download, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { generateQuotationPDF } from "@/utils/pdfGenerator";
+import { toast } from "sonner";
 
 interface QuotationDetailsProps {
   quotationId: string;
@@ -92,6 +93,21 @@ export const QuotationDetails = ({ quotationId, onBack, onEdit, userRole }: Quot
     queryFn: () => fetchQuotationDetails(quotationId),
   });
 
+  const handleDownloadPDF = () => {
+    if (!quotation) {
+      toast.error("Quotation data not available");
+      return;
+    }
+
+    try {
+      generateQuotationPDF(quotation);
+      toast.success("PDF downloaded successfully");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "sent":
@@ -153,7 +169,7 @@ export const QuotationDetails = ({ quotationId, onBack, onEdit, userRole }: Quot
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>

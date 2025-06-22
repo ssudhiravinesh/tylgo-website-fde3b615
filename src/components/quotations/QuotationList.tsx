@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Edit } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
+import { generateQuotationPDF } from "@/utils/pdfGenerator";
+import { toast } from "sonner";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
@@ -23,6 +24,23 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEdi
     quotation.quotation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quotation.customer?.mobile.includes(searchTerm)
   );
+
+  const handleDownloadPDF = async (quotationId: string) => {
+    try {
+      const quotation = quotations.find(q => q.id === quotationId);
+      if (!quotation) {
+        toast.error("Quotation not found");
+        return;
+      }
+
+      // We need to fetch the full quotation details including items
+      // For now, we'll show a message that PDF generation requires full quotation data
+      toast.error("PDF generation requires full quotation data. Please use the PDF button from the quotation details page.");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -59,7 +77,7 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEdi
           Create Quotation
         </Button>
       </div>
-
+      
       <div className="relative">
         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
         <Input
@@ -120,7 +138,12 @@ export const QuotationList = ({ userRole, onAddQuotation, onViewQuotation, onEdi
                   <FileText className="h-3 w-3 mr-1" />
                   View
                 </Button>
-                <Button size="sm" variant="outline" className="flex-1 text-xs">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1 text-xs"
+                  onClick={() => handleDownloadPDF(quotation.id)}
+                >
                   <Download className="h-3 w-3 mr-1" />
                   PDF
                 </Button>
