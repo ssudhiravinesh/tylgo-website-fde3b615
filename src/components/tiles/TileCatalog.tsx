@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Grid3X3, QrCode, Ruler, IndianRupee, Plus, Users, Check } from "lucide-react";
+import { Search, Grid3X3, QrCode, Ruler, IndianRupee, Plus, Users, Check, X } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useSaveRoomTileSelections } from "@/hooks/useRooms";
@@ -27,7 +27,7 @@ export const TileCatalog = ({
   showAssignButton = true 
 }: TileCatalogProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTile, setSelectedTile] = useState<string | null>(null);
+  const [selectedTiles, setSelectedTiles] = useState<string[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId);
   const [selectedRooms, setSelectedRooms] = useState<string[]>(preSelectedRoomIds);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -37,41 +37,73 @@ export const TileCatalog = ({
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
 
+  // Reset selections when customer changes
+  useEffect(() => {
+    if (selectedCustomerId !== preSelectedCustomerId) {
+      setSelectedTiles([]);
+      setSelectedRooms([]);
+    }
+  }, [selectedCustomerId, preSelectedCustomerId]);
+
   const filteredTiles = tiles.filter(tile =>
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleTileSelect = (tileId: string) => {
-    setSelectedTile(selectedTile === tileId ? null : tileId);
-    
-    // If this is being used as a selector (from tile selection step), call the callback
-    if (onTileSelected && selectedTile !== tileId) {
+    // If this is being used as a single selector (from tile selection step), call the callback
+    if (onTileSelected) {
       onTileSelected(tileId);
-    }
-  };
-
-  const handleAssignTile = async () => {
-    if (!selectedTile || !selectedCustomerId || selectedRooms.length === 0) {
-      toast.error("Please select a customer and at least one room");
       return;
     }
 
-    const selectionsToSave = selectedRooms.map(roomId => ({
-      customer_id: selectedCustomerId,
-      room_id: roomId,
-      tile_id: selectedTile
-    }));
+    // Multi-selection mode for assign to rooms
+    setSelectedTiles(prev => 
+      prev.includes(tileId) 
+        ? prev.filter(id => id !== tileId)
+        : [...prev, tileId]
+    );
+  };
+
+  const handleTileCheckboxChange = (tileId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedTiles(prev => [...prev, tileId]);
+    } else {
+      setSelectedTiles(prev => prev.filter(id => id !== tileId));
+    }
+  };
+
+  const handleSelectAllTiles = () => {
+    if (selectedTiles.length === filteredTiles.length) {
+      setSelectedTiles([]);
+    } else {
+      setSelectedTiles(filteredTiles.map(tile => tile.id));
+    }
+  };
+
+  const handleAssignTiles = async () => {
+    if (selectedTiles.length === 0 || !selectedCustomerId || selectedRooms.length === 0) {
+      toast.error("Please select tiles, a customer, and at least one room");
+      return;
+    }
+
+    const selectionsToSave = selectedTiles.flatMap(tileId =>
+      selectedRooms.map(roomId => ({
+        customer_id: selectedCustomerId,
+        room_id: roomId,
+        tile_id: tileId
+      }))
+    );
 
     try {
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
-      toast.success(`Tile assigned to ${selectedRooms.length} room(s) successfully!`);
+      toast.success(`${selectedTiles.length} tile(s) assigned to ${selectedRooms.length} room(s) successfully!`);
       setIsAssignDialogOpen(false);
       setSelectedRooms([]);
-      setSelectedTile(null);
+      setSelectedTiles([]);
     } catch (error) {
-      console.error("Error assigning tile:", error);
-      toast.error("Failed to assign tile to rooms");
+      console.error("Error assigning tiles:", error);
+      toast.error("Failed to assign tiles to rooms");
     }
   };
 
@@ -91,6 +123,10 @@ export const TileCatalog = ({
     }
   };
 
+  const clearSelectedTiles = () => {
+    setSelectedTiles([]);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -108,10 +144,12 @@ export const TileCatalog = ({
         </div>
         
         {showAssignButton && (
-          <Button variant="outline" className="gap-2">
-            <QrCode className="h-4 w-4" />
-            Scan QR Code
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2">
+              <QrCode className="h-4 w-4" />
+              Scan QR Code
+            </Button>
+          </div>
         )}
       </div>
 
@@ -125,12 +163,150 @@ export const TileCatalog = ({
         />
       </div>
 
+      {showAssignButton && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={selectedTiles.length === filteredTiles.length && filteredTiles.length > 0}
+                onCheckedChange={handleSelectAllTiles}
+              />
+              <span className="text-sm font-medium">
+                Select All ({selectedTiles.length} selected)
+              </span>
+            </div>
+            {selectedTiles.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearSelectedTiles}
+                className="gap-2"
+              >
+                <X className="h-4 w-4" />
+                Clear Selection
+              </Button>
+            )}
+          </div>
+          
+          {selectedTiles.length > 0 && (
+            <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Assign {selectedTiles.length} Tile(s) to Rooms
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Assign {selectedTiles.length} Tiles to Customer Rooms
+                  </DialogTitle>
+                </DialogHeader>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Selected Tiles:</label>
+                    <div className="max-h-32 overflow-y-auto space-y-1 p-2 border rounded">
+                      {selectedTiles.map(tileId => {
+                        const tile = tiles.find(t => t.id === tileId);
+                        return tile ? (
+                          <div key={tileId} className="flex items-center gap-2 text-sm">
+                            <Badge variant="secondary" className="text-xs">{tile.code}</Badge>
+                            <span>{tile.name}</span>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Select Customer</label>
+                    <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a customer..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedCustomerId && rooms.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium">Select Rooms</label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSelectAllRooms}
+                          className="h-7 text-xs"
+                        >
+                          {selectedRooms.length === rooms.length ? 'Deselect All' : 'Select All'}
+                        </Button>
+                      </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
+                        {rooms.map((room) => (
+                          <div key={room.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                            <Checkbox
+                              id={room.id}
+                              checked={selectedRooms.includes(room.id)}
+                              onCheckedChange={() => handleRoomToggle(room.id)}
+                            />
+                            <label htmlFor={room.id} className="text-sm flex-1 cursor-pointer">
+                              <span className="font-medium">{room.name}</span>
+                              <span className="text-gray-500 ml-2">
+                                ({(room.length * room.width).toFixed(2)} {room.unit}²)
+                              </span>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {selectedRooms.length} of {rooms.length} rooms selected
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCustomerId && rooms.length === 0 && (
+                    <p className="text-sm text-gray-500 py-4 text-center">
+                      No rooms found for this customer. Please add rooms first.
+                    </p>
+                  )}
+
+                  <div className="flex gap-2 pt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsAssignDialogOpen(false)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleAssignTiles}
+                      disabled={selectedTiles.length === 0 || !selectedCustomerId || selectedRooms.length === 0 || saveSelectionsMutation.isPending}
+                      className="flex-1"
+                    >
+                      {saveSelectionsMutation.isPending ? 'Assigning...' : 'Assign Tiles'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredTiles.map((tile) => (
           <Card 
             key={tile.id} 
             className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-gray-200 ${
-              selectedTile === tile.id ? 'ring-2 ring-blue-500 border-blue-500' : ''
+              selectedTiles.includes(tile.id) ? 'ring-2 ring-blue-500 border-blue-500' : ''
             }`}
             onClick={() => handleTileSelect(tile.id)}
           >
@@ -152,12 +328,21 @@ export const TileCatalog = ({
                   <Badge variant="secondary" className="text-xs font-mono">
                     {tile.code}
                   </Badge>
-                  {selectedTile === tile.id && (
-                    <Badge className="bg-blue-600 text-white text-xs">
-                      <Check className="h-3 w-3 mr-1" />
-                      Selected
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {selectedTiles.includes(tile.id) && (
+                      <Badge className="bg-blue-600 text-white text-xs">
+                        <Check className="h-3 w-3 mr-1" />
+                        Selected
+                      </Badge>
+                    )}
+                    {showAssignButton && !onTileSelected && (
+                      <Checkbox
+                        checked={selectedTiles.includes(tile.id)}
+                        onCheckedChange={(checked) => handleTileCheckboxChange(tile.id, checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
+                  </div>
                 </div>
                 
                 <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">
@@ -173,109 +358,6 @@ export const TileCatalog = ({
                   <IndianRupee className="h-4 w-4" />
                   {tile.price_per_sqm}/m²
                 </div>
-
-                {selectedTile === tile.id && showAssignButton && (
-                  <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        size="sm" 
-                        className="w-full mt-2 gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsAssignDialogOpen(true);
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Assign to Rooms
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <Users className="h-5 w-5" />
-                          Assign Tile to Customer Rooms
-                        </DialogTitle>
-                      </DialogHeader>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Select Customer</label>
-                          <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a customer..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {customers.map((customer) => (
-                                <SelectItem key={customer.id} value={customer.id}>
-                                  {customer.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {selectedCustomerId && rooms.length > 0 && (
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <label className="text-sm font-medium">Select Rooms</label>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleSelectAllRooms}
-                                className="h-7 text-xs"
-                              >
-                                {selectedRooms.length === rooms.length ? 'Deselect All' : 'Select All'}
-                              </Button>
-                            </div>
-                            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
-                              {rooms.map((room) => (
-                                <div key={room.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
-                                  <Checkbox
-                                    id={room.id}
-                                    checked={selectedRooms.includes(room.id)}
-                                    onCheckedChange={() => handleRoomToggle(room.id)}
-                                  />
-                                  <label htmlFor={room.id} className="text-sm flex-1 cursor-pointer">
-                                    <span className="font-medium">{room.name}</span>
-                                    <span className="text-gray-500 ml-2">
-                                      ({(room.length * room.width).toFixed(2)} {room.unit}²)
-                                    </span>
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {selectedRooms.length} of {rooms.length} rooms selected
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedCustomerId && rooms.length === 0 && (
-                          <p className="text-sm text-gray-500 py-4 text-center">
-                            No rooms found for this customer. Please add rooms first.
-                          </p>
-                        )}
-
-                        <div className="flex gap-2 pt-4">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setIsAssignDialogOpen(false)}
-                            className="flex-1"
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            onClick={handleAssignTile}
-                            disabled={!selectedCustomerId || selectedRooms.length === 0 || saveSelectionsMutation.isPending}
-                            className="flex-1"
-                          >
-                            {saveSelectionsMutation.isPending ? 'Assigning...' : 'Assign Tile'}
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
               </div>
             </CardContent>
           </Card>
