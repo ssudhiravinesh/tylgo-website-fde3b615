@@ -37,7 +37,15 @@ export type Database = {
           name?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_attended_by_fkey"
+            columns: ["attended_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -163,6 +171,13 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "quotations_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       rooms: {
@@ -174,8 +189,8 @@ export type Database = {
           id: string
           length: number
           name: string
-          surface_type: string
-          unit: string
+          surface_type: string | null
+          unit: string | null
         }
         Insert: {
           area?: number | null
@@ -185,8 +200,8 @@ export type Database = {
           id?: string
           length: number
           name: string
-          surface_type?: string
-          unit?: string
+          surface_type?: string | null
+          unit?: string | null
         }
         Update: {
           area?: number | null
@@ -196,8 +211,8 @@ export type Database = {
           id?: string
           length?: number
           name?: string
-          surface_type?: string
-          unit?: string
+          surface_type?: string | null
+          unit?: string | null
         }
         Relationships: [
           {

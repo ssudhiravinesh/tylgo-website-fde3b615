@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, User, Phone, MapPin } from "lucide-react";
-import { toast } from "sonner";
+import { useCreateCustomer } from "@/hooks/useCustomers";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CustomerFormProps {
   onBack: () => void;
@@ -18,7 +19,9 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
     mobile: "",
     address: ""
   });
-  const [isLoading, setIsLoading] = useState(false);
+  
+  const { user, profile } = useAuth();
+  const createCustomer = useCreateCustomer();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -26,16 +29,21 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (!user || !profile) {
+      console.error("User not authenticated");
+      return;
+    }
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log("New customer:", formData);
-    toast.success("Customer added successfully!");
-    
-    setIsLoading(false);
-    onBack();
+    try {
+      await createCustomer.mutateAsync({
+        ...formData,
+        attended_by: profile.id
+      });
+      onBack();
+    } catch (error) {
+      console.error("Error creating customer:", error);
+    }
   };
 
   return (
@@ -130,11 +138,11 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
               </Button>
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={createCustomer.isPending}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-2"
               >
                 <Save className="h-4 w-4" />
-                {isLoading ? "Saving..." : "Save Customer"}
+                {createCustomer.isPending ? "Saving..." : "Save Customer"}
               </Button>
             </div>
           </form>

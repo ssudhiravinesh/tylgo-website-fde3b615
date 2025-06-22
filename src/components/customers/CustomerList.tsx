@@ -5,51 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, Search, Phone, MapPin, Calendar, User } from "lucide-react";
+import { useCustomers } from "@/hooks/useCustomers";
 
 interface CustomerListProps {
   onAddCustomer: () => void;
   userRole: "admin" | "worker";
 }
 
-// Mock data - in real app this would come from database
-const mockCustomers = [
-  {
-    id: "1",
-    name: "Rajesh Kumar",
-    mobile: "+91 98765 43210",
-    address: "123 MG Road, Bangalore",
-    attendedBy: "John Doe",
-    createdAt: "2024-01-15",
-    quotationsCount: 3
-  },
-  {
-    id: "2",
-    name: "Priya Sharma",
-    mobile: "+91 87654 32109",
-    address: "456 Park Street, Mumbai",
-    attendedBy: "Jane Smith", 
-    createdAt: "2024-01-20",
-    quotationsCount: 1
-  },
-  {
-    id: "3",
-    name: "Mohammed Ali",
-    mobile: "+91 76543 21098",
-    address: "789 Brigade Road, Chennai",
-    attendedBy: "John Doe",
-    createdAt: "2024-01-25",
-    quotationsCount: 2
-  }
-];
-
 export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const { data: customers = [], isLoading } = useCustomers();
   
-  const filteredCustomers = mockCustomers.filter(customer =>
+  const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.mobile.includes(searchTerm) ||
-    customer.address.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -88,7 +67,7 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
                   {customer.name}
                 </CardTitle>
                 <Badge variant="outline" className="text-xs">
-                  {customer.quotationsCount} quotes
+                  New
                 </Badge>
               </div>
             </CardHeader>
@@ -99,20 +78,16 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
                 {customer.mobile}
               </div>
               
-              <div className="flex items-start gap-2 text-sm text-gray-600">
-                <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <span className="line-clamp-2">{customer.address}</span>
-              </div>
+              {customer.address && (
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <span className="line-clamp-2">{customer.address}</span>
+                </div>
+              )}
               
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <Calendar className="h-4 w-4" />
-                Added {new Date(customer.createdAt).toLocaleDateString()}
-              </div>
-              
-              <div className="pt-2 border-t border-gray-100">
-                <p className="text-xs text-gray-500">
-                  Attended by: <span className="font-medium text-gray-700">{customer.attendedBy}</span>
-                </p>
+                Added {new Date(customer.created_at).toLocaleDateString()}
               </div>
               
               <div className="flex gap-2 pt-2">
@@ -128,7 +103,7 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
         ))}
       </div>
 
-      {filteredCustomers.length === 0 && (
+      {filteredCustomers.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600 mb-2">No customers found</h3>

@@ -5,73 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Grid3X3, QrCode, Ruler, IndianRupee } from "lucide-react";
-
-// Mock tile data
-const mockTiles = [
-  {
-    id: "1",
-    code: "TH001",
-    name: "Marble Classic White",
-    sizeLength: 600,
-    sizeBreadth: 600,
-    pricePerSqm: 450,
-    imageUrl: "/placeholder.svg"
-  },
-  {
-    id: "2", 
-    code: "TH002",
-    name: "Wooden Oak Brown",
-    sizeLength: 800,
-    sizeBreadth: 200,
-    pricePerSqm: 580,
-    imageUrl: "/placeholder.svg"
-  },
-  {
-    id: "3",
-    code: "TH003",
-    name: "Stone Grey Textured",
-    sizeLength: 300,
-    sizeBreadth: 300,
-    pricePerSqm: 320,
-    imageUrl: "/placeholder.svg"
-  },
-  {
-    id: "4",
-    code: "TH004",
-    name: "Ceramic Blue Ocean",
-    sizeLength: 400,
-    sizeBreadth: 400,
-    pricePerSqm: 275,
-    imageUrl: "/placeholder.svg"
-  },
-  {
-    id: "5",
-    code: "TH005",
-    name: "Granite Black Pearl",
-    sizeLength: 600,
-    sizeBreadth: 300,
-    pricePerSqm: 680,
-    imageUrl: "/placeholder.svg"
-  },
-  {
-    id: "6",
-    code: "TH006",
-    name: "Mosaic Multi Color",
-    sizeLength: 250,
-    sizeBreadth: 250,
-    pricePerSqm: 420,
-    imageUrl: "/placeholder.svg"
-  }
-];
+import { useTiles } from "@/hooks/useTiles";
 
 export const TileCatalog = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTile, setSelectedTile] = useState<string | null>(null);
+  const { data: tiles = [], isLoading } = useTiles();
 
-  const filteredTiles = mockTiles.filter(tile =>
+  const filteredTiles = tiles.filter(tile =>
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -129,12 +81,12 @@ export const TileCatalog = () => {
                 
                 <div className="flex items-center gap-1 text-xs text-gray-600">
                   <Ruler className="h-3 w-3" />
-                  {tile.sizeLength} × {tile.sizeBreadth} mm
+                  {tile.size_length} × {tile.size_breadth} mm
                 </div>
                 
                 <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
                   <IndianRupee className="h-4 w-4" />
-                  {tile.pricePerSqm}/m²
+                  {tile.price_per_sqm}/m²
                 </div>
                 
                 <Button 
@@ -142,7 +94,6 @@ export const TileCatalog = () => {
                   className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Handle add to quotation
                     console.log("Add to quotation:", tile);
                   }}
                 >
@@ -154,7 +105,7 @@ export const TileCatalog = () => {
         ))}
       </div>
 
-      {filteredTiles.length === 0 && (
+      {filteredTiles.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <Grid3X3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
