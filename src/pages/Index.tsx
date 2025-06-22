@@ -1,27 +1,41 @@
 
-import { Navigate } from "react-router-dom";
+import { useState } from "react";
+import { LoginForm } from "@/components/auth/LoginForm";
 import { Dashboard } from "@/components/dashboard/Dashboard";
-import { useAuth } from "@/contexts/AuthContext";
+
+// Mock user for demo - in real app this would come from auth context
+const mockUser = {
+  id: "1",
+  name: "John Doe",
+  email: "john@tilehaven.com",
+  role: "admin" as "admin" | "worker"
+};
 
 const Index = () => {
-  const { user, profile, loading, signOut } = useAuth();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<typeof mockUser | null>(null);
 
-  if (loading) {
+  const handleLogin = (email: string, password: string) => {
+    // Mock authentication - in real app this would call Supabase
+    console.log("Login attempt:", { email, password });
+    setUser(mockUser);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <LoginForm onLogin={handleLogin} />
       </div>
     );
   }
 
-  if (!user || !profile) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  return <Dashboard user={profile} onLogout={signOut} />;
+  return <Dashboard user={user!} onLogout={handleLogout} />;
 };
 
 export default Index;

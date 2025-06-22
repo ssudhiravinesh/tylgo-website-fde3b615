@@ -1,79 +1,77 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Grid3X3, QrCode, Ruler, IndianRupee } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
-interface Tile {
-  id: string;
-  code: string;
-  name: string;
-  size_length: number;
-  size_breadth: number;
-  price_per_sqm: number;
-  image_url: string | null;
-}
+// Mock tile data
+const mockTiles = [
+  {
+    id: "1",
+    code: "TH001",
+    name: "Marble Classic White",
+    sizeLength: 600,
+    sizeBreadth: 600,
+    pricePerSqm: 450,
+    imageUrl: "/placeholder.svg"
+  },
+  {
+    id: "2", 
+    code: "TH002",
+    name: "Wooden Oak Brown",
+    sizeLength: 800,
+    sizeBreadth: 200,
+    pricePerSqm: 580,
+    imageUrl: "/placeholder.svg"
+  },
+  {
+    id: "3",
+    code: "TH003",
+    name: "Stone Grey Textured",
+    sizeLength: 300,
+    sizeBreadth: 300,
+    pricePerSqm: 320,
+    imageUrl: "/placeholder.svg"
+  },
+  {
+    id: "4",
+    code: "TH004",
+    name: "Ceramic Blue Ocean",
+    sizeLength: 400,
+    sizeBreadth: 400,
+    pricePerSqm: 275,
+    imageUrl: "/placeholder.svg"
+  },
+  {
+    id: "5",
+    code: "TH005",
+    name: "Granite Black Pearl",
+    sizeLength: 600,
+    sizeBreadth: 300,
+    pricePerSqm: 680,
+    imageUrl: "/placeholder.svg"
+  },
+  {
+    id: "6",
+    code: "TH006",
+    name: "Mosaic Multi Color",
+    sizeLength: 250,
+    sizeBreadth: 250,
+    pricePerSqm: 420,
+    imageUrl: "/placeholder.svg"
+  }
+];
 
-interface TileCatalogProps {
-  userRole: "admin" | "worker";
-}
-
-export const TileCatalog = ({ userRole }: TileCatalogProps) => {
-  const [tiles, setTiles] = useState<Tile[]>([]);
-  const [loading, setLoading] = useState(true);
+export const TileCatalog = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTile, setSelectedTile] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchTiles();
-  }, []);
-
-  const fetchTiles = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tiles')
-        .select('*')
-        .order('name');
-
-      if (error) {
-        console.error('Error fetching tiles:', error);
-        toast.error('Failed to load tiles');
-        return;
-      }
-
-      setTiles(data || []);
-    } catch (error) {
-      console.error('Error fetching tiles:', error);
-      toast.error('Failed to load tiles');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredTiles = tiles.filter(tile =>
+  const filteredTiles = mockTiles.filter(tile =>
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Tile Catalog</h1>
-            <p className="text-gray-600">Loading tiles...</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -131,12 +129,12 @@ export const TileCatalog = ({ userRole }: TileCatalogProps) => {
                 
                 <div className="flex items-center gap-1 text-xs text-gray-600">
                   <Ruler className="h-3 w-3" />
-                  {tile.size_length} × {tile.size_breadth} cm
+                  {tile.sizeLength} × {tile.sizeBreadth} mm
                 </div>
                 
                 <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
                   <IndianRupee className="h-4 w-4" />
-                  {tile.price_per_sqm}/m²
+                  {tile.pricePerSqm}/m²
                 </div>
                 
                 <Button 
@@ -144,7 +142,8 @@ export const TileCatalog = ({ userRole }: TileCatalogProps) => {
                   className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs"
                   onClick={(e) => {
                     e.stopPropagation();
-                    toast.success(`${tile.name} added to quote`);
+                    // Handle add to quotation
+                    console.log("Add to quotation:", tile);
                   }}
                 >
                   Add to Quote
@@ -155,7 +154,7 @@ export const TileCatalog = ({ userRole }: TileCatalogProps) => {
         ))}
       </div>
 
-      {filteredTiles.length === 0 && !loading && (
+      {filteredTiles.length === 0 && (
         <div className="text-center py-12">
           <Grid3X3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
