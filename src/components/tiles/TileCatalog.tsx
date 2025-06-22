@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -64,9 +65,8 @@ export const TileCatalog = ({
     );
   };
 
-  const handleTileCheckboxChange = (tileId: string, checked: string | boolean) => {
-    const isChecked = checked === true || checked === "true";
-    if (isChecked) {
+  const handleTileCheckboxChange = (tileId: string, checked: boolean) => {
+    if (checked) {
       setSelectedTiles(prev => [...prev, tileId]);
     } else {
       setSelectedTiles(prev => prev.filter(id => id !== tileId));
