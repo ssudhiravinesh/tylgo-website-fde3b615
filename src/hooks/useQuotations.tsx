@@ -23,22 +23,6 @@ export interface Quotation {
   };
 }
 
-export interface QuotationItem {
-  tile_id: string;
-  room_id: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
-}
-
-export interface CreateQuotationData {
-  customer_id: string;
-  status: 'draft' | 'sent' | 'approved' | 'rejected';
-  total_cost: number;
-  notes?: string;
-  items: QuotationItem[];
-}
-
 const fetchQuotations = async (): Promise<Quotation[]> => {
   const { data, error } = await supabase
     .from('quotations')
@@ -81,56 +65,29 @@ export const useCreateQuotation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (quotationData: CreateQuotationData) => {
+    mutationFn: async (quotationData: Omit<Quotation, 'id' | 'quotation_number' | 'worker_id' | 'created_at' | 'updated_at'>) => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // Start a Supabase transaction
-      const { data: quotation, error: quotationError } = await supabase
+      const { data, error } = await supabase
         .from('quotations')
         .insert([{
-          customer_id: quotationData.customer_id,
-          status: quotationData.status,
-          total_cost: quotationData.total_cost,
-          notes: quotationData.notes,
+          ...quotationData,
           quotation_number: generateQuotationNumber(),
           worker_id: user.id
         }])
         .select()
         .single();
 
-      if (quotationError) {
-        console.error('Error creating quotation:', quotationError);
-        throw quotationError;
+      if (error) {
+        console.error('Error creating quotation:', error);
+        throw error;
       }
 
-      // Insert quotation items
-      if (quotationData.items.length > 0) {
-        const itemsToInsert = quotationData.items.map(item => ({
-          quotation_id: quotation.id,
-          tile_id: item.tile_id,
-          room_id: item.room_id,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: item.total_price
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('quotation_items')
-          .insert(itemsToInsert);
-
-        if (itemsError) {
-          console.error('Error creating quotation items:', itemsError);
-          // Clean up the quotation if items failed to insert
-          await supabase.from('quotations').delete().eq('id', quotation.id);
-          throw itemsError;
-        }
-      }
-
-      return quotation;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
