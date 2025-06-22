@@ -4,13 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Home, Plus, Calendar, Edit, Trash2 } from "lucide-react";
-import { useRooms, useDeleteRoom } from "@/hooks/useRooms";
+import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 
-export const RoomManagement = () => {
-  const { data: rooms = [], isLoading } = useRooms();
+interface RoomManagementProps {
+  customerId?: string;
+}
+
+export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
+  const { data: rooms = [], isLoading } = useRoomsByCustomer(customerId);
   const deleteRoomMutation = useDeleteRoom();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -57,13 +61,20 @@ export const RoomManagement = () => {
         <Button 
           onClick={() => setIsFormOpen(true)}
           className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+          disabled={!customerId}
         >
           <Plus className="h-4 w-4" />
           Add New Room
         </Button>
       </div>
 
-      {rooms.length === 0 ? (
+      {!customerId ? (
+        <div className="text-center py-12">
+          <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-600 mb-2">No customer selected</h3>
+          <p className="text-gray-500">Please select a customer to manage their rooms</p>
+        </div>
+      ) : rooms.length === 0 ? (
         <div className="text-center py-12">
           <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600 mb-2">No rooms found</h3>
@@ -125,6 +136,7 @@ export const RoomManagement = () => {
         isOpen={isFormOpen}
         onClose={handleCloseForm}
         room={editingRoom}
+        customerId={customerId}
       />
     </div>
   );

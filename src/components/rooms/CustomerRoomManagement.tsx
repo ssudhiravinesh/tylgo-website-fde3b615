@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Edit, Trash2, Ruler, Calculator } from "lucide-react";
+import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
+import { TileSelectionStep } from "./TileSelectionStep";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 
@@ -19,6 +20,7 @@ export const CustomerRoomManagement = () => {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [showTileSelection, setShowTileSelection] = useState(false);
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
@@ -48,8 +50,16 @@ export const CustomerRoomManagement = () => {
     return (room.length * room.width).toFixed(2);
   };
 
-  const calculateVolume = (room: Room) => {
-    return (room.length * room.width * room.height).toFixed(2);
+  const handleProceedToTileSelection = () => {
+    if (rooms.length === 0) {
+      toast.error("Please add at least one room before selecting tiles");
+      return;
+    }
+    setShowTileSelection(true);
+  };
+
+  const handleBackToRooms = () => {
+    setShowTileSelection(false);
   };
 
   if (customersLoading) {
@@ -57,6 +67,16 @@ export const CustomerRoomManagement = () => {
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  if (showTileSelection && selectedCustomerId && rooms.length > 0) {
+    return (
+      <TileSelectionStep
+        customerId={selectedCustomerId}
+        rooms={rooms}
+        onBack={handleBackToRooms}
+      />
     );
   }
 
@@ -103,13 +123,24 @@ export const CustomerRoomManagement = () => {
               <p className="text-sm text-gray-600">Address: {selectedCustomer.address}</p>
             )}
           </div>
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Add Room
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setIsFormOpen(true)}
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="h-4 w-4" />
+              Add Room
+            </Button>
+            {rooms.length > 0 && (
+              <Button
+                onClick={handleProceedToTileSelection}
+                className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                Select Tiles
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -176,12 +207,6 @@ export const CustomerRoomManagement = () => {
                         <span className="text-gray-600">Width:</span>
                       </div>
                       <span className="font-medium">{room.width} {room.unit}</span>
-                      
-                      <div className="flex items-center gap-1">
-                        <Ruler className="h-3 w-3 text-gray-500" />
-                        <span className="text-gray-600">Height:</span>
-                      </div>
-                      <span className="font-medium">{room.height} {room.unit}</span>
                     </div>
                     
                     <div className="pt-2 border-t border-gray-100">
@@ -192,16 +217,6 @@ export const CustomerRoomManagement = () => {
                         </div>
                         <Badge variant="outline" className="text-green-600 border-green-200">
                           {calculateArea(room)} {room.unit}²
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-sm mt-1">
-                        <div className="flex items-center gap-1">
-                          <Calculator className="h-3 w-3 text-blue-600" />
-                          <span className="text-gray-600">Volume:</span>
-                        </div>
-                        <Badge variant="outline" className="text-blue-600 border-blue-200">
-                          {calculateVolume(room)} {room.unit}³
                         </Badge>
                       </div>
                     </div>

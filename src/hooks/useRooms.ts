@@ -46,7 +46,10 @@ const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
     throw error;
   }
 
-  return data || [];
+  return (data || []).map(room => ({
+    ...room,
+    unit: room.unit as 'metre' | 'inches' | 'mm'
+  }));
 };
 
 const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
@@ -61,7 +64,10 @@ const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
     throw error;
   }
 
-  return data;
+  return {
+    ...data,
+    unit: data.unit as 'metre' | 'inches' | 'mm'
+  };
 };
 
 const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
@@ -79,7 +85,10 @@ const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
     throw error;
   }
 
-  return data;
+  return {
+    ...data,
+    unit: data.unit as 'metre' | 'inches' | 'mm'
+  };
 };
 
 const deleteRoom = async (roomId: string): Promise<void> => {
