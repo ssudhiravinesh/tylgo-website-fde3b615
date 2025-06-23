@@ -140,9 +140,10 @@ export const useDeleteQuotation = () => {
 
   return useMutation({
     mutationFn: async (quotationId: string) => {
-      console.log('Deleting quotation:', quotationId);
+      console.log('Starting deletion process for quotation:', quotationId);
       
-      // First delete all quotation items
+      // First, delete all quotation items associated with this quotation
+      console.log('Deleting quotation items...');
       const { error: itemsError } = await supabase
         .from('quotation_items')
         .delete()
@@ -150,34 +151,53 @@ export const useDeleteQuotation = () => {
 
       if (itemsError) {
         console.error('Error deleting quotation items:', itemsError);
-        throw itemsError;
+        throw new Error(`Failed to delete quotation items: ${itemsError.message}`);
       }
 
-      // Then delete the quotation
-      const { error } = await supabase
+      console.log('Quotation items deleted successfully');
+
+      // Then, delete the quotation itself
+      console.log('Deleting quotation...');
+      const { error: quotationError, data } = await supabase
         .from('quotations')
         .delete()
-        .eq('id', quotationId);
+        .eq('id', quotationId)
+        .select();
 
-      if (error) {
-        console.error('Error deleting quotation:', error);
-        throw error;
+      if (quotationError) {
+        console.error('Error deleting quotation:', quotationError);
+        throw new Error(`Failed to delete quotation: ${quotationError.message}`);
       }
 
+      if (!data || data.length === 0) {
+        console.error('No quotation was deleted - quotation might not exist');
+        throw new Error('Quotation not found or already deleted');
+      }
+
+      console.log('Quotation deleted successfully:', data);
       return quotationId;
     },
     onSuccess: (deletedId) => {
-      console.log('Successfully deleted quotation:', deletedId);
-      // Invalidate all quotation-related queries
+      console.log('Delete operation completed successfully for:', deletedId);
+      
+      // Force invalidate and refetch all related queries
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['quotation-items'] });
-      // Force refetch of quotations
+      
+      // Remove the specific quotation from cache immediately
+      queryClient.setQueryData(['quotations'], (oldData: Quotation[] | undefined) => {
+        if (!oldData) return [];
+        return oldData.filter(quotation => quotation.id !== deletedId);
+      });
+      
+      // Force a refetch to ensure UI is updated
       queryClient.refetchQueries({ queryKey: ['quotations'] });
+      
       toast.success('Quotation deleted successfully');
     },
     onError: (error: any) => {
-      console.error('Error deleting quotation:', error);
-      toast.error(error.message || 'Error deleting quotation');
+      console.error('Delete operation failed:', error);
+      toast.error(error.message || 'Failed to delete quotation. Please try again.');
     },
   });
 };

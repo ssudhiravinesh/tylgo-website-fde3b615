@@ -31,7 +31,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [selectedQuotationForAction, setSelectedQuotationForAction] = useState<string | null>(null);
   
   const { data: quotations = [], isLoading, refetch } = useQuotations();
-  const { mutate: deleteQuotation, isPending: isDeleting } = useDeleteQuotation();
+  const deleteQuotationMutation = useDeleteQuotation();
   const { generateQuotationPDF } = usePDFGeneration();
   const { sendQuotationEmail, isSending } = useEmailSending();
   
@@ -72,12 +72,12 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const handleBackToList = () => {
     setViewMode("list");
     setSelectedQuotationId(null);
-    refetch(); // Refresh the data when returning to list
+    refetch();
   };
 
   const handleCreateSuccess = () => {
     setViewMode("list");
-    refetch(); // Refresh the data after creating
+    refetch();
   };
 
   const handleDownloadPDF = (quotationId: string) => {
@@ -105,24 +105,26 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   };
 
   const handleDelete = (quotationId: string) => {
+    console.log('Setting up delete for quotation:', quotationId);
     setSelectedQuotationForAction(quotationId);
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedQuotationForAction) {
-      console.log('Attempting to delete quotation:', selectedQuotationForAction);
-      deleteQuotation(selectedQuotationForAction, {
-        onSuccess: () => {
-          console.log('Quotation deleted successfully');
-          setDeleteDialogOpen(false);
-          setSelectedQuotationForAction(null);
-          refetch(); // Refresh the list after deletion
-        },
-        onError: (error) => {
-          console.error('Failed to delete quotation:', error);
-        }
-      });
+      console.log('Confirming delete for quotation:', selectedQuotationForAction);
+      
+      try {
+        await deleteQuotationMutation.mutateAsync(selectedQuotationForAction);
+        console.log('Delete successful, closing dialogs...');
+        setDeleteDialogOpen(false);
+        setSelectedQuotationForAction(null);
+      } catch (error) {
+        console.error('Delete failed:', error);
+        // Dialog will stay open to show the error and allow retry
+      }
+    } else {
+      console.error('No quotation selected for deletion');
     }
   };
 
@@ -134,7 +136,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const handleEditSuccess = () => {
     setEditDialogOpen(false);
     setSelectedQuotationForAction(null);
-    refetch(); // Refresh the data after editing
+    refetch();
   };
 
   const closeDialogs = () => {
@@ -346,7 +348,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
         onClose={closeDialogs}
         onConfirm={handleDeleteConfirm}
         quotationNumber={selectedQuotationForActionObj?.quotation_number || ""}
-        isDeleting={isDeleting}
+        isDeleting={deleteQuotationMutation.isPending}
       />
 
       {/* Edit Dialog */}
