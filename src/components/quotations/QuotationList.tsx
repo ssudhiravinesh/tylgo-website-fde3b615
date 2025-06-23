@@ -8,12 +8,13 @@ import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Eye } fr
 import { useQuotations } from "@/hooks/useQuotations";
 import { QuotationForm } from "./QuotationForm";
 import { QuotationDetails } from "./QuotationDetails";
+import { QuotationEditForm } from "./QuotationEditForm";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
 }
 
-type ViewMode = "list" | "create" | "details";
+type ViewMode = "list" | "create" | "details" | "edit";
 
 export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,6 +53,11 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setViewMode("details");
   };
 
+  const handleEditQuotation = (quotationId: string) => {
+    setSelectedQuotationId(quotationId);
+    setViewMode("edit");
+  };
+
   const handleBackToList = () => {
     setViewMode("list");
     setSelectedQuotationId(null);
@@ -59,6 +65,10 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
 
   const handleCreateSuccess = () => {
     setViewMode("list");
+  };
+
+  const handleEditSuccess = () => {
+    setViewMode("details");
   };
 
   if (viewMode === "create") {
@@ -70,17 +80,24 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     );
   }
 
+  if (viewMode === "edit" && selectedQuotation) {
+    return (
+      <QuotationEditForm
+        quotation={selectedQuotation}
+        onBack={() => setViewMode("details")}
+        onSuccess={handleEditSuccess}
+      />
+    );
+  }
+
   if (viewMode === "details" && selectedQuotation) {
     return (
       <QuotationDetails
         quotation={selectedQuotation}
         onBack={handleBackToList}
-        onEdit={() => {
-          // TODO: Implement edit functionality
-          console.log("Edit quotation:", selectedQuotation.id);
-        }}
+        onEdit={() => handleEditQuotation(selectedQuotation.id)}
         onDelete={() => {
-          // TODO: Implement delete functionality
+          // Delete functionality is handled within QuotationDetails
           console.log("Delete quotation:", selectedQuotation.id);
         }}
       />
@@ -235,7 +252,11 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                   PDF
                 </Button>
                 {userRole === "worker" && (
-                  <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                  <Button 
+                    size="sm" 
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    onClick={() => handleEditQuotation(quotation.id)}
+                  >
                     Edit
                   </Button>
                 )}
