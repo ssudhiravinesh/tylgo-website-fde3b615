@@ -14,6 +14,7 @@ import { useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TileCatalogProps {
   onTileSelected?: (tileId: string) => void;
@@ -42,6 +43,10 @@ export const TileCatalog = ({
   const deleteSelectionMutation = useDeleteRoomTileSelection();
   const generateQRMutation = useGenerateQRForTile();
   const navigate = useNavigate();
+  const { profile } = useAuth();
+
+  // Check if user is admin
+  const isAdmin = profile?.role === 'admin';
 
   const filteredTiles = tiles.filter(tile =>
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -245,43 +250,62 @@ export const TileCatalog = ({
                   {tile.price_per_sqm}/m²
                 </div>
 
-                {/* QR Code Section */}
-                <div className="flex items-center justify-between mt-2">
-                  {tile.qr_code_url ? (
+                {/* QR Code Section - Only show for admins */}
+                {isAdmin && (
+                  <div className="flex items-center justify-between mt-2">
+                    {tile.qr_code_url ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => handleDownloadQR(tile.qr_code_url!, tile.code, e)}
+                        className="flex-1 mr-1"
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        QR
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => handleGenerateQR(tile.id, e)}
+                        disabled={generateQRMutation.isPending}
+                        className="flex-1 mr-1"
+                      >
+                        <QrCode className="h-3 w-3 mr-1" />
+                        {generateQRMutation.isPending ? 'Gen...' : 'QR'}
+                      </Button>
+                    )}
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/tile/${tile.id}`);
+                      }}
+                      className="text-blue-600 hover:text-blue-800 px-2"
+                    >
+                      View
+                    </Button>
+                  </div>
+                )}
+
+                {/* For workers, only show View button */}
+                {!isAdmin && (
+                  <div className="mt-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={(e) => handleDownloadQR(tile.qr_code_url!, tile.code, e)}
-                      className="flex-1 mr-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/tile/${tile.id}`);
+                      }}
+                      className="w-full text-blue-600 hover:text-blue-800"
                     >
-                      <Download className="h-3 w-3 mr-1" />
-                      QR
+                      View Details
                     </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => handleGenerateQR(tile.id, e)}
-                      disabled={generateQRMutation.isPending}
-                      className="flex-1 mr-1"
-                    >
-                      <QrCode className="h-3 w-3 mr-1" />
-                      {generateQRMutation.isPending ? 'Gen...' : 'QR'}
-                    </Button>
-                  )}
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/tile/${tile.id}`);
-                    }}
-                    className="text-blue-600 hover:text-blue-800 px-2"
-                  >
-                    View
-                  </Button>
-                </div>
+                  </div>
+                )}
 
                 {selectedTile === tile.id && showAssignButton && (
                   <Dialog open={isAssignDialogOpen} onOpenChange={handleDialogOpenChange}>
