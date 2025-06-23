@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,7 @@ import { EmailDialog } from "./EmailDialog";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
 import { EditQuotationDialog } from "./EditQuotationDialog";
 import { QuotationActionButtons } from "./QuotationActionButtons";
+import { QuotationTestHelper } from "./QuotationTestHelper";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
@@ -177,6 +177,11 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   return (
     <>
       <div className="space-y-6">
+        {/* Add test helper for debugging */}
+        {userRole === "worker" && (
+          <QuotationTestHelper />
+        )}
+        
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Quotations</h1>
