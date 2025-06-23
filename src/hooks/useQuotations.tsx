@@ -171,54 +171,82 @@ export const useDeleteQuotation = () => {
       console.log('Quotation worker_id:', existingQuotation.worker_id);
       console.log('Current user_id:', user.id);
 
-      // Delete quotation items first
-      console.log('Deleting quotation items...');
-      const { error: itemsError, count: itemsCount } = await supabase
+      // First, get all quotation items to delete them individually
+      console.log('Fetching quotation items to delete...');
+      const { data: quotationItems, error: fetchItemsError } = await supabase
         .from('quotation_items')
-        .delete({ count: 'exact' })
+        .select('id')
         .eq('quotation_id', quotationId);
 
-      if (itemsError) {
-        console.error('Error deleting quotation items:', itemsError);
-        throw new Error(`Failed to delete quotation items: ${itemsError.message}`);
+      if (fetchItemsError) {
+        console.error('Error fetching quotation items:', fetchItemsError);
+        throw new Error(`Failed to fetch quotation items: ${fetchItemsError.message}`);
       }
 
-      console.log(`Quotation items deleted. Count: ${itemsCount}`);
+      console.log(`Found ${quotationItems?.length || 0} quotation items to delete`);
 
-      // Delete the quotation itself with more specific error handling
+      // Delete each quotation item individually to ensure they're removed
+      if (quotationItems && quotationItems.length > 0) {
+        console.log('Deleting quotation items one by one...');
+        for (const item of quotationItems) {
+          const { error: itemDeleteError } = await supabase
+            .from('quotation_items')
+            .delete()
+            .eq('id', item.id);
+
+          if (itemDeleteError) {
+            console.error('Error deleting quotation item:', itemDeleteError);
+            throw new Error(`Failed to delete quotation item: ${itemDeleteError.message}`);
+          }
+        }
+        console.log('All quotation items deleted successfully');
+      }
+
+      // Verify all quotation items are deleted
+      const { data: remainingItems, error: checkItemsError } = await supabase
+        .from('quotation_items')
+        .select('id')
+        .eq('quotation_id', quotationId);
+
+      if (checkItemsError) {
+        console.error('Error checking remaining items:', checkItemsError);
+      } else if (remainingItems && remainingItems.length > 0) {
+        console.error('Some quotation items still exist:', remainingItems);
+        throw new Error('Failed to delete all quotation items');
+      }
+
+      console.log('All quotation items confirmed deleted');
+
+      // Now delete the quotation itself
       console.log('Deleting quotation...');
-      const { error: quotationError, count, data: deletedData } = await supabase
+      const { error: quotationError, data: deletedData } = await supabase
         .from('quotations')
-        .delete({ count: 'exact' })
+        .delete()
         .eq('id', quotationId)
         .select();
 
-      console.log('Delete result - Count:', count, 'Data:', deletedData, 'Error:', quotationError);
+      console.log('Delete result - Data:', deletedData, 'Error:', quotationError);
 
       if (quotationError) {
         console.error('Error deleting quotation:', quotationError);
         throw new Error(`Failed to delete quotation: ${quotationError.message}`);
       }
 
-      // Check if deletion was successful
-      if (count === 0) {
-        // Try one more time with a direct check
-        const { data: stillExists, error: recheckError } = await supabase
-          .from('quotations')
-          .select('id')
-          .eq('id', quotationId)
-          .single();
+      // Final verification that the quotation is gone
+      const { data: stillExists, error: recheckError } = await supabase
+        .from('quotations')
+        .select('id')
+        .eq('id', quotationId)
+        .maybeSingle();
 
-        if (!recheckError && stillExists) {
-          console.error('Quotation still exists after deletion attempt');
-          throw new Error('Failed to delete quotation - permission denied or constraint violation');
-        } else {
-          console.log('Quotation appears to be deleted despite count=0');
-        }
-      } else {
-        console.log(`Quotation deleted successfully. Rows affected: ${count}`);
+      if (recheckError) {
+        console.error('Error during final verification:', recheckError);
+      } else if (stillExists) {
+        console.error('Quotation still exists after deletion attempt');
+        throw new Error('Quotation was not successfully deleted from the database');
       }
 
+      console.log('Quotation successfully deleted and verified');
       return quotationId;
     },
     onSuccess: (deletedId) => {
