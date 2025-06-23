@@ -20,6 +20,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
   const [hasCamera, setHasCamera] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string>('');
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const stopScanning = useCallback(() => {
@@ -40,6 +41,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
     }
     setHasCamera(false);
     setTorchEnabled(false);
+    setCameraError('');
   }, [stream, stopScanning]);
 
   const startScanning = useCallback(() => {
@@ -89,18 +91,63 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
   const startCamera = async () => {
     try {
       console.log('Starting camera...');
+      setCameraError('');
       
-      const constraints = {
-        video: {
-          facingMode: 'environment', // Use back camera
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 }
+      // Try different constraint configurations, starting with the most preferred
+      const constraintOptions = [
+        {
+          video: {
+            facingMode: { exact: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
         },
-        audio: false
-      };
+        {
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        },
+        {
+          video: {
+            facingMode: { exact: 'environment' }
+          },
+          audio: false
+        },
+        {
+          video: {
+            facingMode: 'environment'
+          },
+          audio: false
+        },
+        {
+          video: true,
+          audio: false
+        }
+      ];
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('Camera stream obtained:', mediaStream);
+      let mediaStream = null;
+      let lastError = null;
+
+      for (const constraints of constraintOptions) {
+        try {
+          console.log('Trying constraints:', constraints);
+          mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+          console.log('Camera stream obtained with constraints:', constraints);
+          break;
+        } catch (error) {
+          console.log('Failed with constraints:', constraints, 'Error:', error);
+          lastError = error;
+          continue;
+        }
+      }
+
+      if (!mediaStream) {
+        throw lastError || new Error('Unable to access camera');
+      }
       
       setStream(mediaStream);
       setHasCamera(true);
@@ -117,9 +164,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
               startScanning();
             }).catch(error => {
               console.error('Error playing video:', error);
-              toast.error('Error starting video playback');
+              setCameraError('Error starting video playback');
             });
           }
+        };
+
+        videoRef.current.onerror = (error) => {
+          console.error('Video error:', error);
+          setCameraError('Video playback error');
         };
       }
       
@@ -129,16 +181,20 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
       
       if (error instanceof Error) {
         if (error.name === 'NotAllowedError') {
-          toast.error('Camera permission denied. Please allow camera access and try again.');
+          setCameraError('Camera permission denied. Please allow camera access and try again.');
         } else if (error.name === 'NotFoundError') {
-          toast.error('No camera found on this device.');
+          setCameraError('No camera found on this device.');
         } else if (error.name === 'NotSupportedError') {
-          toast.error('Camera not supported by this browser.');
+          setCameraError('Camera not supported by this browser.');
+        } else if (error.name === 'OverconstrainedError') {
+          setCameraError('Camera constraints not supported. Trying fallback...');
+          // Retry with basic constraints
+          setTimeout(() => startCamera(), 1000);
         } else {
-          toast.error('Unable to access camera. Please check permissions and try again.');
+          setCameraError('Unable to access camera. Please check permissions and try again.');
         }
       } else {
-        toast.error('Unable to access camera. Please check permissions and try again.');
+        setCameraError('Unable to access camera. Please check permissions and try again.');
       }
     }
   };
@@ -183,6 +239,12 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
   const handleClose = () => {
     stopCamera();
     onClose();
+  };
+
+  const handleRetryCamera = () => {
+    setCameraError('');
+    setHasCamera(false);
+    startCamera();
   };
 
   return (
@@ -238,10 +300,20 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
               <CardHeader>
                 <CardTitle className="text-center text-gray-600">Camera Not Available</CardTitle>
               </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-sm text-gray-500 mb-4">
-                  Please allow camera access or enter the tile code manually.
+              <CardContent className="text-center space-y-4">
+                <p className="text-sm text-gray-500">
+                  {cameraError || "Please allow camera access or enter the tile code manually."}
                 </p>
+                {cameraError && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleRetryCamera}
+                    className="w-full"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Retry Camera Access
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
