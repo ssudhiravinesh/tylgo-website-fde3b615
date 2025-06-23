@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -66,9 +65,8 @@ export const TileCatalog = ({
     try {
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
       toast.success(`Tile assigned to ${selectedRooms.length} room(s) successfully!`);
-      setIsAssignDialogOpen(false);
-      setSelectedRooms([]);
-      setSelectedTile(null);
+      // Keep dialog open and selections intact for continuous assignment
+      // Only clear if user wants to assign to different rooms
     } catch (error) {
       console.error("Error assigning tile:", error);
       toast.error("Failed to assign tile to rooms");
@@ -89,6 +87,21 @@ export const TileCatalog = ({
     } else {
       setSelectedRooms(rooms.map(room => room.id));
     }
+  };
+
+  const handleClearSelections = () => {
+    setSelectedRooms([]);
+  };
+
+  const handleCloseDialog = () => {
+    setIsAssignDialogOpen(false);
+    // Keep selections intact when closing dialog
+  };
+
+  // Reset room selections when customer changes
+  const handleCustomerChange = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    setSelectedRooms([]); // Clear room selections when customer changes
   };
 
   if (isLoading) {
@@ -200,7 +213,7 @@ export const TileCatalog = ({
                       <div className="space-y-4">
                         <div>
                           <label className="text-sm font-medium mb-2 block">Select Customer</label>
-                          <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                          <Select value={selectedCustomerId} onValueChange={handleCustomerChange}>
                             <SelectTrigger>
                               <SelectValue placeholder="Choose a customer..." />
                             </SelectTrigger>
@@ -218,14 +231,26 @@ export const TileCatalog = ({
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <label className="text-sm font-medium">Select Rooms</label>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleSelectAllRooms}
-                                className="h-7 text-xs"
-                              >
-                                {selectedRooms.length === rooms.length ? 'Deselect All' : 'Select All'}
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleSelectAllRooms}
+                                  className="h-7 text-xs"
+                                >
+                                  {selectedRooms.length === rooms.length ? 'Deselect All' : 'Select All'}
+                                </Button>
+                                {selectedRooms.length > 0 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleClearSelections}
+                                    className="h-7 text-xs"
+                                  >
+                                    Clear
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                             <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
                               {rooms.map((room) => (
@@ -259,10 +284,10 @@ export const TileCatalog = ({
                         <div className="flex gap-2 pt-4">
                           <Button 
                             variant="outline" 
-                            onClick={() => setIsAssignDialogOpen(false)}
+                            onClick={handleCloseDialog}
                             className="flex-1"
                           >
-                            Cancel
+                            Close
                           </Button>
                           <Button 
                             onClick={handleAssignTile}
