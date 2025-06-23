@@ -140,39 +140,19 @@ export const useDeleteQuotation = () => {
 
   return useMutation({
     mutationFn: async (quotationId: string) => {
-      console.log('Deleting quotation:', quotationId);
-      
-      // First delete all quotation items
-      const { error: itemsError } = await supabase
-        .from('quotation_items')
-        .delete()
-        .eq('quotation_id', quotationId);
-
-      if (itemsError) {
-        console.error('Error deleting quotation items:', itemsError);
-        throw itemsError;
-      }
-      console.log('Quotation items deleted successfully');
-
-      // Then delete the quotation
-      const { error: quotationError } = await supabase
+      const { error } = await supabase
         .from('quotations')
         .delete()
         .eq('id', quotationId);
 
-      if (quotationError) {
-        console.error('Error deleting quotation:', quotationError);
-        throw quotationError;
+      if (error) {
+        console.error('Error deleting quotation:', error);
+        throw error;
       }
-      console.log('Quotation deleted successfully');
-
-      return quotationId;
     },
-    onSuccess: (quotationId) => {
-      // Invalidate all related queries to refresh the UI
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      queryClient.invalidateQueries({ queryKey: ['quotation-items', quotationId] });
-      toast.success('Quotation and all associated items deleted successfully');
+      toast.success('Quotation deleted successfully');
     },
     onError: (error: any) => {
       console.error('Error deleting quotation:', error);

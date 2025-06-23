@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,23 +20,8 @@ import {
   XCircle,
   AlertCircle
 } from "lucide-react";
-import { Quotation, useDeleteQuotation } from "@/hooks/useQuotations";
-import { useQuotationItems } from "@/hooks/useQuotationItems";
+import { Quotation } from "@/hooks/useQuotations";
 import { format } from "date-fns";
-import { toast } from "sonner";
-import { generateQuotationPDF } from "@/utils/pdfGenerator";
-import { sendQuotationEmail } from "@/utils/emailSender";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface QuotationDetailsProps {
   quotation: Quotation;
@@ -46,10 +32,6 @@ interface QuotationDetailsProps {
 
 export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: QuotationDetailsProps) => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
-  
-  const { data: quotationItems = [] } = useQuotationItems(quotation.id);
-  const deleteQuotationMutation = useDeleteQuotation();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -83,52 +65,16 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
 
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
-    try {
-      await generateQuotationPDF(quotation, quotationItems);
-      toast.success("PDF generated successfully!");
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate PDF");
-    } finally {
+    // TODO: Implement PDF generation
+    setTimeout(() => {
       setIsGeneratingPDF(false);
-    }
+      console.log("PDF generation would happen here");
+    }, 2000);
   };
 
-  const handleSendEmail = async () => {
-    if (!quotation.customer?.mobile) {
-      toast.error("Customer email not available");
-      return;
-    }
-
-    setIsSendingEmail(true);
-    try {
-      await sendQuotationEmail(quotation, quotationItems);
-      toast.success("Email sent successfully!");
-    } catch (error) {
-      console.error("Error sending email:", error);
-      toast.error("Failed to send email");
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      console.log('Starting quotation deletion process...');
-      await deleteQuotationMutation.mutateAsync(quotation.id);
-      console.log('Quotation deleted, navigating back...');
-      
-      // Call the onDelete callback if provided
-      if (onDelete) {
-        onDelete();
-      }
-      
-      // Navigate back to the list
-      onBack();
-    } catch (error) {
-      console.error("Error deleting quotation:", error);
-      toast.error("Failed to delete quotation");
-    }
+  const handleSendEmail = () => {
+    // TODO: Implement email sending
+    console.log("Email sending would happen here");
   };
 
   return (
@@ -222,49 +168,6 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
         </CardContent>
       </Card>
 
-      {/* Quotation Items */}
-      {quotationItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Quotation Items</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {quotationItems.map((item, index) => (
-                <div key={item.id} className="border rounded-lg p-4 bg-gray-50">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Room</p>
-                      <p className="font-semibold">{item.room?.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {item.room?.length}×{item.room?.width} {item.room?.unit}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Tile</p>
-                      <p className="font-semibold">{item.tile?.name}</p>
-                      <p className="text-xs text-gray-500">{item.tile?.code}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Quantity</p>
-                      <p className="font-semibold">{item.quantity} sqm</p>
-                      <p className="text-xs text-gray-500">@ ₹{item.unit_price}/sqm</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total</p>
-                      <p className="font-bold text-green-600 flex items-center gap-1">
-                        <IndianRupee className="h-4 w-4" />
-                        {item.total_price.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Notes Section */}
       {quotation.notes && (
         <Card>
@@ -298,11 +201,10 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
             <Button
               variant="outline"
               onClick={handleSendEmail}
-              disabled={isSendingEmail}
               className="flex items-center gap-2"
             >
               <Mail className="h-4 w-4" />
-              {isSendingEmail ? "Sending..." : "Send Email"}
+              Send Email
             </Button>
             
             {onEdit && (
@@ -316,41 +218,21 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
               </Button>
             )}
             
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the quotation
-                    "{quotation.quotation_number}" and all its associated items from the database.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    className="bg-red-600 hover:bg-red-700"
-                    disabled={deleteQuotationMutation.isPending}
-                  >
-                    {deleteQuotationMutation.isPending ? "Deleting..." : "Delete Quotation"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {onDelete && (
+              <Button
+                variant="destructive"
+                onClick={onDelete}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Status History */}
+      {/* Status History (Placeholder for future enhancement) */}
       <Card>
         <CardHeader>
           <CardTitle>Status History</CardTitle>

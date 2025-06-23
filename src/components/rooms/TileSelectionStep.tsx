@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Palette, Calculator, Package, DollarSign, ArrowLeft, X, MousePointer, QrCode, FileText } from "lucide-react";
+import { Palette, Calculator, Package, DollarSign, ArrowLeft, X, MousePointer, QrCode } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
@@ -15,7 +15,6 @@ interface TileSelectionStepProps {
   customerId: string;
   rooms: Room[];
   onBack: () => void;
-  onGenerateQuotation: (customerId: string, calculations: TileCalculation[]) => void;
 }
 
 interface TileCalculation {
@@ -27,7 +26,7 @@ interface TileCalculation {
   totalPrice: number;
 }
 
-export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotation }: TileSelectionStepProps) => {
+export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionStepProps) => {
   const { data: tiles = [], isLoading: tilesLoading } = useTiles();
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
@@ -39,6 +38,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotati
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
 
   useEffect(() => {
+    // Initialize selections from database
     const initialSelections: { [roomId: string]: string[] } = {};
     selections.forEach(selection => {
       if (!initialSelections[selection.room_id]) {
@@ -62,6 +62,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotati
   const handleQRScanned = (tileCode: string) => {
     if (!selectedRoomForTile) return;
 
+    // Find tile by code
     const tile = tiles.find(t => t.code === tileCode);
     if (!tile) {
       toast.error(`No tile found with code: ${tileCode}`);
@@ -114,8 +115,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotati
 
   const removeTileSelection = async (roomId: string, tileId: string) => {
     try {
+      // Delete from database
       await deleteSelectionMutation.mutateAsync({ roomId, tileId });
       
+      // Update local state
       setTileSelections(prev => ({
         ...prev,
         [roomId]: (prev[roomId] || []).filter(id => id !== tileId)
@@ -153,6 +156,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotati
   const calculateTileRequirements = (): TileCalculation[] => {
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
 
+    // Group rooms by tile selection
     Object.entries(tileSelections).forEach(([roomId, tileIds]) => {
       const room = rooms.find(r => r.id === roomId);
       if (!room) return;
@@ -178,23 +182,15 @@ export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotati
       });
     });
 
+    // Calculate tiles, boxes, and pricing
     Object.values(tileCalculations).forEach(calc => {
-      const tileArea = (calc.tile.size_length / 1000) * (calc.tile.size_breadth / 1000);
+      const tileArea = (calc.tile.size_length / 1000) * (calc.tile.size_breadth / 1000); // Convert mm to m²
       calc.tilesNeeded = Math.ceil(calc.totalArea / tileArea);
-      calc.boxesNeeded = Math.ceil(calc.tilesNeeded / 10);
+      calc.boxesNeeded = Math.ceil(calc.tilesNeeded / 10); // Assuming 10 tiles per box
       calc.totalPrice = calc.totalArea * calc.tile.price_per_sqm;
     });
 
     return Object.values(tileCalculations);
-  };
-
-  const handleGenerateQuotation = () => {
-    const calculations = calculateTileRequirements();
-    if (calculations.length === 0) {
-      toast.error("Please select tiles for at least one room before generating quotation");
-      return;
-    }
-    onGenerateQuotation(customerId, calculations);
   };
 
   const calculations = calculateTileRequirements();
@@ -244,6 +240,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotati
         </div>
       </div>
 
+      {/* Tile Selection */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -281,6 +278,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotati
                   </Button>
                 </div>
 
+                {/* Selected tiles for this room */}
                 <div className="space-y-2">
                   {(tileSelections[room.id] || []).map(tileId => {
                     const tile = tiles.find(t => t.id === tileId);
@@ -311,22 +309,13 @@ export const TileSelectionStep = ({ customerId, rooms, onBack, onGenerateQuotati
               </div>
             ))}
             
-            <div className="flex gap-3">
-              <Button onClick={handleSaveSelections} variant="outline" className="flex-1">
-                Save Selections
-              </Button>
-              <Button 
-                onClick={handleGenerateQuotation} 
-                className="flex-1 bg-green-600 hover:bg-green-700 gap-2"
-                disabled={calculations.length === 0}
-              >
-                <FileText className="h-4 w-4" />
-                Generate Quotation
-              </Button>
-            </div>
+            <Button onClick={handleSaveSelections} className="w-full bg-blue-600 hover:bg-blue-700">
+              Save Selections
+            </Button>
           </CardContent>
         </Card>
 
+        {/* Calculations */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
