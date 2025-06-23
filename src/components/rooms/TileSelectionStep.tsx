@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -215,15 +214,27 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   };
 
   const prepareQuotationData = () => {
-    const calculations = calculateTileRequirements();
-    return calculations.map(calc => ({
-      room_id: calc.rooms[0]?.id || "",
-      tile_id: calc.tile.id,
-      room_name: calc.rooms.map(r => r.name).join(", "),
-      tile_name: calc.tile.name,
-      room_area: calc.totalArea,
-      tile_price: calc.tile.price_per_sqm,
-    }));
+    const roomsData: Array<{
+      roomId: string;
+      tileId: string;
+      quantity: number;
+    }> = [];
+
+    Object.entries(tileSelections).forEach(([roomId, tileIds]) => {
+      const room = rooms.find(r => r.id === roomId);
+      if (!room) return;
+
+      tileIds.forEach(tileId => {
+        const roomArea = room.length * room.width;
+        roomsData.push({
+          roomId: roomId,
+          tileId: tileId,
+          quantity: roomArea,
+        });
+      });
+    });
+
+    return roomsData;
   };
 
   const calculations = calculateTileRequirements();
@@ -240,8 +251,8 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   if (showQuotationForm) {
     return (
       <QuotationForm
-        customerId={customerId}
-        roomTileSelections={prepareQuotationData()}
+        preSelectedCustomerId={customerId}
+        selectedRoomsData={prepareQuotationData()}
         onBack={handleBackFromQuotation}
         onSuccess={handleQuotationSuccess}
       />
