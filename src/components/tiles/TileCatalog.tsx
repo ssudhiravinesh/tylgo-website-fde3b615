@@ -11,6 +11,7 @@ import { useTiles } from "@/hooks/useTiles";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { useGenerateQRForTile } from "@/hooks/useTileManagement";
+import { QRScanner } from "@/components/qr/QRScanner";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,6 +34,7 @@ export const TileCatalog = ({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId);
   const [selectedRooms, setSelectedRooms] = useState<string[]>(preSelectedRoomIds);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   
   const { data: tiles = [], isLoading } = useTiles();
   const { data: customers = [] } = useCustomers();
@@ -50,6 +52,23 @@ export const TileCatalog = ({
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleQRScanned = (tileCode: string) => {
+    // Set the search term to the scanned tile code
+    setSearchTerm(tileCode);
+    
+    // Find the tile with the scanned code
+    const tile = tiles.find(t => t.code === tileCode);
+    if (tile) {
+      // Auto-select the tile
+      setSelectedTile(tile.id);
+      toast.success(`Tile "${tile.name}" (${tile.code}) found and selected`);
+    } else {
+      toast.error(`No tile found with code: ${tileCode}`);
+    }
+    
+    setIsQRScannerOpen(false);
+  };
 
   const handleTileSelect = (tileId: string) => {
     const wasSelected = selectedTile === tileId;
@@ -167,14 +186,23 @@ export const TileCatalog = ({
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Search by tile name or code..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search by tile name or code..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+        <Button
+          onClick={() => setIsQRScannerOpen(true)}
+          className="h-12 gap-2 bg-blue-600 hover:bg-blue-700"
+        >
+          <QrCode className="h-4 w-4" />
+          Scan QR
+        </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -404,9 +432,15 @@ export const TileCatalog = ({
         <div className="text-center py-12">
           <Grid3X3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
-          <p className="text-gray-500">Try adjusting your search terms</p>
+          <p className="text-gray-500">Try adjusting your search terms or scan a QR code</p>
         </div>
       )}
+
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={handleQRScanned}
+      />
     </div>
   );
 };
