@@ -3,15 +3,36 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 import type { Quotation } from '@/hooks/useQuotations';
 import { useQuotationItems } from '@/hooks/useQuotationItems';
+import { useRoomsByCustomer } from '@/hooks/useRooms';
+import { useTiles } from '@/hooks/useTiles';
 
 export const usePDFGeneration = () => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     try {
+      // Fetch quotation items to include in PDF
+      const { data: quotationItems = [] } = await fetch(`https://onucizagpgwdpcakskat.supabase.co/rest/v1/quotation_items?quotation_id=eq.${quotation.id}&select=*,room:rooms(name,length,width,unit),tile:tiles(name,code,price_per_sqm)`, {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM'
+        }
+      }).then(res => res.json());
+
       // Create a new window for PDF generation
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
+
+      // Generate items rows for the table
+      const itemsRows = quotationItems.map((item: any) => `
+        <tr>
+          <td>${item.room?.name || 'N/A'}</td>
+          <td>${item.tile?.name || 'N/A'} (${item.tile?.code || 'N/A'})</td>
+          <td>${item.quantity} m²</td>
+          <td>₹${(item.unit_price || 0).toLocaleString()}</td>
+          <td>₹${(item.total_price || 0).toLocaleString()}</td>
+        </tr>
+      `).join('');
 
       const pdfContent = `
         <!DOCTYPE html>
@@ -71,9 +92,7 @@ export const usePDFGeneration = () => {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td colspan="5" style="text-align: center; padding: 20px; color: #666;">Items will be loaded dynamically</td>
-              </tr>
+              ${itemsRows || '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">No items found</td></tr>'}
             </tbody>
           </table>
 

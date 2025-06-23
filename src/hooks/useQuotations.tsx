@@ -140,6 +140,20 @@ export const useDeleteQuotation = () => {
 
   return useMutation({
     mutationFn: async (quotationId: string) => {
+      console.log('Deleting quotation:', quotationId);
+      
+      // First delete all quotation items
+      const { error: itemsError } = await supabase
+        .from('quotation_items')
+        .delete()
+        .eq('quotation_id', quotationId);
+
+      if (itemsError) {
+        console.error('Error deleting quotation items:', itemsError);
+        throw itemsError;
+      }
+
+      // Then delete the quotation
       const { error } = await supabase
         .from('quotations')
         .delete()
@@ -149,9 +163,16 @@ export const useDeleteQuotation = () => {
         console.error('Error deleting quotation:', error);
         throw error;
       }
+
+      return quotationId;
     },
-    onSuccess: () => {
+    onSuccess: (deletedId) => {
+      console.log('Successfully deleted quotation:', deletedId);
+      // Invalidate all quotation-related queries
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['quotation-items'] });
+      // Force refetch of quotations
+      queryClient.refetchQueries({ queryKey: ['quotations'] });
       toast.success('Quotation deleted successfully');
     },
     onError: (error: any) => {

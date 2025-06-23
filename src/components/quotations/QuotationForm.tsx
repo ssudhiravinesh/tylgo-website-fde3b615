@@ -11,7 +11,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateQuotation, useUpdateQuotation, type Quotation } from "@/hooks/useQuotations";
-import { useCreateQuotationItem, useQuotationItems, useDeleteQuotationItem } from "@/hooks/useQuotationItems";
+import { useCreateQuotationItem, useQuotationItems, useDeleteQuotationItem, useUpdateQuotationItem } from "@/hooks/useQuotationItems";
 import { toast } from "sonner";
 
 interface QuotationFormProps {
@@ -57,10 +57,12 @@ export const QuotationForm = ({
   const { mutate: createQuotationItem } = useCreateQuotationItem();
   const { data: existingItems = [] } = useQuotationItems(existingQuotation?.id || "");
   const { mutate: deleteQuotationItem } = useDeleteQuotationItem();
+  const { mutate: updateQuotationItem } = useUpdateQuotationItem();
 
   // Load existing quotation items in edit mode
   useEffect(() => {
     if (editMode && existingItems.length > 0) {
+      console.log('Loading existing items:', existingItems);
       const formattedItems = existingItems.map(item => ({
         id: item.id,
         room_id: item.room_id,
@@ -103,17 +105,26 @@ export const QuotationForm = ({
     }]);
   };
 
-  const removeItem = (index: number) => {
+  const removeItem = async (index: number) => {
     const item = items[index];
     if (editMode && item.id && existingQuotation) {
       // Delete from database if it's an existing item
-      deleteQuotationItem({ id: item.id, quotationId: existingQuotation.id });
+      try {
+        await deleteQuotationItem({ id: item.id, quotationId: existingQuotation.id });
+        setItems(items.filter((_, i) => i !== index));
+        toast.success('Item removed successfully');
+      } catch (error) {
+        console.error('Error removing item:', error);
+        toast.error('Failed to remove item');
+      }
+    } else {
+      setItems(items.filter((_, i) => i !== index));
     }
-    setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: keyof QuotationItem, value: any) => {
+  const updateItem = async (index: number, field: keyof QuotationItem, value: any) => {
     const newItems = [...items];
+    const oldItem = newItems[index];
     newItems[index] = { ...newItems[index], [field]: value };
 
     // Recalculate total price when quantity, room, or tile changes
@@ -123,7 +134,6 @@ export const QuotationForm = ({
       const room = rooms.find(r => r.id === item.room_id);
       
       if (tile && room) {
-        const roomArea = room.length * room.width;
         const unitPrice = tile.price_per_sqm;
         newItems[index].unit_price = unitPrice;
         newItems[index].total_price = item.quantity * unitPrice;
@@ -131,13 +141,26 @@ export const QuotationForm = ({
     }
 
     setItems(newItems);
+
+    // If in edit mode and this is an existing item, update it in the database
+    if (editMode && oldItem.id && existingQuotation) {
+      try {
+        await updateQuotationItem({
+          id: oldItem.id,
+          ...newItems[index]
+        });
+      } catch (error) {
+        console.error('Error updating item:', error);
+        toast.error('Failed to update item');
+      }
+    }
   };
 
   const getTotalCost = () => {
     return items.reduce((sum, item) => sum + item.total_price, 0);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedCustomerId) {
       toast.error("Please select a customer");
       return;
@@ -170,12 +193,12 @@ export const QuotationForm = ({
         id: existingQuotation.id,
         ...quotationData,
       }, {
-        onSuccess: (updatedQuotation) => {
-          // Create new items and update existing ones
-          items.forEach(item => {
-            if (!item.id) {
-              // New item - create it
-              createQuotationItem({
+        onSuccess: async (updatedQuotation) => {
+          // Handle new items that don't have IDs
+          const newItems = items.filter(item => !item.id);
+          for (const item of newItems) {
+            try {
+              await createQuotationItem({
                 quotation_id: updatedQuotation.id,
                 room_id: item.room_id,
                 tile_id: item.tile_id,
@@ -183,26 +206,32 @@ export const QuotationForm = ({
                 unit_price: item.unit_price,
                 total_price: item.total_price,
               });
+            } catch (error) {
+              console.error('Error creating new item:', error);
             }
-          });
+          }
           onSuccess();
         },
       });
     } else {
       // Create new quotation
       createQuotation(quotationData, {
-        onSuccess: (newQuotation) => {
+        onSuccess: async (newQuotation) => {
           // Create quotation items
-          items.forEach(item => {
-            createQuotationItem({
-              quotation_id: newQuotation.id,
-              room_id: item.room_id,
-              tile_id: item.tile_id,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: item.total_price,
-            });
-          });
+          for (const item of items) {
+            try {
+              await createQuotationItem({
+                quotation_id: newQuotation.id,
+                room_id: item.room_id,
+                tile_id: item.tile_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total_price: item.total_price,
+              });
+            } catch (error) {
+              console.error('Error creating item:', error);
+            }
+          }
           onSuccess();
         },
       });
