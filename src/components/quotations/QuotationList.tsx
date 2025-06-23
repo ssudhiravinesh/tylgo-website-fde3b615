@@ -1,14 +1,25 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Eye } from "lucide-react";
-import { useQuotations } from "@/hooks/useQuotations";
+import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Eye, Edit, Trash2 } from "lucide-react";
+import { useQuotations, useDeleteQuotation } from "@/hooks/useQuotations";
 import { QuotationForm } from "./QuotationForm";
 import { QuotationDetails } from "./QuotationDetails";
 import { QuotationEditForm } from "./QuotationEditForm";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
@@ -22,6 +33,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
   
   const { data: quotations = [], isLoading } = useQuotations();
+  const deleteQuotationMutation = useDeleteQuotation();
   
   const filteredQuotations = quotations.filter(quotation =>
     quotation.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -56,6 +68,17 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const handleEditQuotation = (quotationId: string) => {
     setSelectedQuotationId(quotationId);
     setViewMode("edit");
+  };
+
+  const handleDeleteQuotation = async (quotationId: string, quotationNumber: string) => {
+    try {
+      console.log('Deleting quotation from list:', quotationId);
+      await deleteQuotationMutation.mutateAsync(quotationId);
+      console.log('Quotation deleted successfully from list');
+    } catch (error) {
+      console.error("Error deleting quotation from list:", error);
+      toast.error("Failed to delete quotation");
+    }
   };
 
   const handleBackToList = () => {
@@ -114,6 +137,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
 
   return (
     <div className="space-y-6">
+      {/* ... keep existing code (header section) */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quotations</h1>
@@ -130,6 +154,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
         )}
       </div>
 
+      {/* ... keep existing code (search section) */}
       <div className="relative">
         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
         <Input
@@ -140,7 +165,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
         />
       </div>
 
-      {/* Summary Cards */}
+      {/* ... keep existing code (summary cards) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
@@ -252,13 +277,49 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                   PDF
                 </Button>
                 {userRole === "worker" && (
-                  <Button 
-                    size="sm" 
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                    onClick={() => handleEditQuotation(quotation.id)}
-                  >
-                    Edit
-                  </Button>
+                  <>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 text-xs"
+                      onClick={() => handleEditQuotation(quotation.id)}
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          className="flex-1 text-xs"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Quotation</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete quotation "{quotation.quotation_number}"? 
+                            This will permanently remove the quotation and all its associated items from the database. 
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteQuotation(quotation.id, quotation.quotation_number)}
+                            className="bg-red-600 hover:bg-red-700"
+                            disabled={deleteQuotationMutation.isPending}
+                          >
+                            {deleteQuotationMutation.isPending ? "Deleting..." : "Delete"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
                 )}
               </div>
             </CardContent>
@@ -266,6 +327,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
         ))}
       </div>
 
+      {/* ... keep existing code (empty state) */}
       {filteredQuotations.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
