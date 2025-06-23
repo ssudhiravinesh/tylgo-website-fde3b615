@@ -99,3 +99,97 @@ export const useCreateQuotation = () => {
     },
   });
 };
+
+export const useUpdateQuotation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (updateData: Partial<Quotation> & { id: string }) => {
+      const { id, ...updates } = updateData;
+      
+      const { data, error } = await supabase
+        .from('quotations')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating quotation:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success('Quotation updated successfully');
+    },
+    onError: (error: any) => {
+      console.error('Error updating quotation:', error);
+      toast.error(error.message || 'Error updating quotation');
+    },
+  });
+};
+
+export const useDeleteQuotation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (quotationId: string) => {
+      const { error } = await supabase
+        .from('quotations')
+        .delete()
+        .eq('id', quotationId);
+
+      if (error) {
+        console.error('Error deleting quotation:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success('Quotation deleted successfully');
+    },
+    onError: (error: any) => {
+      console.error('Error deleting quotation:', error);
+      toast.error(error.message || 'Error deleting quotation');
+    },
+  });
+};
+
+export const useUpdateQuotationStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'draft' | 'sent' | 'approved' | 'rejected' }) => {
+      const { data, error } = await supabase
+        .from('quotations')
+        .update({ 
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating quotation status:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success(`Quotation status updated to ${data.status}`);
+    },
+    onError: (error: any) => {
+      console.error('Error updating quotation status:', error);
+      toast.error(error.message || 'Error updating quotation status');
+    },
+  });
+};

@@ -4,15 +4,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Calendar, IndianRupee, User, Download } from "lucide-react";
+import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Eye } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
+import { QuotationForm } from "./QuotationForm";
+import { QuotationDetails } from "./QuotationDetails";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
 }
 
+type ViewMode = "list" | "create" | "details";
+
 export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
+  
   const { data: quotations = [], isLoading } = useQuotations();
   
   const filteredQuotations = quotations.filter(quotation =>
@@ -20,6 +27,10 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     quotation.quotation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quotation.customer?.mobile.includes(searchTerm)
   );
+
+  const selectedQuotation = selectedQuotationId 
+    ? quotations.find(q => q.id === selectedQuotationId)
+    : null;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -36,6 +47,46 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     }
   };
 
+  const handleViewDetails = (quotationId: string) => {
+    setSelectedQuotationId(quotationId);
+    setViewMode("details");
+  };
+
+  const handleBackToList = () => {
+    setViewMode("list");
+    setSelectedQuotationId(null);
+  };
+
+  const handleCreateSuccess = () => {
+    setViewMode("list");
+  };
+
+  if (viewMode === "create") {
+    return (
+      <QuotationForm 
+        onBack={handleBackToList}
+        onSuccess={handleCreateSuccess}
+      />
+    );
+  }
+
+  if (viewMode === "details" && selectedQuotation) {
+    return (
+      <QuotationDetails
+        quotation={selectedQuotation}
+        onBack={handleBackToList}
+        onEdit={() => {
+          // TODO: Implement edit functionality
+          console.log("Edit quotation:", selectedQuotation.id);
+        }}
+        onDelete={() => {
+          // TODO: Implement delete functionality
+          console.log("Delete quotation:", selectedQuotation.id);
+        }}
+      />
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -51,6 +102,15 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
           <h1 className="text-2xl font-bold text-gray-800">Quotations</h1>
           <p className="text-gray-600">Manage customer quotations and proposals</p>
         </div>
+        {userRole === "worker" && (
+          <Button 
+            onClick={() => setViewMode("create")}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Quotation
+          </Button>
+        )}
       </div>
 
       <div className="relative">
@@ -61,6 +121,63 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
         />
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <FileText className="h-8 w-8 text-blue-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Total Quotations</p>
+                <p className="text-2xl font-bold">{quotations.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <FileText className="h-8 w-8 text-green-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Approved</p>
+                <p className="text-2xl font-bold">
+                  {quotations.filter(q => q.status === 'approved').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <FileText className="h-8 w-8 text-yellow-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-2xl font-bold">
+                  {quotations.filter(q => q.status === 'sent').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <IndianRupee className="h-8 w-8 text-purple-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Total Value</p>
+                <p className="text-2xl font-bold">
+                  ₹{quotations.reduce((sum, q) => sum + (q.total_cost || 0), 0).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -94,7 +211,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
               
               <div className="flex items-center gap-2 text-lg font-bold text-green-600">
                 <IndianRupee className="h-5 w-5" />
-                {quotation.total_cost.toLocaleString()}
+                {(quotation.total_cost || 0).toLocaleString()}
               </div>
               
               <div className="pt-2 border-t border-gray-100">
@@ -104,17 +221,24 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
               </div>
               
               <div className="flex gap-2 pt-2">
-                <Button size="sm" variant="outline" className="flex-1 text-xs">
-                  <FileText className="h-3 w-3 mr-1" />
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1 text-xs"
+                  onClick={() => handleViewDetails(quotation.id)}
+                >
+                  <Eye className="h-3 w-3 mr-1" />
                   View
                 </Button>
                 <Button size="sm" variant="outline" className="flex-1 text-xs">
                   <Download className="h-3 w-3 mr-1" />
                   PDF
                 </Button>
-                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
-                  Edit
-                </Button>
+                {userRole === "worker" && (
+                  <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                    Edit
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -125,9 +249,18 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
         <div className="text-center py-12">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600 mb-2">No quotations found</h3>
-          <p className="text-gray-500">
+          <p className="text-gray-500 mb-4">
             {searchTerm ? "Try adjusting your search terms" : "No quotations have been created yet"}
           </p>
+          {userRole === "worker" && !searchTerm && (
+            <Button 
+              onClick={() => setViewMode("create")}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Your First Quotation
+            </Button>
+          )}
         </div>
       )}
     </div>
