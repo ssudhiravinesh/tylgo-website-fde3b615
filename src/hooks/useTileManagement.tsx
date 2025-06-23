@@ -1,14 +1,57 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Tile } from './useTiles';
+import QRCode from 'qrcode';
+
+const generateQRCode = async (tileCode: string, tileId: string): Promise<string | null> => {
+  try {
+    // Generate QR code data URL with tile details URL
+    const tileDetailsUrl = `${window.location.origin}/tile/${tileId}`;
+    const qrDataUrl = await QRCode.toDataURL(tileDetailsUrl, {
+      width: 300,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+
+    // Convert data URL to blob
+    const response = await fetch(qrDataUrl);
+    const blob = await response.blob();
+
+    // Upload to Supabase Storage
+    const fileName = `${tileCode}-qr.png`;
+    const { data, error } = await supabase.storage
+      .from('tile-qrs')
+      .upload(fileName, blob, {
+        contentType: 'image/png',
+        upsert: true
+      });
+
+    if (error) {
+      console.error('Error uploading QR code:', error);
+      return null;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('tile-qrs')
+      .getPublicUrl(fileName);
+
+    return publicUrl;
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    return null;
+  }
+};
 
 export const useCreateTile = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (tileData: Omit<Tile, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (tileData: Omit<Tile, 'id' | 'created_at' | 'updated_at' | 'qr_code_url'>) => {
       console.log('Creating tile with data:', tileData);
       
       const { data, error } = await supabase
@@ -23,12 +66,30 @@ export const useCreateTile = () => {
       }
 
       console.log('Tile created successfully:', data);
+
+      // Generate QR code after tile creation
+      const qrCodeUrl = await generateQRCode(data.code, data.id);
+      
+      if (qrCodeUrl) {
+        // Update tile with QR code URL
+        const { error: updateError } = await supabase
+          .from('tiles')
+          .update({ qr_code_url: qrCodeUrl })
+          .eq('id', data.id);
+
+        if (updateError) {
+          console.error('Error updating tile with QR code URL:', updateError);
+        } else {
+          data.qr_code_url = qrCodeUrl;
+        }
+      }
+
       return data;
     },
     onSuccess: (data) => {
       console.log('Tile creation mutation succeeded:', data);
       queryClient.invalidateQueries({ queryKey: ['tiles'] });
-      toast.success('Tile created successfully');
+      toast.success('Tile created successfully with QR code');
     },
     onError: (error: any) => {
       console.error('Tile creation mutation failed:', error);
@@ -62,6 +123,25 @@ export const useUpdateTile = () => {
       }
 
       console.log('Tile updated successfully:', data);
+
+      // Regenerate QR code if code was updated
+      if (updates.code) {
+        const qrCodeUrl = await generateQRCode(data.code, data.id);
+        
+        if (qrCodeUrl) {
+          const { error: updateError } = await supabase
+            .from('tiles')
+            .update({ qr_code_url: qrCodeUrl })
+            .eq('id', data.id);
+
+          if (updateError) {
+            console.error('Error updating QR code URL:', updateError);
+          } else {
+            data.qr_code_url = qrCodeUrl;
+          }
+        }
+      }
+
       return data;
     },
     onSuccess: (data) => {
@@ -111,6 +191,49 @@ export const useDeleteTile = () => {
       } else {
         toast.error(error.message || 'Error deleting tile');
       }
+    },
+  });
+};
+
+export const useGenerateQRForTile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (tileId: string) => {
+      const { data: tile, error } = await supabase
+        .from('tiles')
+        .select('*')
+        .eq('id', tileId)
+        .single();
+
+      if (error || !tile) {
+        throw new Error('Tile not found');
+      }
+
+      const qrCodeUrl = await generateQRCode(tile.code, tile.id);
+      
+      if (!qrCodeUrl) {
+        throw new Error('Failed to generate QR code');
+      }
+
+      const { error: updateError } = await supabase
+        .from('tiles')
+        .update({ qr_code_url: qrCodeUrl })
+        .eq('id', tileId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return qrCodeUrl;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tiles'] });
+      toast.success('QR code generated successfully');
+    },
+    onError: (error: any) => {
+      console.error('QR generation failed:', error);
+      toast.error(error.message || 'Failed to generate QR code');
     },
   });
 };

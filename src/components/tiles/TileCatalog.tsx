@@ -6,11 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Grid3X3, QrCode, Ruler, IndianRupee, Plus, Users, Check } from "lucide-react";
+import { Search, Grid3X3, QrCode, Ruler, IndianRupee, Plus, Users, Check, Download } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
+import { useGenerateQRForTile } from "@/hooks/useTileManagement";
+import { QRScanner } from "@/components/qr/QRScanner";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface TileCatalogProps {
   onTileSelected?: (tileId: string) => void;
@@ -30,12 +33,15 @@ export const TileCatalog = ({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId);
   const [selectedRooms, setSelectedRooms] = useState<string[]>(preSelectedRoomIds);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   
   const { data: tiles = [], isLoading } = useTiles();
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
+  const generateQRMutation = useGenerateQRForTile();
+  const navigate = useNavigate();
 
   const filteredTiles = tiles.filter(tile =>
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -50,6 +56,32 @@ export const TileCatalog = ({
     if (onTileSelected && !wasSelected) {
       onTileSelected(tileId);
     }
+  };
+
+  const handleQRScan = (url: string) => {
+    // Extract tile ID from URL and navigate to tile details
+    const urlMatch = url.match(/\/tile\/([^\/\?]+)/);
+    if (urlMatch) {
+      const tileId = urlMatch[1];
+      navigate(`/tile/${tileId}`);
+    } else {
+      toast.error('Invalid QR code format');
+    }
+  };
+
+  const handleGenerateQR = async (tileId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await generateQRMutation.mutateAsync(tileId);
+  };
+
+  const handleDownloadQR = (qrUrl: string, tileCode: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const link = document.createElement('a');
+    link.href = qrUrl;
+    link.download = `${tileCode}-qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleAssignTile = async () => {
@@ -143,7 +175,11 @@ export const TileCatalog = ({
         </div>
         
         {showAssignButton && (
-          <Button variant="outline" className="gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => setIsQRScannerOpen(true)}
+          >
             <QrCode className="h-4 w-4" />
             Scan QR Code
           </Button>
@@ -207,6 +243,44 @@ export const TileCatalog = ({
                 <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
                   <IndianRupee className="h-4 w-4" />
                   {tile.price_per_sqm}/m²
+                </div>
+
+                {/* QR Code Section */}
+                <div className="flex items-center justify-between mt-2">
+                  {tile.qr_code_url ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => handleDownloadQR(tile.qr_code_url!, tile.code, e)}
+                      className="flex-1 mr-1"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      QR
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => handleGenerateQR(tile.id, e)}
+                      disabled={generateQRMutation.isPending}
+                      className="flex-1 mr-1"
+                    >
+                      <QrCode className="h-3 w-3 mr-1" />
+                      {generateQRMutation.isPending ? 'Gen...' : 'QR'}
+                    </Button>
+                  )}
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/tile/${tile.id}`);
+                    }}
+                    className="text-blue-600 hover:text-blue-800 px-2"
+                  >
+                    View
+                  </Button>
                 </div>
 
                 {selectedTile === tile.id && showAssignButton && (
@@ -333,6 +407,12 @@ export const TileCatalog = ({
           <p className="text-gray-500">Try adjusting your search terms</p>
         </div>
       )}
+
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={handleQRScan}
+      />
     </div>
   );
 };

@@ -272,6 +272,7 @@ export type Database = {
           image_url: string | null
           name: string
           price_per_sqm: number
+          qr_code_url: string | null
           size_breadth: number
           size_length: number
           updated_at: string | null
@@ -283,6 +284,7 @@ export type Database = {
           image_url?: string | null
           name: string
           price_per_sqm: number
+          qr_code_url?: string | null
           size_breadth: number
           size_length: number
           updated_at?: string | null
@@ -294,6 +296,7 @@ export type Database = {
           image_url?: string | null
           name?: string
           price_per_sqm?: number
+          qr_code_url?: string | null
           size_breadth?: number
           size_length?: number
           updated_at?: string | null
