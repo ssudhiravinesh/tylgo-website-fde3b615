@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -115,8 +114,16 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
 
   const handleDelete = async () => {
     try {
+      console.log('Starting quotation deletion process...');
       await deleteQuotationMutation.mutateAsync(quotation.id);
-      toast.success("Quotation deleted successfully!");
+      console.log('Quotation deleted, navigating back...');
+      
+      // Call the onDelete callback if provided
+      if (onDelete) {
+        onDelete();
+      }
+      
+      // Navigate back to the list
       onBack();
     } catch (error) {
       console.error("Error deleting quotation:", error);
@@ -324,7 +331,7 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
                   <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This action cannot be undone. This will permanently delete the quotation
-                    "{quotation.quotation_number}" and all its associated items.
+                    "{quotation.quotation_number}" and all its associated items from the database.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -334,7 +341,7 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
                     className="bg-red-600 hover:bg-red-700"
                     disabled={deleteQuotationMutation.isPending}
                   >
-                    {deleteQuotationMutation.isPending ? "Deleting..." : "Delete"}
+                    {deleteQuotationMutation.isPending ? "Deleting..." : "Delete Quotation"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
