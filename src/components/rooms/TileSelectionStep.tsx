@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Palette, Calculator, Package, DollarSign, ArrowLeft, X, MousePointer, QrCode } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
-import { useRoomTileSelections, useSaveRoomTileSelections } from "@/hooks/useRooms";
+import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { toast } from "sonner";
@@ -31,6 +30,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const { data: tiles = [], isLoading: tilesLoading } = useTiles();
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
+  const deleteSelectionMutation = useDeleteRoomTileSelection();
   
   const [tileSelections, setTileSelections] = useState<{ [roomId: string]: string[] }>({});
   const [showTileCatalog, setShowTileCatalog] = useState(false);
@@ -113,11 +113,22 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     setSelectedRoomForTile(null);
   };
 
-  const removeTileSelection = (roomId: string, tileId: string) => {
-    setTileSelections(prev => ({
-      ...prev,
-      [roomId]: (prev[roomId] || []).filter(id => id !== tileId)
-    }));
+  const removeTileSelection = async (roomId: string, tileId: string) => {
+    try {
+      // Delete from database
+      await deleteSelectionMutation.mutateAsync({ roomId, tileId });
+      
+      // Update local state
+      setTileSelections(prev => ({
+        ...prev,
+        [roomId]: (prev[roomId] || []).filter(id => id !== tileId)
+      }));
+      
+      toast.success("Tile removed from room");
+    } catch (error) {
+      console.error("Error removing tile selection:", error);
+      toast.error("Failed to remove tile selection");
+    }
   };
 
   const handleSaveSelections = async () => {
@@ -287,6 +298,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                           size="sm"
                           onClick={() => removeTileSelection(room.id, tileId)}
                           className="h-6 w-6 p-0 hover:bg-red-100"
+                          disabled={deleteSelectionMutation.isPending}
                         >
                           <X className="h-3 w-3 text-red-600" />
                         </Button>
