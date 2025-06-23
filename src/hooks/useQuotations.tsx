@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -158,23 +157,17 @@ export const useDeleteQuotation = () => {
 
       // Then, delete the quotation itself
       console.log('Deleting quotation...');
-      const { error: quotationError, data } = await supabase
+      const { error: quotationError } = await supabase
         .from('quotations')
         .delete()
-        .eq('id', quotationId)
-        .select();
+        .eq('id', quotationId);
 
       if (quotationError) {
         console.error('Error deleting quotation:', quotationError);
         throw new Error(`Failed to delete quotation: ${quotationError.message}`);
       }
 
-      if (!data || data.length === 0) {
-        console.error('No quotation was deleted - quotation might not exist');
-        throw new Error('Quotation not found or already deleted');
-      }
-
-      console.log('Quotation deleted successfully:', data);
+      console.log('Quotation deleted successfully');
       return quotationId;
     },
     onSuccess: (deletedId) => {
