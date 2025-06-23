@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -8,7 +7,7 @@ export interface Room {
   customer_id: string;
   length: number;
   width: number;
-  unit: 'metre' | 'inches' | 'mm';
+  unit: 'metre' | 'inches' | 'mm' | 'feet';
   created_at: string;
 }
 
@@ -17,7 +16,7 @@ export interface CreateRoomData {
   customer_id: string;
   length: number;
   width: number;
-  unit: 'metre' | 'inches' | 'mm';
+  unit: 'metre' | 'inches' | 'mm' | 'feet';
 }
 
 export interface UpdateRoomData extends CreateRoomData {
@@ -48,7 +47,7 @@ const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
 
   return (data || []).map(room => ({
     ...room,
-    unit: room.unit as 'metre' | 'inches' | 'mm'
+    unit: room.unit as 'metre' | 'inches' | 'mm' | 'feet'
   }));
 };
 
@@ -66,7 +65,7 @@ const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
 
   return {
     ...data,
-    unit: data.unit as 'metre' | 'inches' | 'mm'
+    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet'
   };
 };
 
@@ -87,7 +86,7 @@ const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
 
   return {
     ...data,
-    unit: data.unit as 'metre' | 'inches' | 'mm'
+    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet'
   };
 };
 

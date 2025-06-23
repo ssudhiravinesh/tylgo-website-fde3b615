@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     name: "",
     length: "",
     width: "",
-    unit: "metre" as "metre" | "inches" | "mm"
+    unit: "metre" as "metre" | "inches" | "mm" | "feet"
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -144,7 +143,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             <Label htmlFor="unit">Measurement Unit *</Label>
             <Select 
               value={formData.unit} 
-              onValueChange={(value: "metre" | "inches" | "mm") => handleInputChange("unit", value)}
+              onValueChange={(value: "metre" | "inches" | "mm" | "feet") => handleInputChange("unit", value)}
               disabled={isLoading}
             >
               <SelectTrigger>
@@ -152,6 +151,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="metre">Metres</SelectItem>
+                <SelectItem value="feet">Feet</SelectItem>
                 <SelectItem value="inches">Inches</SelectItem>
                 <SelectItem value="mm">Millimeters</SelectItem>
               </SelectContent>

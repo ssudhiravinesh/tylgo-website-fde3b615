@@ -47,10 +47,10 @@ export const TileCalculationsCard = ({ calculations, grandTotal }: TileCalculati
                   <div>
                     <p className="font-medium mb-1">Room Details:</p>
                     {calc.rooms.map((room, roomIndex) => {
-                      const roomAreaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit as any);
+                      const roomAreaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
                       return (
                         <div key={roomIndex} className="ml-2 text-xs text-gray-600">
-                          <span className="font-medium">{room.name}:</span> {formatDimensions(room.length, room.width, room.unit as any)} = {formatArea(roomAreaSqFt)}
+                          <span className="font-medium">{room.name}:</span> {formatDimensions(room.length, room.width, room.unit)} = {formatArea(roomAreaSqFt)}
                         </div>
                       );
                     })}
