@@ -1,9 +1,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Package, DollarSign } from "lucide-react";
+import { Calculator, Package, DollarSign, Ruler } from "lucide-react";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
+import { calculateAreaInSquareFeet, formatDimensions, formatArea } from "@/utils/unitConversions";
 
 interface TileCalculation {
   tile: Tile;
@@ -25,7 +26,7 @@ export const TileCalculationsCard = ({ calculations, grandTotal }: TileCalculati
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calculator className="h-5 w-5" />
-          Tile Requirements & Pricing
+          Tile Requirements & Pricing (Square Feet)
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -42,9 +43,23 @@ export const TileCalculationsCard = ({ calculations, grandTotal }: TileCalculati
                   <Badge variant="outline">{calc.tile.code}</Badge>
                 </div>
                 
-                <div className="text-sm space-y-1">
-                  <p><strong>Rooms:</strong> {calc.rooms.map(r => r.name).join(", ")}</p>
-                  <p><strong>Total Area:</strong> {calc.totalArea.toFixed(2)} m²</p>
+                <div className="text-sm space-y-2">
+                  <div>
+                    <p className="font-medium mb-1">Room Details:</p>
+                    {calc.rooms.map((room, roomIndex) => {
+                      const roomAreaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit as any);
+                      return (
+                        <div key={roomIndex} className="ml-2 text-xs text-gray-600">
+                          <span className="font-medium">{room.name}:</span> {formatDimensions(room.length, room.width, room.unit as any)} = {formatArea(roomAreaSqFt)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <p className="flex items-center gap-1">
+                    <Ruler className="h-3 w-3" />
+                    <strong>Total Area:</strong> {formatArea(calc.totalArea)}
+                  </p>
                   <p className="flex items-center gap-1">
                     <Calculator className="h-3 w-3" />
                     <strong>Tiles Needed:</strong> {calc.tilesNeeded}
