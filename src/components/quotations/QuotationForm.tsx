@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Calculator, FileText, User, IndianRupee } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTiles } from "@/hooks/useTiles";
-import { useRooms } from "@/hooks/useRooms";
+import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useCreateQuotation } from "@/hooks/useQuotations";
 import { toast } from "sonner";
 
@@ -44,7 +44,7 @@ export const QuotationForm = ({ onBack, onSuccess }: QuotationFormProps) => {
   
   const { data: customers = [] } = useCustomers();
   const { data: tiles = [] } = useTiles();
-  const { data: rooms = [] } = useRooms();
+  const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
   const createQuotationMutation = useCreateQuotation();
 
   const form = useForm<z.infer<typeof quotationSchema>>({
