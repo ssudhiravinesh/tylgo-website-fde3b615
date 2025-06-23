@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -140,124 +139,28 @@ export const useDeleteQuotation = () => {
 
   return useMutation({
     mutationFn: async (quotationId: string) => {
-      console.log('Starting deletion process for quotation:', quotationId);
+      console.log('Starting deletion for quotation:', quotationId);
       
-      // Get current user to verify permissions
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error('User not authenticated:', userError);
-        throw new Error('User not authenticated');
-      }
-      console.log('Current user ID:', user.id);
-
-      // First, verify the quotation exists and get its details
-      const { data: existingQuotation, error: checkError } = await supabase
-        .from('quotations')
-        .select('id, worker_id, quotation_number')
-        .eq('id', quotationId)
-        .single();
-
-      if (checkError) {
-        console.error('Error checking quotation existence:', checkError);
-        throw new Error(`Error checking quotation: ${checkError.message}`);
-      }
-
-      if (!existingQuotation) {
-        console.error('Quotation not found');
-        throw new Error('Quotation not found');
-      }
-
-      console.log('Quotation found:', existingQuotation);
-      console.log('Quotation worker_id:', existingQuotation.worker_id);
-      console.log('Current user_id:', user.id);
-
-      // First, get all quotation items to delete them individually
-      console.log('Fetching quotation items to delete...');
-      const { data: quotationItems, error: fetchItemsError } = await supabase
-        .from('quotation_items')
-        .select('id')
-        .eq('quotation_id', quotationId);
-
-      if (fetchItemsError) {
-        console.error('Error fetching quotation items:', fetchItemsError);
-        throw new Error(`Failed to fetch quotation items: ${fetchItemsError.message}`);
-      }
-
-      console.log(`Found ${quotationItems?.length || 0} quotation items to delete`);
-
-      // Delete each quotation item individually to ensure they're removed
-      if (quotationItems && quotationItems.length > 0) {
-        console.log('Deleting quotation items one by one...');
-        for (const item of quotationItems) {
-          const { error: itemDeleteError } = await supabase
-            .from('quotation_items')
-            .delete()
-            .eq('id', item.id);
-
-          if (itemDeleteError) {
-            console.error('Error deleting quotation item:', itemDeleteError);
-            throw new Error(`Failed to delete quotation item: ${itemDeleteError.message}`);
-          }
-        }
-        console.log('All quotation items deleted successfully');
-      }
-
-      // Verify all quotation items are deleted
-      const { data: remainingItems, error: checkItemsError } = await supabase
-        .from('quotation_items')
-        .select('id')
-        .eq('quotation_id', quotationId);
-
-      if (checkItemsError) {
-        console.error('Error checking remaining items:', checkItemsError);
-      } else if (remainingItems && remainingItems.length > 0) {
-        console.error('Some quotation items still exist:', remainingItems);
-        throw new Error('Failed to delete all quotation items');
-      }
-
-      console.log('All quotation items confirmed deleted');
-
-      // Now delete the quotation itself
-      console.log('Deleting quotation...');
-      const { error: quotationError, data: deletedData } = await supabase
+      // Simple deletion - let the database handle foreign key constraints with CASCADE
+      const { error } = await supabase
         .from('quotations')
         .delete()
-        .eq('id', quotationId)
-        .select();
+        .eq('id', quotationId);
 
-      console.log('Delete result - Data:', deletedData, 'Error:', quotationError);
-
-      if (quotationError) {
-        console.error('Error deleting quotation:', quotationError);
-        throw new Error(`Failed to delete quotation: ${quotationError.message}`);
+      if (error) {
+        console.error('Error deleting quotation:', error);
+        throw error;
       }
 
-      // Final verification that the quotation is gone
-      const { data: stillExists, error: recheckError } = await supabase
-        .from('quotations')
-        .select('id')
-        .eq('id', quotationId)
-        .maybeSingle();
-
-      if (recheckError) {
-        console.error('Error during final verification:', recheckError);
-      } else if (stillExists) {
-        console.error('Quotation still exists after deletion attempt');
-        throw new Error('Quotation was not successfully deleted from the database');
-      }
-
-      console.log('Quotation successfully deleted and verified');
+      console.log('Quotation deleted successfully');
       return quotationId;
     },
     onSuccess: (deletedId) => {
       console.log('Delete operation completed successfully for:', deletedId);
       
-      // Clear all related cache data
-      queryClient.removeQueries({ queryKey: ['quotations'] });
-      queryClient.removeQueries({ queryKey: ['quotation-items'] });
-      
-      // Refetch fresh data
+      // Clear and refetch data
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['quotation-items'] });
       
       toast.success('Quotation deleted successfully');
     },
