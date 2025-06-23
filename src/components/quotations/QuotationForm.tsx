@@ -1,15 +1,18 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { FileText } from "lucide-react";
-import { useTiles } from "@/hooks/useTiles";
-import { useRoomsByCustomer } from "@/hooks/useRooms";
-import { useCreateQuotation } from "@/hooks/useQuotations";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useCreateQuotation } from "@/hooks/useQuotations";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useRoomsByCustomer, useRoomTileSelections } from "@/hooks/useRooms";
+import { useTiles } from "@/hooks/useTiles";
+import { useCreateQuotationItem } from "@/hooks/useQuotationItems";
 import { QuotationCustomerSection } from "./QuotationCustomerSection";
 import { QuotationItemsSection } from "./QuotationItemsSection";
 import { QuotationNotesSection } from "./QuotationNotesSection";
@@ -17,9 +20,11 @@ import { QuotationSummary } from "./QuotationSummary";
 
 const quotationSchema = z.object({
   customer_id: z.string().min(1, "Please select a customer"),
-  status: z.enum(["draft", "sent", "approved", "rejected"]),
+  status: z.enum(["draft", "sent", "approved", "rejected"]).default("draft"),
   notes: z.string().optional(),
 });
+
+type QuotationFormData = z.infer<typeof quotationSchema>;
 
 interface QuotationItem {
   id: string;
@@ -31,154 +36,201 @@ interface QuotationItem {
 }
 
 interface QuotationFormProps {
+  customerId?: string;
   onBack: () => void;
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
-export const QuotationForm = ({ onBack, onSuccess }: QuotationFormProps) => {
-  const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
-  
-  const { data: tiles = [] } = useTiles();
-  const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
-  const createQuotationMutation = useCreateQuotation();
+export const QuotationForm = ({ customerId, onBack, onSuccess }: QuotationFormProps) => {
+  const [items, setItems] = useState<QuotationItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<z.infer<typeof quotationSchema>>({
+  const { data: customers = [] } = useCustomers();
+  const { data: rooms = [] } = useRoomsByCustomer(customerId || "");
+  const { data: tiles = [] } = useTiles();
+  const { data: tileSelections = [] } = useRoomTileSelections(customerId || "");
+  
+  const createQuotationMutation = useCreateQuotation();
+  const createQuotationItemMutation = useCreateQuotationItem();
+
+  const form = useForm<QuotationFormData>({
     resolver: zodResolver(quotationSchema),
     defaultValues: {
+      customer_id: customerId || "",
       status: "draft",
       notes: "",
     },
   });
 
-  const customerRooms = rooms.filter(room => room.customer_id === selectedCustomerId);
+  // Auto-populate items from room-tile selections when component mounts
+  useEffect(() => {
+    if (customerId && tileSelections.length > 0 && rooms.length > 0 && tiles.length > 0) {
+      const autoItems: QuotationItem[] = [];
 
-  const addQuotationItem = () => {
+      tileSelections.forEach(selection => {
+        const room = rooms.find(r => r.id === selection.room_id);
+        const tile = tiles.find(t => t.id === selection.tile_id);
+
+        if (room && tile) {
+          const roomArea = room.length * room.width;
+          const totalPrice = roomArea * tile.price_per_sqm;
+
+          autoItems.push({
+            id: `auto-${selection.id}`,
+            room_id: selection.room_id,
+            tile_id: selection.tile_id,
+            quantity: roomArea,
+            unit_price: tile.price_per_sqm,
+            total_price: totalPrice,
+          });
+        }
+      });
+
+      if (autoItems.length > 0) {
+        setItems(autoItems);
+        toast.success(`Auto-populated ${autoItems.length} items from room selections`);
+      }
+    }
+  }, [customerId, tileSelections, rooms, tiles]);
+
+  const addItem = () => {
     const newItem: QuotationItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `new-${Date.now()}`,
       room_id: "",
       tile_id: "",
-      quantity: 1,
+      quantity: 0,
       unit_price: 0,
       total_price: 0,
     };
-    setQuotationItems([...quotationItems, newItem]);
+    setItems([...items, newItem]);
   };
 
-  const removeQuotationItem = (id: string) => {
-    setQuotationItems(quotationItems.filter(item => item.id !== id));
-  };
-
-  const updateQuotationItem = (id: string, field: keyof QuotationItem, value: any) => {
-    setQuotationItems(items =>
-      items.map(item => {
-        if (item.id === id) {
-          const updatedItem = { ...item, [field]: value };
-          
-          // Recalculate total price when quantity or unit_price changes
-          if (field === 'quantity' || field === 'unit_price') {
-            updatedItem.total_price = updatedItem.quantity * updatedItem.unit_price;
-          }
-          
-          // Auto-set unit price when tile is selected
-          if (field === 'tile_id') {
-            const selectedTile = tiles.find(tile => tile.id === value);
-            if (selectedTile) {
-              updatedItem.unit_price = selectedTile.price_per_sqm;
-              updatedItem.total_price = updatedItem.quantity * selectedTile.price_per_sqm;
-            }
-          }
-          
-          return updatedItem;
+  const updateItem = (id: string, field: keyof QuotationItem, value: any) => {
+    setItems(items.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        
+        if (field === 'quantity' || field === 'unit_price') {
+          updatedItem.total_price = updatedItem.quantity * updatedItem.unit_price;
         }
-        return item;
-      })
-    );
+        
+        if (field === 'tile_id') {
+          const selectedTile = tiles.find(t => t.id === value);
+          if (selectedTile) {
+            updatedItem.unit_price = selectedTile.price_per_sqm;
+            updatedItem.total_price = updatedItem.quantity * selectedTile.price_per_sqm;
+          }
+        }
+        
+        return updatedItem;
+      }
+      return item;
+    }));
   };
 
-  const getTotalCost = () => {
-    return quotationItems.reduce((sum, item) => sum + item.total_price, 0);
+  const removeItem = (id: string) => {
+    setItems(items.filter(item => item.id !== id));
   };
 
-  const onSubmit = async (values: z.infer<typeof quotationSchema>) => {
-    if (quotationItems.length === 0) {
+  const totalCost = items.reduce((sum, item) => sum + item.total_price, 0);
+
+  const onSubmit = async (data: QuotationFormData) => {
+    if (items.length === 0) {
       toast.error("Please add at least one item to the quotation");
       return;
     }
 
-    const invalidItems = quotationItems.filter(item => !item.room_id || !item.tile_id || item.quantity <= 0);
-    if (invalidItems.length > 0) {
-      toast.error("Please complete all quotation items");
-      return;
-    }
-
+    setIsSubmitting(true);
+    
     try {
-      await createQuotationMutation.mutateAsync({
-        customer_id: values.customer_id,
-        status: values.status,
-        total_cost: getTotalCost(),
-        notes: values.notes,
-      });
-      
+      // Create the quotation
+      const quotationData = {
+        customer_id: data.customer_id,
+        status: data.status,
+        total_cost: totalCost,
+        notes: data.notes,
+      };
+
+      const createdQuotation = await createQuotationMutation.mutateAsync(quotationData);
+
+      // Create quotation items
+      for (const item of items) {
+        if (item.room_id && item.tile_id && item.quantity > 0) {
+          await createQuotationItemMutation.mutateAsync({
+            quotation_id: createdQuotation.id,
+            room_id: item.room_id,
+            tile_id: item.tile_id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.total_price,
+          });
+        }
+      }
+
       toast.success("Quotation created successfully!");
-      onSuccess?.();
-      onBack();
+      onSuccess();
     } catch (error) {
       console.error("Error creating quotation:", error);
       toast.error("Failed to create quotation");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <FileText className="h-6 w-6 text-blue-600" />
-            Create New Quotation
-          </h1>
-          <p className="text-gray-600">Generate detailed quotations for your customers</p>
-        </div>
-        <Button variant="outline" onClick={onBack}>
-          Back to Quotations
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" onClick={onBack} className="gap-2" disabled={isSubmitting}>
+          <ArrowLeft className="h-4 w-4" />
+          Back
         </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Create New Quotation</h1>
+          <p className="text-gray-600">Fill in the details to create a new quotation</p>
+        </div>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <QuotationCustomerSection 
+          <QuotationCustomerSection
             control={form.control}
-            onCustomerChange={setSelectedCustomerId}
+            customers={customers}
+            selectedCustomerId={customerId}
           />
 
           <QuotationItemsSection
-            items={quotationItems}
-            rooms={customerRooms}
+            items={items}
+            rooms={rooms}
             tiles={tiles}
-            onAddItem={addQuotationItem}
-            onUpdateItem={updateQuotationItem}
-            onRemoveItem={removeQuotationItem}
+            onAddItem={addItem}
+            onUpdateItem={updateItem}
+            onRemoveItem={removeItem}
           />
 
           <QuotationNotesSection control={form.control} />
 
-          <QuotationSummary 
-            totalCost={getTotalCost()}
-            itemCount={quotationItems.length}
-          />
+          <QuotationSummary totalCost={totalCost} itemCount={items.length} />
 
-          <div className="flex gap-4 pt-4">
-            <Button
-              type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
-              disabled={createQuotationMutation.isPending}
-            >
-              {createQuotationMutation.isPending ? "Creating..." : "Create Quotation"}
-            </Button>
-            <Button type="button" variant="outline" onClick={onBack}>
-              Cancel
-            </Button>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Submit Quotation</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || items.length === 0}
+                  className="gap-2 bg-blue-600 hover:bg-blue-700"
+                >
+                  <Save className="h-4 w-4" />
+                  {isSubmitting ? "Creating..." : "Create Quotation"}
+                </Button>
+                <Button type="button" variant="outline" onClick={onBack} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </form>
       </Form>
     </div>

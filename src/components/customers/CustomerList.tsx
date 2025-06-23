@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,14 +5,23 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, Search, Phone, MapPin, Calendar, User } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
+import { CustomerDetails } from "./CustomerDetails";
 
 interface CustomerListProps {
   onAddCustomer: () => void;
+  onManageRooms: (customerId: string) => void;
+  onCreateQuotation: (customerId: string) => void;
   userRole: "admin" | "worker";
 }
 
-export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => {
+export const CustomerList = ({ 
+  onAddCustomer, 
+  onManageRooms, 
+  onCreateQuotation, 
+  userRole 
+}: CustomerListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const { data: customers = [], isLoading } = useCustomers();
   
   const filteredCustomers = customers.filter(customer =>
@@ -21,6 +29,37 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
     customer.mobile.includes(searchTerm) ||
     customer.address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const selectedCustomer = selectedCustomerId 
+    ? customers.find(c => c.id === selectedCustomerId)
+    : null;
+
+  const handleViewDetails = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+  };
+
+  const handleBackToList = () => {
+    setSelectedCustomerId(null);
+  };
+
+  const handleNewQuote = (customerId: string) => {
+    onManageRooms(customerId);
+  };
+
+  const handleManageRooms = (customerId: string) => {
+    onManageRooms(customerId);
+  };
+
+  if (selectedCustomer) {
+    return (
+      <CustomerDetails
+        customer={selectedCustomer}
+        onBack={handleBackToList}
+        onNewQuote={() => handleNewQuote(selectedCustomer.id)}
+        onManageRooms={() => handleManageRooms(selectedCustomer.id)}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -32,13 +71,13 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
 
   return (
     <div className="space-y-6">
+      {/* ... keep existing code (header section) */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Customer Management</h1>
           <p className="text-gray-600">Manage your customer database and quotations</p>
         </div>
         
-        {/* Only show Add Customer button for workers */}
         {userRole === "worker" && (
           <Button
             onClick={onAddCustomer}
@@ -50,6 +89,7 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
         )}
       </div>
 
+      {/* ... keep existing code (search section) */}
       <div className="relative">
         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
         <Input
@@ -94,10 +134,19 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
               </div>
               
               <div className="flex gap-2 pt-2">
-                <Button size="sm" variant="outline" className="flex-1 text-xs">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1 text-xs"
+                  onClick={() => handleViewDetails(customer.id)}
+                >
                   View Details
                 </Button>
-                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                <Button 
+                  size="sm" 
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                  onClick={() => handleNewQuote(customer.id)}
+                >
                   New Quote
                 </Button>
               </div>
@@ -106,6 +155,7 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
         ))}
       </div>
 
+      {/* ... keep existing code (empty state) */}
       {filteredCustomers.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
