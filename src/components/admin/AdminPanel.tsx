@@ -163,6 +163,13 @@ export const AdminPanel = () => {
           <CardContent className="space-y-3">
             <Button 
               className="w-full justify-start gap-3 h-12 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => setActiveView("tile-management")}
+            >
+              <Grid3X3 className="h-4 w-4" />
+              Manage Tiles
+            </Button>
+            <Button 
+              className="w-full justify-start gap-3 h-12 bg-green-600 hover:bg-green-700 text-white"
               onClick={() => setActiveView("worker-management")}
             >
               <UserCog className="h-4 w-4" />

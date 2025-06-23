@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,9 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft } from "lucide-react";
+import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
-import { useCreateTile, useUpdateTile, useDeleteTile } from "@/hooks/useTileManagement";
+import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -39,6 +40,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const createTileMutation = useCreateTile();
   const updateTileMutation = useUpdateTile();
   const deleteTileMutation = useDeleteTile();
+  const generateQRMutation = useGenerateQRForTile();
 
   const form = useForm<TileFormData>({
     resolver: zodResolver(tileSchema),
@@ -102,6 +104,19 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     deleteTileMutation.mutate(tileId);
   };
 
+  const handleGenerateQR = async (tileId: string) => {
+    await generateQRMutation.mutateAsync(tileId);
+  };
+
+  const handleDownloadQR = (qrUrl: string, tileCode: string) => {
+    const link = document.createElement('a');
+    link.href = qrUrl;
+    link.download = `${tileCode}-qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const openEditDialog = (tile: any) => {
     setEditingTile(tile);
     form.reset({
@@ -136,7 +151,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Tile Management</h1>
-          <p className="text-gray-600">Manage your tile catalog database</p>
+          <p className="text-gray-600">Manage your tile catalog database and QR codes</p>
         </div>
       </div>
 
@@ -296,6 +311,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                 <TableHead>Name</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Price/m²</TableHead>
+                <TableHead>QR Code</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -318,6 +334,37 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     <div className="flex items-center gap-1 font-semibold text-green-600">
                       <IndianRupee className="h-4 w-4" />
                       {tile.price_per_sqm}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {tile.qr_code_url ? (
+                        <>
+                          <Badge variant="outline" className="text-green-600 border-green-200">
+                            Generated
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code)}
+                            className="gap-1"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleGenerateQR(tile.id)}
+                          disabled={generateQRMutation.isPending}
+                          className="gap-1"
+                        >
+                          <QrCode className="h-3 w-3" />
+                          {generateQRMutation.isPending ? 'Generating...' : 'Generate QR'}
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
