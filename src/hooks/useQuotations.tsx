@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -141,7 +142,21 @@ export const useDeleteQuotation = () => {
     mutationFn: async (quotationId: string) => {
       console.log('Starting deletion process for quotation:', quotationId);
       
-      // First, delete all quotation items associated with this quotation
+      // First, verify the quotation exists
+      const { data: existingQuotation, error: checkError } = await supabase
+        .from('quotations')
+        .select('id')
+        .eq('id', quotationId)
+        .single();
+
+      if (checkError || !existingQuotation) {
+        console.error('Quotation not found:', checkError);
+        throw new Error('Quotation not found');
+      }
+
+      console.log('Quotation found, proceeding with deletion...');
+
+      // Delete quotation items first
       console.log('Deleting quotation items...');
       const { error: itemsError } = await supabase
         .from('quotation_items')
@@ -155,11 +170,11 @@ export const useDeleteQuotation = () => {
 
       console.log('Quotation items deleted successfully');
 
-      // Then, delete the quotation itself
+      // Delete the quotation itself
       console.log('Deleting quotation...');
-      const { error: quotationError } = await supabase
+      const { error: quotationError, count } = await supabase
         .from('quotations')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('id', quotationId);
 
       if (quotationError) {
@@ -167,24 +182,23 @@ export const useDeleteQuotation = () => {
         throw new Error(`Failed to delete quotation: ${quotationError.message}`);
       }
 
-      console.log('Quotation deleted successfully');
+      if (count === 0) {
+        console.error('No rows were deleted');
+        throw new Error('Quotation could not be deleted - it may have already been removed');
+      }
+
+      console.log(`Quotation deleted successfully. Rows affected: ${count}`);
       return quotationId;
     },
     onSuccess: (deletedId) => {
       console.log('Delete operation completed successfully for:', deletedId);
       
-      // Force invalidate and refetch all related queries
+      // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['quotation-items'] });
       
-      // Remove the specific quotation from cache immediately
-      queryClient.setQueryData(['quotations'], (oldData: Quotation[] | undefined) => {
-        if (!oldData) return [];
-        return oldData.filter(quotation => quotation.id !== deletedId);
-      });
-      
-      // Force a refetch to ensure UI is updated
-      queryClient.refetchQueries({ queryKey: ['quotations'] });
+      // Force a complete refetch of quotations
+      queryClient.resetQueries({ queryKey: ['quotations'] });
       
       toast.success('Quotation deleted successfully');
     },
