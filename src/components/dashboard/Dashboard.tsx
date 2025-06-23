@@ -32,11 +32,28 @@ export type ActiveView =
 export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedCustomerForQuote, setSelectedCustomerForQuote] = useState<string | null>(null);
+
+  const handleNewQuote = (customerId: string) => {
+    setSelectedCustomerForQuote(customerId);
+    setActiveView("rooms");
+  };
+
+  const handleBackFromRooms = () => {
+    setSelectedCustomerForQuote(null);
+    setActiveView("customers");
+  };
 
   const renderContent = () => {
     switch (activeView) {
       case "customers":
-        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
+        return (
+          <CustomerList 
+            onAddCustomer={() => setActiveView("add-customer")} 
+            onNewQuote={handleNewQuote}
+            userRole={user.role} 
+          />
+        );
       case "add-customer":
         return user.role === "worker" ? <CustomerForm onBack={() => setActiveView("customers")} /> : <div>Access denied</div>;
       case "tiles":
@@ -46,9 +63,20 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "admin":
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
       case "rooms":
-        return user.role === "worker" ? <CustomerRoomManagement /> : <div>Access denied</div>;
+        return user.role === "worker" ? (
+          <CustomerRoomManagement 
+            preSelectedCustomerId={selectedCustomerForQuote}
+            onBack={handleBackFromRooms}
+          />
+        ) : <div>Access denied</div>;
       default:
-        return <CustomerList onAddCustomer={() => setActiveView("add-customer")} userRole={user.role} />;
+        return (
+          <CustomerList 
+            onAddCustomer={() => setActiveView("add-customer")} 
+            onNewQuote={handleNewQuote}
+            userRole={user.role} 
+          />
+        );
     }
   };
 

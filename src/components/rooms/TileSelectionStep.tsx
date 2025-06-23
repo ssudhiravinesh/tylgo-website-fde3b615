@@ -1,12 +1,14 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Palette, Calculator, Package, DollarSign, ArrowLeft, X, MousePointer, QrCode } from "lucide-react";
+import { Palette, Calculator, Package, DollarSign, ArrowLeft, X, MousePointer, QrCode, FileText } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QRScanner } from "@/components/qr/QRScanner";
+import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
@@ -36,6 +38,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [selectedRoomForTile, setSelectedRoomForTile] = useState<string | null>(null);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [showQuotationForm, setShowQuotationForm] = useState(false);
 
   useEffect(() => {
     // Initialize selections from database
@@ -193,6 +196,36 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     return Object.values(tileCalculations);
   };
 
+  const handleGenerateQuotation = () => {
+    if (Object.keys(tileSelections).length === 0) {
+      toast.error("Please select tiles for at least one room before generating quotation");
+      return;
+    }
+    setShowQuotationForm(true);
+  };
+
+  const handleBackFromQuotation = () => {
+    setShowQuotationForm(false);
+  };
+
+  const handleQuotationSuccess = () => {
+    setShowQuotationForm(false);
+    toast.success("Quotation generated successfully!");
+    onBack(); // Navigate back to rooms or wherever appropriate
+  };
+
+  const prepareQuotationData = () => {
+    const calculations = calculateTileRequirements();
+    return calculations.map(calc => ({
+      room_id: calc.rooms[0]?.id || "",
+      tile_id: calc.tile.id,
+      room_name: calc.rooms.map(r => r.name).join(", "),
+      tile_name: calc.tile.name,
+      room_area: calc.totalArea,
+      tile_price: calc.tile.price_per_sqm,
+    }));
+  };
+
   const calculations = calculateTileRequirements();
   const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
 
@@ -201,6 +234,17 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  if (showQuotationForm) {
+    return (
+      <QuotationForm
+        customerId={customerId}
+        roomTileSelections={prepareQuotationData()}
+        onBack={handleBackFromQuotation}
+        onSuccess={handleQuotationSuccess}
+      />
     );
   }
 
@@ -309,9 +353,19 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
               </div>
             ))}
             
-            <Button onClick={handleSaveSelections} className="w-full bg-blue-600 hover:bg-blue-700">
-              Save Selections
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveSelections} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                Save Selections
+              </Button>
+              <Button 
+                onClick={handleGenerateQuotation} 
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                disabled={Object.keys(tileSelections).length === 0}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Quotation
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

@@ -4,16 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Search, Phone, MapPin, Calendar, User } from "lucide-react";
+import { UserPlus, Search, Phone, MapPin, Calendar, User, Eye, FileText } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
+import { CustomerDetails } from "./CustomerDetails";
+import type { Customer } from "@/hooks/useCustomers";
 
 interface CustomerListProps {
   onAddCustomer: () => void;
+  onNewQuote: (customerId: string) => void;
   userRole: "admin" | "worker";
 }
 
-export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => {
+export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const { data: customers = [], isLoading } = useCustomers();
   
   const filteredCustomers = customers.filter(customer =>
@@ -21,6 +25,23 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
     customer.mobile.includes(searchTerm) ||
     customer.address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleViewDetails = (customer: Customer) => {
+    setSelectedCustomer(customer);
+  };
+
+  const handleBackToList = () => {
+    setSelectedCustomer(null);
+  };
+
+  if (selectedCustomer) {
+    return (
+      <CustomerDetails
+        customer={selectedCustomer}
+        onBack={handleBackToList}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -94,12 +115,25 @@ export const CustomerList = ({ onAddCustomer, userRole }: CustomerListProps) => 
               </div>
               
               <div className="flex gap-2 pt-2">
-                <Button size="sm" variant="outline" className="flex-1 text-xs">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1 text-xs"
+                  onClick={() => handleViewDetails(customer)}
+                >
+                  <Eye className="h-3 w-3 mr-1" />
                   View Details
                 </Button>
-                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
-                  New Quote
-                </Button>
+                {userRole === "worker" && (
+                  <Button 
+                    size="sm" 
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    onClick={() => onNewQuote(customer.id)}
+                  >
+                    <FileText className="h-3 w-3 mr-1" />
+                    New Quote
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

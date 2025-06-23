@@ -1,10 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight } from "lucide-react";
+import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
@@ -12,15 +12,26 @@ import { TileSelectionStep } from "./TileSelectionStep";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 
-export const CustomerRoomManagement = () => {
+interface CustomerRoomManagementProps {
+  preSelectedCustomerId?: string | null;
+  onBack?: () => void;
+}
+
+export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: CustomerRoomManagementProps) => {
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId || "");
   const { data: rooms = [], isLoading: roomsLoading } = useRoomsByCustomer(selectedCustomerId);
   const deleteRoomMutation = useDeleteRoom();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [showTileSelection, setShowTileSelection] = useState(false);
+
+  useEffect(() => {
+    if (preSelectedCustomerId) {
+      setSelectedCustomerId(preSelectedCustomerId);
+    }
+  }, [preSelectedCustomerId]);
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
@@ -83,35 +94,45 @@ export const CustomerRoomManagement = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Customer Room Management</h1>
-          <p className="text-gray-600">Manage room dimensions for tile calculations</p>
+        <div className="flex items-center gap-4">
+          {onBack && (
+            <Button variant="outline" onClick={onBack} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Customer Room Management</h1>
+            <p className="text-gray-600">Manage room dimensions for tile calculations</p>
+          </div>
         </div>
       </div>
 
       {/* Customer Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Home className="h-5 w-5" />
-            Select Customer
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose a customer to manage their rooms" />
-            </SelectTrigger>
-            <SelectContent>
-              {customers.map((customer) => (
-                <SelectItem key={customer.id} value={customer.id}>
-                  {customer.name} - {customer.mobile}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      {!preSelectedCustomerId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              Select Customer
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose a customer to manage their rooms" />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name} - {customer.mobile}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Selected Customer Info & Add Room Button */}
       {selectedCustomer && (

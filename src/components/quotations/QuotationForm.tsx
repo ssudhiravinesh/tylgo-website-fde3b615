@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Calculator, FileText, User, IndianRupee } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useTiles } from "@/hooks/useTiles";
-import { useRooms } from "@/hooks/useRooms";
+import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useCreateQuotation } from "@/hooks/useQuotations";
 import { toast } from "sonner";
 
@@ -36,23 +36,48 @@ interface QuotationItem {
 interface QuotationFormProps {
   onBack: () => void;
   onSuccess?: () => void;
+  customerId?: string;
+  roomTileSelections?: Array<{
+    room_id: string;
+    tile_id: string;
+    room_name: string;
+    tile_name: string;
+    room_area: number;
+    tile_price: number;
+  }>;
 }
 
-export const QuotationForm = ({ onBack, onSuccess }: QuotationFormProps) => {
+export const QuotationForm = ({ onBack, onSuccess, customerId, roomTileSelections }: QuotationFormProps) => {
   const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(customerId || "");
   
   const { data: customers = [] } = useCustomers();
   const { data: tiles = [] } = useTiles();
-  const { data: rooms = [] } = useRooms();
+  const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
   const createQuotationMutation = useCreateQuotation();
 
   const form = useForm<z.infer<typeof quotationSchema>>({
     resolver: zodResolver(quotationSchema),
     defaultValues: {
+      customer_id: customerId || "",
       status: "draft",
       notes: "",
     },
+  });
+
+  // Initialize quotation items from room tile selections
+  useState(() => {
+    if (roomTileSelections && roomTileSelections.length > 0) {
+      const items: QuotationItem[] = roomTileSelections.map((selection, index) => ({
+        id: `${selection.room_id}-${selection.tile_id}-${index}`,
+        room_id: selection.room_id,
+        tile_id: selection.tile_id,
+        quantity: selection.room_area,
+        unit_price: selection.tile_price,
+        total_price: selection.room_area * selection.tile_price,
+      }));
+      setQuotationItems(items);
+    }
   });
 
   const customerRooms = rooms.filter(room => room.customer_id === selectedCustomerId);
@@ -170,6 +195,7 @@ export const QuotationForm = ({ onBack, onSuccess }: QuotationFormProps) => {
                         setSelectedCustomerId(value);
                       }}
                       defaultValue={field.value}
+                      disabled={!!customerId}
                     >
                       <FormControl>
                         <SelectTrigger>
