@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import type { Quotation } from '@/hooks/useQuotations';
@@ -29,58 +28,75 @@ export const usePDFGeneration = () => {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
 
-      // Generate items rows for the table
-      const itemsRows = quotationItems.map((item: any) => {
-        const room = item.room;
-        const tile = item.tile;
-        
-        // Calculate area in square feet if room dimensions are available
-        let roomDetails = 'N/A';
-        let areaInSqFt = 'N/A';
-        
-        if (room && room.length && room.width && room.unit) {
-          const areaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-          roomDetails = formatDimensions(room.length, room.width, room.unit);
-          areaInSqFt = formatArea(areaSqFt);
-        }
-
-        // Calculate tile dimensions for display
-        let tileDimensions = 'N/A';
-        if (tile && tile.size_length && tile.size_breadth) {
-          const lengthInMm = tile.size_length;
-          const widthInMm = tile.size_breadth;
+      // Generate items rows for the table - Fixed logic
+      let itemsRows = '';
+      
+      if (quotationItems && quotationItems.length > 0) {
+        itemsRows = quotationItems.map((item: any) => {
+          console.log('Processing item:', item); // Debug log
           
-          if (lengthInMm >= 1000 || widthInMm >= 1000) {
-            const lengthInM = (lengthInMm / 1000).toFixed(2);
-            const widthInM = (widthInMm / 1000).toFixed(2);
-            tileDimensions = `${lengthInM} × ${widthInM} m`;
-          } else if (lengthInMm >= 100 || widthInMm >= 100) {
-            const lengthInCm = (lengthInMm / 10).toFixed(1);
-            const widthInCm = (widthInMm / 10).toFixed(1);
-            tileDimensions = `${lengthInCm} × ${widthInCm} cm`;
-          } else {
-            tileDimensions = `${lengthInMm} × ${widthInMm} mm`;
+          const room = item.room;
+          const tile = item.tile;
+          
+          // Calculate area in square feet if room dimensions are available
+          let roomDetails = 'N/A';
+          let areaInSqFt = 'N/A';
+          
+          if (room && room.length && room.width && room.unit) {
+            try {
+              const areaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
+              roomDetails = formatDimensions(room.length, room.width, room.unit);
+              areaInSqFt = formatArea(areaSqFt);
+            } catch (error) {
+              console.error('Error calculating area:', error);
+            }
           }
-        }
 
-        return `
-          <tr>
-            <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px;">
-              <strong>${room?.name || 'N/A'}</strong><br/>
-              <small style="color: #666; font-size: 9px;">Dim: ${roomDetails}</small><br/>
-              <small style="color: #666; font-size: 9px;">Area: ${areaInSqFt}</small>
-            </td>
-            <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px;">
-              <strong>${tile?.name || 'N/A'}</strong><br/>
-              <small style="color: #666; font-size: 9px;">Code: ${tile?.code || 'N/A'}</small><br/>
-              <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small>
-            </td>
-            <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px;">${item.quantity || 0} sq ft</td>
-            <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px;">₹${(item.unit_price || 0).toLocaleString()}</td>
-            <td style="text-align: right; font-weight: bold; padding: 8px; border: 1px solid #ddd; font-size: 11px;">₹${(item.total_price || 0).toLocaleString()}</td>
-          </tr>
-        `;
-      }).join('');
+          // Calculate tile dimensions for display
+          let tileDimensions = 'N/A';
+          if (tile && tile.size_length && tile.size_breadth) {
+            const lengthInMm = parseFloat(tile.size_length) || 0;
+            const widthInMm = parseFloat(tile.size_breadth) || 0;
+            
+            if (lengthInMm >= 1000 || widthInMm >= 1000) {
+              const lengthInM = (lengthInMm / 1000).toFixed(2);
+              const widthInM = (widthInMm / 1000).toFixed(2);
+              tileDimensions = `${lengthInM} × ${widthInM} m`;
+            } else if (lengthInMm >= 100 || widthInMm >= 100) {
+              const lengthInCm = (lengthInMm / 10).toFixed(1);
+              const widthInCm = (widthInMm / 10).toFixed(1);
+              tileDimensions = `${lengthInCm} × ${widthInCm} cm`;
+            } else {
+              tileDimensions = `${lengthInMm} × ${widthInMm} mm`;
+            }
+          }
+
+          // Ensure numeric values are properly handled
+          const quantity = parseFloat(item.quantity) || 0;
+          const unitPrice = parseFloat(item.unit_price) || 0;
+          const totalPrice = parseFloat(item.total_price) || (quantity * unitPrice);
+
+          return `
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                <strong>${room?.name || 'Unknown Room'}</strong><br/>
+                <small style="color: #666; font-size: 9px;">Dim: ${roomDetails}</small><br/>
+                <small style="color: #666; font-size: 9px;">Area: ${areaInSqFt}</small>
+              </td>
+              <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                <strong>${tile?.name || 'Unknown Tile'}</strong><br/>
+                <small style="color: #666; font-size: 9px;">Code: ${tile?.code || 'N/A'}</small><br/>
+                <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small>
+              </td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${quantity.toFixed(2)} sq ft</td>
+              <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: right; font-weight: bold; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        itemsRows = '<tr><td colspan="5" class="no-items">No items found in this quotation</td></tr>';
+      }
 
       const pdfContent = `
         <!DOCTYPE html>
@@ -219,9 +235,17 @@ export const usePDFGeneration = () => {
               font-style: italic;
               font-size: 11px;
             }
+
           </style>
         </head>
         <body>
+          <!-- Enhanced logging for debugging -->
+          <script>
+            console.log('PDF Generation Debug:');
+            console.log('Items Count:', ${quotationItems ? quotationItems.length : 0});
+            console.log('Items Data:', ${JSON.stringify(quotationItems, null, 2)});
+          </script>
+
           <div class="header no-page-break">
             <div class="company-name">Tile Solutions</div>
             <div class="quotation-title">QUOTATION</div>
@@ -255,13 +279,13 @@ export const usePDFGeneration = () => {
               </tr>
             </thead>
             <tbody>
-              ${itemsRows || '<tr><td colspan="5" class="no-items">No items found in this quotation</td></tr>'}
+              ${itemsRows}
             </tbody>
           </table>
 
           <div class="total-section no-page-break">
             <div style="font-size: 11px; margin-bottom: 5px;">
-              <strong>Summary:</strong> ${quotationItems.length} item(s)
+              <strong>Summary:</strong> ${quotationItems ? quotationItems.length : 0} item(s)
             </div>
             <div class="total-row">
               Total Amount: ₹${(quotation.total_cost || 0).toLocaleString('en-IN')}
