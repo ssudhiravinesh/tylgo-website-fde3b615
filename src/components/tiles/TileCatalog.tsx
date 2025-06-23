@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { useTiles } from "@/hooks/useTiles";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
@@ -11,6 +10,7 @@ import { SearchBar } from "./SearchBar";
 import { TileCard } from "./TileCard";
 import { TileAssignmentDialog } from "./TileAssignmentDialog";
 import { EmptyTileState } from "./EmptyTileState";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 
 interface TileCatalogProps {
   onTileSelected?: (tileId: string) => void;
@@ -162,8 +162,9 @@ export const TileCatalog = ({
     }
   };
 
-  const handleAssignButtonClick = (e: React.MouseEvent) => {
+  const handleAssignButtonClick = (tileId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setSelectedTile(tileId);
     setIsAssignDialogOpen(true);
   };
 
@@ -202,17 +203,9 @@ export const TileCatalog = ({
             onGenerateQR={handleGenerateQR}
             onDownloadQR={handleDownloadQR}
             onViewDetails={handleViewDetails}
-            onAssignClick={handleAssignButtonClick}
+            onAssignClick={(e) => handleAssignButtonClick(tile.id, e)}
             isGeneratingQR={generateQRMutation.isPending}
-          >
-            {selectedTile === tile.id && showAssignButton && (
-              <Dialog open={isAssignDialogOpen} onOpenChange={handleDialogOpenChange}>
-                <DialogTrigger asChild>
-                  <div /> {/* Empty trigger since we handle opening via button click */}
-                </DialogTrigger>
-              </Dialog>
-            )}
-          </TileCard>
+          />
         ))}
       </div>
 
