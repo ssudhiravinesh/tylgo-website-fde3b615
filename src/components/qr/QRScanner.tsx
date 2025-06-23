@@ -1,10 +1,11 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Camera, X, Flashlight, FlashlightOff } from 'lucide-react';
 import { toast } from 'sonner';
+import jsQR from 'jsqr';
 
 interface QRScannerProps {
   isOpen: boolean;
@@ -19,6 +20,128 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
   const [hasCamera, setHasCamera] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopScanning = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    setIsScanning(false);
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    stopScanning();
+    if (stream) {
+      stream.getTracks().forEach(track => {
+        track.stop();
+      });
+      setStream(null);
+    }
+    setHasCamera(false);
+    setTorchEnabled(false);
+  }, [stream, stopScanning]);
+
+  const startScanning = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    setIsScanning(true);
+    
+    const scanInterval = setInterval(() => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        return;
+      }
+
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Draw the video frame to canvas
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Get image data for QR detection
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      
+      try {
+        // Use jsQR to detect QR codes
+        const qrResult = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (qrResult && qrResult.data) {
+          console.log('QR Code detected:', qrResult.data);
+          onScan(qrResult.data.trim());
+          stopScanning();
+          onClose();
+        }
+      } catch (error) {
+        console.error('QR scanning error:', error);
+      }
+    }, 100);
+
+    scanIntervalRef.current = scanInterval;
+  }, [onScan, onClose, stopScanning]);
+
+  const startCamera = async () => {
+    try {
+      console.log('Starting camera...');
+      
+      const constraints = {
+        video: {
+          facingMode: 'environment', // Use back camera
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 }
+        },
+        audio: false
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Camera stream obtained:', mediaStream);
+      
+      setStream(mediaStream);
+      setHasCamera(true);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        
+        // Wait for video to be ready before starting to scan
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded, starting playback...');
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              console.log('Video playing, starting scan...');
+              startScanning();
+            }).catch(error => {
+              console.error('Error playing video:', error);
+              toast.error('Error starting video playback');
+            });
+          }
+        };
+      }
+      
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      setHasCamera(false);
+      
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          toast.error('Camera permission denied. Please allow camera access and try again.');
+        } else if (error.name === 'NotFoundError') {
+          toast.error('No camera found on this device.');
+        } else if (error.name === 'NotSupportedError') {
+          toast.error('Camera not supported by this browser.');
+        } else {
+          toast.error('Unable to access camera. Please check permissions and try again.');
+        }
+      } else {
+        toast.error('Unable to access camera. Please check permissions and try again.');
+      }
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -27,44 +150,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
       stopCamera();
     }
 
-    return () => stopCamera();
-  }, [isOpen]);
-
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
-      
-      setStream(mediaStream);
-      setHasCamera(true);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
-      }
-      
-      setIsScanning(true);
-      startScanning();
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      toast.error('Unable to access camera. Please check permissions.');
-      setHasCamera(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    setIsScanning(false);
-    setHasCamera(false);
-  };
+    return () => {
+      stopCamera();
+    };
+  }, [isOpen, stopCamera]);
 
   const toggleTorch = async () => {
     if (stream) {
@@ -83,49 +172,21 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
     }
   };
 
-  const startScanning = () => {
-    const scanInterval = setInterval(() => {
-      if (videoRef.current && canvasRef.current && isScanning) {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const context = canvas.getContext('2d');
-
-        if (context && video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          // Use a QR code detection library here
-          // For now, we'll simulate QR detection with a manual input fallback
-          try {
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            // In a real implementation, you'd use a library like jsQR here
-            // const qrResult = jsQR(imageData.data, imageData.width, imageData.height);
-            // if (qrResult) {
-            //   onScan(qrResult.data); // This will now be just the tile code
-            //   clearInterval(scanInterval);
-            //   onClose();
-            // }
-          } catch (error) {
-            console.error('QR scanning error:', error);
-          }
-        }
-      }
-    }, 100);
-
-    return () => clearInterval(scanInterval);
-  };
-
   const handleManualInput = () => {
     const input = prompt('Enter the tile code:');
-    if (input) {
+    if (input && input.trim()) {
       onScan(input.trim());
       onClose();
     }
   };
 
+  const handleClose = () => {
+    stopCamera();
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -139,12 +200,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
             <div className="relative">
               <video
                 ref={videoRef}
-                className="w-full h-64 object-cover rounded-lg bg-gray-100"
+                className="w-full h-64 object-cover rounded-lg bg-gray-900"
                 playsInline
                 muted
+                autoPlay
               />
               <canvas ref={canvasRef} className="hidden" />
               
+              {/* Scanning overlay */}
               <div className="absolute inset-0 border-2 border-blue-500 rounded-lg pointer-events-none">
                 <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-blue-500"></div>
                 <div className="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-blue-500"></div>
@@ -152,6 +215,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
                 <div className="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-blue-500"></div>
               </div>
 
+              {/* Controls overlay */}
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
                 <Button
                   variant="secondary"
@@ -162,6 +226,12 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
                   {torchEnabled ? <FlashlightOff className="h-4 w-4" /> : <Flashlight className="h-4 w-4" />}
                 </Button>
               </div>
+
+              {isScanning && (
+                <div className="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs rounded">
+                  Scanning...
+                </div>
+              )}
             </div>
           ) : (
             <Card>
@@ -177,7 +247,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
           )}
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">
+            <Button variant="outline" onClick={handleClose} className="flex-1">
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
@@ -187,7 +257,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Scan the QR code on a tile to select it for the room
+            {hasCamera 
+              ? "Position the QR code within the frame to scan automatically"
+              : "Scan the QR code on a tile to select it for the room"
+            }
           </p>
         </div>
       </DialogContent>
