@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Calendar, IndianRupee, User, Download, Plus, Eye, Edit, Trash2, Mail } from "lucide-react";
+import { Search, FileText, Calendar, IndianRupee, User, Plus } from "lucide-react";
 import { useQuotations, useDeleteQuotation } from "@/hooks/useQuotations";
 import { usePDFGeneration } from "@/hooks/usePDFGeneration";
 import { useEmailSending } from "@/hooks/useEmailSending";
@@ -13,6 +13,7 @@ import { QuotationDetails } from "./QuotationDetails";
 import { EmailDialog } from "./EmailDialog";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
 import { EditQuotationDialog } from "./EditQuotationDialog";
+import { QuotationActionButtons } from "./QuotationActionButtons";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
@@ -29,7 +30,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedQuotationForAction, setSelectedQuotationForAction] = useState<string | null>(null);
   
-  const { data: quotations = [], isLoading } = useQuotations();
+  const { data: quotations = [], isLoading, refetch } = useQuotations();
   const { mutate: deleteQuotation, isPending: isDeleting } = useDeleteQuotation();
   const { generateQuotationPDF } = usePDFGeneration();
   const { sendQuotationEmail, isSending } = useEmailSending();
@@ -71,10 +72,12 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const handleBackToList = () => {
     setViewMode("list");
     setSelectedQuotationId(null);
+    refetch(); // Refresh the data when returning to list
   };
 
   const handleCreateSuccess = () => {
     setViewMode("list");
+    refetch(); // Refresh the data after creating
   };
 
   const handleDownloadPDF = (quotationId: string) => {
@@ -91,7 +94,13 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
 
   const handleEmailSend = async (email: string) => {
     if (selectedQuotationForActionObj) {
-      await sendQuotationEmail(selectedQuotationForActionObj, email);
+      try {
+        await sendQuotationEmail(selectedQuotationForActionObj, email);
+        setEmailDialogOpen(false);
+        setSelectedQuotationForAction(null);
+      } catch (error) {
+        console.error('Error sending email:', error);
+      }
     }
   };
 
@@ -102,10 +111,16 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
 
   const handleDeleteConfirm = () => {
     if (selectedQuotationForAction) {
+      console.log('Attempting to delete quotation:', selectedQuotationForAction);
       deleteQuotation(selectedQuotationForAction, {
         onSuccess: () => {
+          console.log('Quotation deleted successfully');
           setDeleteDialogOpen(false);
           setSelectedQuotationForAction(null);
+          refetch(); // Refresh the list after deletion
+        },
+        onError: (error) => {
+          console.error('Failed to delete quotation:', error);
         }
       });
     }
@@ -114,6 +129,12 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const handleEdit = (quotationId: string) => {
     setSelectedQuotationForAction(quotationId);
     setEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditDialogOpen(false);
+    setSelectedQuotationForAction(null);
+    refetch(); // Refresh the data after editing
   };
 
   const closeDialogs = () => {
@@ -277,56 +298,14 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                   </p>
                 </div>
                 
-                <div className="flex gap-2 pt-2 flex-wrap">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="text-xs"
-                    onClick={() => handleViewDetails(quotation.id)}
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    View
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="text-xs"
-                    onClick={() => handleDownloadPDF(quotation.id)}
-                  >
-                    <Download className="h-3 w-3 mr-1" />
-                    PDF
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="text-xs"
-                    onClick={() => handleSendEmail(quotation.id)}
-                  >
-                    <Mail className="h-3 w-3 mr-1" />
-                    Email
-                  </Button>
-                  {userRole === "worker" && (
-                    <>
-                      <Button 
-                        size="sm" 
-                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={() => handleEdit(quotation.id)}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="destructive" 
-                        className="text-xs"
-                        onClick={() => handleDelete(quotation.id)}
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Delete
-                      </Button>
-                    </>
-                  )}
-                </div>
+                <QuotationActionButtons
+                  onView={() => handleViewDetails(quotation.id)}
+                  onDownload={() => handleDownloadPDF(quotation.id)}
+                  onSendEmail={() => handleSendEmail(quotation.id)}
+                  onEdit={() => handleEdit(quotation.id)}
+                  onDelete={() => handleDelete(quotation.id)}
+                  userRole={userRole}
+                />
               </CardContent>
             </Card>
           ))}
@@ -375,6 +354,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
         isOpen={editDialogOpen}
         onClose={closeDialogs}
         quotation={selectedQuotationForActionObj}
+        onSuccess={handleEditSuccess}
       />
     </>
   );

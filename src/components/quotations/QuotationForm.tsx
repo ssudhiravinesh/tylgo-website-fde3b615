@@ -2,16 +2,16 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, IndianRupee } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateQuotation, useUpdateQuotation, type Quotation } from "@/hooks/useQuotations";
 import { useCreateQuotationItem, useQuotationItems, useDeleteQuotationItem, useUpdateQuotationItem } from "@/hooks/useQuotationItems";
+import { QuotationItemsSection } from "./QuotationItemsSection";
 import { toast } from "sonner";
 
 interface QuotationFormProps {
@@ -108,7 +108,6 @@ export const QuotationForm = ({
   const removeItem = async (index: number) => {
     const item = items[index];
     if (editMode && item.id && existingQuotation) {
-      // Delete from database if it's an existing item
       try {
         await deleteQuotationItem({ id: item.id, quotationId: existingQuotation.id });
         setItems(items.filter((_, i) => i !== index));
@@ -127,7 +126,6 @@ export const QuotationForm = ({
     const oldItem = newItems[index];
     newItems[index] = { ...newItems[index], [field]: value };
 
-    // Recalculate total price when quantity, room, or tile changes
     if (field === 'quantity' || field === 'tile_id' || field === 'room_id') {
       const item = newItems[index];
       const tile = tiles.find(t => t.id === item.tile_id);
@@ -142,7 +140,6 @@ export const QuotationForm = ({
 
     setItems(newItems);
 
-    // If in edit mode and this is an existing item, update it in the database
     if (editMode && oldItem.id && existingQuotation) {
       try {
         await updateQuotationItem({
@@ -188,13 +185,11 @@ export const QuotationForm = ({
     };
 
     if (editMode && existingQuotation) {
-      // Update existing quotation
       updateQuotation({
         id: existingQuotation.id,
         ...quotationData,
       }, {
         onSuccess: async (updatedQuotation) => {
-          // Handle new items that don't have IDs
           const newItems = items.filter(item => !item.id);
           for (const item of newItems) {
             try {
@@ -214,10 +209,8 @@ export const QuotationForm = ({
         },
       });
     } else {
-      // Create new quotation
       createQuotation(quotationData, {
         onSuccess: async (newQuotation) => {
-          // Create quotation items
           for (const item of items) {
             try {
               await createQuotationItem({
@@ -306,112 +299,14 @@ export const QuotationForm = ({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Quotation Items</CardTitle>
-            <Button onClick={addItem} variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Item
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
-                <div className="space-y-2">
-                  <Label>Room</Label>
-                  <Select value={item.room_id} onValueChange={(value) => updateItem(index, 'room_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select room" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rooms.map((room) => (
-                        <SelectItem key={room.id} value={room.id}>
-                          {room.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Tile</Label>
-                  <Select value={item.tile_id} onValueChange={(value) => updateItem(index, 'tile_id', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select tile" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tiles.map((tile) => (
-                        <SelectItem key={tile.id} value={tile.id}>
-                          {tile.name} - {tile.code}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Quantity (sqm)</Label>
-                  <Input
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Unit Price (₹)</Label>
-                  <Input
-                    type="number"
-                    value={item.unit_price}
-                    readOnly
-                    className="bg-gray-50"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Total (₹)</Label>
-                  <Input
-                    type="number"
-                    value={item.total_price}
-                    readOnly
-                    className="bg-gray-50"
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <Button variant="destructive" size="sm" onClick={() => removeItem(index)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            {items.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <p>No items added yet. Click "Add Item" to get started.</p>
-              </div>
-            )}
-          </div>
-
-          {items.length > 0 && (
-            <div className="mt-6 pt-4 border-t">
-              <div className="flex justify-end">
-                <div className="text-right">
-                  <p className="text-lg font-semibold flex items-center gap-1">
-                    <IndianRupee className="h-5 w-5" />
-                    Total: {getTotalCost().toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <QuotationItemsSection
+        items={items}
+        rooms={rooms}
+        tiles={tiles}
+        onAddItem={addItem}
+        onRemoveItem={removeItem}
+        onUpdateItem={updateItem}
+      />
 
       <div className="flex gap-4 justify-end">
         <Button variant="outline" onClick={onBack}>
