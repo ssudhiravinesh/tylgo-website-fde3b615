@@ -1,0 +1,149 @@
+
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Grid3X3, Ruler, IndianRupee, Check, QrCode, Download, Plus } from "lucide-react";
+import { Tile } from "@/hooks/useTiles";
+
+interface TileCardProps {
+  tile: Tile;
+  isSelected: boolean;
+  isAdmin: boolean;
+  showAssignButton: boolean;
+  onTileSelect: (tileId: string) => void;
+  onGenerateQR: (tileId: string, e: React.MouseEvent) => void;
+  onDownloadQR: (qrUrl: string, tileCode: string, e: React.MouseEvent) => void;
+  onViewDetails: (tileId: string, e: React.MouseEvent) => void;
+  onAssignClick: (e: React.MouseEvent) => void;
+  isGeneratingQR: boolean;
+  children?: React.ReactNode;
+}
+
+export const TileCard = ({
+  tile,
+  isSelected,
+  isAdmin,
+  showAssignButton,
+  onTileSelect,
+  onGenerateQR,
+  onDownloadQR,
+  onViewDetails,
+  onAssignClick,
+  isGeneratingQR,
+  children
+}: TileCardProps) => {
+  return (
+    <Card 
+      className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-gray-200 ${
+        isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''
+      }`}
+      onClick={() => onTileSelect(tile.id)}
+    >
+      <CardContent className="p-4">
+        <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+          {tile.image_url ? (
+            <img 
+              src={tile.image_url} 
+              alt={tile.name}
+              className="w-full h-full object-cover rounded-lg"
+            />
+          ) : (
+            <Grid3X3 className="h-12 w-12 text-gray-400" />
+          )}
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Badge variant="secondary" className="text-xs font-mono">
+              {tile.code}
+            </Badge>
+            {isSelected && (
+              <Badge className="bg-blue-600 text-white text-xs">
+                <Check className="h-3 w-3 mr-1" />
+                Selected
+              </Badge>
+            )}
+          </div>
+          
+          <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">
+            {tile.name}
+          </h3>
+          
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <Ruler className="h-3 w-3" />
+            {tile.size_length} × {tile.size_breadth} mm
+          </div>
+          
+          <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
+            <IndianRupee className="h-4 w-4" />
+            {tile.price_per_sqm}/m²
+          </div>
+
+          {/* QR Code Section - Only show for admins */}
+          {isAdmin && (
+            <div className="flex items-center justify-between mt-2">
+              {tile.qr_code_url ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => onDownloadQR(tile.qr_code_url!, tile.code, e)}
+                  className="flex-1 mr-1"
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  QR
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => onGenerateQR(tile.id, e)}
+                  disabled={isGeneratingQR}
+                  className="flex-1 mr-1"
+                >
+                  <QrCode className="h-3 w-3 mr-1" />
+                  {isGeneratingQR ? 'Gen...' : 'QR'}
+                </Button>
+              )}
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => onViewDetails(tile.id, e)}
+                className="text-blue-600 hover:text-blue-800 px-2"
+              >
+                View
+              </Button>
+            </div>
+          )}
+
+          {/* For workers, only show View button */}
+          {!isAdmin && (
+            <div className="mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => onViewDetails(tile.id, e)}
+                className="w-full text-blue-600 hover:text-blue-800"
+              >
+                View Details
+              </Button>
+            </div>
+          )}
+
+          {isSelected && showAssignButton && (
+            <Button 
+              size="sm" 
+              className="w-full mt-2 gap-2"
+              onClick={onAssignClick}
+            >
+              <Plus className="h-4 w-4" />
+              Assign to Rooms
+            </Button>
+          )}
+
+          {children}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};

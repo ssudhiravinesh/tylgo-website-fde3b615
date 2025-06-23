@@ -1,20 +1,16 @@
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Grid3X3, QrCode, Ruler, IndianRupee, Plus, Users, Check, Download } from "lucide-react";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { useTiles } from "@/hooks/useTiles";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { useGenerateQRForTile } from "@/hooks/useTileManagement";
-import { QRScanner } from "@/components/qr/QRScanner";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { SearchBar } from "./SearchBar";
+import { TileCard } from "./TileCard";
+import { TileAssignmentDialog } from "./TileAssignmentDialog";
+import { EmptyTileState } from "./EmptyTileState";
 
 interface TileCatalogProps {
   onTileSelected?: (tileId: string) => void;
@@ -34,7 +30,6 @@ export const TileCatalog = ({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId);
   const [selectedRooms, setSelectedRooms] = useState<string[]>(preSelectedRoomIds);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   
   const { data: tiles = [], isLoading } = useTiles();
   const { data: customers = [] } = useCustomers();
@@ -66,8 +61,6 @@ export const TileCatalog = ({
     } else {
       toast.error(`No tile found with code: ${tileCode}`);
     }
-    
-    setIsQRScannerOpen(false);
   };
 
   const handleTileSelect = (tileId: string) => {
@@ -93,6 +86,11 @@ export const TileCatalog = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleViewDetails = (tileId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/tile/${tileId}`);
   };
 
   const handleAssignTile = async () => {
@@ -186,260 +184,53 @@ export const TileCatalog = ({
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search by tile name or code..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-        <Button
-          onClick={() => setIsQRScannerOpen(true)}
-          className="h-12 gap-2 bg-blue-600 hover:bg-blue-700"
-        >
-          <QrCode className="h-4 w-4" />
-          Scan QR
-        </Button>
-      </div>
+      <SearchBar 
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onQRScanned={handleQRScanned}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredTiles.map((tile) => (
-          <Card 
-            key={tile.id} 
-            className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-gray-200 ${
-              selectedTile === tile.id ? 'ring-2 ring-blue-500 border-blue-500' : ''
-            }`}
-            onClick={() => handleTileSelect(tile.id)}
+          <TileCard
+            key={tile.id}
+            tile={tile}
+            isSelected={selectedTile === tile.id}
+            isAdmin={isAdmin}
+            showAssignButton={showAssignButton}
+            onTileSelect={handleTileSelect}
+            onGenerateQR={handleGenerateQR}
+            onDownloadQR={handleDownloadQR}
+            onViewDetails={handleViewDetails}
+            onAssignClick={handleAssignButtonClick}
+            isGeneratingQR={generateQRMutation.isPending}
           >
-            <CardContent className="p-4">
-              <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                {tile.image_url ? (
-                  <img 
-                    src={tile.image_url} 
-                    alt={tile.name}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                ) : (
-                  <Grid3X3 className="h-12 w-12 text-gray-400" />
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary" className="text-xs font-mono">
-                    {tile.code}
-                  </Badge>
-                  {selectedTile === tile.id && (
-                    <Badge className="bg-blue-600 text-white text-xs">
-                      <Check className="h-3 w-3 mr-1" />
-                      Selected
-                    </Badge>
-                  )}
-                </div>
-                
-                <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">
-                  {tile.name}
-                </h3>
-                
-                <div className="flex items-center gap-1 text-xs text-gray-600">
-                  <Ruler className="h-3 w-3" />
-                  {tile.size_length} × {tile.size_breadth} mm
-                </div>
-                
-                <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
-                  <IndianRupee className="h-4 w-4" />
-                  {tile.price_per_sqm}/m²
-                </div>
-
-                {/* QR Code Section - Only show for admins */}
-                {isAdmin && (
-                  <div className="flex items-center justify-between mt-2">
-                    {tile.qr_code_url ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => handleDownloadQR(tile.qr_code_url!, tile.code, e)}
-                        className="flex-1 mr-1"
-                      >
-                        <Download className="h-3 w-3 mr-1" />
-                        QR
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => handleGenerateQR(tile.id, e)}
-                        disabled={generateQRMutation.isPending}
-                        className="flex-1 mr-1"
-                      >
-                        <QrCode className="h-3 w-3 mr-1" />
-                        {generateQRMutation.isPending ? 'Gen...' : 'QR'}
-                      </Button>
-                    )}
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/tile/${tile.id}`);
-                      }}
-                      className="text-blue-600 hover:text-blue-800 px-2"
-                    >
-                      View
-                    </Button>
-                  </div>
-                )}
-
-                {/* For workers, only show View button */}
-                {!isAdmin && (
-                  <div className="mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/tile/${tile.id}`);
-                      }}
-                      className="w-full text-blue-600 hover:text-blue-800"
-                    >
-                      View Details
-                    </Button>
-                  </div>
-                )}
-
-                {selectedTile === tile.id && showAssignButton && (
-                  <Dialog open={isAssignDialogOpen} onOpenChange={handleDialogOpenChange}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        size="sm" 
-                        className="w-full mt-2 gap-2"
-                        onClick={handleAssignButtonClick}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Assign to Rooms
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <Users className="h-5 w-5" />
-                          Assign Tile to Customer Rooms
-                        </DialogTitle>
-                      </DialogHeader>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Select Customer</label>
-                          <Select value={selectedCustomerId} onValueChange={handleCustomerChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a customer..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {customers.map((customer) => (
-                                <SelectItem key={customer.id} value={customer.id}>
-                                  {customer.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {selectedCustomerId && rooms.length > 0 && (
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <label className="text-sm font-medium">Select Rooms</label>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={handleSelectAllRooms}
-                                  className="h-7 text-xs"
-                                >
-                                  {selectedRooms.length === rooms.length ? 'Deselect All' : 'Select All'}
-                                </Button>
-                                {selectedRooms.length > 0 && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleClearSelections}
-                                    className="h-7 text-xs"
-                                  >
-                                    Clear
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
-                              {rooms.map((room) => (
-                                <div key={room.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
-                                  <Checkbox
-                                    id={room.id}
-                                    checked={selectedRooms.includes(room.id)}
-                                    onCheckedChange={() => handleRoomToggle(room.id)}
-                                  />
-                                  <label htmlFor={room.id} className="text-sm flex-1 cursor-pointer">
-                                    <span className="font-medium">{room.name}</span>
-                                    <span className="text-gray-500 ml-2">
-                                      ({(room.length * room.width).toFixed(2)} {room.unit}²)
-                                    </span>
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {selectedRooms.length} of {rooms.length} rooms selected
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedCustomerId && rooms.length === 0 && (
-                          <p className="text-sm text-gray-500 py-4 text-center">
-                            No rooms found for this customer. Please add rooms first.
-                          </p>
-                        )}
-
-                        <div className="flex gap-2 pt-4">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setIsAssignDialogOpen(false)}
-                            className="flex-1"
-                          >
-                            Close
-                          </Button>
-                          <Button 
-                            onClick={handleAssignTile}
-                            disabled={!selectedCustomerId || selectedRooms.length === 0 || saveSelectionsMutation.isPending}
-                            className="flex-1"
-                          >
-                            {saveSelectionsMutation.isPending ? 'Assigning...' : 'Assign Tile'}
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+            {selectedTile === tile.id && showAssignButton && (
+              <Dialog open={isAssignDialogOpen} onOpenChange={handleDialogOpenChange}>
+                <DialogTrigger asChild>
+                  <div /> {/* Empty trigger since we handle opening via button click */}
+                </DialogTrigger>
+              </Dialog>
+            )}
+          </TileCard>
         ))}
       </div>
 
-      {filteredTiles.length === 0 && !isLoading && (
-        <div className="text-center py-12">
-          <Grid3X3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
-          <p className="text-gray-500">Try adjusting your search terms or scan a QR code</p>
-        </div>
-      )}
+      {filteredTiles.length === 0 && !isLoading && <EmptyTileState />}
 
-      <QRScanner
-        isOpen={isQRScannerOpen}
-        onClose={() => setIsQRScannerOpen(false)}
-        onScan={handleQRScanned}
+      <TileAssignmentDialog
+        isOpen={isAssignDialogOpen}
+        onOpenChange={handleDialogOpenChange}
+        customers={customers}
+        rooms={rooms}
+        selectedCustomerId={selectedCustomerId}
+        selectedRooms={selectedRooms}
+        onCustomerChange={handleCustomerChange}
+        onRoomToggle={handleRoomToggle}
+        onSelectAllRooms={handleSelectAllRooms}
+        onClearSelections={handleClearSelections}
+        onAssignTile={handleAssignTile}
+        isAssigning={saveSelectionsMutation.isPending}
       />
     </div>
   );
