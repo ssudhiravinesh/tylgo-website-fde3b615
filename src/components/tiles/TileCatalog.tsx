@@ -42,10 +42,11 @@ export const TileCatalog = ({
   );
 
   const handleTileSelect = (tileId: string) => {
-    setSelectedTile(selectedTile === tileId ? null : tileId);
+    const wasSelected = selectedTile === tileId;
+    setSelectedTile(wasSelected ? null : tileId);
     
     // If this is being used as a selector (from tile selection step), call the callback
-    if (onTileSelected && selectedTile !== tileId) {
+    if (onTileSelected && !wasSelected) {
       onTileSelected(tileId);
     }
   };
@@ -65,8 +66,9 @@ export const TileCatalog = ({
     try {
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
       toast.success(`Tile assigned to ${selectedRooms.length} room(s) successfully!`);
-      // Keep dialog open and selections intact for continuous assignment
-      // Only clear if user wants to assign to different rooms
+      // Keep dialog open and tile selected for continuous assignment
+      // Only clear room selections to allow selecting different rooms for the same tile
+      setSelectedRooms([]);
     } catch (error) {
       console.error("Error assigning tile:", error);
       toast.error("Failed to assign tile to rooms");
@@ -95,13 +97,18 @@ export const TileCatalog = ({
 
   const handleCloseDialog = () => {
     setIsAssignDialogOpen(false);
-    // Keep selections intact when closing dialog
+    // Keep tile selection and customer selection intact when closing dialog
   };
 
   // Reset room selections when customer changes
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomerId(customerId);
     setSelectedRooms([]); // Clear room selections when customer changes
+  };
+
+  const handleDialogOpen = (open: boolean) => {
+    setIsAssignDialogOpen(open);
+    // Don't clear tile selection when dialog opens/closes
   };
 
   if (isLoading) {
@@ -188,14 +195,13 @@ export const TileCatalog = ({
                 </div>
 
                 {selectedTile === tile.id && showAssignButton && (
-                  <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+                  <Dialog open={isAssignDialogOpen} onOpenChange={handleDialogOpen}>
                     <DialogTrigger asChild>
                       <Button 
                         size="sm" 
                         className="w-full mt-2 gap-2"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsAssignDialogOpen(true);
                         }}
                       >
                         <Plus className="h-4 w-4" />
