@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,9 +6,8 @@ import QRCode from 'qrcode';
 
 const generateQRCode = async (tileCode: string, tileId: string): Promise<string | null> => {
   try {
-    // Generate QR code data URL with tile details URL
-    const tileDetailsUrl = `${window.location.origin}/tile/${tileId}`;
-    const qrDataUrl = await QRCode.toDataURL(tileDetailsUrl, {
+    // Generate QR code with only the tile code (not the full URL)
+    const qrDataUrl = await QRCode.toDataURL(tileCode, {
       width: 300,
       margin: 2,
       color: {

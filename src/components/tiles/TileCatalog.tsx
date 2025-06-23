@@ -11,7 +11,6 @@ import { useTiles } from "@/hooks/useTiles";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { useGenerateQRForTile } from "@/hooks/useTileManagement";
-import { QRScanner } from "@/components/qr/QRScanner";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,7 +33,6 @@ export const TileCatalog = ({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId);
   const [selectedRooms, setSelectedRooms] = useState<string[]>(preSelectedRoomIds);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   
   const { data: tiles = [], isLoading } = useTiles();
   const { data: customers = [] } = useCustomers();
@@ -60,17 +58,6 @@ export const TileCatalog = ({
     // If this is being used as a selector (from tile selection step), call the callback
     if (onTileSelected && !wasSelected) {
       onTileSelected(tileId);
-    }
-  };
-
-  const handleQRScan = (url: string) => {
-    // Extract tile ID from URL and navigate to tile details
-    const urlMatch = url.match(/\/tile\/([^\/\?]+)/);
-    if (urlMatch) {
-      const tileId = urlMatch[1];
-      navigate(`/tile/${tileId}`);
-    } else {
-      toast.error('Invalid QR code format');
     }
   };
 
@@ -178,17 +165,6 @@ export const TileCatalog = ({
           <h1 className="text-2xl font-bold text-gray-800">Tile Catalog</h1>
           <p className="text-gray-600">Browse, search, and assign tiles to customer rooms</p>
         </div>
-        
-        {showAssignButton && (
-          <Button 
-            variant="outline" 
-            className="gap-2"
-            onClick={() => setIsQRScannerOpen(true)}
-          >
-            <QrCode className="h-4 w-4" />
-            Scan QR Code
-          </Button>
-        )}
       </div>
 
       <div className="relative">
@@ -431,12 +407,6 @@ export const TileCatalog = ({
           <p className="text-gray-500">Try adjusting your search terms</p>
         </div>
       )}
-
-      <QRScanner
-        isOpen={isQRScannerOpen}
-        onClose={() => setIsQRScannerOpen(false)}
-        onScan={handleQRScan}
-      />
     </div>
   );
 };

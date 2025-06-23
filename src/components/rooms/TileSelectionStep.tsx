@@ -3,10 +3,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Palette, Calculator, Package, DollarSign, ArrowLeft, X, MousePointer } from "lucide-react";
+import { Palette, Calculator, Package, DollarSign, ArrowLeft, X, MousePointer, QrCode } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
+import { QRScanner } from "@/components/qr/QRScanner";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
@@ -34,6 +35,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const [tileSelections, setTileSelections] = useState<{ [roomId: string]: string[] }>({});
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [selectedRoomForTile, setSelectedRoomForTile] = useState<string | null>(null);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
 
   useEffect(() => {
     // Initialize selections from database
@@ -50,6 +52,41 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const handleChooseTile = (roomId: string) => {
     setSelectedRoomForTile(roomId);
     setShowTileCatalog(true);
+  };
+
+  const handleScanQR = (roomId: string) => {
+    setSelectedRoomForTile(roomId);
+    setIsQRScannerOpen(true);
+  };
+
+  const handleQRScanned = (tileCode: string) => {
+    if (!selectedRoomForTile) return;
+
+    // Find tile by code
+    const tile = tiles.find(t => t.code === tileCode);
+    if (!tile) {
+      toast.error(`No tile found with code: ${tileCode}`);
+      setIsQRScannerOpen(false);
+      setSelectedRoomForTile(null);
+      return;
+    }
+
+    const roomSelections = tileSelections[selectedRoomForTile] || [];
+    if (roomSelections.includes(tile.id)) {
+      toast.error("This tile is already selected for this room");
+      setIsQRScannerOpen(false);
+      setSelectedRoomForTile(null);
+      return;
+    }
+
+    setTileSelections(prev => ({
+      ...prev,
+      [selectedRoomForTile]: [...roomSelections, tile.id]
+    }));
+    
+    toast.success(`Tile "${tile.name}" (${tile.code}) added to room`);
+    setIsQRScannerOpen(false);
+    setSelectedRoomForTile(null);
   };
 
   const handleTileSelected = (tileId: string) => {
@@ -188,7 +225,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
         </Button>
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Select Tiles for Rooms</h2>
-          <p className="text-gray-600">Choose tiles from the catalog for each room</p>
+          <p className="text-gray-600">Choose tiles from the catalog or scan QR codes for each room</p>
         </div>
       </div>
 
@@ -211,14 +248,24 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                   </Badge>
                 </div>
                 
-                <Button
-                  onClick={() => handleChooseTile(room.id)}
-                  variant="outline"
-                  className="w-full gap-2"
-                >
-                  <MousePointer className="h-4 w-4" />
-                  Choose Tile
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleChooseTile(room.id)}
+                    variant="outline"
+                    className="flex-1 gap-2"
+                  >
+                    <MousePointer className="h-4 w-4" />
+                    Choose Tile
+                  </Button>
+                  <Button
+                    onClick={() => handleScanQR(room.id)}
+                    variant="outline"
+                    className="flex-1 gap-2"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    Scan QR
+                  </Button>
+                </div>
 
                 {/* Selected tiles for this room */}
                 <div className="space-y-2">
@@ -308,6 +355,15 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           </CardContent>
         </Card>
       </div>
+
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => {
+          setIsQRScannerOpen(false);
+          setSelectedRoomForTile(null);
+        }}
+        onScan={handleQRScanned}
+      />
     </div>
   );
 };

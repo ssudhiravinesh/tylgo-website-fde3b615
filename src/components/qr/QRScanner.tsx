@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 interface QRScannerProps {
   isOpen: boolean;
   onClose: () => void;
-  onScan: (url: string) => void;
+  onScan: (tileCode: string) => void;
 }
 
 export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan }) => {
@@ -102,7 +102,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
             // In a real implementation, you'd use a library like jsQR here
             // const qrResult = jsQR(imageData.data, imageData.width, imageData.height);
             // if (qrResult) {
-            //   onScan(qrResult.data);
+            //   onScan(qrResult.data); // This will now be just the tile code
             //   clearInterval(scanInterval);
             //   onClose();
             // }
@@ -117,16 +117,9 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
   };
 
   const handleManualInput = () => {
-    const input = prompt('Enter the tile ID or scan URL:');
+    const input = prompt('Enter the tile code:');
     if (input) {
-      // If it's a URL, extract the tile ID
-      const urlMatch = input.match(/\/tile\/([^\/\?]+)/);
-      if (urlMatch) {
-        onScan(input);
-      } else {
-        // Assume it's a tile ID and construct the URL
-        onScan(`${window.location.origin}/tile/${input}`);
-      }
+      onScan(input.trim());
       onClose();
     }
   };
@@ -137,7 +130,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
-            Scan QR Code
+            Scan Tile QR Code
           </DialogTitle>
         </DialogHeader>
 
@@ -177,7 +170,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-sm text-gray-500 mb-4">
-                  Please allow camera access or enter the tile information manually.
+                  Please allow camera access or enter the tile code manually.
                 </p>
               </CardContent>
             </Card>
@@ -194,7 +187,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Point your camera at a tile QR code to view details
+            Scan the QR code on a tile to select it for the room
           </p>
         </div>
       </DialogContent>
