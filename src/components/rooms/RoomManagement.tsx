@@ -3,17 +3,25 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Calendar, Edit, Trash2 } from "lucide-react";
+import { Home, Plus, Calendar, Edit, Trash2, ArrowLeft } from "lucide-react";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 
 interface RoomManagementProps {
-  customerId?: string;
+  customerId: string;
+  customerName?: string;
+  onBack?: () => void;
+  onProceedToTileSelection?: () => void;
 }
 
-export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
+export const RoomManagement = ({ 
+  customerId, 
+  customerName, 
+  onBack, 
+  onProceedToTileSelection 
+}: RoomManagementProps) => {
   const { data: rooms = [], isLoading } = useRoomsByCustomer(customerId);
   const deleteRoomMutation = useDeleteRoom();
   
@@ -53,19 +61,40 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Room Management</h1>
-          <p className="text-gray-600">Manage room details for your projects</p>
+        <div className="flex items-center gap-4">
+          {onBack && (
+            <Button variant="outline" onClick={onBack} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Room Management</h1>
+            <p className="text-gray-600">
+              {customerName ? `Managing rooms for ${customerName}` : "Manage room details for your projects"}
+            </p>
+          </div>
         </div>
         
-        <Button 
-          onClick={() => setIsFormOpen(true)}
-          className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-          disabled={!customerId}
-        >
-          <Plus className="h-4 w-4" />
-          Add New Room
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setIsFormOpen(true)}
+            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            disabled={!customerId}
+          >
+            <Plus className="h-4 w-4" />
+            Add New Room
+          </Button>
+          
+          {onProceedToTileSelection && rooms.length > 0 && (
+            <Button 
+              onClick={onProceedToTileSelection}
+              className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+            >
+              Select Tiles
+            </Button>
+          )}
+        </div>
       </div>
 
       {!customerId ? (
@@ -118,6 +147,18 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-gray-600">
+                    <span className="font-medium">Length:</span> {room.length} {room.unit}
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Width:</span> {room.width} {room.unit}
+                  </div>
+                  <div className="text-gray-600 col-span-2">
+                    <span className="font-medium">Area:</span> {(room.length * room.width).toFixed(2)} {room.unit}²
+                  </div>
+                </div>
+                
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="h-4 w-4" />
                   Created: {new Date(room.created_at).toLocaleDateString()}

@@ -4,7 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User } from "lucide-react";
 import { Control } from "react-hook-form";
-import { useCustomers } from "@/hooks/useCustomers";
 
 interface Customer {
   id: string;
@@ -14,12 +13,11 @@ interface Customer {
 
 interface QuotationCustomerSectionProps {
   control: Control<any>;
-  onCustomerChange: (customerId: string) => void;
+  customers: Customer[];
+  selectedCustomerId?: string;
 }
 
-export const QuotationCustomerSection = ({ control, onCustomerChange }: QuotationCustomerSectionProps) => {
-  const { data: customers = [] } = useCustomers();
-
+export const QuotationCustomerSection = ({ control, customers, selectedCustomerId }: QuotationCustomerSectionProps) => {
   return (
     <Card>
       <CardHeader>
@@ -36,11 +34,8 @@ export const QuotationCustomerSection = ({ control, onCustomerChange }: Quotatio
             <FormItem>
               <FormLabel>Select Customer</FormLabel>
               <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  onCustomerChange(value);
-                }}
-                defaultValue={field.value}
+                onValueChange={field.onChange}
+                defaultValue={field.value || selectedCustomerId}
               >
                 <FormControl>
                   <SelectTrigger>
