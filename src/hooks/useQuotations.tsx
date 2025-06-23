@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,7 @@ export interface Quotation {
   customer?: {
     name: string;
     mobile: string;
+    address?: string;
   };
   worker?: {
     name: string;
@@ -27,7 +29,7 @@ const fetchQuotations = async (): Promise<Quotation[]> => {
     .from('quotations')
     .select(`
       *,
-      customer:customers(name, mobile),
+      customer:customers(name, mobile, address),
       worker:profiles(name)
     `)
     .order('created_at', { ascending: false });
