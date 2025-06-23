@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Grid3X3, QrCode, Ruler, IndianRupee, Plus, Users, Check } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useRoomsByCustomer, useSaveRoomTileSelections } from "@/hooks/useRooms";
+import { useRoomsByCustomer, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { toast } from "sonner";
 
 interface TileCatalogProps {
@@ -35,6 +35,7 @@ export const TileCatalog = ({
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
+  const deleteSelectionMutation = useDeleteRoomTileSelection();
 
   const filteredTiles = tiles.filter(tile =>
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,6 +58,19 @@ export const TileCatalog = ({
       return;
     }
 
+    // First, remove any existing selections for these rooms and this tile
+    try {
+      await Promise.all(
+        selectedRooms.map(roomId => 
+          deleteSelectionMutation.mutateAsync({ roomId, tileId: selectedTile })
+        )
+      );
+    } catch (error) {
+      // Ignore errors for non-existing selections
+      console.log("Some selections didn't exist, continuing...");
+    }
+
+    // Then add the new selections
     const selectionsToSave = selectedRooms.map(roomId => ({
       customer_id: selectedCustomerId,
       room_id: roomId,
@@ -66,8 +80,7 @@ export const TileCatalog = ({
     try {
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
       toast.success(`Tile assigned to ${selectedRooms.length} room(s) successfully!`);
-      // Keep dialog open and tile selected for continuous assignment
-      // Only clear room selections to allow selecting different rooms for the same tile
+      // Clear room selections but keep dialog open and tile selected
       setSelectedRooms([]);
     } catch (error) {
       console.error("Error assigning tile:", error);
@@ -95,20 +108,22 @@ export const TileCatalog = ({
     setSelectedRooms([]);
   };
 
-  const handleCloseDialog = () => {
-    setIsAssignDialogOpen(false);
-    // Keep tile selection and customer selection intact when closing dialog
-  };
-
-  // Reset room selections when customer changes
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomerId(customerId);
     setSelectedRooms([]); // Clear room selections when customer changes
   };
 
-  const handleDialogOpen = (open: boolean) => {
+  const handleDialogOpenChange = (open: boolean) => {
     setIsAssignDialogOpen(open);
-    // Don't clear tile selection when dialog opens/closes
+    if (!open) {
+      // Only clear room selections when dialog closes, keep tile and customer selection
+      setSelectedRooms([]);
+    }
+  };
+
+  const handleAssignButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsAssignDialogOpen(true);
   };
 
   if (isLoading) {
@@ -195,14 +210,12 @@ export const TileCatalog = ({
                 </div>
 
                 {selectedTile === tile.id && showAssignButton && (
-                  <Dialog open={isAssignDialogOpen} onOpenChange={handleDialogOpen}>
+                  <Dialog open={isAssignDialogOpen} onOpenChange={handleDialogOpenChange}>
                     <DialogTrigger asChild>
                       <Button 
                         size="sm" 
                         className="w-full mt-2 gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
+                        onClick={handleAssignButtonClick}
                       >
                         <Plus className="h-4 w-4" />
                         Assign to Rooms
@@ -290,7 +303,7 @@ export const TileCatalog = ({
                         <div className="flex gap-2 pt-4">
                           <Button 
                             variant="outline" 
-                            onClick={handleCloseDialog}
+                            onClick={() => setIsAssignDialogOpen(false)}
                             className="flex-1"
                           >
                             Close
