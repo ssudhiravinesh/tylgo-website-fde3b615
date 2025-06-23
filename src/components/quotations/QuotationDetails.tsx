@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { Quotation } from "@/hooks/useQuotations";
+import { usePDFGeneration } from "@/hooks/usePDFGeneration";
 import { format } from "date-fns";
 
 interface QuotationDetailsProps {
@@ -28,10 +28,12 @@ interface QuotationDetailsProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onBack: () => void;
+  userRole?: "admin" | "worker";
 }
 
-export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: QuotationDetailsProps) => {
+export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole }: QuotationDetailsProps) => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const { generateQuotationPDF } = usePDFGeneration();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -65,11 +67,13 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
 
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
-    // TODO: Implement PDF generation
-    setTimeout(() => {
+    try {
+      await generateQuotationPDF(quotation);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
       setIsGeneratingPDF(false);
-      console.log("PDF generation would happen here");
-    }, 2000);
+    }
   };
 
   const handleSendEmail = () => {
@@ -207,7 +211,7 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
               Send Email
             </Button>
             
-            {onEdit && (
+            {onEdit && (userRole === "admin" || userRole === "worker") && (
               <Button
                 variant="outline"
                 onClick={onEdit}
@@ -218,7 +222,7 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack }: Quotat
               </Button>
             )}
             
-            {onDelete && (
+            {onDelete && (userRole === "admin" || userRole === "worker") && (
               <Button
                 variant="destructive"
                 onClick={onDelete}

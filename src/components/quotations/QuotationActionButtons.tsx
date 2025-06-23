@@ -70,7 +70,7 @@ export const QuotationActionButtons = ({
         <Mail className="h-3 w-3 mr-1" />
         Email
       </Button>
-      {userRole === "worker" && (
+      {(userRole === "worker" || userRole === "admin") && (
         <>
           <Button 
             size="sm" 
