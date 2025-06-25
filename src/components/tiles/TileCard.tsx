@@ -89,6 +89,19 @@ export const TileCard = ({
                 {tile.pieces_per_box} pieces/box
               </div>
             )}
+
+            {tile.size_length && tile.size_breadth && tile.pieces_per_box && (
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <SquareFoot className="h-3 w-3" />
+                  {(
+                    (tile.size_length *
+                      tile.size_breadth *
+                      tile.pieces_per_box) /
+                    92903.04
+                  ).toFixed(2)}{" "}
+                  sq ft/box
+                </div>
+            )}
           </div>
 
           {/* QR Code Section - Only show for admins */}
