@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { 
   FileText, 
@@ -17,7 +19,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Percent
 } from "lucide-react";
 import { Quotation } from "@/hooks/useQuotations";
 import { usePDFGeneration } from "@/hooks/usePDFGeneration";
@@ -33,6 +36,7 @@ interface QuotationDetailsProps {
 
 export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole }: QuotationDetailsProps) => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [wastagePercentage, setWastagePercentage] = useState<number>(10);
   const { generateQuotationPDF } = usePDFGeneration();
 
   const getStatusIcon = (status: string) => {
@@ -68,11 +72,18 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
     try {
-      await generateQuotationPDF(quotation);
+      await generateQuotationPDF(quotation, wastagePercentage);
     } catch (error) {
       console.error('Error generating PDF:', error);
     } finally {
       setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleWastageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value >= 0) {
+      setWastagePercentage(value);
     }
   };
 
@@ -192,46 +203,71 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole
           <CardTitle>Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Button
-              onClick={handleDownloadPDF}
-              disabled={isGeneratingPDF}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              {isGeneratingPDF ? "Generating..." : "Download PDF"}
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={handleSendEmail}
-              className="flex items-center gap-2"
-            >
-              <Mail className="h-4 w-4" />
-              Send Email
-            </Button>
-            
-            {onEdit && (userRole === "admin" || userRole === "worker") && (
+          <div className="space-y-4">
+            {/* Wastage Percentage Input */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Percent className="h-4 w-4 text-blue-600" />
+                <Label htmlFor="pdf-wastage" className="text-sm font-medium">
+                  Wastage Percentage for PDF (%)
+                </Label>
+              </div>
+              <Input
+                id="pdf-wastage"
+                type="number"
+                value={wastagePercentage}
+                onChange={handleWastageChange}
+                min="0"
+                step="0.1"
+                className="w-32"
+                placeholder="Enter wastage"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This will be applied to calculations in the generated PDF
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Button
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPDF}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                {isGeneratingPDF ? "Generating..." : "Download PDF"}
+              </Button>
+              
               <Button
                 variant="outline"
-                onClick={onEdit}
+                onClick={handleSendEmail}
                 className="flex items-center gap-2"
               >
-                <Edit className="h-4 w-4" />
-                Edit
+                <Mail className="h-4 w-4" />
+                Send Email
               </Button>
-            )}
-            
-            {onDelete && (userRole === "admin" || userRole === "worker") && (
-              <Button
-                variant="destructive"
-                onClick={onDelete}
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            )}
+              
+              {onEdit && (userRole === "admin" || userRole === "worker") && (
+                <Button
+                  variant="outline"
+                  onClick={onEdit}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+              
+              {onDelete && (userRole === "admin" || userRole === "worker") && (
+                <Button
+                  variant="destructive"
+                  onClick={onDelete}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -5,9 +5,9 @@ import type { Quotation } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
 
 export const usePDFGeneration = () => {
-  const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
+  const generateQuotationPDF = useCallback(async (quotation: Quotation, wastagePercentage: number = 10) => {
     try {
-      console.log('Starting PDF generation for quotation:', quotation.id);
+      console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
       
       // Fetch quotation items with proper joins using the Supabase client
       const response = await fetch(`https://onucizagpgwdpcakskat.supabase.co/rest/v1/quotation_items?quotation_id=eq.${quotation.id}&select=*,room:rooms(name,length,width,unit),tile:tiles(name,code,price_per_sqm,price_per_box,pieces_per_box,size_length,size_breadth)`, {
@@ -46,12 +46,15 @@ export const usePDFGeneration = () => {
           // Calculate area in square feet if room dimensions are available
           let roomDetails = 'N/A';
           let areaInSqFt = 'N/A';
+          let effectiveAreaInSqFt = 'N/A';
           
           if (room && room.length && room.width && room.unit) {
             try {
               const areaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
+              const effectiveArea = areaSqFt * (1 + (wastagePercentage / 100));
               roomDetails = formatDimensions(room.length, room.width, room.unit);
               areaInSqFt = formatArea(areaSqFt);
+              effectiveAreaInSqFt = formatArea(effectiveArea);
             } catch (error) {
               console.error('Error calculating area:', error);
             }
@@ -76,13 +79,14 @@ export const usePDFGeneration = () => {
             }
           }
 
-          // Ensure numeric values are properly handled
-          const quantity = parseFloat(item.quantity) || 0;
+          // Use effective quantity (with wastage) for calculations
+          const originalQuantity = parseFloat(item.quantity) || 0;
+          const effectiveQuantity = originalQuantity * (1 + (wastagePercentage / 100));
           const unitPrice = parseFloat(item.unit_price) || 0;
-          const totalPrice = parseFloat(item.total_price) || (quantity * unitPrice);
+          const totalPrice = effectiveQuantity * unitPrice;
           grandTotal += totalPrice;
 
-          // Calculate boxes needed
+          // Calculate boxes needed based on effective quantity
           let boxesNeeded = 0;
           let boxPricing = '';
           if (tile && tile.price_per_box && tile.pieces_per_box) {
@@ -92,7 +96,7 @@ export const usePDFGeneration = () => {
             const tileAreaSqFt = tileLengthFt * tileWidthFt;
             
             if (tileAreaSqFt > 0) {
-              const tilesNeeded = Math.ceil(quantity / tileAreaSqFt);
+              const tilesNeeded = Math.ceil(effectiveQuantity / tileAreaSqFt);
               boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
               totalBoxes += boxesNeeded;
             }
@@ -105,7 +109,8 @@ export const usePDFGeneration = () => {
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${room?.name || 'Unknown Room'}</strong><br/>
                 <small style="color: #666; font-size: 9px;">Dim: ${roomDetails}</small><br/>
-                <small style="color: #666; font-size: 9px;">Area: ${areaInSqFt}</small>
+                <small style="color: #666; font-size: 9px;">Original: ${areaInSqFt}</small><br/>
+                ${wastagePercentage > 0 ? `<small style="color: #d97706; font-size: 9px;">Effective: ${effectiveAreaInSqFt}</small>` : ''}
               </td>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${tile?.name || 'Unknown Tile'}</strong><br/>
@@ -113,7 +118,10 @@ export const usePDFGeneration = () => {
                 <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small><br/>
                 ${boxPricing}
               </td>
-              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${quantity.toFixed(2)} sq ft</td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                ${effectiveQuantity.toFixed(2)} sq ft
+                ${wastagePercentage > 0 ? `<br/><small style="color: #d97706; font-size: 8px;">(+${wastagePercentage}% wastage)</small>` : ''}
+              </td>
               <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${tile?.pieces_per_box || 'N/A'}</td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${boxesNeeded || 'N/A'}</td>
@@ -284,6 +292,7 @@ export const usePDFGeneration = () => {
               <div class="info-row"><span class="label">Date:</span> ${new Date(quotation.created_at).toLocaleDateString()}</div>
               <div class="info-row"><span class="label">Status:</span> ${quotation.status.toUpperCase()}</div>
               <div class="info-row"><span class="label">Created by:</span> ${quotation.worker?.name || 'N/A'}</div>
+              ${wastagePercentage > 0 ? `<div class="info-row"><span class="label">Wastage:</span> ${wastagePercentage}%</div>` : ''}
             </div>
           </div>
 
@@ -323,7 +332,8 @@ export const usePDFGeneration = () => {
           <div class="footer">
             <p><strong>Thank you for choosing Tile Solutions!</strong></p>
             <p>This quotation is valid for 30 days from the date of issue.</p>
-            <p><strong>Note:</strong> All calculations are based on square feet measurements for accuracy.</p>
+            <p><strong>Note:</strong> All tile quantities include a ${wastagePercentage}% wastage allowance.</p>
+            <p>All calculations are based on square feet measurements for accuracy.</p>
           </div>
         </body>
         </html>

@@ -1,7 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, FileText, Percent } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
@@ -23,6 +24,7 @@ interface TileCalculation {
   tile: Tile;
   rooms: Room[];
   totalArea: number;
+  effectiveArea: number;
   tilesNeeded: number;
   boxesNeeded: number;
   totalPrice: number;
@@ -35,6 +37,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const deleteSelectionMutation = useDeleteRoomTileSelection();
   
   const [tileSelections, setTileSelections] = useState<{ [roomId: string]: string[] }>({});
+  const [wastagePercentage, setWastagePercentage] = useState<number>(10);
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [selectedRoomForTile, setSelectedRoomForTile] = useState<string | null>(null);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
@@ -169,6 +172,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
             tile,
             rooms: [],
             totalArea: 0,
+            effectiveArea: 0,
             tilesNeeded: 0,
             boxesNeeded: 0,
             totalPrice: 0
@@ -182,13 +186,23 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     });
 
     Object.values(tileCalculations).forEach(calc => {
+      // Calculate effective area with wastage
+      calc.effectiveArea = calc.totalArea * (1 + (wastagePercentage / 100));
+      
       const tileArea = (calc.tile.size_length / 1000) * (calc.tile.size_breadth / 1000);
-      calc.tilesNeeded = Math.ceil(calc.totalArea / tileArea);
-      calc.boxesNeeded = Math.ceil(calc.tilesNeeded / 10);
-      calc.totalPrice = calc.totalArea * calc.tile.price_per_sqm;
+      calc.tilesNeeded = Math.ceil(calc.effectiveArea / tileArea);
+      calc.boxesNeeded = Math.ceil(calc.tilesNeeded / (calc.tile.pieces_per_box || 10));
+      calc.totalPrice = calc.effectiveArea * calc.tile.price_per_sqm;
     });
 
     return Object.values(tileCalculations);
+  };
+
+  const handleWastageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value >= 0) {
+      setWastagePercentage(value);
+    }
   };
 
   const handleGenerateQuotation = () => {
@@ -214,6 +228,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       roomId: string;
       tileId: string;
       quantity: number;
+      wastagePercentage: number;
     }> = [];
 
     Object.entries(tileSelections).forEach(([roomId, tileIds]) => {
@@ -222,10 +237,12 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
 
       tileIds.forEach(tileId => {
         const roomArea = room.length * room.width;
+        const effectiveArea = roomArea * (1 + (wastagePercentage / 100));
         roomsData.push({
           roomId: roomId,
           tileId: tileId,
-          quantity: roomArea,
+          quantity: effectiveArea,
+          wastagePercentage: wastagePercentage,
         });
       });
     });
@@ -304,10 +321,36 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           isDeleting={deleteSelectionMutation.isPending}
         />
 
-        <TileCalculationsCard
-          calculations={calculations}
-          grandTotal={grandTotal}
-        />
+        <div className="space-y-4">
+          {/* Wastage Percentage Input */}
+          <div className="bg-white p-4 rounded-lg border shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Percent className="h-4 w-4 text-blue-600" />
+              <Label htmlFor="wastage" className="text-sm font-medium">
+                Wastage Percentage (%)
+              </Label>
+            </div>
+            <Input
+              id="wastage"
+              type="number"
+              value={wastagePercentage}
+              onChange={handleWastageChange}
+              min="0"
+              step="0.1"
+              className="w-full"
+              placeholder="Enter wastage percentage"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Additional area to account for cutting and installation waste
+            </p>
+          </div>
+
+          <TileCalculationsCard
+            calculations={calculations}
+            grandTotal={grandTotal}
+            wastagePercentage={wastagePercentage}
+          />
+        </div>
       </div>
 
       <QRScanner

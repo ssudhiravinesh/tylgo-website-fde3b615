@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Package, DollarSign, Ruler } from "lucide-react";
+import { Calculator, Package, DollarSign, Ruler, Percent } from "lucide-react";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from "@/utils/unitConversions";
@@ -10,6 +10,7 @@ interface TileCalculation {
   tile: Tile;
   rooms: Room[];
   totalArea: number;
+  effectiveArea: number;
   tilesNeeded: number;
   boxesNeeded: number;
   totalPrice: number;
@@ -18,9 +19,10 @@ interface TileCalculation {
 interface TileCalculationsCardProps {
   calculations: TileCalculation[];
   grandTotal: number;
+  wastagePercentage: number;
 }
 
-export const TileCalculationsCard = ({ calculations, grandTotal }: TileCalculationsCardProps) => {
+export const TileCalculationsCard = ({ calculations, grandTotal, wastagePercentage }: TileCalculationsCardProps) => {
   return (
     <Card>
       <CardHeader>
@@ -58,8 +60,16 @@ export const TileCalculationsCard = ({ calculations, grandTotal }: TileCalculati
                   
                   <p className="flex items-center gap-1">
                     <Ruler className="h-3 w-3" />
-                    <strong>Total Area:</strong> {formatArea(calc.totalArea)}
+                    <strong>Original Area:</strong> {formatArea(calc.totalArea)}
                   </p>
+                  
+                  {wastagePercentage > 0 && (
+                    <p className="flex items-center gap-1 text-orange-600">
+                      <Percent className="h-3 w-3" />
+                      <strong>Effective Area (with {wastagePercentage}% wastage):</strong> {formatArea(calc.effectiveArea)}
+                    </p>
+                  )}
+                  
                   <p className="flex items-center gap-1">
                     <Calculator className="h-3 w-3" />
                     <strong>Tiles Needed:</strong> {calc.tilesNeeded}
@@ -81,6 +91,11 @@ export const TileCalculationsCard = ({ calculations, grandTotal }: TileCalculati
                 <h4 className="font-bold text-blue-800">Grand Total</h4>
                 <p className="text-xl font-bold text-blue-800">₹{grandTotal.toFixed(2)}</p>
               </div>
+              {wastagePercentage > 0 && (
+                <p className="text-xs text-blue-600 mt-1">
+                  * Includes {wastagePercentage}% wastage allowance
+                </p>
+              )}
             </div>
           </>
         )}
