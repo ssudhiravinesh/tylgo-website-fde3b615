@@ -1,14 +1,13 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { TileSelectionStep } from "./TileSelectionStep";
+import { CustomerSearchBar } from "@/components/customers/CustomerSearchBar";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 
@@ -108,7 +107,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         </div>
       </div>
 
-      {/* Customer Selection */}
+      {/* Customer Search */}
       {!preSelectedCustomerId && (
         <Card>
           <CardHeader>
@@ -118,18 +117,11 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose a customer to manage their rooms" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name} - {customer.mobile}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CustomerSearchBar
+              value={selectedCustomerId}
+              onValueChange={setSelectedCustomerId}
+              placeholder="Search customers by name, mobile, or address..."
+            />
           </CardContent>
         </Card>
       )}
