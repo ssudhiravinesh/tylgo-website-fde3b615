@@ -1,48 +1,359 @@
+import { useCallback } from 'react';
+import { toast } from 'sonner';
+import type { Quotation } from '@/hooks/useQuotations';
+import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
 
-import { useState } from "react";
-import { LoginForm } from "@/components/auth/LoginForm";
-import { Dashboard } from "@/components/dashboard/Dashboard";
-import { useAuth } from "@/hooks/useAuth";
+export const usePDFGeneration = () => {
+  const generateQuotationPDF = useCallback(async (quotation: Quotation, wastagePercentage: number = 10) => {
+    try {
+      console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
+      
+      // Fetch quotation items with proper joins using the Supabase client
+      const response = await fetch(`https://onucizagpgwdpcakskat.supabase.co/rest/v1/quotation_items?quotation_id=eq.${quotation.id}&select=*,room:rooms(name,length,width,unit),tile:tiles(name,code,price_per_sqm,price_per_box,pieces_per_box,size_length,size_breadth)`, {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM',
+          'Content-Type': 'application/json'
+        }
+      });
 
-const Index = () => {
-  const { user, profile, loading, signOut } = useAuth();
+      if (!response.ok) {
+        throw new Error(`Failed to fetch quotation items: ${response.statusText}`);
+      }
 
-  console.log('Index render:', { user: user?.email, profile: profile?.name, loading });
+      const quotationItems = await response.json();
+      console.log('Fetched quotation items for PDF:', quotationItems);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+      // Create a new window for PDF generation
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error('Popup blocked. Please allow popups for this site.');
+      }
 
-  // Show auth forms if no user or no profile
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <LoginForm onShowSignUp={() => {}} />
-      </div>
-    );
-  }
+      // Generate items rows for the table
+      let itemsRows = '';
+      let totalBoxes = 0;
+      let grandTotal = 0;
+      
+      if (quotationItems && quotationItems.length > 0) {
+        itemsRows = quotationItems.map((item: any) => {
+          console.log('Processing item for PDF:', item);
+          
+          const room = item.room;
+          const tile = item.tile;
+          
+          // Calculate area in square feet if room dimensions are available
+          let roomDetails = 'N/A';
+          let areaInSqFt = 'N/A';
+          let effectiveAreaInSqFt = 'N/A';
+          
+          if (room && room.length && room.width && room.unit) {
+            try {
+              const areaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
+              const effectiveArea = areaSqFt * (1 + (wastagePercentage / 100));
+              roomDetails = formatDimensions(room.length, room.width, room.unit);
+              areaInSqFt = formatArea(areaSqFt);
+              effectiveAreaInSqFt = formatArea(effectiveArea);
+            } catch (error) {
+              console.error('Error calculating area:', error);
+            }
+          }
 
-  // If user exists but no profile, show a message
-  if (!profile) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="text-center bg-white p-8 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Setting up your profile...</h2>
-          <p className="text-gray-600 mb-4">Please wait while we set up your account.</p>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
+          // Calculate tile dimensions for display
+          let tileDimensions = 'N/A';
+          if (tile && tile.size_length && tile.size_breadth) {
+            const lengthInMm = parseFloat(tile.size_length) || 0;
+            const widthInMm = parseFloat(tile.size_breadth) || 0;
+            
+            if (lengthInMm >= 1000 || widthInMm >= 1000) {
+              const lengthInM = (lengthInMm / 1000).toFixed(2);
+              const widthInM = (widthInMm / 1000).toFixed(2);
+              tileDimensions = `${lengthInM} × ${widthInM} m`;
+            } else if (lengthInMm >= 100 || widthInMm >= 100) {
+              const lengthInCm = (lengthInMm / 10).toFixed(1);
+              const widthInCm = (widthInMm / 10).toFixed(1);
+              tileDimensions = `${lengthInCm} × ${widthInCm} cm`;
+            } else {
+              tileDimensions = `${lengthInMm} × ${widthInMm} mm`;
+            }
+          }
 
-  return <Dashboard user={profile} onLogout={signOut} />;
+          // Use effective quantity (with wastage) for calculations
+          const originalQuantity = parseFloat(item.quantity) || 0;
+          const effectiveQuantity = originalQuantity * (1 + (wastagePercentage / 100));
+          const unitPrice = parseFloat(item.unit_price) || 0;
+          const totalPrice = effectiveQuantity * unitPrice;
+          grandTotal += totalPrice;
+
+          // Calculate boxes needed based on effective quantity
+          let boxesNeeded = 0;
+          let boxPricing = '';
+          if (tile && tile.price_per_box && tile.pieces_per_box) {
+            // Calculate tile area in sq ft
+            const tileLengthFt = (parseFloat(tile.size_length) || 0) / 304.8; // mm to ft
+            const tileWidthFt = (parseFloat(tile.size_breadth) || 0) / 304.8; // mm to ft
+            const tileAreaSqFt = tileLengthFt * tileWidthFt;
+            
+            if (tileAreaSqFt > 0) {
+              const tilesNeeded = Math.ceil(effectiveQuantity / tileAreaSqFt);
+              boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
+              totalBoxes += boxesNeeded;
+            }
+            
+            boxPricing = `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>`;
+          }
+
+          return `
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                <strong>${room?.name || 'Unknown Room'}</strong><br/>
+                <small style="color: #666; font-size: 9px;">Dim: ${roomDetails}</small><br/>
+                <small style="color: #666; font-size: 9px;">Original: ${areaInSqFt}</small><br/>
+                ${wastagePercentage > 0 ? `<small style="color: #d97706; font-size: 9px;">Effective: ${effectiveAreaInSqFt}</small>` : ''}
+              </td>
+              <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                <strong>${tile?.name || 'Unknown Tile'}</strong><br/>
+                <small style="color: #666; font-size: 9px;">Code: ${tile?.code || 'N/A'}</small><br/>
+                <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small><br/>
+                ${boxPricing}
+              </td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                ${effectiveQuantity.toFixed(2)} sq ft
+                ${wastagePercentage > 0 ? `<br/><small style="color: #d97706; font-size: 8px;">(+${wastagePercentage}% wastage)</small>` : ''}
+              </td>
+              <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${tile?.pieces_per_box || 'N/A'}</td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${boxesNeeded || 'N/A'}</td>
+              <td style="text-align: right; font-weight: bold; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        itemsRows = '<tr><td colspan="7" class="no-items">No items found in this quotation</td></tr>';
+      }
+
+      const pdfContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Quotation ${quotation.quotation_number}</title>
+          <style>
+            @media print {
+              @page { 
+                margin: 10mm; 
+                size: A4; 
+              }
+              body { 
+                margin: 0; 
+                font-size: 12px;
+                line-height: 1.2;
+              }
+              .no-page-break { 
+                page-break-inside: avoid; 
+              }
+            }
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 15px; 
+              color: #333; 
+              font-size: 12px;
+              line-height: 1.3;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 20px; 
+              border-bottom: 2px solid #007bff; 
+              padding-bottom: 10px; 
+            }
+            .company-name { 
+              font-size: 24px; 
+              font-weight: bold; 
+              color: #007bff; 
+              margin-bottom: 5px; 
+            }
+            .quotation-title { 
+              font-size: 18px; 
+              color: #555; 
+              margin-bottom: 10px; 
+            }
+            .details { 
+              display: flex; 
+              justify-content: space-between; 
+              margin-bottom: 20px; 
+            }
+            .customer-info, .quotation-info { 
+              width: 45%; 
+            }
+            .section-title { 
+              font-size: 14px; 
+              font-weight: bold; 
+              margin-bottom: 8px; 
+              color: #007bff; 
+              border-bottom: 1px solid #ddd; 
+              padding-bottom: 4px; 
+            }
+            .info-row { 
+              margin-bottom: 6px; 
+              font-size: 11px; 
+            }
+            .label { 
+              font-weight: bold; 
+              color: #555; 
+              width: 80px; 
+              display: inline-block; 
+            }
+            .items-table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin: 15px 0; 
+              font-size: 10px;
+            }
+            .items-table th { 
+              background-color: #f8f9fa; 
+              font-weight: bold; 
+              padding: 6px 4px; 
+              border: 1px solid #ddd; 
+              text-align: left; 
+              font-size: 9px;
+            }
+            .items-table td { 
+              border: 1px solid #ddd; 
+              padding: 6px 4px; 
+              vertical-align: top; 
+              font-size: 10px;
+            }
+            .items-table tr:nth-child(even) { 
+              background-color: #f9f9f9; 
+            }
+            .total-section { 
+              text-align: right; 
+              margin-top: 15px; 
+              padding: 10px; 
+              background-color: #f8f9fa; 
+              border-radius: 4px; 
+            }
+            .total-row { 
+              font-size: 16px; 
+              font-weight: bold; 
+              color: #007bff; 
+              padding: 8px 0; 
+              border-top: 2px solid #007bff; 
+              margin-top: 5px; 
+            }
+            .notes-section { 
+              margin-top: 15px; 
+              padding: 10px; 
+              background-color: #fff9c4; 
+              border-left: 3px solid #ffc107; 
+              border-radius: 3px; 
+            }
+            .notes-section .section-title {
+              font-size: 12px;
+              margin-bottom: 5px;
+            }
+            .footer { 
+              margin-top: 20px; 
+              text-align: center; 
+              color: #666; 
+              font-size: 9px; 
+              border-top: 1px solid #ddd; 
+              padding-top: 10px; 
+            }
+            .footer p { 
+              margin: 4px 0; 
+            }
+            .no-items {
+              text-align: center; 
+              padding: 20px; 
+              color: #999; 
+              font-style: italic;
+              font-size: 11px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header no-page-break">
+            <div class="company-name">Tile Solutions</div>
+            <div class="quotation-title">QUOTATION</div>
+          </div>
+          
+          <div class="details no-page-break">
+            <div class="customer-info">
+              <div class="section-title">Customer Details</div>
+              <div class="info-row"><span class="label">Name:</span> ${quotation.customer?.name || 'N/A'}</div>
+              <div class="info-row"><span class="label">Mobile:</span> ${quotation.customer?.mobile || 'N/A'}</div>
+              ${quotation.customer?.address ? `<div class="info-row"><span class="label">Address:</span> ${quotation.customer.address}</div>` : ''}
+            </div>
+            
+            <div class="quotation-info">
+              <div class="section-title">Quotation Details</div>
+              <div class="info-row"><span class="label">Quotation #:</span> ${quotation.quotation_number}</div>
+              <div class="info-row"><span class="label">Date:</span> ${new Date(quotation.created_at).toLocaleDateString()}</div>
+              <div class="info-row"><span class="label">Status:</span> ${quotation.status.toUpperCase()}</div>
+              <div class="info-row"><span class="label">Created by:</span> ${quotation.worker?.name || 'N/A'}</div>
+              ${wastagePercentage > 0 ? `<div class="info-row"><span class="label">Wastage:</span> ${wastagePercentage}%</div>` : ''}
+            </div>
+          </div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width: 20%;">Room Details</th>
+                <th style="width: 25%;">Tile Details</th>
+                <th style="width: 12%; text-align: center;">Quantity</th>
+                <th style="width: 13%; text-align: right;">Unit Price</th>
+                <th style="width: 10%; text-align: center;">Pieces/Box</th>
+                <th style="width: 10%; text-align: center;">Boxes</th>
+                <th style="width: 15%; text-align: right;">Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+          </table>
+
+          <div class="total-section no-page-break">
+            <div style="font-size: 11px; margin-bottom: 5px;">
+              <strong>Summary:</strong> ${quotationItems ? quotationItems.length : 0} item(s) | ${totalBoxes} boxes total
+            </div>
+            <div class="total-row">
+              Total Amount: ₹${grandTotal > 0 ? grandTotal.toLocaleString('en-IN') : (quotation.total_cost || 0).toLocaleString('en-IN')}
+            </div>
+          </div>
+
+          ${quotation.notes ? `
+            <div class="notes-section no-page-break">
+              <div class="section-title">Additional Notes</div>
+              <p style="margin: 0; font-size: 11px;">${quotation.notes}</p>
+            </div>
+          ` : ''}
+
+          <div class="footer">
+            <p><strong>Thank you for choosing Tile Solutions!</strong></p>
+            <p>This quotation is valid for 30 days from the date of issue.</p>
+            <p><strong>Note:</strong> All tile quantities include a ${wastagePercentage}% wastage allowance.</p>
+            <p>All calculations are based on square feet measurements for accuracy.</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(pdfContent);
+      printWindow.document.close();
+      
+      // Wait for content to load, then print
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      }, 1000);
+
+      toast.success('PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    }
+  }, []);
+
+  return { generateQuotationPDF };
 };
-
-export default Index;
