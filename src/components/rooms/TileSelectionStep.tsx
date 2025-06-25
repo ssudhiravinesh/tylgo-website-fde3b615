@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { TileSelectionCard } from "./TileSelectionCard";
 import { TileCalculationsCard } from "./TileCalculationsCard";
 import { toast } from "sonner";
+import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 
@@ -179,9 +181,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           };
         }
 
-        const roomArea = room.length * room.width;
+        // Convert room area to square feet before adding
+        const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
         tileCalculations[tileId].rooms.push(room);
-        tileCalculations[tileId].totalArea += roomArea;
+        tileCalculations[tileId].totalArea += roomAreaInSqFt;
       });
     });
 
@@ -189,9 +192,16 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       // Calculate effective area with wastage
       calc.effectiveArea = calc.totalArea * (1 + (wastagePercentage / 100));
       
-      const tileArea = (calc.tile.size_length / 1000) * (calc.tile.size_breadth / 1000);
-      calc.tilesNeeded = Math.ceil(calc.effectiveArea / tileArea);
-      calc.boxesNeeded = Math.ceil(calc.tilesNeeded / (calc.tile.pieces_per_box || 10));
+      // Convert tile dimensions from mm to feet for area calculation
+      const tileLengthInFeet = (calc.tile.size_length || 0) / 304.8; // mm to feet
+      const tileBreadthInFeet = (calc.tile.size_breadth || 0) / 304.8; // mm to feet
+      const tileAreaInSqFt = tileLengthInFeet * tileBreadthInFeet;
+      
+      if (tileAreaInSqFt > 0) {
+        calc.tilesNeeded = Math.ceil(calc.effectiveArea / tileAreaInSqFt);
+        calc.boxesNeeded = Math.ceil(calc.tilesNeeded / (calc.tile.pieces_per_box || 10));
+      }
+      
       calc.totalPrice = calc.effectiveArea * calc.tile.price_per_sqm;
     });
 
@@ -236,8 +246,9 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       if (!room) return;
 
       tileIds.forEach(tileId => {
-        const roomArea = room.length * room.width;
-        const effectiveArea = roomArea * (1 + (wastagePercentage / 100));
+        // Convert room area to square feet before calculating
+        const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
+        const effectiveArea = roomAreaInSqFt * (1 + (wastagePercentage / 100));
         roomsData.push({
           roomId: roomId,
           tileId: tileId,
