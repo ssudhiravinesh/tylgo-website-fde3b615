@@ -89,8 +89,9 @@ export const TileCard = ({
                 {tile.pieces_per_box} pieces/box
               </div>
             )}
-
-            {tile.size_length && tile.size_breadth && tile.pieces_per_box && (
+          </div>
+ <div className="space-y-1">
+               {tile.size_length && tile.size_breadth && tile.pieces_per_box && (
                 <div className="flex items-center gap-1 text-xs text-gray-600">
                   <SquareFoot className="h-3 w-3" />
                   {(
@@ -103,7 +104,6 @@ export const TileCard = ({
                 </div>
             )}
           </div>
-
           {/* QR Code Section - Only show for admins */}
           {isAdmin && (
             <div className="flex items-center justify-between mt-2">
