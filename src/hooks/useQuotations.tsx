@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,15 +23,89 @@ export interface Quotation {
   };
 }
 
-const fetchQuotations = async (): Promise<Quotation[]> => {
-  const { data, error } = await supabase
+interface DateFilters {
+  quickSort?: string;
+  year?: number | null;
+  month?: number | null;
+}
+
+const getDateRange = (quickSort: string) => {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-based
+
+  switch (quickSort) {
+    case 'current-month': {
+      const startDate = new Date(currentYear, currentMonth, 1);
+      const endDate = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+      return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+    }
+    case 'last-month': {
+      const startDate = new Date(currentYear, currentMonth - 1, 1);
+      const endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+      return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+    }
+    case 'last-2-months': {
+      const startDate = new Date(currentYear, currentMonth - 2, 1);
+      const endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+      return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+    }
+    case 'last-year': {
+      const startDate = new Date(currentYear - 1, 0, 1);
+      const endDate = new Date(currentYear - 1, 11, 31, 23, 59, 59, 999);
+      return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+    }
+    default:
+      return null;
+  }
+};
+
+const getPreciseDateRange = (year: number | null, month: number | null) => {
+  if (!year && !month) return null;
+  
+  const targetYear = year || new Date().getFullYear();
+  
+  if (month) {
+    // Specific month and year
+    const startDate = new Date(targetYear, month - 1, 1);
+    const endDate = new Date(targetYear, month, 0, 23, 59, 59, 999);
+    return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+  } else {
+    // Entire year
+    const startDate = new Date(targetYear, 0, 1);
+    const endDate = new Date(targetYear, 11, 31, 23, 59, 59, 999);
+    return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+  }
+};
+
+const fetchQuotations = async (filters: DateFilters = {}): Promise<Quotation[]> => {
+  let query = supabase
     .from('quotations')
     .select(`
       *,
       customer:customers(name, mobile, address),
       worker:profiles(name)
-    `)
-    .order('created_at', { ascending: false });
+    `);
+
+  // Apply date filters
+  const quickSortRange = filters.quickSort && filters.quickSort !== 'all' 
+    ? getDateRange(filters.quickSort) 
+    : null;
+  
+  const preciseRange = getPreciseDateRange(filters.year, filters.month);
+  
+  // Use either quick sort or precise filter, precise takes priority
+  const dateRange = preciseRange || quickSortRange;
+  
+  if (dateRange) {
+    query = query
+      .gte('created_at', dateRange.startDate)
+      .lte('created_at', dateRange.endDate);
+  }
+
+  query = query.order('created_at', { ascending: false });
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching quotations:', error);
@@ -46,10 +119,10 @@ const fetchQuotations = async (): Promise<Quotation[]> => {
   }));
 };
 
-export const useQuotations = () => {
+export const useQuotations = (filters: DateFilters = {}) => {
   return useQuery({
-    queryKey: ['quotations'],
-    queryFn: fetchQuotations,
+    queryKey: ['quotations', filters],
+    queryFn: () => fetchQuotations(filters),
   });
 };
 

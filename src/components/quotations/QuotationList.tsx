@@ -13,6 +13,7 @@ import { EmailDialog } from "./EmailDialog";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
 import { EditQuotationDialog } from "./EditQuotationDialog";
 import { QuotationActionButtons } from "./QuotationActionButtons";
+import { QuotationFilters } from "./QuotationFilters";
 
 interface QuotationListProps {
   userRole: "admin" | "worker";
@@ -29,7 +30,16 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedQuotationForAction, setSelectedQuotationForAction] = useState<string | null>(null);
   
-  const { data: quotations = [], isLoading, refetch } = useQuotations();
+  // Date filter states
+  const [quickSort, setQuickSort] = useState("all");
+  const [filterYear, setFilterYear] = useState<number | null>(null);
+  const [filterMonth, setFilterMonth] = useState<number | null>(null);
+  
+  const { data: quotations = [], isLoading, refetch } = useQuotations({
+    quickSort,
+    year: filterYear,
+    month: filterMonth
+  });
   const deleteQuotationMutation = useDeleteQuotation();
   const { generateQuotationPDF } = usePDFGeneration();
   const { sendQuotationEmail, isSending } = useEmailSending();
@@ -145,6 +155,15 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setSelectedQuotationForAction(null);
   };
 
+  const handleQuickSortChange = (range: string) => {
+    setQuickSort(range);
+  };
+
+  const handlePreciseFilterChange = (year: number | null, month: number | null) => {
+    setFilterYear(year);
+    setFilterMonth(month);
+  };
+
   if (viewMode === "create") {
     return (
       <QuotationForm 
@@ -202,6 +221,15 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
             className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
+
+        {/* New Filtering Controls */}
+        <QuotationFilters
+          onQuickSortChange={handleQuickSortChange}
+          onPreciseFilterChange={handlePreciseFilterChange}
+          currentQuickSort={quickSort}
+          currentYear={filterYear}
+          currentMonth={filterMonth}
+        />
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
