@@ -9,6 +9,8 @@ export interface Tile {
   size_length: number;
   size_breadth: number;
   price_per_sqm: number;
+  price_per_box?: number;
+  pieces_per_box?: number;
   image_url?: string;
   qr_code_url?: string;
   created_at?: string;

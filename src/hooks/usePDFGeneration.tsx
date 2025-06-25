@@ -7,7 +7,7 @@ export const usePDFGeneration = () => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     try {
       // Fetch quotation items with proper joins
-      const response = await fetch(`https://onucizagpgwdpcakskat.supabase.co/rest/v1/quotation_items?quotation_id=eq.${quotation.id}&select=*,room:rooms(name,length,width,unit),tile:tiles(name,code,price_per_sqm,size_length,size_breadth)`, {
+      const response = await fetch(`https://onucizagpgwdpcakskat.supabase.co/rest/v1/quotation_items?quotation_id=eq.${quotation.id}&select=*,room:rooms(name,length,width,unit),tile:tiles(name,code,price_per_sqm,price_per_box,pieces_per_box,size_length,size_breadth)`, {
         headers: {
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM',
           'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM',
@@ -76,6 +76,12 @@ export const usePDFGeneration = () => {
           const unitPrice = parseFloat(item.unit_price) || 0;
           const totalPrice = parseFloat(item.total_price) || (quantity * unitPrice);
 
+          // Format box pricing information
+          let boxPricing = '';
+          if (tile && tile.price_per_box && tile.pieces_per_box) {
+            boxPricing = `<small style="color: #666; font-size: 9px;">Box: ₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} (${tile.pieces_per_box} pcs)</small><br/>`;
+          }
+
           return `
             <tr>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
@@ -86,7 +92,8 @@ export const usePDFGeneration = () => {
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${tile?.name || 'Unknown Tile'}</strong><br/>
                 <small style="color: #666; font-size: 9px;">Code: ${tile?.code || 'N/A'}</small><br/>
-                <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small>
+                <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small><br/>
+                ${boxPricing}
               </td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${quantity.toFixed(2)} sq ft</td>
               <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

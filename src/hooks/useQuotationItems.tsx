@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +22,8 @@ export interface QuotationItem {
     name: string;
     code: string;
     price_per_sqm: number;
+    price_per_box?: number;
+    pieces_per_box?: number;
   };
 }
 
@@ -32,7 +33,7 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
     .select(`
       *,
       room:rooms(name, length, width, unit),
-      tile:tiles(name, code, price_per_sqm)
+      tile:tiles(name, code, price_per_sqm, price_per_box, pieces_per_box)
     `)
     .eq('quotation_id', quotationId)
     .order('created_at', { ascending: true });
