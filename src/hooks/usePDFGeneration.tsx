@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import type { Quotation } from '@/hooks/useQuotations';
@@ -28,12 +29,13 @@ export const usePDFGeneration = () => {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
 
-      // Generate items rows for the table - Fixed logic
+      // Generate items rows for the table
       let itemsRows = '';
+      let totalBoxes = 0;
       
       if (quotationItems && quotationItems.length > 0) {
         itemsRows = quotationItems.map((item: any) => {
-          console.log('Processing item:', item); // Debug log
+          console.log('Processing item:', item);
           
           const room = item.room;
           const tile = item.tile;
@@ -76,10 +78,22 @@ export const usePDFGeneration = () => {
           const unitPrice = parseFloat(item.unit_price) || 0;
           const totalPrice = parseFloat(item.total_price) || (quantity * unitPrice);
 
-          // Format box pricing information
+          // Calculate boxes needed
+          let boxesNeeded = 0;
           let boxPricing = '';
           if (tile && tile.price_per_box && tile.pieces_per_box) {
-            boxPricing = `<small style="color: #666; font-size: 9px;">Box: ₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} (${tile.pieces_per_box} pcs)</small><br/>`;
+            // Calculate tile area in sq ft
+            const tileLengthFt = (parseFloat(tile.size_length) || 0) / 304.8; // mm to ft
+            const tileWidthFt = (parseFloat(tile.size_breadth) || 0) / 304.8; // mm to ft
+            const tileAreaSqFt = tileLengthFt * tileWidthFt;
+            
+            if (tileAreaSqFt > 0) {
+              const tilesNeeded = Math.ceil(quantity / tileAreaSqFt);
+              boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
+              totalBoxes += boxesNeeded;
+            }
+            
+            boxPricing = `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>`;
           }
 
           return `
@@ -97,12 +111,14 @@ export const usePDFGeneration = () => {
               </td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${quantity.toFixed(2)} sq ft</td>
               <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${tile?.pieces_per_box || 'N/A'}</td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${boxesNeeded || 'N/A'}</td>
               <td style="text-align: right; font-weight: bold; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           `;
         }).join('');
       } else {
-        itemsRows = '<tr><td colspan="5" class="no-items">No items found in this quotation</td></tr>';
+        itemsRows = '<tr><td colspan="7" class="no-items">No items found in this quotation</td></tr>';
       }
 
       const pdfContent = `
@@ -179,21 +195,21 @@ export const usePDFGeneration = () => {
               width: 100%; 
               border-collapse: collapse; 
               margin: 15px 0; 
-              font-size: 11px;
+              font-size: 10px;
             }
             .items-table th { 
               background-color: #f8f9fa; 
               font-weight: bold; 
-              padding: 8px 6px; 
+              padding: 6px 4px; 
               border: 1px solid #ddd; 
               text-align: left; 
-              font-size: 10px;
+              font-size: 9px;
             }
             .items-table td { 
               border: 1px solid #ddd; 
-              padding: 8px 6px; 
+              padding: 6px 4px; 
               vertical-align: top; 
-              font-size: 11px;
+              font-size: 10px;
             }
             .items-table tr:nth-child(even) { 
               background-color: #f9f9f9; 
@@ -246,13 +262,6 @@ export const usePDFGeneration = () => {
           </style>
         </head>
         <body>
-          <!-- Enhanced logging for debugging -->
-          <script>
-            console.log('PDF Generation Debug:');
-            console.log('Items Count:', ${quotationItems ? quotationItems.length : 0});
-            console.log('Items Data:', ${JSON.stringify(quotationItems, null, 2)});
-          </script>
-
           <div class="header no-page-break">
             <div class="company-name">Tile Solutions</div>
             <div class="quotation-title">QUOTATION</div>
@@ -278,11 +287,13 @@ export const usePDFGeneration = () => {
           <table class="items-table">
             <thead>
               <tr>
-                <th style="width: 25%;">Room Details</th>
+                <th style="width: 20%;">Room Details</th>
                 <th style="width: 25%;">Tile Details</th>
-                <th style="width: 15%; text-align: center;">Quantity</th>
-                <th style="width: 15%; text-align: right;">Unit Price</th>
-                <th style="width: 20%; text-align: right;">Total Amount</th>
+                <th style="width: 12%; text-align: center;">Quantity</th>
+                <th style="width: 13%; text-align: right;">Unit Price</th>
+                <th style="width: 10%; text-align: center;">Pieces/Box</th>
+                <th style="width: 10%; text-align: center;">Boxes</th>
+                <th style="width: 15%; text-align: right;">Total Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -292,7 +303,7 @@ export const usePDFGeneration = () => {
 
           <div class="total-section no-page-break">
             <div style="font-size: 11px; margin-bottom: 5px;">
-              <strong>Summary:</strong> ${quotationItems ? quotationItems.length : 0} item(s)
+              <strong>Summary:</strong> ${quotationItems ? quotationItems.length : 0} item(s) | ${totalBoxes} boxes total
             </div>
             <div class="total-row">
               Total Amount: ₹${(quotation.total_cost || 0).toLocaleString('en-IN')}
