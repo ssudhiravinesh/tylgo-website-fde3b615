@@ -73,6 +73,22 @@ export const QuotationFilters = ({
     onPreciseFilterChange(null, null);
   };
 
+  const handleYearChange = (value: string) => {
+    if (value === "all-years") {
+      setSelectedYear(null);
+    } else {
+      setSelectedYear(parseInt(value));
+    }
+  };
+
+  const handleMonthChange = (value: string) => {
+    if (value === "all-months") {
+      setSelectedMonth(null);
+    } else {
+      setSelectedMonth(parseInt(value));
+    }
+  };
+
   const hasActiveFilters = currentQuickSort !== "all" || currentYear || currentMonth;
 
   return (
@@ -109,12 +125,12 @@ export const QuotationFilters = ({
           <span className="text-sm font-medium text-gray-700">Precise Filter:</span>
         </div>
         
-        <Select value={selectedYear?.toString() || ""} onValueChange={(value) => setSelectedYear(value ? parseInt(value) : null)}>
+        <Select value={selectedYear?.toString() || "all-years"} onValueChange={handleYearChange}>
           <SelectTrigger className="w-32">
             <SelectValue placeholder="Year" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Years</SelectItem>
+            <SelectItem value="all-years">All Years</SelectItem>
             {years.map((year) => (
               <SelectItem key={year} value={year.toString()}>
                 {year}
@@ -123,12 +139,12 @@ export const QuotationFilters = ({
           </SelectContent>
         </Select>
 
-        <Select value={selectedMonth?.toString() || ""} onValueChange={(value) => setSelectedMonth(value ? parseInt(value) : null)}>
+        <Select value={selectedMonth?.toString() || "all-months"} onValueChange={handleMonthChange}>
           <SelectTrigger className="w-32">
             <SelectValue placeholder="Month" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Months</SelectItem>
+            <SelectItem value="all-months">All Months</SelectItem>
             {months.map((month) => (
               <SelectItem key={month.value} value={month.value.toString()}>
                 {month.label}
