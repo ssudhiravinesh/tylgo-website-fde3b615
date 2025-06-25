@@ -181,28 +181,46 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           };
         }
 
-        // Convert room area to square feet before adding
+        // Convert room area to square meters for calculation
         const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
+        const roomAreaInSqM = roomAreaInSqFt * 0.092903; // Convert sq ft to sq m
+        
         tileCalculations[tileId].rooms.push(room);
-        tileCalculations[tileId].totalArea += roomAreaInSqFt;
+        tileCalculations[tileId].totalArea += roomAreaInSqFt; // Keep in sq ft for display
       });
     });
 
     Object.values(tileCalculations).forEach(calc => {
-      // Calculate effective area with wastage
+      // Convert total area to square meters for calculations
+      const totalAreaInSqM = calc.totalArea * 0.092903;
+      
+      // Step 1: Calculate effective area with wastage
       calc.effectiveArea = calc.totalArea * (1 + (wastagePercentage / 100));
+      const effectiveAreaInSqM = totalAreaInSqM * (1 + (wastagePercentage / 100));
       
-      // Convert tile dimensions from mm to feet for area calculation
-      const tileLengthInFeet = (calc.tile.size_length || 0) / 304.8; // mm to feet
-      const tileBreadthInFeet = (calc.tile.size_breadth || 0) / 304.8; // mm to feet
-      const tileAreaInSqFt = tileLengthInFeet * tileBreadthInFeet;
+      // Calculate tile area in square meters
+      const tileLengthInM = (calc.tile.size_length || 0) / 1000; // mm to m
+      const tileBreadthInM = (calc.tile.size_breadth || 0) / 1000; // mm to m
+      const tileAreaInSqM = tileLengthInM * tileBreadthInM;
       
-      if (tileAreaInSqFt > 0) {
-        calc.tilesNeeded = Math.ceil(calc.effectiveArea / tileAreaInSqFt);
-        calc.boxesNeeded = Math.ceil(calc.tilesNeeded / (calc.tile.pieces_per_box || 10));
+      if (tileAreaInSqM > 0 && calc.tile.pieces_per_box) {
+        // Calculate area covered by one box
+        const areaPerBoxInSqM = tileAreaInSqM * calc.tile.pieces_per_box;
+        
+        if (areaPerBoxInSqM > 0) {
+          // Step 2: Calculate boxes needed (always round up)
+          calc.boxesNeeded = Math.ceil(effectiveAreaInSqM / areaPerBoxInSqM);
+          
+          // Step 3: Calculate price per box
+          const pricePerBox = areaPerBoxInSqM * calc.tile.price_per_sqm;
+          
+          // Step 4: Calculate total price
+          calc.totalPrice = calc.boxesNeeded * pricePerBox;
+          
+          // Calculate tiles needed for display
+          calc.tilesNeeded = Math.ceil(effectiveAreaInSqM / tileAreaInSqM);
+        }
       }
-      
-      calc.totalPrice = calc.effectiveArea * calc.tile.price_per_sqm;
     });
 
     return Object.values(tileCalculations);

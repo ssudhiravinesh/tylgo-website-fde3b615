@@ -18,10 +18,11 @@ export const CustomerSearchBar = ({ value, onValueChange, placeholder = "Search 
   const [searchTerm, setSearchTerm] = useState("");
   const { data: customers = [], isLoading } = useCustomers();
 
+  // Fix the filtering logic to properly search across all fields
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.mobile.includes(searchTerm) ||
-    customer.address?.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.mobile.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (customer.address && customer.address.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const selectedCustomer = customers.find(customer => customer.id === value);

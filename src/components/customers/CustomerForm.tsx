@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, User, Phone, MapPin, FileText } from "lucide-react";
 import { useCreateCustomer } from "@/hooks/useCustomers";
+import { toast } from "sonner";
 
 interface CustomerFormProps {
   onBack: () => void;
@@ -20,14 +20,87 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     address: ""
   });
   
+  const [errors, setErrors] = useState({
+    name: "",
+    mobile: "",
+    address: ""
+  });
+  
   const createCustomer = useCreateCustomer();
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Handle mobile number formatting
+    if (field === 'mobile') {
+      // Remove any non-digit characters except +
+      let cleanValue = value.replace(/[^\d+]/g, '');
+      
+      // If it starts with +91, keep it as is
+      if (cleanValue.startsWith('+91')) {
+        // Limit to +91 + 10 digits
+        if (cleanValue.length > 13) {
+          cleanValue = cleanValue.substring(0, 13);
+        }
+      } else {
+        // If it doesn't start with +91, add it and limit to 10 digits after
+        if (cleanValue.startsWith('91') && cleanValue.length > 2) {
+          cleanValue = '+' + cleanValue.substring(0, 12);
+        } else if (cleanValue.length > 0 && !cleanValue.startsWith('+91')) {
+          cleanValue = '+91' + cleanValue.substring(0, 10);
+        } else if (cleanValue.length === 0) {
+          cleanValue = '+91';
+        }
+      }
+      
+      setFormData(prev => ({ ...prev, [field]: cleanValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
+    
+    // Clear error when user starts typing
+    if (errors[field as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {
+      name: "",
+      mobile: "",
+      address: ""
+    };
+
+    // Validate name
+    if (!formData.name.trim()) {
+      newErrors.name = "Full name is required";
+    }
+
+    // Validate mobile
+    if (!formData.mobile.trim()) {
+      newErrors.mobile = "Mobile number is required";
+    } else {
+      // Check if mobile number has exactly 10 digits after +91
+      const mobileDigits = formData.mobile.replace('+91', '');
+      if (mobileDigits.length !== 10 || !/^\d{10}$/.test(mobileDigits)) {
+        newErrors.mobile = "Mobile number must be exactly 10 digits";
+      }
+    }
+
+    // Validate address
+    if (!formData.address.trim()) {
+      newErrors.address = "Address is required";
+    }
+
+    setErrors(newErrors);
+    return !Object.values(newErrors).some(error => error !== "");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields correctly");
+      return;
+    }
     
     try {
       await createCustomer.mutateAsync(formData);
@@ -39,6 +112,11 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
   const handleSaveAndQuote = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields correctly");
+      return;
+    }
     
     try {
       const newCustomer = await createCustomer.mutateAsync(formData);
@@ -90,10 +168,15 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   placeholder="Enter customer's full name"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
-                  className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                  className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                    errors.name ? "border-red-500" : ""
+                  }`}
                   required
                 />
               </div>
+              {errors.name && (
+                <p className="text-sm text-red-600">{errors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -108,10 +191,15 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   placeholder="+91 98765 43210"
                   value={formData.mobile}
                   onChange={(e) => handleInputChange("mobile", e.target.value)}
-                  className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                  className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                    errors.mobile ? "border-red-500" : ""
+                  }`}
                   required
                 />
               </div>
+              {errors.mobile && (
+                <p className="text-sm text-red-600">{errors.mobile}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -125,10 +213,15 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   placeholder="Enter complete address with pincode"
                   value={formData.address}
                   onChange={(e) => handleInputChange("address", e.target.value)}
-                  className="pl-10 pt-3 min-h-[100px] border-gray-200 focus:border-blue-500 focus:ring-blue-500 resize-none"
+                  className={`pl-10 pt-3 min-h-[100px] border-gray-200 focus:border-blue-500 focus:ring-blue-500 resize-none ${
+                    errors.address ? "border-red-500" : ""
+                  }`}
                   required
                 />
               </div>
+              {errors.address && (
+                <p className="text-sm text-red-600">{errors.address}</p>
+              )}
             </div>
 
             <div className="flex gap-3 pt-4">
