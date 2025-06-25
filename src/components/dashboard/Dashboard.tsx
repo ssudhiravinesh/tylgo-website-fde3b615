@@ -39,6 +39,11 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
     setActiveView("rooms");
   };
 
+  const handleNewQuoteFromForm = (customerId: string) => {
+    setSelectedCustomerForQuote(customerId);
+    setActiveView("rooms");
+  };
+
   const handleBackFromRooms = () => {
     setSelectedCustomerForQuote(null);
     setActiveView("customers");
@@ -55,7 +60,12 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
           />
         );
       case "add-customer":
-        return user.role === "worker" ? <CustomerForm onBack={() => setActiveView("customers")} /> : <div>Access denied</div>;
+        return user.role === "worker" ? (
+          <CustomerForm 
+            onBack={() => setActiveView("customers")} 
+            onNewQuote={handleNewQuoteFromForm}
+          />
+        ) : <div>Access denied</div>;
       case "tiles":
         return user.role === "worker" ? <TileCatalog /> : <div>Access denied</div>;
       case "quotations":

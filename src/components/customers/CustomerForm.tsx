@@ -5,14 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, User, Phone, MapPin } from "lucide-react";
+import { ArrowLeft, Save, User, Phone, MapPin, FileText } from "lucide-react";
 import { useCreateCustomer } from "@/hooks/useCustomers";
 
 interface CustomerFormProps {
   onBack: () => void;
+  onNewQuote?: (customerId: string) => void;
 }
 
-export const CustomerForm = ({ onBack }: CustomerFormProps) => {
+export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const [formData, setFormData] = useState({
     name: "",
     mobile: "",
@@ -31,6 +32,19 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
     try {
       await createCustomer.mutateAsync(formData);
       onBack();
+    } catch (error) {
+      console.error("Error creating customer:", error);
+    }
+  };
+
+  const handleSaveAndQuote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const newCustomer = await createCustomer.mutateAsync(formData);
+      if (onNewQuote && newCustomer?.id) {
+        onNewQuote(newCustomer.id);
+      }
     } catch (error) {
       console.error("Error creating customer:", error);
     }
@@ -64,7 +78,7 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
         </CardHeader>
         
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium text-gray-700">
                 Full Name *
@@ -127,13 +141,25 @@ export const CustomerForm = ({ onBack }: CustomerFormProps) => {
                 Cancel
               </Button>
               <Button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 disabled={createCustomer.isPending}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white gap-2"
               >
                 <Save className="h-4 w-4" />
                 {createCustomer.isPending ? "Saving..." : "Save Customer"}
               </Button>
+              {onNewQuote && (
+                <Button
+                  type="button"
+                  onClick={handleSaveAndQuote}
+                  disabled={createCustomer.isPending}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  {createCustomer.isPending ? "Saving..." : "New Quote"}
+                </Button>
+              )}
             </div>
           </form>
         </CardContent>
