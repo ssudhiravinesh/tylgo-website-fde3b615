@@ -7,7 +7,9 @@ import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils
 export const usePDFGeneration = () => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     try {
-      // Fetch quotation items with proper joins
+      console.log('Starting PDF generation for quotation:', quotation.id);
+      
+      // Fetch quotation items with proper joins using the Supabase client
       const response = await fetch(`https://onucizagpgwdpcakskat.supabase.co/rest/v1/quotation_items?quotation_id=eq.${quotation.id}&select=*,room:rooms(name,length,width,unit),tile:tiles(name,code,price_per_sqm,price_per_box,pieces_per_box,size_length,size_breadth)`, {
         headers: {
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM',
@@ -21,7 +23,7 @@ export const usePDFGeneration = () => {
       }
 
       const quotationItems = await response.json();
-      console.log('Fetched quotation items:', quotationItems);
+      console.log('Fetched quotation items for PDF:', quotationItems);
 
       // Create a new window for PDF generation
       const printWindow = window.open('', '_blank');
@@ -32,10 +34,11 @@ export const usePDFGeneration = () => {
       // Generate items rows for the table
       let itemsRows = '';
       let totalBoxes = 0;
+      let grandTotal = 0;
       
       if (quotationItems && quotationItems.length > 0) {
         itemsRows = quotationItems.map((item: any) => {
-          console.log('Processing item:', item);
+          console.log('Processing item for PDF:', item);
           
           const room = item.room;
           const tile = item.tile;
@@ -77,6 +80,7 @@ export const usePDFGeneration = () => {
           const quantity = parseFloat(item.quantity) || 0;
           const unitPrice = parseFloat(item.unit_price) || 0;
           const totalPrice = parseFloat(item.total_price) || (quantity * unitPrice);
+          grandTotal += totalPrice;
 
           // Calculate boxes needed
           let boxesNeeded = 0;
@@ -258,7 +262,6 @@ export const usePDFGeneration = () => {
               font-style: italic;
               font-size: 11px;
             }
-
           </style>
         </head>
         <body>
@@ -306,7 +309,7 @@ export const usePDFGeneration = () => {
               <strong>Summary:</strong> ${quotationItems ? quotationItems.length : 0} item(s) | ${totalBoxes} boxes total
             </div>
             <div class="total-row">
-              Total Amount: ₹${(quotation.total_cost || 0).toLocaleString('en-IN')}
+              Total Amount: ₹${grandTotal > 0 ? grandTotal.toLocaleString('en-IN') : (quotation.total_cost || 0).toLocaleString('en-IN')}
             </div>
           </div>
 
@@ -336,7 +339,7 @@ export const usePDFGeneration = () => {
         printWindow.close();
       }, 1000);
 
-      toast.success('PDF generation initiated successfully');
+      toast.success('PDF generated successfully');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
