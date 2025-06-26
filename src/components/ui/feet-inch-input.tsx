@@ -111,15 +111,17 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Allow: backspace, delete, tab, escape, enter, space, arrows, home, end
-    const allowedKeys = [8, 9, 27, 13, 32, 46, 37, 38, 39, 40, 35, 36];
-    
-    if (allowedKeys.includes(e.keyCode) ||
-      // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
+    if (
+      // Control keys
+      [8, 9, 27, 13, 32, 46, 37, 38, 39, 40, 35, 36].includes(e.keyCode) ||
+      // Ctrl combinations
       (e.ctrlKey && [65, 67, 86, 88, 90].includes(e.keyCode)) ||
-      // Allow: numbers (0-9) on main keyboard
+      // Numbers (0-9) on main keyboard
       (e.keyCode >= 48 && e.keyCode <= 57 && !e.shiftKey) ||
-      // Allow: numbers (0-9) on numpad
-      (e.keyCode >= 96 && e.keyCode <= 105)) {
+      // Numbers (0-9) on numpad
+      (e.keyCode >= 96 && e.keyCode <= 105)
+    ) {
+      // Allow these keys
       return;
     }
     
