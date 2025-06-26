@@ -7,7 +7,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { TileSelectionStep } from "./TileSelectionStep";
-import { CustomerSearchBar } from "@/components/customers/CustomerSearchBar";
+import { DirectCustomerSearch } from "./DirectCustomerSearch"; // Import the new component
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 
@@ -116,7 +116,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
               Select Customer
             </h2>
           </div>
-          <CustomerSearchBar
+          <DirectCustomerSearch
             value={selectedCustomerId}
             onValueChange={setSelectedCustomerId}
             placeholder="Search customers by name, mobile, or address..."
