@@ -2,8 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Palette, MousePointer, QrCode, X } from "lucide-react";
-import { toast } from "sonner";
+import { QrCode, Trash2, Save, FileText } from "lucide-react";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 
@@ -28,84 +27,116 @@ export const TileSelectionCard = ({
   onRemoveTile,
   onSaveSelections,
   onGenerateQuotation,
-  isDeleting
+  isDeleting,
 }: TileSelectionCardProps) => {
+  const getTileById = (tileId: string) => {
+    return tiles.find(t => t.id === tileId);
+  };
+
+  const calculatePricePerSqFt = (tile: Tile) => {
+    if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
+      return 0;
+    }
+    
+    const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
+    const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
+    return tile.price_per_box / areaPerBoxSqFt;
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Palette className="h-5 w-5" />
-          Tile Selection
-        </CardTitle>
+        <CardTitle className="text-lg">Room Tile Selections</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {rooms.map(room => (
-          <div key={room.id} className="space-y-3 p-4 border rounded-lg">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-gray-800">{room.name}</h4>
-              <Badge variant="outline">
-                {(room.length * room.width).toFixed(2)} {room.unit}²
-              </Badge>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button
-                onClick={() => onChooseTile(room.id)}
-                variant="outline"
-                className="flex-1 gap-2"
-              >
-                <MousePointer className="h-4 w-4" />
-                Choose Tile
-              </Button>
-              <Button
-                onClick={() => onScanQR(room.id)}
-                variant="outline"
-                className="flex-1 gap-2"
-              >
-                <QrCode className="h-4 w-4" />
-                Scan QR
-              </Button>
+      <CardContent className="space-y-4">
+        {rooms.map((room) => (
+          <div key={room.id} className="border rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="font-medium text-gray-800">{room.name}</h4>
+                <p className="text-sm text-gray-600">
+                  {room.length} × {room.width} {room.unit}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onChooseTile(room.id)}
+                  className="text-xs"
+                >
+                  Choose Tile
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onScanQR(room.id)}
+                  className="text-xs"
+                >
+                  <QrCode className="h-3 w-3 mr-1" />
+                  Scan QR
+                </Button>
+              </div>
             </div>
 
+            {/* Selected Tiles */}
             <div className="space-y-2">
-              {(tileSelections[room.id] || []).map(tileId => {
-                const tile = tiles.find(t => t.id === tileId);
+              {(tileSelections[room.id] || []).map((tileId) => {
+                const tile = getTileById(tileId);
                 if (!tile) return null;
-                
+
+                const pricePerSqFt = calculatePricePerSqFt(tile);
+
                 return (
-                  <div key={tileId} className="flex items-center justify-between p-2 bg-blue-50 rounded border">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs font-mono">
-                        {tile.code}
-                      </Badge>
-                      <span className="text-sm">{tile.name}</span>
-                      <span className="text-xs text-gray-500">₹{tile.price_per_sqm}/m²</span>
+                  <div key={tileId} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs font-mono">
+                          {tile.code}
+                        </Badge>
+                        <span className="text-sm font-medium">{tile.name}</span>
+                      </div>
+                      {pricePerSqFt > 0 && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          ₹{pricePerSqFt.toFixed(2)} per sq ft
+                        </p>
+                      )}
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => onRemoveTile(room.id, tileId)}
-                      className="h-6 w-6 p-0 hover:bg-red-100"
                       disabled={isDeleting}
+                      className="text-red-600 hover:text-red-800 h-8 w-8 p-0"
                     >
-                      <X className="h-3 w-3 text-red-600" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 );
               })}
+              
+              {(!tileSelections[room.id] || tileSelections[room.id].length === 0) && (
+                <p className="text-sm text-gray-500 italic">No tiles selected</p>
+              )}
             </div>
           </div>
         ))}
-        
-        <div className="flex gap-2">
-          <Button onClick={onSaveSelections} className="flex-1 bg-blue-600 hover:bg-blue-700">
+
+        <div className="flex gap-2 pt-4">
+          <Button 
+            onClick={onSaveSelections}
+            className="flex-1 gap-2"
+          >
+            <Save className="h-4 w-4" />
             Save Selections
           </Button>
+          
           <Button 
-            onClick={onGenerateQuotation} 
-            className="flex-1 bg-green-600 hover:bg-green-700"
-            disabled={Object.keys(tileSelections).length === 0}
+            onClick={onGenerateQuotation}
+            variant="outline"
+            className="flex-1 gap-2"
           >
+            <FileText className="h-4 w-4" />
             Generate Quotation
           </Button>
         </div>

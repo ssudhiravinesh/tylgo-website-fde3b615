@@ -1,21 +1,48 @@
 
+import { useState } from "react";
 import { Dashboard } from "@/components/dashboard/Dashboard";
+import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
-  // Mock user data for now - in a real app this would come from authentication
-  const mockUser = {
-    id: "1",
-    name: "Admin User",
-    email: "admin@example.com",
-    role: "admin" as const
+  const { user, profile, signOut } = useAuth();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
   };
 
-  const handleLogout = () => {
-    console.log("Logout function called");
-    // In a real app, this would handle the logout process
+  const handleLogoutConfirm = async () => {
+    try {
+      await signOut();
+      setShowLogoutDialog(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  return <Dashboard user={mockUser} onLogout={handleLogout} />;
+  // If not authenticated, show login form or redirect
+  if (!user || !profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Tile Haven</h1>
+          <p className="text-gray-600">Please sign in to continue</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Dashboard user={profile} onLogout={handleLogoutClick} />
+      <LogoutConfirmDialog
+        isOpen={showLogoutDialog}
+        onOpenChange={setShowLogoutDialog}
+        onConfirm={handleLogoutConfirm}
+      />
+    </>
+  );
 };
 
 export default Index;

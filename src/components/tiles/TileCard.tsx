@@ -75,7 +75,6 @@ export const TileCard = ({
           </div>
           
           <div className="space-y-1">
-            
             {tile.price_per_box && (
               <div className="flex items-center gap-1 text-sm font-semibold text-blue-600">
                 <IndianRupee className="h-4 w-4" />

@@ -22,16 +22,7 @@ const fetchTileDetails = async (tileId: string) => {
     throw error;
   }
 
-  // Calculate price_per_sqm for this tile
-  const tileAreaSqm = (data.size_length * data.size_breadth) / 1000000; // Convert mm² to m²
-  const price_per_sqm = data.price_per_box && data.pieces_per_box 
-    ? data.price_per_box / (tileAreaSqm * data.pieces_per_box)
-    : 0;
-
-  return {
-    ...data,
-    price_per_sqm
-  };
+  return data;
 };
 
 export const TileDetailsPage: React.FC = () => {
@@ -105,6 +96,19 @@ export const TileDetailsPage: React.FC = () => {
 
   // Calculate tile area in square feet (converting from mm)
   const tileAreaSqFt = ((tile.size_length * tile.size_breadth) / 1000000) * 10.764; // Convert m² to sq ft
+  
+  // Calculate price per square foot using available data
+  const calculatePricePerSqFt = () => {
+    if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
+      return 0;
+    }
+    
+    const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
+    const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
+    return tile.price_per_box / areaPerBoxSqFt;
+  };
+
+  const pricePerSqFt = calculatePricePerSqFt();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -182,17 +186,21 @@ export const TileDetailsPage: React.FC = () => {
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <IndianRupee className="h-4 w-4" />
-                    <span className="text-sm">Price per sq ft</span>
-                  </div>
-                  <div className="text-lg font-semibold text-green-600">
-                    ₹{(tile.price_per_sqm / 10.764).toFixed(2)}
-                  </div>
-                </div>
+                {pricePerSqFt > 0 && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <IndianRupee className="h-4 w-4" />
+                        <span className="text-sm">Price per sq ft</span>
+                      </div>
+                      <div className="text-lg font-semibold text-green-600">
+                        ₹{pricePerSqFt.toFixed(2)}
+                      </div>
+                    </div>
 
-                <Separator />
+                    <Separator />
+                  </>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-sm text-gray-600">Area per tile</div>
@@ -201,12 +209,14 @@ export const TileDetailsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-sm text-gray-600">Price per tile</div>
-                  <div className="text-sm font-medium text-green-600">
-                    ₹{((tile.price_per_sqm / 10.764) * tileAreaSqFt).toFixed(2)}
+                {pricePerSqFt > 0 && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-sm text-gray-600">Price per tile</div>
+                    <div className="text-sm font-medium text-green-600">
+                      ₹{(pricePerSqFt * tileAreaSqFt).toFixed(2)}
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -245,13 +255,17 @@ export const TileDetailsPage: React.FC = () => {
                       const length = parseFloat((document.getElementById('length-input') as HTMLInputElement)?.value || '0');
                       const width = parseFloat((document.getElementById('width-input') as HTMLInputElement)?.value || '0');
                       const area = length * width;
-                      const pricePerSqFt = tile.price_per_sqm / 10.764; // Convert from m² to sq ft
-                      const totalCost = area * pricePerSqFt;
                       const tilesNeeded = Math.ceil(area / tileAreaSqFt);
                       
-                      if (area > 0) {
+                      if (area > 0 && pricePerSqFt > 0) {
+                        const totalCost = area * pricePerSqFt;
                         toast.success(
                           `For ${formatArea(area)}: ${tilesNeeded} tiles needed, Total cost: ₹${totalCost.toFixed(2)}`,
+                          { duration: 5000 }
+                        );
+                      } else if (area > 0) {
+                        toast.success(
+                          `For ${formatArea(area)}: ${tilesNeeded} tiles needed`,
                           { duration: 5000 }
                         );
                       } else {

@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +11,6 @@ export interface Tile {
   size_breadth: number;
   pieces_per_box?: number;
   price_per_box?: number;
-  price_per_sqm: number;
   image_url?: string;
   qr_code_url?: string;
   created_at?: string;
@@ -29,21 +29,8 @@ const fetchTiles = async (): Promise<Tile[]> => {
     throw error;
   }
 
-  // Transform data to include price_per_sqm calculation
-  const transformedData = (data || []).map(tile => {
-    const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
-    const price_per_sqm = tile.price_per_box && tile.pieces_per_box 
-      ? tile.price_per_box / (tileAreaSqm * tile.pieces_per_box)
-      : 0;
-    
-    return {
-      ...tile,
-      price_per_sqm
-    };
-  });
-
-  console.log('Tiles fetched:', transformedData?.length || 0);
-  return transformedData;
+  console.log('Tiles fetched:', data?.length || 0);
+  return data || [];
 };
 
 export const useTiles = () => {
