@@ -17,20 +17,24 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const [formData, setFormData] = useState({
     name: "",
     mobile: "",
-    address: ""
+    address: "",
+    reference_name: "",
+    reference_mobile_no: ""
   });
   
   const [errors, setErrors] = useState({
     name: "",
     mobile: "",
-    address: ""
+    address: "",
+    reference_name: "",
+    reference_mobile_no: ""
   });
   
   const createCustomer = useCreateCustomer();
 
   const handleInputChange = (field: string, value: string) => {
-    // Handle mobile number formatting
-    if (field === 'mobile') {
+    // Handle mobile number formatting for both main and reference mobile
+    if (field === 'mobile' || field === 'reference_mobile_no') {
       // Remove any non-digit characters except +
       let cleanValue = value.replace(/[^\d+]/g, '');
       
@@ -66,7 +70,9 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     const newErrors = {
       name: "",
       mobile: "",
-      address: ""
+      address: "",
+      reference_name: "",
+      reference_mobile_no: ""
     };
 
     // Validate name
@@ -88,6 +94,19 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     // Validate address
     if (!formData.address.trim()) {
       newErrors.address = "Address is required";
+    }
+
+    // Validate reference mobile if reference name is provided
+    if (formData.reference_name.trim() && !formData.reference_mobile_no.trim()) {
+      newErrors.reference_mobile_no = "Reference mobile number is required when reference name is provided";
+    }
+
+    // Validate reference mobile format if provided
+    if (formData.reference_mobile_no.trim()) {
+      const refMobileDigits = formData.reference_mobile_no.replace('+91', '');
+      if (refMobileDigits.length !== 10 || !/^\d{10}$/.test(refMobileDigits)) {
+        newErrors.reference_mobile_no = "Reference mobile number must be exactly 10 digits";
+      }
     }
 
     setErrors(newErrors);
@@ -222,6 +241,56 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               {errors.address && (
                 <p className="text-sm text-red-600">{errors.address}</p>
               )}
+            </div>
+
+            {/* Reference Information Section */}
+            <div className="pt-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-800 mb-4">Reference Information (Optional)</h3>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reference_name" className="text-sm font-medium text-gray-700">
+                    Reference Name
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="reference_name"
+                      placeholder="Enter reference person's name"
+                      value={formData.reference_name}
+                      onChange={(e) => handleInputChange("reference_name", e.target.value)}
+                      className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                        errors.reference_name ? "border-red-500" : ""
+                      }`}
+                    />
+                  </div>
+                  {errors.reference_name && (
+                    <p className="text-sm text-red-600">{errors.reference_name}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="reference_mobile_no" className="text-sm font-medium text-gray-700">
+                    Reference Mobile Number
+                  </Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="reference_mobile_no"
+                      type="tel"
+                      placeholder="+91 98765 43210"
+                      value={formData.reference_mobile_no}
+                      onChange={(e) => handleInputChange("reference_mobile_no", e.target.value)}
+                      className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                        errors.reference_mobile_no ? "border-red-500" : ""
+                      }`}
+                    />
+                  </div>
+                  {errors.reference_mobile_no && (
+                    <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-3 pt-4">

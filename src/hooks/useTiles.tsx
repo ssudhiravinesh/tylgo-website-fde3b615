@@ -1,16 +1,16 @@
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Tile {
   id: string;
-  name: string;
   code: string;
+  name: string;
   size_length: number;
   size_breadth: number;
-  price_per_sqm: number;
-  price_per_box?: number;
   pieces_per_box?: number;
+  price_per_box?: number;
   image_url?: string;
   qr_code_url?: string;
   created_at?: string;
@@ -18,16 +18,18 @@ export interface Tile {
 }
 
 const fetchTiles = async (): Promise<Tile[]> => {
+  console.log('Fetching tiles from database...');
   const { data, error } = await supabase
     .from('tiles')
     .select('*')
-    .order('name');
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching tiles:', error);
     throw error;
   }
 
+  console.log('Tiles fetched:', data?.length || 0);
   return data || [];
 };
 

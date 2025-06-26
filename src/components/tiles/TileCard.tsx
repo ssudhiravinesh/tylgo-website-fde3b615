@@ -2,7 +2,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Grid3X3, Ruler, IndianRupee, Check, QrCode, Download, Plus, Package } from "lucide-react";
+import { Grid3X3, Ruler, IndianRupee, Check, QrCode, Download, Plus, Package, Square } from "lucide-react";
 import { Tile } from "@/hooks/useTiles";
 
 interface TileCardProps {
@@ -87,6 +87,19 @@ export const TileCard = ({
               <div className="flex items-center gap-1 text-xs text-gray-600">
                 <Package className="h-3 w-3" />
                 {tile.pieces_per_box} pieces/box
+              </div>
+            )}
+
+            {tile.size_length && tile.size_breadth && tile.pieces_per_box && (
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <Square className="h-3 w-3" />
+                {(
+                  (tile.size_length *
+                    tile.size_breadth *
+                    tile.pieces_per_box) /
+                  92903.04
+                ).toFixed(2)}{" "}
+                sq ft/box
               </div>
             )}
           </div>

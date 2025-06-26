@@ -203,7 +203,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       const tileBreadthInM = (calc.tile.size_breadth || 0) / 1000; // mm to m
       const tileAreaInSqM = tileLengthInM * tileBreadthInM;
       
-      if (tileAreaInSqM > 0 && calc.tile.pieces_per_box) {
+      if (tileAreaInSqM > 0 && calc.tile.pieces_per_box && calc.tile.price_per_box) {
         // Calculate area covered by one box
         const areaPerBoxInSqM = tileAreaInSqM * calc.tile.pieces_per_box;
         
@@ -211,8 +211,8 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           // Step 2: Calculate boxes needed (always round up)
           calc.boxesNeeded = Math.ceil(effectiveAreaInSqM / areaPerBoxInSqM);
           
-          // Step 3: Calculate price per box
-          const pricePerBox = areaPerBoxInSqM * calc.tile.price_per_sqm;
+          // Step 3: Price per box is already given
+          const pricePerBox = calc.tile.price_per_box;
           
           // Step 4: Calculate total price
           calc.totalPrice = calc.boxesNeeded * pricePerBox;
