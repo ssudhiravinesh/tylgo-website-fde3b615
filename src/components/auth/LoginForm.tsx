@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Lock, Mail } from "lucide-react";
+import { Building2, Lock, Mail, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface LoginFormProps {
@@ -14,14 +14,20 @@ interface LoginFormProps {
 export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signIn, loading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
     try {
       await signIn(email, password);
     } catch (error) {
       console.error('Login error:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -53,6 +59,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                 required
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -71,23 +78,44 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                 required
+                disabled={isSubmitting}
               />
             </div>
           </div>
           
           <Button 
             type="submit" 
-            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-            disabled={loading}
+            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            disabled={isSubmitting}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign In"
+            )}
           </Button>
         </form>
         
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center space-y-4">
           <p className="text-sm text-gray-500">
-            Contact your administrator for account access
+            Don't have an account?{" "}
+            <button
+              type="button"
+              onClick={onShowSignUp}
+              className="text-blue-600 hover:text-blue-700 font-medium underline"
+              disabled={isSubmitting}
+            >
+              Sign up here
+            </button>
           </p>
+          <div className="pt-4 border-t border-gray-200">
+            <p className="text-xs text-gray-400">
+              For admin access, contact your system administrator
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>

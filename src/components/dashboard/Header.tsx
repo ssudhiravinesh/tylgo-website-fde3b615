@@ -18,6 +18,13 @@ interface HeaderProps {
 }
 
 export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
+  const handleLogoutClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Logout button clicked');
+    onLogout();
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -61,8 +68,9 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
         <Button
           variant="outline"
           size="sm"
-          onClick={onLogout}
+          onClick={handleLogoutClick}
           className="text-gray-600 hover:text-red-600 hover:border-red-200"
+          type="button"
         >
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline ml-2">Logout</span>

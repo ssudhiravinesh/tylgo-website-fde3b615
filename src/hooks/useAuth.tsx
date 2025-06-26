@@ -38,8 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         // Fetch profile data when user is authenticated
-        setTimeout(() => {
-          fetchProfile(session.user.id);
+        setTimeout(async () => {
+          await fetchProfile(session.user.id);
         }, 0);
       } else {
         setProfile(null);
@@ -92,16 +92,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) {
         console.error('Error fetching profile:', error);
         if (error.code === 'PGRST116') {
-          // Profile doesn't exist, this might be a new user
           console.log('Profile not found for user:', userId);
+          toast.error('Profile not found. Please contact your administrator.');
+        } else {
+          toast.error('Error loading profile');
         }
-        toast.error('Error loading profile');
       } else if (data) {
         console.log('Profile loaded:', data);
         setProfile(data);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      toast.error('Error loading user profile');
     } finally {
       setLoading(false);
     }
@@ -131,7 +133,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast.success('Account created successfully! Please check your email to verify your account.');
     } catch (error: any) {
       console.error('Sign up error:', error);
-      toast.error(error.message || 'Error creating account');
+      if (error.message.includes('already registered')) {
+        toast.error('This email is already registered. Please try signing in instead.');
+      } else {
+        toast.error(error.message || 'Error creating account');
+      }
       throw error;
     } finally {
       setLoading(false);
@@ -155,7 +161,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast.success('Signed in successfully!');
     } catch (error: any) {
       console.error('Sign in error:', error);
-      toast.error(error.message || 'Error signing in');
+      if (error.message.includes('Invalid login credentials')) {
+        toast.error('Invalid email or password. Please try again.');
+      } else {
+        toast.error(error.message || 'Error signing in');
+      }
       throw error;
     } finally {
       setLoading(false);
@@ -165,14 +175,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       console.log('Signing out user');
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) {
         throw error;
       }
+      setUser(null);
+      setProfile(null);
       toast.success('Signed out successfully!');
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast.error(error.message || 'Error signing out');
+    } finally {
+      setLoading(false);
     }
   };
 

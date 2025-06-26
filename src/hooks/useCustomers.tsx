@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export interface Customer {
   id: string;
@@ -15,45 +15,48 @@ export interface Customer {
   updated_at?: string;
 }
 
-const fetchCustomers = async (): Promise<Customer[]> => {
-  console.log('Fetching customers from database...');
-  const { data, error } = await supabase
-    .from('customers')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching customers:', error);
-    throw error;
-  }
-
-  console.log('Customers fetched:', data?.length || 0);
-  return data || [];
-};
+export interface CreateCustomerData {
+  name: string;
+  mobile: string;
+  address?: string;
+  reference_name?: string;
+  reference_mobile_no?: string;
+  attended_by?: string;
+}
 
 export const useCustomers = () => {
-  return useQuery({
-    queryKey: ['customers'],
-    queryFn: fetchCustomers,
-  });
-};
-
-export const useCreateCustomer = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (customerData: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
-      console.log('Creating customer with data:', customerData);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user:', user?.id);
-      
+  const {
+    data: customers = [],
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      console.log('Fetching customers...');
       const { data, error } = await supabase
         .from('customers')
-        .insert([{
-          ...customerData,
-          attended_by: user?.id
-        }])
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching customers:', error);
+        throw error;
+      }
+
+      console.log('Customers fetched:', data?.length || 0);
+      return data as Customer[];
+    },
+  });
+
+  const createCustomerMutation = useMutation({
+    mutationFn: async (customerData: CreateCustomerData) => {
+      console.log('Creating customer:', customerData);
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([customerData])
         .select()
         .single();
 
@@ -62,31 +65,25 @@ export const useCreateCustomer = () => {
         throw error;
       }
 
-      console.log('Customer created successfully:', data);
-      return data;
+      console.log('Customer created:', data);
+      return data as Customer;
     },
     onSuccess: (data) => {
-      console.log('Customer creation mutation succeeded:', data);
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      toast.success('Customer created successfully');
+      toast.success(`Customer "${data.name}" created successfully!`);
     },
     onError: (error: any) => {
-      console.error('Customer creation mutation failed:', error);
-      toast.error(error.message || 'Error creating customer');
+      console.error('Customer creation failed:', error);
+      toast.error(error.message || 'Failed to create customer');
     },
   });
-};
 
-export const useUpdateCustomer = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (updateData: Partial<Customer> & { id: string }) => {
-      const { id, ...updates } = updateData;
-      
+  const updateCustomerMutation = useMutation({
+    mutationFn: async ({ id, ...customerData }: Partial<Customer> & { id: string }) => {
+      console.log('Updating customer:', id, customerData);
       const { data, error } = await supabase
         .from('customers')
-        .update(updates)
+        .update(customerData)
         .eq('id', id)
         .select()
         .single();
@@ -96,41 +93,55 @@ export const useUpdateCustomer = () => {
         throw error;
       }
 
-      return data;
+      console.log('Customer updated:', data);
+      return data as Customer;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      toast.success('Customer updated successfully');
+      toast.success(`Customer "${data.name}" updated successfully!`);
     },
     onError: (error: any) => {
-      console.error('Error updating customer:', error);
-      toast.error(error.message || 'Error updating customer');
+      console.error('Customer update failed:', error);
+      toast.error(error.message || 'Failed to update customer');
     },
   });
-};
 
-export const useDeleteCustomer = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (customerId: string) => {
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      console.log('Deleting customer:', id);
       const { error } = await supabase
         .from('customers')
         .delete()
-        .eq('id', customerId);
+        .eq('id', id);
 
       if (error) {
         console.error('Error deleting customer:', error);
         throw error;
       }
+
+      console.log('Customer deleted:', id);
+      return id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      toast.success('Customer deleted successfully');
+      toast.success('Customer deleted successfully!');
     },
     onError: (error: any) => {
-      console.error('Error deleting customer:', error);
-      toast.error(error.message || 'Error deleting customer');
+      console.error('Customer deletion failed:', error);
+      toast.error(error.message || 'Failed to delete customer');
     },
   });
+
+  return {
+    customers,
+    isLoading,
+    error,
+    refetch,
+    createCustomer: createCustomerMutation.mutateAsync,
+    updateCustomer: updateCustomerMutation.mutateAsync,
+    deleteCustomer: deleteCustomerMutation.mutateAsync,
+    isCreating: createCustomerMutation.isPending,
+    isUpdating: updateCustomerMutation.isPending,
+    isDeleting: deleteCustomerMutation.isPending,
+  };
 };
