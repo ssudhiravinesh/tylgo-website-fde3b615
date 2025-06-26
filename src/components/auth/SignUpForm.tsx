@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,7 @@ export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
     
     setIsSubmitting(true);
     try {
-      await signUp(email, password, name);
+      await signUp(email, password, name, 'worker'); // Adding the required 4th argument (role)
     } catch (error) {
       console.error('Signup error:', error);
     } finally {

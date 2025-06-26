@@ -12,6 +12,7 @@ import { useCreateQuotation, useUpdateQuotation, type Quotation } from "@/hooks/
 import { useCreateQuotationItem, useQuotationItems, useDeleteQuotationItem, useUpdateQuotationItem } from "@/hooks/useQuotationItems";
 import { QuotationItemsSection } from "./QuotationItemsSection";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 interface QuotationFormProps {
   onBack: () => void;
@@ -50,7 +51,7 @@ export const QuotationForm = ({
   const [notes, setNotes] = useState(existingQuotation?.notes || "");
   const [status, setStatus] = useState<QuotationStatus>((existingQuotation?.status as QuotationStatus) || 'draft');
 
-  const { data: customers = [] } = useCustomers();
+  const { customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
   const { data: tiles = [] } = useTiles();
   const { mutate: createQuotation, isPending: isCreating } = useCreateQuotation();
@@ -59,8 +60,18 @@ export const QuotationForm = ({
   const { data: existingItems = [] } = useQuotationItems(existingQuotation?.id || "");
   const { mutate: deleteQuotationItem } = useDeleteQuotationItem();
   const { mutate: updateQuotationItem } = useUpdateQuotationItem();
+  const { profile } = useAuth();
 
-  // Load existing quotation items in edit mode
+  // Generate quotation number
+  const generateQuotationNumber = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `QT-${year}${month}${day}-${random}`;
+  };
+
   useEffect(() => {
     if (editMode && existingItems.length > 0) {
       console.log('Loading existing items:', existingItems);
@@ -76,17 +87,15 @@ export const QuotationForm = ({
     }
   }, [editMode, existingItems]);
 
-  // Auto-populate from selectedRoomsData in create mode
   useEffect(() => {
     if (!editMode && selectedRoomsData && selectedRoomsData.length > 0) {
       const autoItems: QuotationItem[] = selectedRoomsData.map(roomData => {
         const tile = tiles.find(t => t.id === roomData.tileId);
         
-        // Calculate unit price using available tile data
         let unitPrice = 0;
         if (tile?.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
-          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
-          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
+          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000;
+          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764;
           unitPrice = tile.price_per_box / areaPerBoxSqFt;
         }
         
@@ -141,11 +150,10 @@ export const QuotationForm = ({
       const room = rooms.find(r => r.id === item.room_id);
       
       if (tile && room) {
-        // Calculate unit price using available tile data
         let unitPrice = 0;
         if (tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
-          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
-          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
+          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000;
+          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764;
           unitPrice = tile.price_per_box / areaPerBoxSqFt;
         }
         
@@ -179,6 +187,11 @@ export const QuotationForm = ({
       return;
     }
 
+    if (!profile?.id) {
+      toast.error("User profile not found");
+      return;
+    }
+
     if (items.length === 0) {
       toast.error("Please add at least one item");
       return;
@@ -194,7 +207,9 @@ export const QuotationForm = ({
     }
 
     const quotationData = {
+      quotation_number: existingQuotation?.quotation_number || generateQuotationNumber(),
       customer_id: selectedCustomerId,
+      worker_id: profile.id,
       status,
       total_cost: getTotalCost(),
       notes: notes.trim() || undefined,
