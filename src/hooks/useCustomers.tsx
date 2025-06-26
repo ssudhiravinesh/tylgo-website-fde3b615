@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,8 +8,10 @@ export interface Customer {
   name: string;
   mobile: string;
   address?: string;
+  reference_name?: string;
+  reference_mobile_no?: string;
   attended_by?: string;
-  created_at: string;
+  created_at?: string;
   updated_at?: string;
 }
 

@@ -33,7 +33,7 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
     .select(`
       *,
       room:rooms(name, length, width, unit),
-      tile:tiles(name, code, price_per_sqm, price_per_box, pieces_per_box)
+      tile:tiles(name, code, price_per_box, pieces_per_box)
     `)
     .eq('quotation_id', quotationId)
     .order('created_at', { ascending: true });
@@ -43,7 +43,18 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
     throw error;
   }
 
-  return data || [];
+  // Transform the data to include price_per_sqm calculation
+  const transformedData = (data || []).map(item => ({
+    ...item,
+    tile: item.tile ? {
+      ...item.tile,
+      price_per_sqm: item.tile.price_per_box && item.tile.pieces_per_box 
+        ? (item.tile.price_per_box / item.tile.pieces_per_box) * 92903.04 / 1000000 // Convert to price per sqm
+        : 0
+    } : undefined
+  }));
+
+  return transformedData;
 };
 
 export const useQuotationItems = (quotationId: string) => {
