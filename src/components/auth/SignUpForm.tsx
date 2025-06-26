@@ -4,34 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Lock, Mail, User, UserCog } from "lucide-react";
+import { Building2, Lock, Mail, User, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface SignUpFormProps {
-  onBackToLogin: () => void;
+  onShowLogin: () => void;
 }
 
-export const SignUpForm = ({ onBackToLogin }: SignUpFormProps) => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "worker" as "admin" | "worker"
-  });
-  const [isLoading, setIsLoading] = useState(false);
+export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (isSubmitting) return;
     
+    setIsSubmitting(true);
     try {
-      await signUp(formData.email, formData.password, formData.name, formData.role);
+      await signUp(email, password, name);
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('Signup error:', error);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -58,11 +55,12 @@ export const SignUpForm = ({ onBackToLogin }: SignUpFormProps) => {
               <Input
                 id="name"
                 type="text"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                 required
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -77,14 +75,15 @@ export const SignUpForm = ({ onBackToLogin }: SignUpFormProps) => {
                 id="email"
                 type="email"
                 placeholder="john@tilehaven.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                 required
+                disabled={isSubmitting}
               />
             </div>
           </div>
-
+          
           <div className="space-y-2">
             <Label htmlFor="password" className="text-sm font-medium text-gray-700">
               Password
@@ -94,53 +93,49 @@ export const SignUpForm = ({ onBackToLogin }: SignUpFormProps) => {
               <Input
                 id="password"
                 type="password"
-                placeholder="Create a secure password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                 required
-                minLength={6}
+                disabled={isSubmitting}
               />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="role" className="text-sm font-medium text-gray-700">
-              Role
-            </Label>
-            <div className="relative">
-              <UserCog className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-              <Select
-                value={formData.role}
-                onValueChange={(value: "admin" | "worker") => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                  <SelectValue placeholder="Select your role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="worker">Worker</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           
           <Button 
             type="submit" 
-            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-            disabled={isLoading}
+            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            disabled={isSubmitting}
           >
-            {isLoading ? "Creating Account..." : "Create Account"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              "Create Account"
+            )}
           </Button>
         </form>
         
-        <div className="mt-6 text-center">
-          <button
-            onClick={onBackToLogin}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            Already have an account? Sign In
-          </button>
+        <div className="mt-6 text-center space-y-4">
+          <p className="text-sm text-gray-500">
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={onShowLogin}
+              className="text-blue-600 hover:text-blue-700 font-medium underline"
+              disabled={isSubmitting}
+            >
+              Sign in here
+            </button>
+          </p>
+          <div className="pt-4 border-t border-gray-200">
+            <p className="text-xs text-gray-400">
+              By creating an account, you agree to our terms of service
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>

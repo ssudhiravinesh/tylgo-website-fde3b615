@@ -35,7 +35,13 @@ export interface CreateQuotationData {
   notes?: string;
 }
 
-export const useQuotations = (userRole?: 'admin' | 'worker') => {
+interface QuotationFilters {
+  quickSort?: string;
+  year?: number | null;
+  month?: number | null;
+}
+
+export const useQuotations = (filters?: QuotationFilters) => {
   const queryClient = useQueryClient();
 
   const {
@@ -44,9 +50,9 @@ export const useQuotations = (userRole?: 'admin' | 'worker') => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['quotations', userRole],
+    queryKey: ['quotations', filters],
     queryFn: async () => {
-      console.log('Fetching quotations for role:', userRole);
+      console.log('Fetching quotations with filters:', filters);
       
       let query = supabase
         .from('quotations')
@@ -186,6 +192,7 @@ export const useQuotations = (userRole?: 'admin' | 'worker') => {
   });
 
   return {
+    data: quotations, // Keep both for backward compatibility
     quotations,
     isLoading,
     error,
@@ -197,4 +204,124 @@ export const useQuotations = (userRole?: 'admin' | 'worker') => {
     isUpdating: updateQuotationMutation.isPending,
     isDeleting: deleteQuotationMutation.isPending,
   };
+};
+
+// Export individual mutation hooks
+export const useCreateQuotation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (quotationData: CreateQuotationData) => {
+      console.log('Creating quotation:', quotationData);
+      const { data, error } = await supabase
+        .from('quotations')
+        .insert([quotationData])
+        .select(`
+          *,
+          customer:customers!customer_id (
+            id,
+            name,
+            mobile,
+            address
+          ),
+          worker:profiles!worker_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error creating quotation:', error);
+        throw error;
+      }
+
+      console.log('Quotation created:', data);
+      return data as Quotation;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success(`Quotation "${data.quotation_number}" created successfully!`);
+    },
+    onError: (error: any) => {
+      console.error('Quotation creation failed:', error);
+      toast.error(error.message || 'Failed to create quotation');
+    },
+  });
+};
+
+export const useUpdateQuotation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, ...quotationData }: Partial<Quotation> & { id: string }) => {
+      console.log('Updating quotation:', id, quotationData);
+      const { data, error } = await supabase
+        .from('quotations')
+        .update(quotationData)
+        .eq('id', id)
+        .select(`
+          *,
+          customer:customers!customer_id (
+            id,
+            name,
+            mobile,
+            address
+          ),
+          worker:profiles!worker_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error updating quotation:', error);
+        throw error;
+      }
+
+      console.log('Quotation updated:', data);
+      return data as Quotation;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success(`Quotation "${data.quotation_number}" updated successfully!`);
+    },
+    onError: (error: any) => {
+      console.error('Quotation update failed:', error);
+      toast.error(error.message || 'Failed to update quotation');
+    },
+  });
+};
+
+export const useDeleteQuotation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      console.log('Deleting quotation:', id);
+      const { error } = await supabase
+        .from('quotations')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting quotation:', error);
+        throw error;
+      }
+
+      console.log('Quotation deleted:', id);
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      toast.success('Quotation deleted successfully!');
+    },
+    onError: (error: any) => {
+      console.error('Quotation deletion failed:', error);
+      toast.error(error.message || 'Failed to delete quotation');
+    },
+  });
 };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +35,8 @@ interface QuotationItem {
   total_price: number;
 }
 
+type QuotationStatus = 'draft' | 'sent' | 'approved' | 'rejected';
+
 export const QuotationForm = ({ 
   onBack, 
   onSuccess, 
@@ -47,7 +48,7 @@ export const QuotationForm = ({
   const [selectedCustomerId, setSelectedCustomerId] = useState(preSelectedCustomerId || existingQuotation?.customer_id || "");
   const [items, setItems] = useState<QuotationItem[]>([]);
   const [notes, setNotes] = useState(existingQuotation?.notes || "");
-  const [status, setStatus] = useState<'draft' | 'sent' | 'approved' | 'rejected'>(existingQuotation?.status || 'draft');
+  const [status, setStatus] = useState<QuotationStatus>((existingQuotation?.status as QuotationStatus) || 'draft');
 
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
@@ -287,7 +288,7 @@ export const QuotationForm = ({
 
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={(value: 'draft' | 'sent' | 'approved' | 'rejected') => setStatus(value)}>
+              <Select value={status} onValueChange={(value: QuotationStatus) => setStatus(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

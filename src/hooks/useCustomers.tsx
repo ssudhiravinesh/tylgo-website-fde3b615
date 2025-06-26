@@ -133,6 +133,7 @@ export const useCustomers = () => {
   });
 
   return {
+    data: customers, // Keep both for backward compatibility
     customers,
     isLoading,
     error,
@@ -144,4 +145,36 @@ export const useCustomers = () => {
     isUpdating: updateCustomerMutation.isPending,
     isDeleting: deleteCustomerMutation.isPending,
   };
+};
+
+// Export individual mutation hooks for better component usage
+export const useCreateCustomer = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (customerData: CreateCustomerData) => {
+      console.log('Creating customer:', customerData);
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([customerData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating customer:', error);
+        throw error;
+      }
+
+      console.log('Customer created:', data);
+      return data as Customer;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast.success(`Customer "${data.name}" created successfully!`);
+    },
+    onError: (error: any) => {
+      console.error('Customer creation failed:', error);
+      toast.error(error.message || 'Failed to create customer');
+    },
+  });
 };
