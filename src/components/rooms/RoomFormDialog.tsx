@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FeetInchesInput } from "@/components/ui/feet-inches-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
@@ -116,6 +117,32 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const renderDimensionInput = (field: "length" | "width", label: string) => {
+    if (formData.unit === "feet") {
+      return (
+        <FeetInchesInput
+          value={formData[field]}
+          onChange={(value) => handleInputChange(field, value)}
+          placeholder="0' 0\""
+          disabled={isLoading}
+        />
+      );
+    }
+
+    return (
+      <Input
+        type="number"
+        step="0.01"
+        min="0"
+        value={formData[field]}
+        onChange={(e) => handleInputChange(field, e.target.value)}
+        placeholder="0.00"
+        disabled={isLoading}
+        required
+      />
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
@@ -160,33 +187,17 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="length">Length *</Label>
-              <Input
-                id="length"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.length}
-                onChange={(e) => handleInputChange("length", e.target.value)}
-                placeholder="0.00"
-                disabled={isLoading}
-                required
-              />
+              <Label htmlFor="length">
+                Length * {formData.unit === "feet" && <span className="text-xs text-gray-500">(e.g., 20' 5\")</span>}
+              </Label>
+              {renderDimensionInput("length", "Length")}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="width">Width *</Label>
-              <Input
-                id="width"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.width}
-                onChange={(e) => handleInputChange("width", e.target.value)}
-                placeholder="0.00"
-                disabled={isLoading}
-                required
-              />
+              <Label htmlFor="width">
+                Width * {formData.unit === "feet" && <span className="text-xs text-gray-500">(e.g., 15' 8\")</span>}
+              </Label>
+              {renderDimensionInput("width", "Width")}
             </div>
           </div>
 

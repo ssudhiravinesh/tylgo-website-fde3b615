@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, User, Phone, MapPin, FileText } from "lucide-react";
-import { useCreateCustomer } from "@/hooks/useCustomers";
+import { ArrowLeft, Save, User, MapPin, FileText } from "lucide-react";
+import { useCreateCustomer, Customer } from "@/hooks/useCustomers";
+import { MobileNumberSearch } from "./MobileNumberSearch";
 import { toast } from "sonner";
 
 interface CustomerFormProps {
@@ -33,36 +34,34 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const createCustomer = useCreateCustomer();
 
   const handleInputChange = (field: string, value: string) => {
-    // Handle mobile number formatting for both main and reference mobile
-    if (field === 'mobile' || field === 'reference_mobile_no') {
-      // Remove any non-digit characters except +
-      let cleanValue = value.replace(/[^\d+]/g, '');
-      
-      // If it starts with +91, keep it as is
-      if (cleanValue.startsWith('+91')) {
-        // Limit to +91 + 10 digits
-        if (cleanValue.length > 13) {
-          cleanValue = cleanValue.substring(0, 13);
-        }
-      } else {
-        // If it doesn't start with +91, add it and limit to 10 digits after
-        if (cleanValue.startsWith('91') && cleanValue.length > 2) {
-          cleanValue = '+' + cleanValue.substring(0, 12);
-        } else if (cleanValue.length > 0 && !cleanValue.startsWith('+91')) {
-          cleanValue = '+91' + cleanValue.substring(0, 10);
-        } else if (cleanValue.length === 0) {
-          cleanValue = '+91';
-        }
-      }
-      
-      setFormData(prev => ({ ...prev, [field]: cleanValue }));
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }));
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear error when user starts typing
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleCustomerFound = (customer: Customer | null) => {
+    if (customer) {
+      setFormData(prev => ({
+        ...prev,
+        name: customer.name,
+        address: customer.address || "",
+        reference_name: customer.reference_name || "",
+        reference_mobile_no: customer.reference_mobile_no || ""
+      }));
+      toast.success(`Customer "${customer.name}" details loaded!`);
+    }
+  };
+
+  const handleReferenceFound = (customer: Customer | null) => {
+    if (customer) {
+      setFormData(prev => ({
+        ...prev,
+        reference_name: customer.name
+      }));
+      toast.success(`Reference "${customer.name}" details loaded!`);
     }
   };
 
@@ -202,20 +201,12 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               <Label htmlFor="mobile" className="text-sm font-medium text-gray-700">
                 Mobile Number *
               </Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="mobile"
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={formData.mobile}
-                  onChange={(e) => handleInputChange("mobile", e.target.value)}
-                  className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                    errors.mobile ? "border-red-500" : ""
-                  }`}
-                  required
-                />
-              </div>
+              <MobileNumberSearch
+                value={formData.mobile}
+                onChange={(value) => handleInputChange("mobile", value)}
+                onCustomerFound={handleCustomerFound}
+                className={errors.mobile ? "border-red-500" : ""}
+              />
               {errors.mobile && (
                 <p className="text-sm text-red-600">{errors.mobile}</p>
               )}
@@ -273,19 +264,12 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   <Label htmlFor="reference_mobile_no" className="text-sm font-medium text-gray-700">
                     Reference Mobile Number
                   </Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="reference_mobile_no"
-                      type="tel"
-                      placeholder="+91 98765 43210"
-                      value={formData.reference_mobile_no}
-                      onChange={(e) => handleInputChange("reference_mobile_no", e.target.value)}
-                      className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                        errors.reference_mobile_no ? "border-red-500" : ""
-                      }`}
-                    />
-                  </div>
+                  <MobileNumberSearch
+                    value={formData.reference_mobile_no}
+                    onChange={(value) => handleInputChange("reference_mobile_no", value)}
+                    onCustomerFound={handleReferenceFound}
+                    className={errors.reference_mobile_no ? "border-red-500" : ""}
+                  />
                   {errors.reference_mobile_no && (
                     <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>
                   )}

@@ -84,32 +84,32 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          price_per_box: number
           quantity: number
           quotation_id: string
           room_id: string
           tile_id: string
           total_price: number
-          unit_price: number
         }
         Insert: {
           created_at?: string | null
           id?: string
+          price_per_box: number
           quantity: number
           quotation_id: string
           room_id: string
           tile_id: string
           total_price: number
-          unit_price: number
         }
         Update: {
           created_at?: string | null
           id?: string
+          price_per_box?: number
           quantity?: number
           quotation_id?: string
           room_id?: string
           tile_id?: string
           total_price?: number
-          unit_price?: number
         }
         Relationships: [
           {
