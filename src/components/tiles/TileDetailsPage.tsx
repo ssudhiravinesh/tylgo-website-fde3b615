@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -21,7 +22,16 @@ const fetchTileDetails = async (tileId: string) => {
     throw error;
   }
 
-  return data;
+  // Calculate price_per_sqm for this tile
+  const tileAreaSqm = (data.size_length * data.size_breadth) / 1000000; // Convert mm² to m²
+  const price_per_sqm = data.price_per_box && data.pieces_per_box 
+    ? data.price_per_box / (tileAreaSqm * data.pieces_per_box)
+    : 0;
+
+  return {
+    ...data,
+    price_per_sqm
+  };
 };
 
 export const TileDetailsPage: React.FC = () => {
