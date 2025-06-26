@@ -1,114 +1,145 @@
+import React, { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
 
-import React, { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-
-interface FeetInchesInputProps {
+interface FeetInchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
-  className?: string;
 }
 
-export const FeetInchesInput = ({ 
-  value, 
-  onChange, 
-  placeholder = "0.00", 
-  disabled = false,
-  className = ""
-}: FeetInchesInputProps) => {
-  const [displayValue, setDisplayValue] = useState("");
+export const FeetInchInput: React.FC<FeetInchInputProps> = ({
+  value,
+  onChange,
+  placeholder = "20 5",
+  disabled = false
+}) => {
+  const [displayValue, setDisplayValue] = useState<string>('');
 
-  // Convert decimal feet to feet and inches display
-  const convertDecimalToFeetInches = (decimal: string) => {
-    if (!decimal || decimal === "0" || decimal === "") return "";
-    
-    const totalFeet = parseFloat(decimal);
-    if (isNaN(totalFeet)) return "";
-    
-    const feet = Math.floor(totalFeet);
-    const inches = Math.round((totalFeet - feet) * 12);
+  // Convert decimal feet to "feet inches" format for display
+  const decimalFeetToDisplay = (decimalFeet: number): string => {
+    const feet = Math.floor(decimalFeet);
+    const inches = Math.round((decimalFeet - feet) * 12);
     
     if (inches === 0) {
-      return feet > 0 ? `${feet}'` : "";
-    } else if (inches === 12) {
-      return `${feet + 1}'`;
-    } else {
-      return `${feet}' ${inches}"`;
+      return feet.toString();
     }
+    return `${feet} ${inches}`;
   };
 
-  // Convert feet and inches display to decimal feet
-  const convertFeetInchesToDecimal = (input: string) => {
-    if (!input.trim()) return "0";
+  // Convert "feet inches" to decimal feet for backend
+  const displayToDecimalFeet = (input: string): number => {
+    // Remove quotes and extra spaces
+    const cleaned = input.replace(/['"]/g, '').trim();
+    const parts = cleaned.split(/\s+/).filter(part => part !== '');
     
-    // Remove extra spaces and normalize
-    const cleaned = input.trim().replace(/\s+/g, ' ');
+    if (parts.length === 0) return 0;
     
-    // Pattern to match: "5' 6"" or "5'" or "6""
-    const feetInchesPattern = /^(\d+(?:\.\d+)?)'?\s*(\d+(?:\.\d+)?)?"?$/;
-    const feetOnlyPattern = /^(\d+(?:\.\d+)?)'?$/;
-    const inchesOnlyPattern = /^(\d+(?:\.\d+)?)\"?$/;
+    const feet = parseInt(parts[0]) || 0;
+    let inches = parts.length > 1 ? parseInt(parts[1]) || 0 : 0;
     
-    let totalFeet = 0;
+    // Convert inches >= 12 to additional feet
+    const additionalFeet = Math.floor(inches / 12);
+    inches = inches % 12;
     
-    if (feetInchesPattern.test(cleaned)) {
-      const matches = cleaned.match(feetInchesPattern);
-      if (matches) {
-        const feet = parseFloat(matches[1] || "0");
-        const inches = parseFloat(matches[2] || "0");
-        totalFeet = feet + (inches / 12);
-      }
-    } else if (feetOnlyPattern.test(cleaned)) {
-      const matches = cleaned.match(feetOnlyPattern);
-      if (matches) {
-        totalFeet = parseFloat(matches[1]);
-      }
-    } else if (inchesOnlyPattern.test(cleaned)) {
-      const matches = cleaned.match(inchesOnlyPattern);
-      if (matches) {
-        totalFeet = parseFloat(matches[1]) / 12;
-      }
-    } else {
-      // Try to parse as decimal
-      const decimal = parseFloat(cleaned);
-      if (!isNaN(decimal)) {
-        totalFeet = decimal;
-      }
-    }
-    
-    return totalFeet.toFixed(2);
+    return feet + additionalFeet + (inches / 12);
   };
 
-  // Update display value when prop value changes
+  // Format display value with quotes
+  const formatDisplayValue = (input: string): string => {
+    // Remove any existing quotes first
+    const cleaned = input.replace(/['"]/g, '').trim();
+    const parts = cleaned.split(/\s+/).filter(part => part !== '');
+    
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return `${parts[0]}'`;
+    
+    // Only take first two numbers
+    const feet = parts[0];
+    const inches = parts[1];
+    
+    return `${feet}' ${inches}"`;
+  };
+
+  // Initialize display value from decimal feet
   useEffect(() => {
-    setDisplayValue(convertDecimalToFeetInches(value));
+    if (value && !isNaN(parseFloat(value))) {
+      const decimalFeet = parseFloat(value);
+      if (decimalFeet > 0) {
+        const displayFormat = decimalFeetToDisplay(decimalFeet);
+        setDisplayValue(formatDisplayValue(displayFormat));
+      } else {
+        setDisplayValue('');
+      }
+    } else {
+      setDisplayValue('');
+    }
   }, [value]);
 
-  const handleInputChange = (inputValue: string) => {
-    setDisplayValue(inputValue);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let inputValue = e.target.value;
     
-    // Convert to decimal and update parent
-    const decimalValue = convertFeetInchesToDecimal(inputValue);
-    onChange(decimalValue);
+    // Allow only numbers, spaces, and quotes (quotes will be auto-added)
+    inputValue = inputValue.replace(/[^0-9\s'"]/g, '');
+    
+    // Remove any manually typed quotes to prevent duplication
+    const cleanValue = inputValue.replace(/['"]/g, '');
+    
+    // Split by spaces and limit to 2 numbers
+    const parts = cleanValue.split(/\s+/).filter(part => part !== '');
+    const limitedParts = parts.slice(0, 2);
+    
+    // Reconstruct the clean input
+    const cleanInput = limitedParts.join(' ');
+    
+    // Format with quotes
+    const formattedValue = formatDisplayValue(cleanInput);
+    setDisplayValue(formattedValue);
+    
+    // Convert to decimal feet and update parent
+    if (cleanInput.trim()) {
+      const decimalFeet = displayToDecimalFeet(cleanInput);
+      if (decimalFeet > 0) {
+        onChange(decimalFeet.toFixed(4));
+      } else {
+        onChange('');
+      }
+    } else {
+      onChange('');
+    }
   };
 
-  const handleBlur = () => {
-    // Reformat the display value on blur
-    const decimal = convertFeetInchesToDecimal(displayValue);
-    const formatted = convertDecimalToFeetInches(decimal);
-    setDisplayValue(formatted);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow: backspace, delete, tab, escape, enter, space
+    if ([8, 9, 27, 13, 32, 46].indexOf(e.keyCode) !== -1 ||
+      // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+      (e.keyCode === 65 && e.ctrlKey === true) ||
+      (e.keyCode === 67 && e.ctrlKey === true) ||
+      (e.keyCode === 86 && e.ctrlKey === true) ||
+      (e.keyCode === 88 && e.ctrlKey === true)) {
+      return;
+    }
+    
+    // Ensure that it is a number and stop the keypress
+    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+      e.preventDefault();
+    }
   };
 
   return (
-    <Input
-      type="text"
-      placeholder={placeholder}
-      value={displayValue}
-      onChange={(e) => handleInputChange(e.target.value)}
-      onBlur={handleBlur}
-      disabled={disabled}
-      className={className}
-    />
+    <div className="space-y-1">
+      <Input
+        type="text"
+        value={displayValue}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="font-mono"
+      />
+      <div className="text-xs text-gray-500">
+        Enter feet and inches separated by space (e.g., "20 5" for 20 feet 5 inches)
+      </div>
+    </div>
   );
 };
