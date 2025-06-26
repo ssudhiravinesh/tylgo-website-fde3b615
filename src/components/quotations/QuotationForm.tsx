@@ -80,7 +80,15 @@ export const QuotationForm = ({
     if (!editMode && selectedRoomsData && selectedRoomsData.length > 0) {
       const autoItems: QuotationItem[] = selectedRoomsData.map(roomData => {
         const tile = tiles.find(t => t.id === roomData.tileId);
-        const unitPrice = tile?.price_per_sqm || 0;
+        
+        // Calculate unit price using available tile data
+        let unitPrice = 0;
+        if (tile?.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
+          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
+          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
+          unitPrice = tile.price_per_box / areaPerBoxSqFt;
+        }
+        
         const totalPrice = roomData.quantity * unitPrice;
 
         return {
@@ -132,7 +140,14 @@ export const QuotationForm = ({
       const room = rooms.find(r => r.id === item.room_id);
       
       if (tile && room) {
-        const unitPrice = tile.price_per_sqm;
+        // Calculate unit price using available tile data
+        let unitPrice = 0;
+        if (tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
+          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
+          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
+          unitPrice = tile.price_per_box / areaPerBoxSqFt;
+        }
+        
         newItems[index].unit_price = unitPrice;
         newItems[index].total_price = item.quantity * unitPrice;
       }

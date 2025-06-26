@@ -20,7 +20,8 @@ const tileSchema = z.object({
   name: z.string().min(1, "Name is required"),
   size_length: z.number().min(1, "Length must be greater than 0"),
   size_breadth: z.number().min(1, "Breadth must be greater than 0"),
-  price_per_sqm: z.number().min(0, "Price must be 0 or greater"),
+  price_per_box: z.number().min(0, "Price must be 0 or greater").optional(),
+  pieces_per_box: z.number().min(1, "Pieces per box must be greater than 0").optional(),
   image_url: z.string().optional(),
 });
 
@@ -49,7 +50,8 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       name: "",
       size_length: 0,
       size_breadth: 0,
-      price_per_sqm: 0,
+      price_per_box: 0,
+      pieces_per_box: 0,
       image_url: "",
     },
   });
@@ -66,7 +68,8 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       name: data.name,
       size_length: data.size_length,
       size_breadth: data.size_breadth,
-      price_per_sqm: data.price_per_sqm,
+      price_per_box: data.price_per_box || null,
+      pieces_per_box: data.pieces_per_box || null,
       image_url: data.image_url || null,
     };
     
@@ -86,7 +89,8 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         name: data.name,
         size_length: data.size_length,
         size_breadth: data.size_breadth,
-        price_per_sqm: data.price_per_sqm,
+        price_per_box: data.price_per_box || null,
+        pieces_per_box: data.pieces_per_box || null,
         image_url: data.image_url || null,
       };
       
@@ -124,10 +128,22 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       name: tile.name,
       size_length: tile.size_length,
       size_breadth: tile.size_breadth,
-      price_per_sqm: tile.price_per_sqm,
+      price_per_box: tile.price_per_box || 0,
+      pieces_per_box: tile.pieces_per_box || 0,
       image_url: tile.image_url || "",
     });
     setIsEditDialogOpen(true);
+  };
+
+  // Calculate price per sq ft for display
+  const calculatePricePerSqFt = (tile: any) => {
+    if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
+      return 0;
+    }
+    
+    const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
+    const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
+    return tile.price_per_box / areaPerBoxSqFt;
   };
 
   if (isLoading) {
@@ -246,16 +262,34 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                 </div>
                 <FormField
                   control={form.control}
-                  name="price_per_sqm"
+                  name="price_per_box"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price per m²</FormLabel>
+                      <FormLabel>Price per Box (Optional)</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="number"
                           step="0.01"
                           placeholder="450.00"
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pieces_per_box"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pieces per Box (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="4"
                           onChange={(e) => field.onChange(Number(e.target.value))}
                         />
                       </FormControl>
@@ -310,108 +344,125 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Size</TableHead>
-                <TableHead>Price/m²</TableHead>
+                <TableHead>Price Info</TableHead>
                 <TableHead>QR Code</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTiles.map((tile) => (
-                <TableRow key={tile.id}>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-mono">
-                      {tile.code}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">{tile.name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <Ruler className="h-3 w-3" />
-                      {tile.size_length} × {tile.size_breadth} mm
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1 font-semibold text-green-600">
-                      <IndianRupee className="h-4 w-4" />
-                      {tile.price_per_sqm}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {tile.qr_code_url ? (
-                        <>
-                          <Badge variant="outline" className="text-green-600 border-green-200">
-                            Generated
-                          </Badge>
+              {filteredTiles.map((tile) => {
+                const pricePerSqFt = calculatePricePerSqFt(tile);
+                return (
+                  <TableRow key={tile.id}>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono">
+                        {tile.code}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">{tile.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <Ruler className="h-3 w-3" />
+                        {tile.size_length} × {tile.size_breadth} mm
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {tile.price_per_box && (
+                          <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
+                            <IndianRupee className="h-4 w-4" />
+                            {tile.price_per_box}/box
+                          </div>
+                        )}
+                        {pricePerSqFt > 0 && (
+                          <div className="text-xs text-gray-600">
+                            ₹{pricePerSqFt.toFixed(2)}/sq ft
+                          </div>
+                        )}
+                        {tile.pieces_per_box && (
+                          <div className="text-xs text-gray-600">
+                            {tile.pieces_per_box} pcs/box
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {tile.qr_code_url ? (
+                          <>
+                            <Badge variant="outline" className="text-green-600 border-green-200">
+                              Generated
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code)}
+                              className="gap-1"
+                            >
+                              <Download className="h-3 w-3" />
+                              Download
+                            </Button>
+                          </>
+                        ) : (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code)}
+                            onClick={() => handleGenerateQR(tile.id)}
+                            disabled={generateQRMutation.isPending}
                             className="gap-1"
                           >
-                            <Download className="h-3 w-3" />
-                            Download
+                            <QrCode className="h-3 w-3" />
+                            {generateQRMutation.isPending ? 'Generating...' : 'Generate QR'}
                           </Button>
-                        </>
-                      ) : (
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleGenerateQR(tile.id)}
-                          disabled={generateQRMutation.isPending}
+                          onClick={() => openEditDialog(tile)}
                           className="gap-1"
                         >
-                          <QrCode className="h-3 w-3" />
-                          {generateQRMutation.isPending ? 'Generating...' : 'Generate QR'}
+                          <Edit className="h-3 w-3" />
+                          Edit
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(tile)}
-                        className="gap-1"
-                      >
-                        <Edit className="h-3 w-3" />
-                        Edit
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Delete
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Tile</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{tile.name}" ({tile.code})? 
-                              This action cannot be undone and will remove the tile from all quotations.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteTile(tile.id)}
-                              className="bg-red-600 hover:bg-red-700"
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
+                              <Trash2 className="h-3 w-3" />
                               Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Tile</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{tile.name}" ({tile.code})? 
+                                This action cannot be undone and will remove the tile from all quotations.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteTile(tile.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
 
@@ -502,16 +553,34 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               </div>
               <FormField
                 control={form.control}
-                name="price_per_sqm"
+                name="price_per_box"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price per m²</FormLabel>
+                    <FormLabel>Price per Box (Optional)</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         type="number"
                         step="0.01"
                         placeholder="450.00"
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="pieces_per_box"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pieces per Box (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        placeholder="4"
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
