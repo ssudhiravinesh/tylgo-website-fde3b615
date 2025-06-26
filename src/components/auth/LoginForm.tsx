@@ -100,17 +100,6 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
         </form>
         
         <div className="mt-6 text-center space-y-4">
-          <p className="text-sm text-gray-500">
-            Don't have an account?{" "}
-            <button
-              type="button"
-              onClick={onShowSignUp}
-              className="text-blue-600 hover:text-blue-700 font-medium underline"
-              disabled={isSubmitting}
-            >
-              Sign up here
-            </button>
-          </p>
           <div className="pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-400">
               For admin access, contact your system administrator
