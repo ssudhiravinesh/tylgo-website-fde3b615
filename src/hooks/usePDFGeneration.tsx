@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
 
@@ -8,20 +9,21 @@ export const usePDFGeneration = () => {
     try {
       console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
       
-      // Fetch quotation items with proper joins using the Supabase client
-      const response = await fetch(`https://onucizagpgwdpcakskat.supabase.co/rest/v1/quotation_items?quotation_id=eq.${quotation.id}&select=*,room:rooms(name,length,width,unit),tile:tiles(name,code,price_per_sqm,price_per_box,pieces_per_box,size_length,size_breadth)`, {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9udWNpemFncGd3ZHBjYWtza2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1ODA0NDUsImV4cCI6MjA2NjE1NjQ0NX0.c7Ihw4a38Xa37ygQyF1sjiApLsayTQLvs5QvPtsIozM',
-          'Content-Type': 'application/json'
-        }
-      });
+      // Fetch quotation items using Supabase client instead of direct API call
+      const { data: quotationItems, error } = await supabase
+        .from('quotation_items')
+        .select(`
+          *,
+          room:rooms(name,length,width,unit),
+          tile:tiles(name,code,price_per_sqm,price_per_box,pieces_per_box,size_length,size_breadth)
+        `)
+        .eq('quotation_id', quotation.id);
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch quotation items: ${response.statusText}`);
+      if (error) {
+        console.error('Error fetching quotation items:', error);
+        throw new Error(`Failed to fetch quotation items: ${error.message}`);
       }
 
-      const quotationItems = await response.json();
       console.log('Fetched quotation items for PDF:', quotationItems);
 
       // Create a new window for PDF generation

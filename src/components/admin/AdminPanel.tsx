@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,13 +9,15 @@ import {
   TrendingUp, 
   UserCog,
   Calendar,
-  BarChart3
+  BarChart3,
+  UserCheck
 } from "lucide-react";
 import { TileManagement } from "./TileManagement";
 import { WorkerManagement } from "./WorkerManagement";
+import { ReferencesView } from "./ReferencesView";
 
 export const AdminPanel = () => {
-  const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management" | "customer-analytics">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management" | "customer-analytics" | "references">("dashboard");
 
   const stats = [
     { label: "Total Customers", value: "1,234", icon: Users, change: "+12%", color: "text-blue-600" },
@@ -38,6 +39,10 @@ export const AdminPanel = () => {
 
   if (activeView === "worker-management") {
     return <WorkerManagement onBack={() => setActiveView("dashboard")} />;
+  }
+
+  if (activeView === "references") {
+    return <ReferencesView onBack={() => setActiveView("dashboard")} />;
   }
 
   if (activeView === "customer-analytics") {
@@ -174,6 +179,14 @@ export const AdminPanel = () => {
             >
               <UserCog className="h-4 w-4" />
               Manage Workers
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-3 h-12"
+              onClick={() => setActiveView("references")}
+            >
+              <UserCheck className="h-4 w-4" />
+              View References
             </Button>
             <Button 
               variant="outline" 

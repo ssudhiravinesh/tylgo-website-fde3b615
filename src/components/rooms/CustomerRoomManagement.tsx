@@ -18,7 +18,7 @@ interface CustomerRoomManagementProps {
 }
 
 export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: CustomerRoomManagementProps) => {
-  const { data: customers = [], isLoading: customersLoading } = useCustomers();
+  const { customers = [], isLoading: customersLoading } = useCustomers();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId || "");
   const { data: rooms = [], isLoading: roomsLoading } = useRoomsByCustomer(selectedCustomerId);
   const deleteRoomMutation = useDeleteRoom();
@@ -108,7 +108,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         </div>
       </div>
 
-      {/* Customer Search */}
+      {/* Customer Search - Always show if no preselected customer */}
       {!preSelectedCustomerId && (
         <Card>
           <CardHeader>
