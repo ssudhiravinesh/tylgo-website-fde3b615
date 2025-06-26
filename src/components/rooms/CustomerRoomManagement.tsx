@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,7 @@ interface CustomerRoomManagementProps {
 }
 
 export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: CustomerRoomManagementProps) => {
-  const { customers = [], isLoading: customersLoading } = useCustomers();
+  const { data: customers = [], isLoading: customersLoading } = useCustomers();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId || "");
   const { data: rooms = [], isLoading: roomsLoading } = useRoomsByCustomer(selectedCustomerId);
   const deleteRoomMutation = useDeleteRoom();
@@ -110,21 +109,19 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
 
       {/* Customer Search - Always show if no preselected customer */}
       {!preSelectedCustomerId && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <div className="w-full">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <Home className="h-5 w-5" />
               Select Customer
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CustomerSearchBar
-              value={selectedCustomerId}
-              onValueChange={setSelectedCustomerId}
-              placeholder="Search customers by name, mobile, or address..."
-            />
-          </CardContent>
-        </Card>
+            </h2>
+          </div>
+          <CustomerSearchBar
+            value={selectedCustomerId}
+            onValueChange={setSelectedCustomerId}
+            placeholder="Search customers by name, mobile, or address..."
+          />
+        </div>
       )}
 
       {/* Selected Customer Info & Add Room Button */}
