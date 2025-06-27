@@ -205,6 +205,8 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                 value={formData.mobile}
                 onChange={(value) => handleInputChange("mobile", value)}
                 onCustomerFound={handleCustomerFound}
+                searchType="customer"
+                label="customers"
                 className={errors.mobile ? "border-red-500" : ""}
               />
               {errors.mobile && (
@@ -268,6 +270,8 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     value={formData.reference_mobile_no}
                     onChange={(value) => handleInputChange("reference_mobile_no", value)}
                     onCustomerFound={handleReferenceFound}
+                    searchType="reference"
+                    label="references"
                     className={errors.reference_mobile_no ? "border-red-500" : ""}
                   />
                   {errors.reference_mobile_no && (
