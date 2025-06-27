@@ -47,15 +47,12 @@ export const usePDFGeneration = () => {
           // Calculate area in square feet if room dimensions are available
           let roomDetails = 'N/A';
           let areaInSqFt = 'N/A';
-          let effectiveAreaInSqFt = 'N/A';
           
           if (room && room.length && room.width && room.unit) {
             try {
               const areaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-              const effectiveArea = areaSqFt * (1 + (wastagePercentage / 100));
               roomDetails = formatDimensions(room.length, room.width, room.unit);
               areaInSqFt = formatArea(areaSqFt);
-              effectiveAreaInSqFt = formatArea(effectiveArea);
             } catch (error) {
               console.error('Error calculating area:', error);
             }
@@ -81,11 +78,8 @@ export const usePDFGeneration = () => {
           }
 
           // Use effective quantity (with wastage) for calculations
-          const originalQuantity = parseFloat(item.quantity) || 0;
-          const effectiveQuantity = originalQuantity * (1 + (wastagePercentage / 100));
-          const unitPrice = parseFloat(item.unit_price) || 0;
-          const totalPrice = effectiveQuantity * unitPrice;
-          grandTotal += totalPrice;
+          const originalArea = parseFloat(item.area) || 0;
+          const unitPrice = parseFloat(item.price_per_box) || 0;
 
           // Calculate boxes needed based on effective quantity
           let boxesNeeded = 0;
@@ -97,21 +91,23 @@ export const usePDFGeneration = () => {
             const tileAreaSqFt = tileLengthFt * tileWidthFt;
             
             if (tileAreaSqFt > 0) {
-              const tilesNeeded = Math.ceil(effectiveQuantity / tileAreaSqFt);
+              const tiles = Math.ceil(originalArea / tileAreaSqFt);
+              const tilesNeeded = Math.ceil(tiles * (1 + (wastagePercentage / 100)));
               boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
               totalBoxes += boxesNeeded;
             }
             
             boxPricing = `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>`;
           }
+          const totalPrice = totalBoxes * unitPrice;
+          grandTotal += totalPrice;
 
           return `
             <tr>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${room?.name || 'Unknown Room'}</strong><br/>
                 <small style="color: #666; font-size: 9px;">Dim: ${roomDetails}</small><br/>
-                <small style="color: #666; font-size: 9px;">Original: ${areaInSqFt}</small><br/>
-                ${wastagePercentage > 0 ? `<small style="color: #d97706; font-size: 9px;">Effective: ${effectiveAreaInSqFt}</small>` : ''}
+                <small style="color: #666; font-size: 9px;">Original: ${areaInSqFt}</small>
               </td>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${tile?.name || 'Unknown Tile'}</strong><br/>
@@ -120,12 +116,11 @@ export const usePDFGeneration = () => {
                 ${boxPricing}
               </td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
-                ${effectiveQuantity.toFixed(2)} sq ft
-                ${wastagePercentage > 0 ? `<br/><small style="color: #d97706; font-size: 8px;">(+${wastagePercentage}% wastage)</small>` : ''}
+                ${originalArea.toFixed(2)} sq ft
               </td>
-              <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${boxesNeeded || 'N/A'}</td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${tile?.pieces_per_box || 'N/A'}</td>
-              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${boxesNeeded || 'N/A'}</td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td style="text-align: right; font-weight: bold; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           `;
@@ -302,10 +297,10 @@ export const usePDFGeneration = () => {
               <tr>
                 <th style="width: 20%;">Room Details</th>
                 <th style="width: 25%;">Tile Details</th>
-                <th style="width: 12%; text-align: center;">Quantity</th>
-                <th style="width: 13%; text-align: right;">Unit Price</th>
+                <th style="width: 12%; text-align: center;">Area</th>
+                <th style="width: 13%; text-align: right;">Boxes</th>
                 <th style="width: 10%; text-align: center;">Pieces/Box</th>
-                <th style="width: 10%; text-align: center;">Boxes</th>
+                <th style="width: 10%; text-align: center;">Price/Box</th>
                 <th style="width: 15%; text-align: right;">Total Amount</th>
               </tr>
             </thead>
