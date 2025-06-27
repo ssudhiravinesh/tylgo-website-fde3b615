@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { User, Phone, MapPin } from "lucide-react";
@@ -107,17 +106,18 @@ export const MobileNumberSearch = ({
     setInputFocused(true);
   };
 
+  // FIXED: Removed the problematic setTimeout delay
   const handleInputBlur = (e: React.FocusEvent) => {
     // Don't hide dropdown if clicking on dropdown item
-    if (dropdownRef.current && dropdownRef.current.contains(e.relatedTarget as Node)) {
+    const relatedTarget = e.relatedTarget as Node;
+    if (dropdownRef.current && relatedTarget && dropdownRef.current.contains(relatedTarget)) {
       return;
     }
-    // Delay hiding to allow for customer selection
-    setTimeout(() => {
-      setInputFocused(false);
-      setShowDropdown(false);
-      setSelectedIndex(-1);
-    }, 150);
+    
+    // Hide dropdown immediately when focus is lost (unless clicking on dropdown)
+    setInputFocused(false);
+    setShowDropdown(false);
+    setSelectedIndex(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -192,6 +192,12 @@ export const MobileNumberSearch = ({
               {filteredCustomers.map((customer, index) => (
                 <div
                   key={customer.id}
+                  // FIXED: Use onMouseDown to prevent blur event from firing first
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Prevent input from losing focus
+                    handleCustomerSelect(customer);
+                  }}
+                  // Keep onClick as backup for better accessibility
                   onClick={() => handleCustomerSelect(customer)}
                   className={cn(
                     "flex items-start gap-3 p-3 cursor-pointer border-b border-gray-100 last:border-b-0",
