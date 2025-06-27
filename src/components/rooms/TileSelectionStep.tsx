@@ -364,7 +364,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
               onChange={handleWastageChange}
               min="0"
               max="15"
-              step="0.1"
+              step="1"
               className="w-full"
               placeholder="Enter wastage percentage (0-15)"
             />
