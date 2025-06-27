@@ -12,6 +12,8 @@ interface MobileNumberSearchProps {
   onCustomerFound?: (customer: Customer | null) => void;
   className?: string;
   placeholder?: string;
+  searchType?: 'customer' | 'reference'; // New prop to distinguish search context
+  label?: string; // For better UX messaging
 }
 
 export const MobileNumberSearch = ({ 
@@ -19,7 +21,9 @@ export const MobileNumberSearch = ({
   onChange, 
   onCustomerFound, 
   className = "",
-  placeholder = "+91 98765 43210"
+  placeholder = "+91 98765 43210",
+  searchType = 'customer',
+  label = 'customers'
 }: MobileNumberSearchProps) => {
   const [open, setOpen] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
@@ -39,14 +43,19 @@ export const MobileNumberSearch = ({
     return customerMobile.includes(searchValue);
   });
 
+  // Additional filtering for reference search - includes customers who could be references
+  const searchResults = searchType === 'reference' 
+    ? filteredCustomers // For references, show all matching customers
+    : filteredCustomers; // For customer search, also show all (they might be existing customers)
+
   // Auto-open dropdown when there are filtered results and input is focused
   useEffect(() => {
-    if (inputFocused && filteredCustomers.length > 0 && value.trim()) {
+    if (inputFocused && searchResults.length > 0 && value.trim()) {
       setOpen(true);
-    } else if (!inputFocused || filteredCustomers.length === 0) {
+    } else if (!inputFocused || searchResults.length === 0) {
       setOpen(false);
     }
-  }, [filteredCustomers.length, inputFocused, value]);
+  }, [searchResults.length, inputFocused, value]);
 
   const handleInputChange = (inputValue: string) => {
     // Format the input to include +91 prefix
@@ -77,6 +86,20 @@ export const MobileNumberSearch = ({
     if (onCustomerFound) {
       onCustomerFound(customer);
     }
+  };
+
+  // Get appropriate messaging based on search type
+  const getEmptyMessage = () => {
+    if (isLoading) return `Loading ${label}...`;
+    if (value.trim().length < 3) return "Type at least 3 digits to search...";
+    return `No ${label} found with this mobile number.`;
+  };
+
+  const getDropdownHeader = () => {
+    if (searchType === 'reference') {
+      return `Select existing customer as reference:`;
+    }
+    return `Existing customers found:`;
   };
 
   const handleInputFocus = () => {
@@ -119,12 +142,15 @@ export const MobileNumberSearch = ({
             <Command>
               <CommandList>
                 <CommandEmpty>
-                  {isLoading ? "Loading customers..." : 
-                   value.trim().length < 3 ? "Type at least 3 digits to search..." :
-                   "No customers found with this mobile number."}
+                  {getEmptyMessage()}
                 </CommandEmpty>
+                {searchResults.length > 0 && (
+                  <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50">
+                    {getDropdownHeader()}
+                  </div>
+                )}
                 <CommandGroup>
-                  {filteredCustomers.map((customer) => (
+                  {searchResults.map((customer) => (
                     <CommandItem
                       key={customer.id}
                       value={customer.id}
@@ -135,6 +161,11 @@ export const MobileNumberSearch = ({
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-blue-600" />
                           <span className="font-medium">{customer.name}</span>
+                          {searchType === 'reference' && (
+                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                              Use as Reference
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Phone className="h-3 w-3 text-green-600" />
