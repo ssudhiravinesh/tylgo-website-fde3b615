@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateQuotation, useUpdateQuotation, type Quotation } from "@/hooks/useQuotations";
-import { useCreateQuotationItem, useQuotationItems, useDeleteQuotationItem, useUpdateQuotationItem } from "@/hooks/useQuotationItems";
+import { useCreateQuotationItem, useQuotationItems, useDeleteQuotationItem, useUpdateQuotationItem, type QuotationItem } from "@/hooks/useQuotationItems";
 import { QuotationItemsSection } from "./QuotationItemsSection";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,15 +26,6 @@ interface QuotationFormProps {
   }>;
   editMode?: boolean;
   existingQuotation?: Quotation;
-}
-
-interface QuotationItem {
-  id?: string;
-  room_id: string;
-  tile_id: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
 }
 
 type QuotationStatus = 'draft' | 'sent' | 'approved' | 'rejected';
@@ -77,11 +69,15 @@ export const QuotationForm = ({
       console.log('Loading existing items:', existingItems);
       const formattedItems = existingItems.map(item => ({
         id: item.id,
+        quotation_id: item.quotation_id,
         room_id: item.room_id,
         tile_id: item.tile_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
+        area: item.area,
+        price_per_box: item.price_per_box,
         total_price: item.total_price,
+        created_at: item.created_at,
+        room: item.room,
+        tile: item.tile,
       }));
       setItems(formattedItems);
     }
@@ -92,21 +88,22 @@ export const QuotationForm = ({
       const autoItems: QuotationItem[] = selectedRoomsData.map(roomData => {
         const tile = tiles.find(t => t.id === roomData.tileId);
         
-        let unitPrice = 0;
+        let pricePerBox = 0;
         if (tile?.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
-          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000;
-          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764;
-          unitPrice = tile.price_per_box / areaPerBoxSqFt;
+          pricePerBox = tile.price_per_box;
         }
         
-        const totalPrice = roomData.quantity * unitPrice;
+        const totalPrice = roomData.quantity * pricePerBox;
 
         return {
+          id: undefined,
+          quotation_id: '',
           room_id: roomData.roomId,
           tile_id: roomData.tileId,
-          quantity: roomData.quantity,
-          unit_price: unitPrice,
+          area: roomData.quantity,
+          price_per_box: pricePerBox,
           total_price: totalPrice,
+          created_at: '',
         };
       });
       setItems(autoItems);
@@ -115,11 +112,14 @@ export const QuotationForm = ({
 
   const addItem = () => {
     setItems([...items, {
+      id: undefined,
+      quotation_id: '',
       room_id: "",
       tile_id: "",
-      quantity: 1,
-      unit_price: 0,
+      area: 1,
+      price_per_box: 0,
       total_price: 0,
+      created_at: '',
     }]);
   };
 
@@ -144,21 +144,21 @@ export const QuotationForm = ({
     const oldItem = newItems[index];
     newItems[index] = { ...newItems[index], [field]: value };
 
-    if (field === 'quantity' || field === 'tile_id' || field === 'room_id') {
+    if (field === 'area' || field === 'tile_id' || field === 'room_id') {
       const item = newItems[index];
       const tile = tiles.find(t => t.id === item.tile_id);
       const room = rooms.find(r => r.id === item.room_id);
       
       if (tile && room) {
-        let unitPrice = 0;
+        let pricePerBox = 0;
         if (tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
           const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000;
           const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764;
-          unitPrice = tile.price_per_box / areaPerBoxSqFt;
+          pricePerBox = tile.price_per_box / areaPerBoxSqFt;
         }
         
-        newItems[index].unit_price = unitPrice;
-        newItems[index].total_price = item.quantity * unitPrice;
+        newItems[index].price_per_box = pricePerBox;
+        newItems[index].total_price = item.area * pricePerBox;
       }
     }
 
@@ -198,7 +198,7 @@ export const QuotationForm = ({
     }
 
     const invalidItems = items.some(item => 
-      !item.room_id || !item.tile_id || item.quantity <= 0
+      !item.room_id || !item.tile_id || item.area <= 0
     );
 
     if (invalidItems) {
@@ -228,8 +228,8 @@ export const QuotationForm = ({
                 quotation_id: updatedQuotation.id,
                 room_id: item.room_id,
                 tile_id: item.tile_id,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
+                area: item.area,
+                price_per_box: item.price_per_box,
                 total_price: item.total_price,
               });
             } catch (error) {
@@ -248,8 +248,8 @@ export const QuotationForm = ({
                 quotation_id: newQuotation.id,
                 room_id: item.room_id,
                 tile_id: item.tile_id,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
+                area: item.area,
+                price_per_box: item.price_per_box,
                 total_price: item.total_price,
               });
             } catch (error) {
