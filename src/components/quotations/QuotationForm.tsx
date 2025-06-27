@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,7 @@ import { useCreateQuotation, useUpdateQuotation } from "@/hooks/useQuotations";
 import { MobileNumberSearch } from "@/components/customers/MobileNumberSearch";
 import { toast } from "sonner";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
+import { supabase } from "@/integrations/supabase/client"; // Add this import
 import type { Quotation } from "@/hooks/useQuotations";
 
 interface QuotationFormProps {
@@ -52,11 +52,22 @@ export const QuotationForm = ({
     wastagePercentage?: number;
   }>>([]);
 
+  const [currentUser, setCurrentUser] = useState<any>(null); // Add state for current user
+
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(formData.customer_id);
   const { data: tiles = [] } = useTiles();
   const createQuotation = useCreateQuotation();
   const updateQuotation = useUpdateQuotation();
+
+  // Get current user on component mount
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    getCurrentUser();
+  }, []);
 
   // Load existing quotation items if in edit mode
   useEffect(() => {
@@ -139,6 +150,11 @@ export const QuotationForm = ({
       return;
     }
 
+    if (!currentUser) {
+      toast.error("User not authenticated");
+      return;
+    }
+
     try {
       const totalCost = quotationItems.reduce((sum, item) => sum + (item.area * item.pricePerBox), 0);
       
@@ -157,7 +173,7 @@ export const QuotationForm = ({
         const quotationData = {
           quotation_number: quotationNumber,
           customer_id: formData.customer_id,
-          worker_id: "00000000-0000-0000-0000-000000000000", // Default worker ID - should be current user
+          worker_id: currentUser.id, // Use the authenticated user's ID
           total_cost: totalCost,
           notes: formData.notes,
           status: formData.status
