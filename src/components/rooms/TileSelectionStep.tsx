@@ -359,7 +359,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
             </div>
             <Input
               id="wastage"
-              type="number"
+              type="tel"
               value={wastagePercentage}
               onChange={handleWastageChange}
               min="0"
