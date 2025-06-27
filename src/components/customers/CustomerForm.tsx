@@ -49,7 +49,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
         name: customer.name,
         address: customer.address || "",
         reference_name: customer.reference_name || "",
-        reference_mobile_no: customer.reference_mobile_no || ""
+        reference_mobile_no: customer.reference_mobile_no ? customer.reference_mobile_no.replace(/\D/g, '').slice(-10) : ""
       }));
       toast.success(`Customer "${customer.name}" details loaded!`);
     }
@@ -79,13 +79,12 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
       newErrors.name = "Full name is required";
     }
 
-    // Validate mobile
+    // Validate mobile - now expecting exactly 10 digits
     if (!formData.mobile.trim()) {
       newErrors.mobile = "Mobile number is required";
     } else {
-      // Check if mobile number has exactly 10 digits after +91
-      const mobileDigits = formData.mobile.replace('+91', '');
-      if (mobileDigits.length !== 10 || !/^\d{10}$/.test(mobileDigits)) {
+      const mobileDigits = formData.mobile.replace(/\D/g, '');
+      if (mobileDigits.length !== 10) {
         newErrors.mobile = "Mobile number must be exactly 10 digits";
       }
     }
@@ -100,10 +99,10 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
       newErrors.reference_mobile_no = "Reference mobile number is required when reference name is provided";
     }
 
-    // Validate reference mobile format if provided
+    // Validate reference mobile format if provided - now expecting exactly 10 digits
     if (formData.reference_mobile_no.trim()) {
-      const refMobileDigits = formData.reference_mobile_no.replace('+91', '');
-      if (refMobileDigits.length !== 10 || !/^\d{10}$/.test(refMobileDigits)) {
+      const refMobileDigits = formData.reference_mobile_no.replace(/\D/g, '');
+      if (refMobileDigits.length !== 10) {
         newErrors.reference_mobile_no = "Reference mobile number must be exactly 10 digits";
       }
     }
@@ -207,6 +206,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                 onCustomerFound={handleCustomerFound}
                 searchType="customer"
                 label="customers"
+                placeholder="9876543210"
                 className={errors.mobile ? "border-red-500" : ""}
               />
               {errors.mobile && (
@@ -272,6 +272,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     onCustomerFound={handleReferenceFound}
                     searchType="reference"
                     label="references"
+                    placeholder="9876543210"
                     className={errors.reference_mobile_no ? "border-red-500" : ""}
                   />
                   {errors.reference_mobile_no && (
