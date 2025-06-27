@@ -1,11 +1,13 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, User, MapPin, FileText, Phone, Search } from "lucide-react";
+import { ArrowLeft, Save, User, MapPin, FileText } from "lucide-react";
 import { useCreateCustomer, useCustomers, Customer } from "@/hooks/useCustomers";
+import { MobileNumberSearch } from "./MobileNumberSearch";
 import { toast } from "sonner";
 
 interface CustomerFormProps {
@@ -30,22 +32,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     reference_mobile_no: ""
   });
 
-  const [mobileSearchTerm, setMobileSearchTerm] = useState("");
-  const [referenceMobileSearchTerm, setReferenceMobileSearchTerm] = useState("");
-  const [showMobileResults, setShowMobileResults] = useState(false);
-  const [showReferenceResults, setShowReferenceResults] = useState(false);
-  
   const createCustomer = useCreateCustomer();
-  const { data: customers = [] } = useCustomers();
-
-  // Filter customers by mobile number only
-  const filteredCustomersByMobile = customers.filter(customer =>
-    mobileSearchTerm && customer.mobile.includes(mobileSearchTerm.replace(/\D/g, ''))
-  );
-
-  const filteredReferencesByMobile = customers.filter(customer =>
-    referenceMobileSearchTerm && customer.mobile.includes(referenceMobileSearchTerm.replace(/\D/g, ''))
-  );
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -56,46 +43,25 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     }
   };
 
-  const handleMobileInputChange = (value: string) => {
-    const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
-    setMobileSearchTerm(digitsOnly);
-    setFormData(prev => ({ ...prev, mobile: digitsOnly }));
-    setShowMobileResults(digitsOnly.length > 0 && filteredCustomersByMobile.length > 0);
+  const handleCustomerFound = (customer: Customer | null) => {
+    if (customer) {
+      setFormData(prev => ({
+        ...prev,
+        name: customer.name,
+        address: customer.address || "",
+        reference_name: customer.reference_name || "",
+        reference_mobile_no: customer.reference_mobile_no ? customer.reference_mobile_no.replace(/\D/g, '').slice(-10) : ""
+      }));
+    }
   };
 
-  const handleReferenceMobileInputChange = (value: string) => {
-    const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
-    setReferenceMobileSearchTerm(digitsOnly);
-    setFormData(prev => ({ ...prev, reference_mobile_no: digitsOnly }));
-    setShowReferenceResults(digitsOnly.length > 0 && filteredReferencesByMobile.length > 0);
-  };
-
-
-  const handleCustomerSelect = (customer: Customer) => {
-    const cleanMobile = customer.mobile.replace(/\D/g, '').slice(-10);
-    setMobileSearchTerm(cleanMobile);
-    setFormData(prev => ({
-      ...prev,
-      mobile: cleanMobile,
-      name: customer.name,
-      address: customer.address || "",
-      reference_name: customer.reference_name || "",
-      reference_mobile_no: customer.reference_mobile_no ? customer.reference_mobile_no.replace(/\D/g, '').slice(-10) : ""
-    }));
-    setShowMobileResults(false);
-    toast.success(`Customer "${customer.name}" details loaded!`);
-  };
-
-  const handleReferenceSelect = (customer: Customer) => {
-    const cleanMobile = customer.mobile.replace(/\D/g, '').slice(-10);
-    setReferenceMobileSearchTerm(cleanMobile);
-    setFormData(prev => ({
-      ...prev,
-      reference_mobile_no: cleanMobile,
-      reference_name: customer.name
-    }));
-    setShowReferenceResults(false);
-    toast.success(`Reference "${customer.name}" details loaded!`);
+  const handleReferenceFound = (customer: Customer | null) => {
+    if (customer) {
+      setFormData(prev => ({
+        ...prev,
+        reference_name: customer.name
+      }));
+    }
   };
 
   const validateForm = () => {
@@ -229,58 +195,20 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               )}
             </div>
 
-            <div className="space-y-2 relative">
+            <div className="space-y-2">
               <Label htmlFor="mobile" className="text-sm font-medium text-gray-700">
                 Mobile Number *
               </Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="mobile"
-                  placeholder="9876543210"
-                  value={formData.mobile}
-                  onChange={(e) => handleMobileInputChange(e.target.value)}
-                  onFocus={() => setShowMobileResults(mobileSearchTerm.length > 0 && filteredCustomersByMobile.length > 0)}
-                  onBlur={() => setTimeout(() => setShowMobileResults(false), 200)}
-                  className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                    errors.mobile ? "border-red-500" : ""
-                  }`}
-                  required
-                />
-              </div>
+              <MobileNumberSearch
+                value={formData.mobile}
+                onChange={(value) => handleInputChange("mobile", value)}
+                onCustomerFound={handleCustomerFound}
+                placeholder="9876543210"
+                searchType="customer"
+                error={errors.mobile}
+              />
               {errors.mobile && (
                 <p className="text-sm text-red-600">{errors.mobile}</p>
-              )}
-              
-              {/* Mobile Search Results */}
-              {showMobileResults && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                  <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-                    Existing customers found:
-                  </div>
-                  {filteredCustomersByMobile.map((customer) => (
-                    <div
-                      key={customer.id}
-                      onClick={() => handleCustomerSelect(customer)}
-                      className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="flex items-center gap-2 font-medium text-sm">
-                        <User className="h-4 w-4 text-blue-600" />
-                        {customer.name}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                        <Phone className="h-3 w-3 text-green-600" />
-                        <span className="font-mono">{customer.mobile.replace(/\D/g, '').slice(-10)}</span>
-                      </div>
-                      {customer.address && (
-                        <div className="flex items-start gap-2 text-sm text-gray-600 mt-1">
-                          <MapPin className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
-                          <span className="line-clamp-2">{customer.address}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
 
@@ -332,60 +260,21 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   )}
                 </div>
 
-                <div className="space-y-2 relative">
+                <div className="space-y-2">
                   <Label htmlFor="reference_mobile_no" className="text-sm font-medium text-gray-700">
                     Reference Mobile Number
                   </Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="reference_mobile_no"
-                      placeholder="9876543210"
-                     value={formData.reference_mobile_no}
-                      onChange={(e) => handleReferenceMobileInputChange(e.target.value)}
-                      onFocus={() => setShowReferenceResults(referenceMobileSearchTerm.length > 0 && filteredReferencesByMobile.length > 0)}
-                      onBlur={() => setTimeout(() => setShowReferenceResults(false), 200)}
-                      className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                        errors.reference_mobile_no ? "border-red-500" : ""
-                      }`}
-                    />
-                  </div>
+                  <MobileNumberSearch
+                    value={formData.reference_mobile_no}
+                    onChange={(value) => handleInputChange("reference_mobile_no", value)}
+                    onCustomerFound={handleReferenceFound}
+                    placeholder="9876543210"
+                    searchType="reference"
+                    label="references"
+                    error={errors.reference_mobile_no}
+                  />
                   {errors.reference_mobile_no && (
                     <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>
-                  )}
-
-                  {/* Reference Mobile Search Results */}
-                  {showReferenceResults && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                      <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-                        Select existing customer as reference:
-                      </div>
-                      {filteredReferencesByMobile.map((customer) => (
-                        <div
-                          key={customer.id}
-                          onClick={() => handleReferenceSelect(customer)}
-                          className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                        >
-                          <div className="flex items-center gap-2 font-medium text-sm">
-                            <User className="h-4 w-4 text-blue-600" />
-                            {customer.name}
-                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
-                              Use as Reference
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                            <Phone className="h-3 w-3 text-green-600" />
-                            <span className="font-mono">{customer.mobile.replace(/\D/g, '').slice(-10)}</span>
-                          </div>
-                          {customer.address && (
-                            <div className="flex items-start gap-2 text-sm text-gray-600 mt-1">
-                              <MapPin className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
-                              <span className="line-clamp-2">{customer.address}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
                   )}
                 </div>
               </div>

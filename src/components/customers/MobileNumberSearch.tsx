@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -5,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { User, Phone, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCustomers, Customer } from "@/hooks/useCustomers";
+import { toast } from "sonner";
 
 interface MobileNumberSearchProps {
   value: string;
@@ -12,8 +14,9 @@ interface MobileNumberSearchProps {
   onCustomerFound?: (customer: Customer | null) => void;
   className?: string;
   placeholder?: string;
-  searchType?: 'customer' | 'reference'; // New prop to distinguish search context
-  label?: string; // For better UX messaging
+  searchType?: 'customer' | 'reference';
+  label?: string;
+  error?: string;
 }
 
 export const MobileNumberSearch = ({ 
@@ -23,7 +26,8 @@ export const MobileNumberSearch = ({
   className = "",
   placeholder = "9876543210",
   searchType = 'customer',
-  label = 'customers'
+  label = 'customers',
+  error
 }: MobileNumberSearchProps) => {
   const [open, setOpen] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
@@ -44,19 +48,14 @@ export const MobileNumberSearch = ({
     return customerMobile.includes(searchValue);
   });
 
-  // Additional filtering for reference search - includes customers who could be references
-  const searchResults = searchType === 'reference' 
-    ? filteredCustomers // For references, show all matching customers
-    : filteredCustomers; // For customer search, also show all (they might be existing customers)
-
   // Auto-open dropdown when there are filtered results and input is focused
   useEffect(() => {
-    if (inputFocused && searchResults.length > 0 && value.trim()) {
+    if (inputFocused && filteredCustomers.length > 0 && value.trim()) {
       setOpen(true);
-    } else if (!inputFocused || searchResults.length === 0) {
+    } else if (!inputFocused || filteredCustomers.length === 0) {
       setOpen(false);
     }
-  }, [searchResults.length, inputFocused, value]);
+  }, [filteredCustomers.length, inputFocused, value]);
 
   const handleInputChange = (inputValue: string) => {
     // Remove all non-digit characters
@@ -78,6 +77,10 @@ export const MobileNumberSearch = ({
     if (onCustomerFound) {
       onCustomerFound(customer);
     }
+
+    // Show success message
+    const customerType = searchType === 'reference' ? 'Reference' : 'Customer';
+    toast.success(`${customerType} "${customer.name}" details loaded!`);
   };
 
   // Get appropriate messaging based on search type
@@ -119,6 +122,7 @@ export const MobileNumberSearch = ({
               onBlur={handleInputBlur}
               className={cn(
                 "pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500",
+                error ? "border-red-500" : "",
                 className
               )}
             />
@@ -127,7 +131,7 @@ export const MobileNumberSearch = ({
         
         {open && (
           <PopoverContent 
-            className="w-full min-w-[400px] p-0" 
+            className="w-full min-w-[400px] p-0 bg-white border border-gray-200 shadow-lg z-50" 
             align="start"
             side="bottom"
           >
@@ -136,13 +140,13 @@ export const MobileNumberSearch = ({
                 <CommandEmpty>
                   {getEmptyMessage()}
                 </CommandEmpty>
-                {searchResults.length > 0 && (
+                {filteredCustomers.length > 0 && (
                   <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                     {getDropdownHeader()}
                   </div>
                 )}
                 <CommandGroup>
-                  {searchResults.map((customer) => (
+                  {filteredCustomers.map((customer) => (
                     <CommandItem
                       key={customer.id}
                       value={customer.id}
