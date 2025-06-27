@@ -21,7 +21,7 @@ export const MobileNumberSearch = ({
   onChange, 
   onCustomerFound, 
   className = "",
-  placeholder = "+91 98765 43210",
+  placeholder = "9876543210",
   searchType = 'customer',
   label = 'customers'
 }: MobileNumberSearchProps) => {
@@ -33,13 +33,14 @@ export const MobileNumberSearch = ({
   const filteredCustomers = customers.filter(customer => {
     if (!value.trim()) return false;
     
-    // Remove +91 prefix for comparison
-    const searchValue = value.replace('+91', '').trim();
-    const customerMobile = customer.mobile.replace('+91', '').trim();
+    // Clean both search value and customer mobile for comparison
+    const searchValue = value.replace(/\D/g, ''); // Remove all non-digits
+    const customerMobile = customer.mobile.replace(/\D/g, ''); // Remove all non-digits
     
     // Show results when we have at least 3 digits
     if (searchValue.length < 3) return false;
     
+    // Check if customer mobile starts with or contains the search value
     return customerMobile.includes(searchValue);
   });
 
@@ -58,28 +59,19 @@ export const MobileNumberSearch = ({
   }, [searchResults.length, inputFocused, value]);
 
   const handleInputChange = (inputValue: string) => {
-    // Format the input to include +91 prefix
-    let formattedValue = inputValue;
+    // Remove all non-digit characters
+    const digitsOnly = inputValue.replace(/\D/g, '');
     
-    // Remove any non-digit characters except +
-    const digitsOnly = inputValue.replace(/[^\d+]/g, '');
+    // Limit to 10 digits maximum
+    const limitedDigits = digitsOnly.slice(0, 10);
     
-    // If user starts typing digits, auto-add +91
-    if (digitsOnly && !digitsOnly.startsWith('+91')) {
-      if (digitsOnly.startsWith('91')) {
-        formattedValue = '+' + digitsOnly;
-      } else {
-        formattedValue = '+91' + digitsOnly;
-      }
-    } else {
-      formattedValue = digitsOnly;
-    }
-    
-    onChange(formattedValue);
+    onChange(limitedDigits);
   };
 
   const handleCustomerSelect = (customer: Customer) => {
-    onChange(customer.mobile);
+    // Extract only digits from customer mobile and limit to 10 digits
+    const cleanMobile = customer.mobile.replace(/\D/g, '').slice(-10);
+    onChange(cleanMobile);
     setOpen(false);
     setInputFocused(false);
     
@@ -169,7 +161,7 @@ export const MobileNumberSearch = ({
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Phone className="h-3 w-3 text-green-600" />
-                          <span className="font-mono">{customer.mobile}</span>
+                          <span className="font-mono">{customer.mobile.replace(/\D/g, '').slice(-10)}</span>
                         </div>
                         {customer.address && (
                           <div className="flex items-start gap-2 text-sm text-gray-600">
