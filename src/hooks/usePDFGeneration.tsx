@@ -9,7 +9,7 @@ export const usePDFGeneration = () => {
     try {
       console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
       
-      // Fetch quotation items using Supabase client
+      // Fetch quotation items using Supabase client instead of direct API call
       const { data: quotationItems, error } = await supabase
         .from('quotation_items')
         .select(`
@@ -77,12 +77,11 @@ export const usePDFGeneration = () => {
             }
           }
 
-          // Use original area from database (no wastage added)
+          // Use effective quantity (with wastage) for calculations
           const originalArea = parseFloat(item.area) || 0;
-          const effectiveArea = originalArea * (1 + (wastagePercentage / 100)); // Apply wastage for calculations only
           const unitPrice = parseFloat(item.price_per_box) || 0;
 
-          // Calculate boxes needed based on effective area with wastage
+          // Calculate boxes needed based on effective quantity
           let boxesNeeded = 0;
           let boxPricing = '';
           if (tile && tile.price_per_box && tile.pieces_per_box) {
@@ -92,14 +91,15 @@ export const usePDFGeneration = () => {
             const tileAreaSqFt = tileLengthFt * tileWidthFt;
             
             if (tileAreaSqFt > 0) {
-              const tilesNeeded = Math.ceil(effectiveArea / tileAreaSqFt);
+              const tiles = Math.ceil(originalArea / tileAreaSqFt);
+              const tilesNeeded = Math.ceil(tiles * (1 + (wastagePercentage / 100)));
               boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
               totalBoxes += boxesNeeded;
             }
             
             boxPricing = `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>`;
           }
-          const totalPrice = boxesNeeded * unitPrice;
+          const totalPrice = totalBoxes * unitPrice;
           grandTotal += totalPrice;
 
           return `
@@ -107,8 +107,7 @@ export const usePDFGeneration = () => {
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${room?.name || 'Unknown Room'}</strong><br/>
                 <small style="color: #666; font-size: 9px;">Dim: ${roomDetails}</small><br/>
-                <small style="color: #666; font-size: 9px;">Original: ${areaInSqFt}</small><br/>
-                <small style="color: #orange; font-size: 9px;">With ${wastagePercentage}% wastage: ${formatArea(effectiveArea)}</small>
+                <small style="color: #666; font-size: 9px;">Original: ${areaInSqFt}</small>
               </td>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${tile?.name || 'Unknown Tile'}</strong><br/>
@@ -289,7 +288,7 @@ export const usePDFGeneration = () => {
               <div class="info-row"><span class="label">Date:</span> ${new Date(quotation.created_at).toLocaleDateString()}</div>
               <div class="info-row"><span class="label">Status:</span> ${quotation.status.toUpperCase()}</div>
               <div class="info-row"><span class="label">Created by:</span> ${quotation.worker?.name || 'N/A'}</div>
-              <div class="info-row"><span class="label">Wastage:</span> ${wastagePercentage}%</div>
+              ${wastagePercentage > 0 ? `<div class="info-row"><span class="label">Wastage:</span> ${wastagePercentage}%</div>` : ''}
             </div>
           </div>
 
@@ -298,8 +297,8 @@ export const usePDFGeneration = () => {
               <tr>
                 <th style="width: 20%;">Room Details</th>
                 <th style="width: 25%;">Tile Details</th>
-                <th style="width: 12%; text-align: center;">Original Area</th>
-                <th style="width: 13%; text-align: right;">Boxes (with wastage)</th>
+                <th style="width: 12%; text-align: center;">Area</th>
+                <th style="width: 13%; text-align: right;">Boxes</th>
                 <th style="width: 10%; text-align: center;">Pieces/Box</th>
                 <th style="width: 10%; text-align: center;">Price/Box</th>
                 <th style="width: 15%; text-align: right;">Total Amount</th>
@@ -312,7 +311,7 @@ export const usePDFGeneration = () => {
 
           <div class="total-section no-page-break">
             <div style="font-size: 11px; margin-bottom: 5px;">
-              <strong>Summary:</strong> ${quotationItems ? quotationItems.length : 0} item(s) | ${totalBoxes} boxes total (including ${wastagePercentage}% wastage)
+              <strong>Summary:</strong> ${quotationItems ? quotationItems.length : 0} item(s) | ${totalBoxes} boxes total
             </div>
             <div class="total-row">
               Total Amount: ₹${grandTotal > 0 ? grandTotal.toLocaleString('en-IN') : (quotation.total_cost || 0).toLocaleString('en-IN')}
@@ -329,8 +328,8 @@ export const usePDFGeneration = () => {
           <div class="footer">
             <p><strong>Thank you for choosing Tile Solutions!</strong></p>
             <p>This quotation is valid for 30 days from the date of issue.</p>
-            <p><strong>Note:</strong> All tile quantities include a ${wastagePercentage}% wastage allowance for cutting and installation.</p>
-            <p>Original room areas are stored without wastage. Wastage is applied during calculation for accurate ordering.</p>
+            <p><strong>Note:</strong> All tile quantities include a ${wastagePercentage}% wastage allowance.</p>
+            <p>All calculations are based on square feet measurements for accuracy.</p>
           </div>
         </body>
         </html>
