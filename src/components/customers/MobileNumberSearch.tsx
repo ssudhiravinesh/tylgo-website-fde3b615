@@ -37,8 +37,8 @@ export const MobileNumberSearch = ({
     const searchValue = value.replace(/\D/g, ''); // Remove all non-digits
     const customerMobile = customer.mobile.replace(/\D/g, ''); // Remove all non-digits
     
-    // Show results when we have at least 3 digits
-    if (searchValue.length < 3) return false;
+    // Search starts immediately when user types any digit
+    if (searchValue.length === 0) return false;
     
     // Check if customer mobile starts with or contains the search value
     return customerMobile.includes(searchValue);
@@ -83,7 +83,7 @@ export const MobileNumberSearch = ({
   // Get appropriate messaging based on search type
   const getEmptyMessage = () => {
     if (isLoading) return `Loading ${label}...`;
-    if (value.trim().length < 3) return "Type at least 3 digits to search...";
+    if (value.trim().length === 0) return "Start typing to search...";
     return `No ${label} found with this mobile number.`;
   };
 
