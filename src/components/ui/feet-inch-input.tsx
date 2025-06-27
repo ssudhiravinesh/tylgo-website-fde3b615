@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 
@@ -11,7 +12,7 @@ interface FeetInchInputProps {
 export const FeetInchInput: React.FC<FeetInchInputProps> = ({
   value,
   onChange,
-  placeholder = "20 5",
+  placeholder = "21 10",
   disabled = false
 }) => {
   const [displayValue, setDisplayValue] = useState<string>('');
@@ -38,11 +39,12 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     const feet = parseInt(parts[0]) || 0;
     let inches = parts.length > 1 ? parseInt(parts[1]) || 0 : 0;
     
-    // Convert inches >= 12 to additional feet
-    const additionalFeet = Math.floor(inches / 12);
-    inches = inches % 12;
+    // Limit inches to maximum 11
+    if (inches > 11) {
+      inches = 11;
+    }
     
-    return feet + additionalFeet + (inches / 12);
+    return feet + (inches / 12);
   };
 
   // Format display value with quotes
@@ -54,9 +56,10 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     if (parts.length === 0) return '';
     if (parts.length === 1) return `${parts[0]}'`;
     
-    // Only take first two numbers
+    // Only take first two numbers and limit inches to 11
     const feet = parts[0];
-    const inches = parts[1];
+    let inches = parseInt(parts[1]) || 0;
+    if (inches > 11) inches = 11;
     
     return `${feet}' ${inches}"`;
   };
@@ -89,6 +92,14 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     const parts = cleanValue.split(/\s+/).filter(part => part !== '');
     const limitedParts = parts.slice(0, 2);
     
+    // Limit inches to 11 if present
+    if (limitedParts.length > 1) {
+      const inches = parseInt(limitedParts[1]) || 0;
+      if (inches > 11) {
+        limitedParts[1] = '11';
+      }
+    }
+    
     // Reconstruct the clean input
     const cleanInput = limitedParts.join(' ');
     
@@ -110,16 +121,46 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Allow: backspace, delete, tab, escape, enter, space, arrows, home, end
+    // Handle spacebar for auto-formatting
+    if (e.key === ' ') {
+      const currentValue = displayValue.replace(/['"]/g, '');
+      const parts = currentValue.split(' ').filter(part => part !== '');
+      
+      // If we have one number, add apostrophe for feet
+      if (parts.length === 1 && parts[0]) {
+        const newValue = `${parts[0]}' `;
+        setDisplayValue(newValue);
+        e.preventDefault();
+        return;
+      }
+      
+      // If we have two numbers, add double quote for inches
+      if (parts.length === 2 && parts[1]) {
+        let inches = parseInt(parts[1]) || 0;
+        if (inches > 11) inches = 11;
+        const newValue = `${parts[0]}' ${inches}"`;
+        setDisplayValue(newValue);
+        
+        // Update the backend value
+        const decimalFeet = parseInt(parts[0]) + (inches / 12);
+        onChange(decimalFeet.toFixed(4));
+        e.preventDefault();
+        return;
+      }
+    }
+    
+    // Allow: backspace, delete, tab, escape, enter, arrows, home, end
     if (
       // Control keys
-      [8, 9, 27, 13, 32, 46, 37, 38, 39, 40, 35, 36].includes(e.keyCode) ||
+      [8, 9, 27, 13, 46, 37, 38, 39, 40, 35, 36].includes(e.keyCode) ||
       // Ctrl combinations
       (e.ctrlKey && [65, 67, 86, 88, 90].includes(e.keyCode)) ||
       // Numbers (0-9) on main keyboard
       (e.keyCode >= 48 && e.keyCode <= 57 && !e.shiftKey) ||
       // Numbers (0-9) on numpad
-      (e.keyCode >= 96 && e.keyCode <= 105)
+      (e.keyCode >= 96 && e.keyCode <= 105) ||
+      // Space bar
+      e.keyCode === 32
     ) {
       // Allow these keys
       return;
@@ -141,7 +182,7 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
         className="font-mono"
       />
       <div className="text-xs text-gray-500">
-        Enter feet and inches separated by space (e.g., "20 5" for 20 feet 5 inches)
+        Enter feet and inches (e.g., "21 10" for 21 feet 10 inches). Press space after each number for auto-formatting.
       </div>
     </div>
   );

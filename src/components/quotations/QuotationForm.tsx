@@ -1,356 +1,358 @@
-
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, MapPin } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
-import { useCreateQuotation, useUpdateQuotation, type Quotation } from "@/hooks/useQuotations";
-import { useCreateQuotationItem, useQuotationItems, useDeleteQuotationItem, useUpdateQuotationItem, type QuotationItem } from "@/hooks/useQuotationItems";
-import { QuotationItemsSection } from "./QuotationItemsSection";
+import { useCreateQuotation } from "@/hooks/useQuotations";
+import { MobileNumberSearch } from "@/components/customers/MobileNumberSearch";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
+import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 
 interface QuotationFormProps {
   onBack: () => void;
-  onSuccess: () => void;
   preSelectedCustomerId?: string;
   selectedRoomsData?: Array<{
     roomId: string;
     tileId: string;
     quantity: number;
+    wastagePercentage: number;
   }>;
-  editMode?: boolean;
-  existingQuotation?: Quotation;
+  onSuccess?: () => void;
 }
-
-type QuotationStatus = 'draft' | 'sent' | 'approved' | 'rejected';
 
 export const QuotationForm = ({ 
   onBack, 
-  onSuccess, 
   preSelectedCustomerId, 
-  selectedRoomsData,
-  editMode = false,
-  existingQuotation
+  selectedRoomsData = [],
+  onSuccess 
 }: QuotationFormProps) => {
-  const [selectedCustomerId, setSelectedCustomerId] = useState(preSelectedCustomerId || existingQuotation?.customer_id || "");
-  const [items, setItems] = useState<QuotationItem[]>([]);
-  const [notes, setNotes] = useState(existingQuotation?.notes || "");
-  const [status, setStatus] = useState<QuotationStatus>((existingQuotation?.status as QuotationStatus) || 'draft');
+  const [formData, setFormData] = useState({
+    customer_id: preSelectedCustomerId || "",
+    notes: "",
+    status: "draft" as "draft" | "pending" | "approved" | "rejected"
+  });
 
-  const { customers = [] } = useCustomers();
-  const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
+  const [quotationItems, setQuotationItems] = useState<Array<{
+    roomId: string;
+    tileId: string;
+    area: number;
+    pricePerBox: number;
+    wastagePercentage?: number;
+  }>>([]);
+
+  const { data: customers = [] } = useCustomers();
+  const { data: rooms = [] } = useRoomsByCustomer(formData.customer_id);
   const { data: tiles = [] } = useTiles();
-  const { mutate: createQuotation, isPending: isCreating } = useCreateQuotation();
-  const { mutate: updateQuotation, isPending: isUpdating } = useUpdateQuotation();
-  const { mutate: createQuotationItem } = useCreateQuotationItem();
-  const { data: existingItems = [] } = useQuotationItems(existingQuotation?.id || "");
-  const { mutate: deleteQuotationItem } = useDeleteQuotationItem();
-  const { mutate: updateQuotationItem } = useUpdateQuotationItem();
-  const { profile } = useAuth();
-
-  // Generate quotation number
-  const generateQuotationNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `QT-${year}${month}${day}-${random}`;
-  };
+  const createQuotation = useCreateQuotation();
 
   useEffect(() => {
-    if (editMode && existingItems.length > 0) {
-      console.log('Loading existing items:', existingItems);
-      const formattedItems = existingItems.map(item => ({
-        id: item.id,
-        quotation_id: item.quotation_id,
-        room_id: item.room_id,
-        tile_id: item.tile_id,
-        area: item.area,
-        price_per_box: item.price_per_box,
-        total_price: item.total_price,
-        created_at: item.created_at,
-        room: item.room,
-        tile: item.tile,
-      }));
-      setItems(formattedItems);
-    }
-  }, [editMode, existingItems]);
-
-  useEffect(() => {
-    if (!editMode && selectedRoomsData && selectedRoomsData.length > 0) {
-      const autoItems: QuotationItem[] = selectedRoomsData.map(roomData => {
-        const tile = tiles.find(t => t.id === roomData.tileId);
-        
-        let pricePerBox = 0;
-        if (tile?.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
-          pricePerBox = tile.price_per_box;
-        }
-        
-        const totalPrice = roomData.quantity * pricePerBox;
-
+    if (selectedRoomsData.length > 0) {
+      const items = selectedRoomsData.map(item => {
+        const tile = tiles.find(t => t.id === item.tileId);
         return {
-          id: undefined,
-          quotation_id: '',
-          room_id: roomData.roomId,
-          tile_id: roomData.tileId,
-          area: roomData.quantity,
-          price_per_box: pricePerBox,
-          total_price: totalPrice,
-          created_at: '',
+          roomId: item.roomId,
+          tileId: item.tileId,
+          area: item.quantity, // Save area as-is without adding wastage
+          pricePerBox: tile?.price_per_box || 0,
+          wastagePercentage: item.wastagePercentage
         };
       });
-      setItems(autoItems);
+      setQuotationItems(items);
     }
-  }, [selectedRoomsData, tiles, editMode]);
+  }, [selectedRoomsData, tiles]);
 
-  const addItem = () => {
-    setItems([...items, {
-      id: undefined,
-      quotation_id: '',
-      room_id: "",
-      tile_id: "",
-      area: 1,
-      price_per_box: 0,
-      total_price: 0,
-      created_at: '',
-    }]);
-  };
+  const [customerDetails, setCustomerDetails] = useState({
+    name: "",
+    mobile: "",
+    address: ""
+  });
 
-  const removeItem = async (index: number) => {
-    const item = items[index];
-    if (editMode && item.id && existingQuotation) {
-      try {
-        await deleteQuotationItem({ id: item.id, quotationId: existingQuotation.id });
-        setItems(items.filter((_, i) => i !== index));
-        toast.success('Item removed successfully');
-      } catch (error) {
-        console.error('Error removing item:', error);
-        toast.error('Failed to remove item');
+  useEffect(() => {
+    if (formData.customer_id) {
+      const selectedCustomer = customers.find(c => c.id === formData.customer_id);
+      if (selectedCustomer) {
+        setCustomerDetails({
+          name: selectedCustomer.name,
+          mobile: selectedCustomer.mobile,
+          address: selectedCustomer.address || ""
+        });
+      } else {
+        setCustomerDetails({ name: "", mobile: "", address: "" });
       }
     } else {
-      setItems(items.filter((_, i) => i !== index));
+      setCustomerDetails({ name: "", mobile: "", address: "" });
     }
+  }, [formData.customer_id, customers]);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const updateItem = async (index: number, field: keyof QuotationItem, value: any) => {
-    const newItems = [...items];
-    const oldItem = newItems[index];
-    newItems[index] = { ...newItems[index], [field]: value };
-
-    if (field === 'area' || field === 'tile_id' || field === 'room_id') {
-      const item = newItems[index];
-      const tile = tiles.find(t => t.id === item.tile_id);
-      const room = rooms.find(r => r.id === item.room_id);
-      
-      if (tile && room) {
-        let pricePerBox = 0;
-        if (tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
-          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000;
-          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764;
-          pricePerBox = tile.price_per_box / areaPerBoxSqFt;
-        }
-        
-        newItems[index].price_per_box = pricePerBox;
-        newItems[index].total_price = item.area * pricePerBox;
-      }
-    }
-
-    setItems(newItems);
-
-    if (editMode && oldItem.id && existingQuotation) {
-      try {
-        await updateQuotationItem({
-          id: oldItem.id,
-          ...newItems[index]
-        });
-      } catch (error) {
-        console.error('Error updating item:', error);
-        toast.error('Failed to update item');
-      }
-    }
+  const handleCustomerSelect = (customerId: string) => {
+    setFormData(prev => ({ ...prev, customer_id: customerId }));
   };
 
-  const getTotalCost = () => {
-    return items.reduce((sum, item) => sum + item.total_price, 0);
+  const handleAddItem = () => {
+    setQuotationItems(prev => [...prev, { roomId: "", tileId: "", area: 0, pricePerBox: 0 }]);
   };
 
-  const handleSubmit = async () => {
-    if (!selectedCustomerId) {
+  const handleItemChange = (index: number, field: string, value: any) => {
+    const updatedItems = [...quotationItems];
+    updatedItems[index][field] = value;
+    setQuotationItems(updatedItems);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    const updatedItems = [...quotationItems];
+    updatedItems.splice(index, 1);
+    setQuotationItems(updatedItems);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.customer_id) {
       toast.error("Please select a customer");
       return;
     }
 
-    if (!profile?.id) {
-      toast.error("User profile not found");
+    if (quotationItems.length === 0) {
+      toast.error("Please add at least one item to the quotation");
       return;
     }
 
-    if (items.length === 0) {
-      toast.error("Please add at least one item");
-      return;
-    }
+    try {
+      const quotationData = {
+        customer_id: formData.customer_id,
+        notes: formData.notes,
+        status: formData.status,
+        items: quotationItems.map(item => ({
+          room_id: item.roomId,
+          tile_id: item.tileId,
+          area: item.area, // Save original area without wastage
+          price_per_box: item.pricePerBox,
+          total_price: item.area * item.pricePerBox
+        }))
+      };
 
-    const invalidItems = items.some(item => 
-      !item.room_id || !item.tile_id || item.area <= 0
-    );
-
-    if (invalidItems) {
-      toast.error("Please fill in all item details");
-      return;
-    }
-
-    const quotationData = {
-      quotation_number: existingQuotation?.quotation_number || generateQuotationNumber(),
-      customer_id: selectedCustomerId,
-      worker_id: profile.id,
-      status,
-      total_cost: getTotalCost(),
-      notes: notes.trim() || undefined,
-    };
-
-    if (editMode && existingQuotation) {
-      updateQuotation({
-        id: existingQuotation.id,
-        ...quotationData,
-      }, {
-        onSuccess: async (updatedQuotation) => {
-          const newItems = items.filter(item => !item.id);
-          for (const item of newItems) {
-            try {
-              await createQuotationItem({
-                quotation_id: updatedQuotation.id,
-                room_id: item.room_id,
-                tile_id: item.tile_id,
-                area: item.area,
-                price_per_box: item.price_per_box,
-                total_price: item.total_price,
-              });
-            } catch (error) {
-              console.error('Error creating new item:', error);
-            }
-          }
-          onSuccess();
-        },
-      });
-    } else {
-      createQuotation(quotationData, {
-        onSuccess: async (newQuotation) => {
-          for (const item of items) {
-            try {
-              await createQuotationItem({
-                quotation_id: newQuotation.id,
-                room_id: item.room_id,
-                tile_id: item.tile_id,
-                area: item.area,
-                price_per_box: item.price_per_box,
-                total_price: item.total_price,
-              });
-            } catch (error) {
-              console.error('Error creating item:', error);
-            }
-          }
-          onSuccess();
-        },
-      });
+      await createQuotation.mutateAsync(quotationData);
+      
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onBack();
+      }
+    } catch (error) {
+      console.error("Error creating quotation:", error);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onBack} className="gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onBack}
+          className="gap-2"
+        >
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
+        
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {editMode ? 'Edit Quotation' : 'Create New Quotation'}
-          </h1>
-          <p className="text-gray-600">
-            {editMode ? 'Update quotation details' : 'Generate a quotation for your customer'}
-          </p>
+          <h1 className="text-2xl font-bold text-gray-800">Create Quotation</h1>
+          <p className="text-gray-600">Enter quotation details to generate a new record</p>
         </div>
       </div>
 
-      <Card>
+      <Card className="border-gray-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Quotation Details</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileText className="h-5 w-5 text-blue-600" />
+            Quotation Information
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="customer">Customer</Label>
-              <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId} disabled={editMode}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name} - {customer.mobile}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="customer_id" className="text-sm font-medium text-gray-700">
+                Customer *
+              </Label>
+              <MobileNumberSearch
+                value={customerDetails.mobile}
+                onChange={(value) => setCustomerDetails(prev => ({ ...prev, mobile: value }))}
+                onCustomerFound={(customer) => {
+                  if (customer) {
+                    handleCustomerSelect(customer.id);
+                    setCustomerDetails({
+                      name: customer.name,
+                      mobile: customer.mobile,
+                      address: customer.address || ""
+                    });
+                  } else {
+                    handleCustomerSelect("");
+                    setCustomerDetails({ name: "", mobile: "", address: "" });
+                  }
+                }}
+                placeholder="Enter customer mobile number"
+                searchType="customer"
+              />
+              {customerDetails.name && (
+                <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-100">
+                  <p className="text-sm font-medium text-gray-800">
+                    {customerDetails.name}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {customerDetails.address || "No address available"}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={(value: QuotationStatus) => setStatus(value)}>
-                <SelectTrigger>
-                  <SelectValue />
+              <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
+                Notes
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Enter any additional notes for the quotation"
+                value={formData.notes}
+                onChange={(e) => handleInputChange("notes", e.target.value)}
+                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status" className="text-sm font-medium text-gray-700">
+                Status
+              </Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value: "draft" | "pending" | "approved" | "rejected") => handleInputChange("status", value)}
+              >
+                <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
-            <Textarea
-              id="notes"
-              placeholder="Additional notes or terms..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-800">Quotation Items</h3>
+              {quotationItems.map((item, index) => (
+                <div key={index} className="grid grid-cols-4 gap-4 items-center">
+                  <div className="space-y-1">
+                    <Label htmlFor={`room-${index}`} className="text-sm font-medium text-gray-700">
+                      Room
+                    </Label>
+                    <Select
+                      value={item.roomId}
+                      onValueChange={(value) => handleItemChange(index, "roomId", value)}
+                    >
+                      <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                        <SelectValue placeholder="Select room" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {rooms.map(room => (
+                          <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor={`tile-${index}`} className="text-sm font-medium text-gray-700">
+                      Tile
+                    </Label>
+                    <Select
+                      value={item.tileId}
+                      onValueChange={(value) => handleItemChange(index, "tileId", value)}
+                    >
+                      <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                        <SelectValue placeholder="Select tile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tiles.map(tile => (
+                          <SelectItem key={tile.id} value={tile.id}>{tile.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor={`area-${index}`} className="text-sm font-medium text-gray-700">
+                      Area (sq ft)
+                    </Label>
+                    <Input
+                      type="number"
+                      id={`area-${index}`}
+                      placeholder="Enter area"
+                      value={item.area}
+                      onChange={(e) => handleItemChange(index, "area", parseFloat(e.target.value))}
+                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor={`price-${index}`} className="text-sm font-medium text-gray-700">
+                      Price per Box
+                    </Label>
+                    <Input
+                      type="number"
+                      id={`price-${index}`}
+                      placeholder="Enter price"
+                      value={item.pricePerBox}
+                      onChange={(e) => handleItemChange(index, "pricePerBox", parseFloat(e.target.value))}
+                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleRemoveItem(index)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={handleAddItem}>
+                Add Item
+              </Button>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onBack}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createQuotation.isPending}
+              >
+                {createQuotation.isPending ? "Creating..." : "Create Quotation"}
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
-
-      <QuotationItemsSection
-        items={items}
-        rooms={rooms}
-        tiles={tiles}
-        onAddItem={addItem}
-        onRemoveItem={removeItem}
-        onUpdateItem={updateItem}
-      />
-
-      <div className="flex gap-4 justify-end">
-        <Button variant="outline" onClick={onBack}>
-          Cancel
-        </Button>
-        <Button 
-          onClick={handleSubmit} 
-          disabled={isCreating || isUpdating}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          {isCreating || isUpdating ? "Saving..." : editMode ? "Update Quotation" : "Create Quotation"}
-        </Button>
-      </div>
     </div>
   );
 };

@@ -29,6 +29,7 @@ export const MobileNumberSearch = ({
 }: MobileNumberSearchProps) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const { data: customers = [], isLoading } = useCustomers();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,8 +53,10 @@ export const MobileNumberSearch = ({
   useEffect(() => {
     if (inputFocused && filteredCustomers.length > 0 && value.trim()) {
       setShowDropdown(true);
+      setSelectedIndex(-1);
     } else {
       setShowDropdown(false);
+      setSelectedIndex(-1);
     }
   }, [filteredCustomers.length, inputFocused, value]);
 
@@ -64,6 +67,7 @@ export const MobileNumberSearch = ({
           inputRef.current && !inputRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
         setInputFocused(false);
+        setSelectedIndex(-1);
       }
     };
 
@@ -81,6 +85,7 @@ export const MobileNumberSearch = ({
     const limitedDigits = digitsOnly.slice(0, 10);
     
     onChange(limitedDigits);
+    setSelectedIndex(-1);
   };
 
   const handleCustomerSelect = (customer: Customer) => {
@@ -89,14 +94,13 @@ export const MobileNumberSearch = ({
     onChange(cleanMobile);
     setShowDropdown(false);
     setInputFocused(false);
+    setSelectedIndex(-1);
     
     if (onCustomerFound) {
       onCustomerFound(customer);
     }
 
-    // Show success message
-    const customerType = searchType === 'reference' ? 'Reference' : 'Customer';
-    toast.success(`${customerType} "${customer.name}" details loaded!`);
+    // Don't show success message for cleaner UX
   };
 
   const handleInputFocus = () => {
@@ -112,7 +116,39 @@ export const MobileNumberSearch = ({
     setTimeout(() => {
       setInputFocused(false);
       setShowDropdown(false);
+      setSelectedIndex(-1);
     }, 150);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showDropdown || filteredCustomers.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev < filteredCustomers.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev > 0 ? prev - 1 : filteredCustomers.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < filteredCustomers.length) {
+          handleCustomerSelect(filteredCustomers[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowDropdown(false);
+        setInputFocused(false);
+        setSelectedIndex(-1);
+        inputRef.current?.blur();
+        break;
+    }
   };
 
   return (
@@ -126,6 +162,7 @@ export const MobileNumberSearch = ({
           onChange={(e) => handleInputChange(e.target.value)}
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
+          onKeyDown={handleKeyDown}
           className={cn(
             "pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500",
             error ? "border-red-500" : "",
@@ -152,11 +189,14 @@ export const MobileNumberSearch = ({
               <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
                 {searchType === 'reference' ? 'Select existing customer as reference:' : 'Existing customers found:'}
               </div>
-              {filteredCustomers.map((customer) => (
+              {filteredCustomers.map((customer, index) => (
                 <div
                   key={customer.id}
                   onClick={() => handleCustomerSelect(customer)}
-                  className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                  className={cn(
+                    "flex items-start gap-3 p-3 cursor-pointer border-b border-gray-100 last:border-b-0",
+                    selectedIndex === index ? "bg-blue-50" : "hover:bg-gray-50"
+                  )}
                 >
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,7 +227,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
 
   const handleWastageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value >= 0) {
+    if (!isNaN(value) && value >= 0 && value <= 15) {
       setWastagePercentage(value);
     }
   };
@@ -264,13 +263,12 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       if (!room) return;
 
       tileIds.forEach(tileId => {
-        // Convert room area to square feet before calculating
+        // Save original area without wastage to database
         const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-        const effectiveArea = roomAreaInSqFt * (1 + (wastagePercentage / 100));
         roomsData.push({
           roomId: roomId,
           tileId: tileId,
-          quantity: effectiveArea,
+          quantity: roomAreaInSqFt, // Original area without wastage
           wastagePercentage: wastagePercentage,
         });
       });
@@ -356,7 +354,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
             <div className="flex items-center gap-2 mb-3">
               <Percent className="h-4 w-4 text-blue-600" />
               <Label htmlFor="wastage" className="text-sm font-medium">
-                Wastage Percentage (%)
+                Wastage Percentage (%) - Max 15%
               </Label>
             </div>
             <Input
@@ -365,12 +363,13 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
               value={wastagePercentage}
               onChange={handleWastageChange}
               min="0"
+              max="15"
               step="0.1"
               className="w-full"
-              placeholder="Enter wastage percentage"
+              placeholder="Enter wastage percentage (0-15)"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Additional area to account for cutting and installation waste
+              Additional area to account for cutting and installation waste (Maximum 15%)
             </p>
           </div>
 
