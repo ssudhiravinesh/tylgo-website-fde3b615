@@ -1,112 +1,160 @@
 import { useState, useEffect } from "react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { Phone, User } from "lucide-react";
+import { User, Phone, MapPin } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useCustomers, Customer } from "@/hooks/useCustomers";
 
 interface MobileNumberSearchProps {
   value: string;
   onChange: (value: string) => void;
-  onCustomerFound: (customer: Customer | null) => void;
-  placeholder?: string;
+  onCustomerFound?: (customer: Customer | null) => void;
   className?: string;
+  placeholder?: string;
 }
 
 export const MobileNumberSearch = ({ 
   value, 
   onChange, 
   onCustomerFound, 
-  placeholder = "+91 98765 43210",
-  className = ""
+  className = "",
+  placeholder = "+91 98765 43210"
 }: MobileNumberSearchProps) => {
-  const [showSuggestion, setShowSuggestion] = useState(false);
-  const { data: customers = [] } = useCustomers();
-  const [foundCustomer, setFoundCustomer] = useState<Customer | null>(null);
+  const [open, setOpen] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+  const { data: customers = [], isLoading } = useCustomers();
+
+  // Filter customers based on mobile number input
+  const filteredCustomers = customers.filter(customer => {
+    if (!value.trim()) return false;
+    
+    // Remove +91 prefix for comparison
+    const searchValue = value.replace('+91', '').trim();
+    const customerMobile = customer.mobile.replace('+91', '').trim();
+    
+    // Show results when we have at least 3 digits
+    if (searchValue.length < 3) return false;
+    
+    return customerMobile.includes(searchValue);
+  });
+
+  // Auto-open dropdown when there are filtered results and input is focused
+  useEffect(() => {
+    if (inputFocused && filteredCustomers.length > 0 && value.trim()) {
+      setOpen(true);
+    } else if (!inputFocused || filteredCustomers.length === 0) {
+      setOpen(false);
+    }
+  }, [filteredCustomers.length, inputFocused, value]);
 
   const handleInputChange = (inputValue: string) => {
-    // Handle mobile number formatting
-    let cleanValue = inputValue.replace(/[^\d+]/g, '');
+    // Format the input to include +91 prefix
+    let formattedValue = inputValue;
     
-    // If it starts with +91, keep it as is
-    if (cleanValue.startsWith('+91')) {
-      // Limit to +91 + 10 digits
-      if (cleanValue.length > 13) {
-        cleanValue = cleanValue.substring(0, 13);
+    // Remove any non-digit characters except +
+    const digitsOnly = inputValue.replace(/[^\d+]/g, '');
+    
+    // If user starts typing digits, auto-add +91
+    if (digitsOnly && !digitsOnly.startsWith('+91')) {
+      if (digitsOnly.startsWith('91')) {
+        formattedValue = '+' + digitsOnly;
+      } else {
+        formattedValue = '+91' + digitsOnly;
       }
     } else {
-      // If it doesn't start with +91, add it and limit to 10 digits after
-      if (cleanValue.startsWith('91') && cleanValue.length > 2) {
-        cleanValue = '+' + cleanValue.substring(0, 12);
-      } else if (cleanValue.length > 0 && !cleanValue.startsWith('+91')) {
-        cleanValue = '+91' + cleanValue.substring(0, 10);
-      } else if (cleanValue.length === 0) {
-        cleanValue = '+91';
-      }
+      formattedValue = digitsOnly;
     }
     
-    onChange(cleanValue);
+    onChange(formattedValue);
+  };
 
-    // Search for customer with this mobile number
-    if (cleanValue.length >= 13) { // +91 + 10 digits
-      const customer = customers.find(c => c.mobile === cleanValue);
-      if (customer) {
-        setFoundCustomer(customer);
-        setShowSuggestion(true);
-        onCustomerFound(customer);
-      } else {
-        setFoundCustomer(null);
-        setShowSuggestion(false);
-        onCustomerFound(null);
-      }
-    } else {
-      setFoundCustomer(null);
-      setShowSuggestion(false);
-      onCustomerFound(null);
+  const handleCustomerSelect = (customer: Customer) => {
+    onChange(customer.mobile);
+    setOpen(false);
+    setInputFocused(false);
+    
+    if (onCustomerFound) {
+      onCustomerFound(customer);
     }
   };
 
-  const handleSelectCustomer = () => {
-    if (foundCustomer) {
-      setShowSuggestion(false);
-    }
+  const handleInputFocus = () => {
+    setInputFocused(true);
+  };
+
+  const handleInputBlur = () => {
+    // Delay hiding to allow for customer selection
+    setTimeout(() => {
+      setInputFocused(false);
+    }, 200);
   };
 
   return (
     <div className="relative">
-      <div className="relative">
-        <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-        <Input
-          type="tel"
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => handleInputChange(e.target.value)}
-          className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${className}`}
-        />
-      </div>
-
-      {/* Customer suggestion */}
-      {showSuggestion && foundCustomer && (
-        <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-green-300 rounded-lg shadow-lg">
-          <div 
-            className="p-3 hover:bg-green-50 cursor-pointer border-l-4 border-green-500"
-            onClick={handleSelectCustomer}
-          >
-            <div className="flex items-center gap-2 text-green-700">
-              <User className="h-4 w-4" />
-              <span className="font-medium">Customer Found!</span>
-            </div>
-            <div className="text-sm text-green-600 mt-1">
-              <div className="font-medium">{foundCustomer.name}</div>
-              <div>{foundCustomer.mobile}</div>
-              {foundCustomer.address && (
-                <div className="text-xs text-gray-600 mt-1">{foundCustomer.address}</div>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div className="relative">
+            <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder={placeholder}
+              value={value}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className={cn(
+                "pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500",
+                className
               )}
-            </div>
-            <div className="text-xs text-green-600 mt-2">
-              Click to use this customer's details
-            </div>
+            />
           </div>
-        </div>
-      )}
+        </PopoverTrigger>
+        
+        {open && (
+          <PopoverContent 
+            className="w-full min-w-[400px] p-0" 
+            align="start"
+            side="bottom"
+          >
+            <Command>
+              <CommandList>
+                <CommandEmpty>
+                  {isLoading ? "Loading customers..." : 
+                   value.trim().length < 3 ? "Type at least 3 digits to search..." :
+                   "No customers found with this mobile number."}
+                </CommandEmpty>
+                <CommandGroup>
+                  {filteredCustomers.map((customer) => (
+                    <CommandItem
+                      key={customer.id}
+                      value={customer.id}
+                      onSelect={() => handleCustomerSelect(customer)}
+                      className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium">{customer.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Phone className="h-3 w-3 text-green-600" />
+                          <span className="font-mono">{customer.mobile}</span>
+                        </div>
+                        {customer.address && (
+                          <div className="flex items-start gap-2 text-sm text-gray-600">
+                            <MapPin className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
+                            <span className="line-clamp-2">{customer.address}</span>
+                          </div>
+                        )}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        )}
+      </Popover>
     </div>
   );
 };
