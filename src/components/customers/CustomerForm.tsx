@@ -57,20 +57,19 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   };
 
   const handleMobileInputChange = (value: string) => {
-    // Remove all non-digit characters and limit to 10 digits
     const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
     setMobileSearchTerm(digitsOnly);
-    handleInputChange("mobile", digitsOnly);
+    setFormData(prev => ({ ...prev, mobile: digitsOnly }));
     setShowMobileResults(digitsOnly.length > 0 && filteredCustomersByMobile.length > 0);
   };
 
   const handleReferenceMobileInputChange = (value: string) => {
-    // Remove all non-digit characters and limit to 10 digits
     const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
     setReferenceMobileSearchTerm(digitsOnly);
-    handleInputChange("reference_mobile_no", digitsOnly);
+    setFormData(prev => ({ ...prev, reference_mobile_no: digitsOnly }));
     setShowReferenceResults(digitsOnly.length > 0 && filteredReferencesByMobile.length > 0);
   };
+
 
   const handleCustomerSelect = (customer: Customer) => {
     const cleanMobile = customer.mobile.replace(/\D/g, '').slice(-10);
@@ -239,7 +238,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                 <Input
                   id="mobile"
                   placeholder="9876543210"
-                  value={mobileSearchTerm}
+                  value={formData.mobile}
                   onChange={(e) => handleMobileInputChange(e.target.value)}
                   onFocus={() => setShowMobileResults(mobileSearchTerm.length > 0 && filteredCustomersByMobile.length > 0)}
                   onBlur={() => setTimeout(() => setShowMobileResults(false), 200)}
@@ -342,7 +341,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     <Input
                       id="reference_mobile_no"
                       placeholder="9876543210"
-                      value={referenceMobileSearchTerm}
+                     value={formData.reference_mobile_no}
                       onChange={(e) => handleReferenceMobileInputChange(e.target.value)}
                       onFocus={() => setShowReferenceResults(referenceMobileSearchTerm.length > 0 && filteredReferencesByMobile.length > 0)}
                       onBlur={() => setTimeout(() => setShowReferenceResults(false), 200)}
