@@ -82,30 +82,30 @@ export type Database = {
       }
       quotation_items: {
         Row: {
+          area: number
           created_at: string | null
           id: string
           price_per_box: number
-          quantity: number
           quotation_id: string
           room_id: string
           tile_id: string
           total_price: number
         }
         Insert: {
+          area: number
           created_at?: string | null
           id?: string
           price_per_box: number
-          quantity: number
           quotation_id: string
           room_id: string
           tile_id: string
           total_price: number
         }
         Update: {
+          area?: number
           created_at?: string | null
           id?: string
           price_per_box?: number
-          quantity?: number
           quotation_id?: string
           room_id?: string
           tile_id?: string

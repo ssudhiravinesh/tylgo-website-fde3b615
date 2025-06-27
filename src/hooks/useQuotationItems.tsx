@@ -8,8 +8,8 @@ export interface QuotationItem {
   quotation_id: string;
   room_id: string;
   tile_id: string;
-  quantity: number;
-  unit_price: number;
+  area: number;
+  price_per_box: number;
   total_price: number;
   created_at: string;
   // Joined data
@@ -60,7 +60,7 @@ export const useCreateQuotationItem = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (itemData: Omit<QuotationItem, 'id' | 'created_at'>) => {
+    mutationFn: async (itemData: Omit<QuotationItem, 'id' | 'created_at' | 'room' | 'tile'>) => {
       const { data, error } = await supabase
         .from('quotation_items')
         .insert([itemData])
@@ -91,7 +91,7 @@ export const useUpdateQuotationItem = () => {
 
   return useMutation({
     mutationFn: async (updateData: Partial<QuotationItem> & { id: string }) => {
-      const { id, ...updates } = updateData;
+      const { id, room, tile, ...updates } = updateData;
       
       const { data, error } = await supabase
         .from('quotation_items')

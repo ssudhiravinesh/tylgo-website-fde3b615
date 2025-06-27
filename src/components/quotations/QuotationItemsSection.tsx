@@ -13,8 +13,8 @@ interface QuotationItem {
   id?: string;
   room_id: string;
   tile_id: string;
-  quantity: number;
-  unit_price: number;
+  area: number;
+  price_per_box: number;
   total_price: number;
 }
 
@@ -87,21 +87,21 @@ export const QuotationItemsSection = ({
               </div>
 
               <div className="space-y-2">
-                <Label>Quantity (sqm)</Label>
+                <Label>Area (sqft)</Label>
                 <Input
                   type="number"
-                  value={item.quantity}
-                  onChange={(e) => onUpdateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                  value={item.area}
+                  onChange={(e) => onUpdateItem(index, 'area', parseFloat(e.target.value) || 0)}
                   min="0"
                   step="0.01"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Unit Price (₹)</Label>
+                <Label>Price per Box (₹)</Label>
                 <Input
                   type="number"
-                  value={item.unit_price}
+                  value={item.price_per_box}
                   readOnly
                   className="bg-gray-50"
                 />
