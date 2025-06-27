@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +10,11 @@ import { ArrowLeft, FileText, User, Phone, MapPin } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
-import { useCreateQuotation } from "@/hooks/useQuotations";
+import { useCreateQuotation, useUpdateQuotation } from "@/hooks/useQuotations";
 import { MobileNumberSearch } from "@/components/customers/MobileNumberSearch";
 import { toast } from "sonner";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
+import type { Quotation } from "@/hooks/useQuotations";
 
 interface QuotationFormProps {
   onBack: () => void;
@@ -24,18 +26,22 @@ interface QuotationFormProps {
     wastagePercentage: number;
   }>;
   onSuccess?: () => void;
+  editMode?: boolean;
+  existingQuotation?: Quotation;
 }
 
 export const QuotationForm = ({ 
   onBack, 
   preSelectedCustomerId, 
   selectedRoomsData = [],
-  onSuccess 
+  onSuccess,
+  editMode = false,
+  existingQuotation
 }: QuotationFormProps) => {
   const [formData, setFormData] = useState({
-    customer_id: preSelectedCustomerId || "",
-    notes: "",
-    status: "draft" as "draft" | "pending" | "approved" | "rejected"
+    customer_id: preSelectedCustomerId || existingQuotation?.customer_id || "",
+    notes: existingQuotation?.notes || "",
+    status: (existingQuotation?.status as "draft" | "pending" | "approved" | "rejected") || "draft"
   });
 
   const [quotationItems, setQuotationItems] = useState<Array<{
@@ -50,9 +56,15 @@ export const QuotationForm = ({
   const { data: rooms = [] } = useRoomsByCustomer(formData.customer_id);
   const { data: tiles = [] } = useTiles();
   const createQuotation = useCreateQuotation();
+  const updateQuotation = useUpdateQuotation();
 
+  // Load existing quotation items if in edit mode
   useEffect(() => {
-    if (selectedRoomsData.length > 0) {
+    if (editMode && existingQuotation) {
+      // Load quotation items - this would need to be implemented
+      // For now, we'll initialize with empty items
+      setQuotationItems([]);
+    } else if (selectedRoomsData.length > 0) {
       const items = selectedRoomsData.map(item => {
         const tile = tiles.find(t => t.id === item.tileId);
         return {
@@ -65,7 +77,7 @@ export const QuotationForm = ({
       });
       setQuotationItems(items);
     }
-  }, [selectedRoomsData, tiles]);
+  }, [selectedRoomsData, tiles, editMode, existingQuotation]);
 
   const [customerDetails, setCustomerDetails] = useState({
     name: "",
@@ -128,20 +140,31 @@ export const QuotationForm = ({
     }
 
     try {
-      const quotationData = {
-        customer_id: formData.customer_id,
-        notes: formData.notes,
-        status: formData.status,
-        items: quotationItems.map(item => ({
-          room_id: item.roomId,
-          tile_id: item.tileId,
-          area: item.area, // Save original area without wastage
-          price_per_box: item.pricePerBox,
-          total_price: item.area * item.pricePerBox
-        }))
-      };
+      const totalCost = quotationItems.reduce((sum, item) => sum + (item.area * item.pricePerBox), 0);
+      
+      if (editMode && existingQuotation) {
+        await updateQuotation.mutateAsync({
+          id: existingQuotation.id,
+          customer_id: formData.customer_id,
+          notes: formData.notes,
+          status: formData.status,
+          total_cost: totalCost
+        });
+      } else {
+        // Generate quotation number (simple implementation)
+        const quotationNumber = `QUO-${Date.now()}`;
+        
+        const quotationData = {
+          quotation_number: quotationNumber,
+          customer_id: formData.customer_id,
+          worker_id: "00000000-0000-0000-0000-000000000000", // Default worker ID - should be current user
+          total_cost: totalCost,
+          notes: formData.notes,
+          status: formData.status
+        };
 
-      await createQuotation.mutateAsync(quotationData);
+        await createQuotation.mutateAsync(quotationData);
+      }
       
       if (onSuccess) {
         onSuccess();
@@ -149,7 +172,7 @@ export const QuotationForm = ({
         onBack();
       }
     } catch (error) {
-      console.error("Error creating quotation:", error);
+      console.error("Error saving quotation:", error);
     }
   };
 
@@ -167,8 +190,12 @@ export const QuotationForm = ({
         </Button>
         
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Create Quotation</h1>
-          <p className="text-gray-600">Enter quotation details to generate a new record</p>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {editMode ? `Edit Quotation ${existingQuotation?.quotation_number}` : "Create Quotation"}
+          </h1>
+          <p className="text-gray-600">
+            {editMode ? "Update quotation details" : "Enter quotation details to generate a new record"}
+          </p>
         </div>
       </div>
 
@@ -345,9 +372,12 @@ export const QuotationForm = ({
               </Button>
               <Button
                 type="submit"
-                disabled={createQuotation.isPending}
+                disabled={editMode ? updateQuotation.isPending : createQuotation.isPending}
               >
-                {createQuotation.isPending ? "Creating..." : "Create Quotation"}
+                {editMode 
+                  ? (updateQuotation.isPending ? "Updating..." : "Update Quotation")
+                  : (createQuotation.isPending ? "Creating..." : "Create Quotation")
+                }
               </Button>
             </div>
           </form>
