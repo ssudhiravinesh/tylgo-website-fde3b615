@@ -1,7 +1,32 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+export interface QuotationItem {
+  id?: string;
+  quotation_id?: string;
+  tile_id: string;
+  room_id: string;
+  area: number;
+  price_per_box: number;
+  total_price: number;
+  tile?: {
+    id: string;
+    code: string;
+    name: string;
+    size_length: number;
+    size_breadth: number;
+    price_per_box: number;
+    pieces_per_box: number;
+  };
+  room?: {
+    id: string;
+    name: string;
+    length: number;
+    width: number;
+    unit: string;
+  };
+}
 
 export interface Quotation {
   id: string;
@@ -24,6 +49,7 @@ export interface Quotation {
     name: string;
     email: string;
   };
+  quotation_items?: QuotationItem[];
 }
 
 export interface CreateQuotationData {
@@ -33,6 +59,7 @@ export interface CreateQuotationData {
   total_cost: number;
   status?: string;
   notes?: string;
+  items: Omit<QuotationItem, 'id' | 'quotation_id'>[];
 }
 
 interface QuotationFilters {
@@ -68,6 +95,30 @@ export const useQuotations = (filters?: QuotationFilters) => {
             id,
             name,
             email
+          ),
+          quotation_items (
+            id,
+            tile_id,
+            room_id,
+            area,
+            price_per_box,
+            total_price,
+            tile:tiles!tile_id (
+              id,
+              code,
+              name,
+              size_length,
+              size_breadth,
+              price_per_box,
+              pieces_per_box
+            ),
+            room:rooms!room_id (
+              id,
+              name,
+              length,
+              width,
+              unit
+            )
           )
         `)
         .order('created_at', { ascending: false });
@@ -86,10 +137,67 @@ export const useQuotations = (filters?: QuotationFilters) => {
 
   const createQuotationMutation = useMutation({
     mutationFn: async (quotationData: CreateQuotationData) => {
-      console.log('Creating quotation:', quotationData);
-      const { data, error } = await supabase
+      console.log('Creating quotation with items:', quotationData);
+      
+      const { items, ...quotationFields } = quotationData;
+      
+      // First, create the quotation
+      const { data: quotation, error: quotationError } = await supabase
         .from('quotations')
-        .insert([quotationData])
+        .insert([quotationFields])
+        .select('*')
+        .single();
+
+      if (quotationError) {
+        console.error('Error creating quotation:', quotationError);
+        throw quotationError;
+      }
+
+      console.log('Quotation created:', quotation);
+
+      // Then, create the quotation items
+      if (items && items.length > 0) {
+        const quotationItems = items.map(item => ({
+          ...item,
+          quotation_id: quotation.id,
+        }));
+
+        const { data: createdItems, error: itemsError } = await supabase
+          .from('quotation_items')
+          .insert(quotationItems)
+          .select(`
+            *,
+            tile:tiles!tile_id (
+              id,
+              code,
+              name,
+              size_length,
+              size_breadth,
+              price_per_box,
+              pieces_per_box
+            ),
+            room:rooms!room_id (
+              id,
+              name,
+              length,
+              width,
+              unit
+            )
+          `);
+
+        if (itemsError) {
+          console.error('Error creating quotation items:', itemsError);
+          // If items creation fails, we should delete the quotation to maintain consistency
+          await supabase.from('quotations').delete().eq('id', quotation.id);
+          throw itemsError;
+        }
+
+        console.log('Quotation items created:', createdItems);
+      }
+
+      // Fetch the complete quotation with items
+      const { data: completeQuotation, error: fetchError } = await supabase
+        .from('quotations')
         .select(`
           *,
           customer:customers!customer_id (
@@ -102,21 +210,46 @@ export const useQuotations = (filters?: QuotationFilters) => {
             id,
             name,
             email
+          ),
+          quotation_items (
+            id,
+            tile_id,
+            room_id,
+            area,
+            price_per_box,
+            total_price,
+            tile:tiles!tile_id (
+              id,
+              code,
+              name,
+              size_length,
+              size_breadth,
+              price_per_box,
+              pieces_per_box
+            ),
+            room:rooms!room_id (
+              id,
+              name,
+              length,
+              width,
+              unit
+            )
           )
         `)
+        .eq('id', quotation.id)
         .single();
 
-      if (error) {
-        console.error('Error creating quotation:', error);
-        throw error;
+      if (fetchError) {
+        console.error('Error fetching complete quotation:', fetchError);
+        throw fetchError;
       }
 
-      console.log('Quotation created:', data);
-      return data as Quotation;
+      console.log('Complete quotation with items:', completeQuotation);
+      return completeQuotation as Quotation;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      toast.success(`Quotation "${data.quotation_number}" created successfully!`);
+      toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
     },
     onError: (error: any) => {
       console.error('Quotation creation failed:', error);
@@ -125,12 +258,51 @@ export const useQuotations = (filters?: QuotationFilters) => {
   });
 
   const updateQuotationMutation = useMutation({
-    mutationFn: async ({ id, ...quotationData }: Partial<Quotation> & { id: string }) => {
+    mutationFn: async ({ id, items, ...quotationData }: Partial<Quotation> & { id: string; items?: Omit<QuotationItem, 'quotation_id'>[] }) => {
       console.log('Updating quotation:', id, quotationData);
-      const { data, error } = await supabase
+      
+      // Update the quotation
+      const { data: quotation, error: quotationError } = await supabase
         .from('quotations')
         .update(quotationData)
         .eq('id', id)
+        .select('*')
+        .single();
+
+      if (quotationError) {
+        console.error('Error updating quotation:', quotationError);
+        throw quotationError;
+      }
+
+      // If items are provided, update them
+      if (items) {
+        // Delete existing items
+        await supabase
+          .from('quotation_items')
+          .delete()
+          .eq('quotation_id', id);
+
+        // Insert new items
+        if (items.length > 0) {
+          const quotationItems = items.map(item => ({
+            ...item,
+            quotation_id: id,
+          }));
+
+          const { error: itemsError } = await supabase
+            .from('quotation_items')
+            .insert(quotationItems);
+
+          if (itemsError) {
+            console.error('Error updating quotation items:', itemsError);
+            throw itemsError;
+          }
+        }
+      }
+
+      // Fetch the complete updated quotation
+      const { data: completeQuotation, error: fetchError } = await supabase
+        .from('quotations')
         .select(`
           *,
           customer:customers!customer_id (
@@ -143,17 +315,42 @@ export const useQuotations = (filters?: QuotationFilters) => {
             id,
             name,
             email
+          ),
+          quotation_items (
+            id,
+            tile_id,
+            room_id,
+            area,
+            price_per_box,
+            total_price,
+            tile:tiles!tile_id (
+              id,
+              code,
+              name,
+              size_length,
+              size_breadth,
+              price_per_box,
+              pieces_per_box
+            ),
+            room:rooms!room_id (
+              id,
+              name,
+              length,
+              width,
+              unit
+            )
           )
         `)
+        .eq('id', id)
         .single();
 
-      if (error) {
-        console.error('Error updating quotation:', error);
-        throw error;
+      if (fetchError) {
+        console.error('Error fetching updated quotation:', fetchError);
+        throw fetchError;
       }
 
-      console.log('Quotation updated:', data);
-      return data as Quotation;
+      console.log('Quotation updated:', completeQuotation);
+      return completeQuotation as Quotation;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
@@ -168,6 +365,14 @@ export const useQuotations = (filters?: QuotationFilters) => {
   const deleteQuotationMutation = useMutation({
     mutationFn: async (id: string) => {
       console.log('Deleting quotation:', id);
+      
+      // Delete quotation items first (due to foreign key constraint)
+      await supabase
+        .from('quotation_items')
+        .delete()
+        .eq('quotation_id', id);
+
+      // Then delete the quotation
       const { error } = await supabase
         .from('quotations')
         .delete()
@@ -206,16 +411,50 @@ export const useQuotations = (filters?: QuotationFilters) => {
   };
 };
 
-// Export individual mutation hooks
+// Individual mutation hooks
 export const useCreateQuotation = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async (quotationData: CreateQuotationData) => {
-      console.log('Creating quotation:', quotationData);
-      const { data, error } = await supabase
+      console.log('Creating quotation with items:', quotationData);
+      
+      const { items, ...quotationFields } = quotationData;
+      
+      // First, create the quotation
+      const { data: quotation, error: quotationError } = await supabase
         .from('quotations')
-        .insert([quotationData])
+        .insert([quotationFields])
+        .select('*')
+        .single();
+
+      if (quotationError) {
+        console.error('Error creating quotation:', quotationError);
+        throw quotationError;
+      }
+
+      // Then, create the quotation items
+      if (items && items.length > 0) {
+        const quotationItems = items.map(item => ({
+          ...item,
+          quotation_id: quotation.id,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('quotation_items')
+          .insert(quotationItems);
+
+        if (itemsError) {
+          console.error('Error creating quotation items:', itemsError);
+          // Clean up: delete the quotation if items creation fails
+          await supabase.from('quotations').delete().eq('id', quotation.id);
+          throw itemsError;
+        }
+      }
+
+      // Fetch the complete quotation with items
+      const { data: completeQuotation, error: fetchError } = await supabase
+        .from('quotations')
         .select(`
           *,
           customer:customers!customer_id (
@@ -228,21 +467,45 @@ export const useCreateQuotation = () => {
             id,
             name,
             email
+          ),
+          quotation_items (
+            id,
+            tile_id,
+            room_id,
+            area,
+            price_per_box,
+            total_price,
+            tile:tiles!tile_id (
+              id,
+              code,
+              name,
+              size_length,
+              size_breadth,
+              price_per_box,
+              pieces_per_box
+            ),
+            room:rooms!room_id (
+              id,
+              name,
+              length,
+              width,
+              unit
+            )
           )
         `)
+        .eq('id', quotation.id)
         .single();
 
-      if (error) {
-        console.error('Error creating quotation:', error);
-        throw error;
+      if (fetchError) {
+        console.error('Error fetching complete quotation:', fetchError);
+        throw fetchError;
       }
 
-      console.log('Quotation created:', data);
-      return data as Quotation;
+      return completeQuotation as Quotation;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      toast.success(`Quotation "${data.quotation_number}" created successfully!`);
+      toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
     },
     onError: (error: any) => {
       console.error('Quotation creation failed:', error);
@@ -251,77 +514,43 @@ export const useCreateQuotation = () => {
   });
 };
 
-export const useUpdateQuotation = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ id, ...quotationData }: Partial<Quotation> & { id: string }) => {
-      console.log('Updating quotation:', id, quotationData);
+// Hook to get quotation items for a specific quotation
+export const useQuotationItems = (quotationId?: string) => {
+  return useQuery({
+    queryKey: ['quotation-items', quotationId],
+    queryFn: async () => {
+      if (!quotationId) return [];
+      
       const { data, error } = await supabase
-        .from('quotations')
-        .update(quotationData)
-        .eq('id', id)
+        .from('quotation_items')
         .select(`
           *,
-          customer:customers!customer_id (
+          tile:tiles!tile_id (
             id,
+            code,
             name,
-            mobile,
-            address
+            size_length,
+            size_breadth,
+            price_per_box,
+            pieces_per_box
           ),
-          worker:profiles!worker_id (
+          room:rooms!room_id (
             id,
             name,
-            email
+            length,
+            width,
+            unit
           )
         `)
-        .single();
+        .eq('quotation_id', quotationId);
 
       if (error) {
-        console.error('Error updating quotation:', error);
+        console.error('Error fetching quotation items:', error);
         throw error;
       }
 
-      console.log('Quotation updated:', data);
-      return data as Quotation;
+      return data as QuotationItem[];
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      toast.success(`Quotation "${data.quotation_number}" updated successfully!`);
-    },
-    onError: (error: any) => {
-      console.error('Quotation update failed:', error);
-      toast.error(error.message || 'Failed to update quotation');
-    },
-  });
-};
-
-export const useDeleteQuotation = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (id: string) => {
-      console.log('Deleting quotation:', id);
-      const { error } = await supabase
-        .from('quotations')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error deleting quotation:', error);
-        throw error;
-      }
-
-      console.log('Quotation deleted:', id);
-      return id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      toast.success('Quotation deleted successfully!');
-    },
-    onError: (error: any) => {
-      console.error('Quotation deletion failed:', error);
-      toast.error(error.message || 'Failed to delete quotation');
-    },
+    enabled: !!quotationId,
   });
 };
