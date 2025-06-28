@@ -15,16 +15,24 @@ interface MobileNumberSearchProps {
   value: string;
   onChange: (value: string) => void;
   onCustomerSelect?: (customer: Customer) => void;
+  onCustomerFound?: (customer: Customer | null) => void;
   placeholder?: string;
   className?: string;
+  searchType?: string;
+  label?: string;
+  error?: string;
 }
 
 export const MobileNumberSearch = ({
   value,
   onChange,
   onCustomerSelect,
+  onCustomerFound,
   placeholder = "Enter mobile number",
-  className = ""
+  className = "",
+  searchType = "customer",
+  label,
+  error
 }: MobileNumberSearchProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -45,6 +53,12 @@ export const MobileNumberSearch = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
+    
+    // Call onCustomerFound with null when input changes and no exact match
+    if (onCustomerFound) {
+      const exactMatch = customers.find(customer => customer.mobile === e.target.value);
+      onCustomerFound(exactMatch || null);
+    }
   };
 
   const handleCustomerClick = (customer: Customer) => {
@@ -52,8 +66,13 @@ export const MobileNumberSearch = ({
     onChange(customer.mobile);
     setIsOpen(false);
     setSelectedIndex(-1);
+    
     if (onCustomerSelect) {
       onCustomerSelect(customer);
+    }
+    
+    if (onCustomerFound) {
+      onCustomerFound(customer);
     }
   };
 
@@ -112,13 +131,13 @@ export const MobileNumberSearch = ({
         onFocus={handleInputFocus}
         onBlur={handleInputBlur}
         placeholder={placeholder}
-        className="w-full"
+        className={`w-full ${error ? "border-red-500" : ""}`}
       />
       
       {isOpen && filteredCustomers.length > 0 && (
         <Card 
           ref={dropdownRef}
-          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto shadow-lg"
+          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto shadow-lg bg-white"
         >
           <div className="py-1">
             {filteredCustomers.map((customer, index) => (
@@ -129,10 +148,6 @@ export const MobileNumberSearch = ({
                     ? 'bg-blue-50 text-blue-700' 
                     : 'hover:bg-gray-50'
                 }`}
-                onMouseDown={(e) => {
-                  // Prevent input blur when clicking on dropdown item
-                  e.preventDefault();
-                }}
                 onClick={() => handleCustomerClick(customer)}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
