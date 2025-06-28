@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -111,13 +110,18 @@ export const MobileNumberSearch = ({
   };
 
   const handleInputBlur = (e: React.FocusEvent) => {
-    // Delay closing to allow for click events on dropdown items
+    // Increased timeout to allow for click events on dropdown items
     setTimeout(() => {
       if (!dropdownRef.current?.contains(e.relatedTarget as Node)) {
         setIsOpen(false);
         setSelectedIndex(-1);
       }
-    }, 150);
+    }, 300); // Increased from 150ms to 300ms
+  };
+
+  // Add mousedown handler to prevent blur when clicking on dropdown
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent the input from losing focus
   };
 
   return (
@@ -138,6 +142,7 @@ export const MobileNumberSearch = ({
         <Card 
           ref={dropdownRef}
           className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto shadow-lg bg-white"
+          onMouseDown={handleMouseDown} // Add this to prevent blur
         >
           <div className="py-1">
             {filteredCustomers.map((customer, index) => (
