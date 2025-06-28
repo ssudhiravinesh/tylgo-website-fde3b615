@@ -1,235 +1,150 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { User, Phone, MapPin } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useCustomers, Customer } from "@/hooks/useCustomers";
-import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { useCustomers } from "@/hooks/useCustomers";
+
+interface Customer {
+  id: string;
+  name: string;
+  mobile: string;
+  address?: string;
+}
 
 interface MobileNumberSearchProps {
   value: string;
   onChange: (value: string) => void;
-  onCustomerFound?: (customer: Customer | null) => void;
-  className?: string;
+  onCustomerSelect?: (customer: Customer) => void;
   placeholder?: string;
-  searchType?: 'customer' | 'reference';
-  label?: string;
-  error?: string;
+  className?: string;
 }
 
-export const MobileNumberSearch = ({ 
-  value, 
-  onChange, 
-  onCustomerFound, 
-  className = "",
-  placeholder = "9876543210",
-  searchType = 'customer',
-  label = 'customers',
-  error
+export const MobileNumberSearch = ({
+  value,
+  onChange,
+  onCustomerSelect,
+  placeholder = "Enter mobile number",
+  className = ""
 }: MobileNumberSearchProps) => {
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const { data: customers = [], isLoading } = useCustomers();
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { data: customers = [] } = useCustomers();
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Filter customers based on mobile number input
-  const filteredCustomers = customers.filter(customer => {
-    if (!value.trim()) return false;
-    
-    // Clean both search value and customer mobile for comparison
-    const searchValue = value.replace(/\D/g, ''); // Remove all non-digits
-    const customerMobile = customer.mobile.replace(/\D/g, ''); // Remove all non-digits
-    
-    // Search starts immediately when user types any digit
-    if (searchValue.length === 0) return false;
-    
-    // Check if customer mobile starts with or contains the search value
-    return customerMobile.includes(searchValue);
-  });
+  const filteredCustomers = customers.filter(customer =>
+    customer.mobile.includes(value) && value.length > 0
+  );
 
-  // Show dropdown when there are filtered results and input is focused
+  // Show dropdown when there are matches and input is focused
   useEffect(() => {
-    if (inputFocused && filteredCustomers.length > 0 && value.trim()) {
-      setShowDropdown(true);
-      setSelectedIndex(-1);
-    } else {
-      setShowDropdown(false);
-      setSelectedIndex(-1);
-    }
-  }, [filteredCustomers.length, inputFocused, value]);
-
-  // Handle clicks outside dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
-          inputRef.current && !inputRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-        setInputFocused(false);
-        setSelectedIndex(-1);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const handleInputChange = (inputValue: string) => {
-    // Remove all non-digit characters
-    const digitsOnly = inputValue.replace(/\D/g, '');
-    
-    // Limit to 10 digits maximum
-    const limitedDigits = digitsOnly.slice(0, 10);
-    
-    onChange(limitedDigits);
+    setIsOpen(filteredCustomers.length > 0 && value.length > 0);
     setSelectedIndex(-1);
+  }, [filteredCustomers.length, value]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
   };
 
-  const handleCustomerSelect = (customer: Customer) => {
-    // Extract only digits from customer mobile and limit to 10 digits
-    const cleanMobile = customer.mobile.replace(/\D/g, '').slice(-10);
-    onChange(cleanMobile);
-    setShowDropdown(false);
-    setInputFocused(false);
+  const handleCustomerClick = (customer: Customer) => {
+    console.log('Customer clicked:', customer);
+    onChange(customer.mobile);
+    setIsOpen(false);
     setSelectedIndex(-1);
-    
-    if (onCustomerFound) {
-      onCustomerFound(customer);
+    if (onCustomerSelect) {
+      onCustomerSelect(customer);
     }
-
-    // Don't show success message for cleaner UX
-  };
-
-  const handleInputFocus = () => {
-    setInputFocused(true);
-  };
-
-  // FIXED: Removed the problematic setTimeout delay
-  const handleInputBlur = (e: React.FocusEvent) => {
-    // Don't hide dropdown if clicking on dropdown item
-    const relatedTarget = e.relatedTarget as Node;
-    if (dropdownRef.current && relatedTarget && dropdownRef.current.contains(relatedTarget)) {
-      return;
-    }
-    
-    // Hide dropdown immediately when focus is lost (unless clicking on dropdown)
-    setInputFocused(false);
-    setShowDropdown(false);
-    setSelectedIndex(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showDropdown || filteredCustomers.length === 0) return;
+    if (!isOpen) return;
 
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
         setSelectedIndex(prev => 
-          prev < filteredCustomers.length - 1 ? prev + 1 : 0
+          prev < filteredCustomers.length - 1 ? prev + 1 : prev
         );
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedIndex(prev => 
-          prev > 0 ? prev - 1 : filteredCustomers.length - 1
-        );
+        setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
         break;
       case 'Enter':
         e.preventDefault();
         if (selectedIndex >= 0 && selectedIndex < filteredCustomers.length) {
-          handleCustomerSelect(filteredCustomers[selectedIndex]);
+          const selectedCustomer = filteredCustomers[selectedIndex];
+          handleCustomerClick(selectedCustomer);
         }
         break;
       case 'Escape':
-        setShowDropdown(false);
-        setInputFocused(false);
+        setIsOpen(false);
         setSelectedIndex(-1);
-        inputRef.current?.blur();
         break;
     }
   };
 
+  const handleInputFocus = () => {
+    if (filteredCustomers.length > 0 && value.length > 0) {
+      setIsOpen(true);
+    }
+  };
+
+  const handleInputBlur = (e: React.FocusEvent) => {
+    // Delay closing to allow for click events on dropdown items
+    setTimeout(() => {
+      if (!dropdownRef.current?.contains(e.relatedTarget as Node)) {
+        setIsOpen(false);
+        setSelectedIndex(-1);
+      }
+    }, 150);
+  };
+
   return (
-    <div className="relative">
-      <div className="relative">
-        <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-        <Input
-          ref={inputRef}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => handleInputChange(e.target.value)}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          onKeyDown={handleKeyDown}
-          className={cn(
-            "pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500",
-            error ? "border-red-500" : "",
-            className
-          )}
-        />
-      </div>
+    <div className={`relative ${className}`}>
+      <Input
+        ref={inputRef}
+        type="tel"
+        value={value}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
+        placeholder={placeholder}
+        className="w-full"
+      />
       
-      {showDropdown && (
-        <div 
+      {isOpen && filteredCustomers.length > 0 && (
+        <Card 
           ref={dropdownRef}
-          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto shadow-lg"
         >
-          {isLoading ? (
-            <div className="px-4 py-3 text-sm text-gray-500">
-              Loading {label}...
-            </div>
-          ) : filteredCustomers.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-gray-500">
-              No {label} found with this mobile number.
-            </div>
-          ) : (
-            <>
-              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
-                {searchType === 'reference' ? 'Select existing customer as reference:' : 'Existing customers found:'}
+          <div className="py-1">
+            {filteredCustomers.map((customer, index) => (
+              <div
+                key={customer.id}
+                className={`px-3 py-2 cursor-pointer transition-colors ${
+                  index === selectedIndex 
+                    ? 'bg-blue-50 text-blue-700' 
+                    : 'hover:bg-gray-50'
+                }`}
+                onMouseDown={(e) => {
+                  // Prevent input blur when clicking on dropdown item
+                  e.preventDefault();
+                }}
+                onClick={() => handleCustomerClick(customer)}
+                onMouseEnter={() => setSelectedIndex(index)}
+              >
+                <div className="font-medium text-sm">{customer.name}</div>
+                <div className="text-xs text-gray-600">{customer.mobile}</div>
+                {customer.address && (
+                  <div className="text-xs text-gray-500 truncate">{customer.address}</div>
+                )}
               </div>
-              {filteredCustomers.map((customer, index) => (
-                <div
-                  key={customer.id}
-                  // FIXED: Use onMouseDown to prevent blur event from firing first
-                  onMouseDown={(e) => {
-                    e.preventDefault(); // Prevent input from losing focus
-                    handleCustomerSelect(customer);
-                  }}
-                  // Keep onClick as backup for better accessibility
-                  onClick={() => handleCustomerSelect(customer)}
-                  className={cn(
-                    "flex items-start gap-3 p-3 cursor-pointer border-b border-gray-100 last:border-b-0",
-                    selectedIndex === index ? "bg-blue-50" : "hover:bg-gray-50"
-                  )}
-                >
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium">{customer.name}</span>
-                      {searchType === 'reference' && (
-                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
-                          Use as Reference
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Phone className="h-3 w-3 text-green-600" />
-                      <span className="font-mono">{customer.mobile.replace(/\D/g, '').slice(-10)}</span>
-                    </div>
-                    {customer.address && (
-                      <div className="flex items-start gap-2 text-sm text-gray-600">
-                        <MapPin className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
-                        <span className="line-clamp-2">{customer.address}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
+            ))}
+          </div>
+        </Card>
       )}
     </div>
   );
