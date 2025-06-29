@@ -1,9 +1,8 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download } from "lucide-react";
-import { formatDimensions, formatArea, calculateAreaInSquareFeet } from "@/utils/unitConversions";
+import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
 import { usePDFGeneration } from "@/hooks/usePDFGeneration";
 import type { Quotation } from "@/hooks/useQuotations";
 
