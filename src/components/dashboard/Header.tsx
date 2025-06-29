@@ -1,8 +1,11 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Building2, LogOut, Menu } from "lucide-react";
+import { Menu, User, LogOut, QrCode } from "lucide-react";
+import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
+import { ContextAwareQRScanner } from "@/components/qr/ContextAwareQRScanner";
+import { useQRScanningContext } from "@/contexts/QRScanningContext";
 
 interface User {
   id: string;
@@ -18,64 +21,90 @@ interface HeaderProps {
 }
 
 export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
-  const handleLogoutClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Logout button clicked');
-    onLogout();
-  };
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  
+  const { 
+    currentCustomerName, 
+    selectedRoomIds, 
+    isContextActive 
+  } = useQRScanningContext();
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleSidebar}
-          className="lg:hidden"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-        
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
+    <>
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleSidebar}
+              className="p-2"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-semibold text-gray-800">Tile Haven</h1>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-800">Tile Haven</h1>
-            <p className="text-xs text-gray-500">Business Management System</p>
+
+          <div className="flex items-center gap-4">
+            {/* QR Context Status */}
+            {isContextActive && (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-purple-50 rounded-full border border-purple-200">
+                <QrCode className="h-4 w-4 text-purple-600" />
+                <span className="text-sm text-purple-700">
+                  {currentCustomerName} • {selectedRoomIds.length} room(s)
+                </span>
+              </div>
+            )}
+
+            {/* Global QR Scanner Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsQRScannerOpen(true)}
+              className={`gap-2 ${isContextActive ? 'border-purple-500 text-purple-700' : ''}`}
+            >
+              <QrCode className="h-4 w-4" />
+              <span className="hidden sm:inline">Scan QR</span>
+              {isContextActive && (
+                <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
+                  Ready
+                </Badge>
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full">
+                <User className="h-4 w-4 text-gray-600" />
+                <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                <Badge variant="outline" className="text-xs capitalize">
+                  {user.role}
+                </Badge>
+              </div>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowLogoutDialog(true)}
+                className="p-2 text-gray-600 hover:text-red-600"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-sm font-medium text-gray-800">{user.name}</p>
-            <p className="text-xs text-gray-500">{user.email}</p>
-          </div>
-          <Badge variant={user.role === "admin" ? "default" : "secondary"} className="capitalize">
-            {user.role}
-          </Badge>
-        </div>
-        
-        <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-blue-100 text-blue-600 text-sm font-medium">
-            {user.name.split(" ").map(n => n[0]).join("").toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleLogoutClick}
-          className="text-gray-600 hover:text-red-600 hover:border-red-200"
-          type="button"
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="hidden sm:inline ml-2">Logout</span>
-        </Button>
-      </div>
-    </header>
+      </header>
+
+      <LogoutConfirmDialog
+        isOpen={showLogoutDialog}
+        onClose={() => setShowLogoutDialog(false)}
+        onConfirm={onLogout}
+      />
+
+      <ContextAwareQRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+      />
+    </>
   );
 };

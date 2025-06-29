@@ -50,11 +50,47 @@ export const useCameraAccess = () => {
         throw new Error('No camera devices found');
       }
 
+      // Optimized constraints for mobile QR scanning
       const constraintOptions = [
+        // High-resolution back camera with autofocus (best for QR scanning)
+        { 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+            focusMode: 'continuous',
+            exposureMode: 'continuous'
+          }, 
+          audio: false 
+        },
+        // Standard back camera
+        { 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          }, 
+          audio: false 
+        },
+        // Any camera with good resolution
+        { 
+          video: { 
+            width: { ideal: 640 }, 
+            height: { ideal: 480 } 
+          }, 
+          audio: false 
+        },
+        // Basic fallback
         { video: true, audio: false },
-        { video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
-        { video: { facingMode: 'environment' }, audio: false },
-        ...(devices.length > 0 ? [{ video: { deviceId: { exact: devices[0].deviceId } }, audio: false }] : [])
+        // Specific device fallback
+        ...(devices.length > 0 ? [{ 
+          video: { 
+            deviceId: { exact: devices[0].deviceId },
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          }, 
+          audio: false 
+        }] : [])
       ];
 
       let mediaStream = null;
@@ -92,6 +128,19 @@ export const useCameraAccess = () => {
           settings: track.getSettings()
         });
         setDebugInfo(prev => prev + `Using: ${track.label}\n`);
+
+        // Apply additional mobile-optimized settings
+        try {
+          if ('applyConstraints' in track) {
+            await track.applyConstraints({
+              focusMode: 'continuous',
+              exposureMode: 'continuous',
+              whiteBalanceMode: 'continuous'
+            } as any);
+          }
+        } catch (error) {
+          console.log('Could not apply advanced constraints:', error);
+        }
       }
       
       setStream(mediaStream);
@@ -99,6 +148,12 @@ export const useCameraAccess = () => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        
+        // Mobile-optimized video settings
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('webkit-playsinline', 'true');
+        videoRef.current.muted = true;
+        videoRef.current.autoplay = true;
         
         videoRef.current.onloadedmetadata = () => {
           console.log('Video metadata loaded');
@@ -114,7 +169,8 @@ export const useCameraAccess = () => {
             videoRef.current.play().then(() => {
               console.log('Video playing');
               if (onCameraReady) {
-                setTimeout(() => onCameraReady(), 500);
+                // Longer delay for mobile to ensure camera is fully ready
+                setTimeout(() => onCameraReady(), 1000);
               }
             }).catch(error => {
               console.error('Error playing video:', error);
