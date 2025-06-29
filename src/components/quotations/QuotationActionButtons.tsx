@@ -48,27 +48,24 @@ export const QuotationActionButtons = ({
         <Eye className="h-3 w-3 mr-1" />
         View
       </Button>
-      {(userRole === "worker" || userRole === "admin") && (
-        <>
-          <Button 
-            size="sm" 
-            className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={handleEdit}
-          >
-            <Edit className="h-3 w-3 mr-1" />
-            Edit
-          </Button>
-          <Button 
-            size="sm" 
-            variant="destructive" 
-            className="text-xs"
-            onClick={handleDelete}
-          >
-            <Trash2 className="h-3 w-3 mr-1" />
-            Delete
-          </Button>
-        </>
-      )}
+      {/* Both admin and worker can edit and delete */}
+      <Button 
+        size="sm" 
+        className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+        onClick={handleEdit}
+      >
+        <Edit className="h-3 w-3 mr-1" />
+        Edit
+      </Button>
+      <Button 
+        size="sm" 
+        variant="destructive" 
+        className="text-xs"
+        onClick={handleDelete}
+      >
+        <Trash2 className="h-3 w-3 mr-1" />
+        Delete
+      </Button>
     </div>
   );
 };

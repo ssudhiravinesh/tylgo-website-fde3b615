@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, FileText, Percent } from "lucide-react";
+import { ArrowLeft, Percent } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
@@ -56,6 +56,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   }, [selections]);
 
   const handleChooseTile = (roomId: string) => {
+    console.log('Opening tile catalog for room:', roomId);
     setSelectedRoomForTile(roomId);
     setShowTileCatalog(true);
   };
@@ -95,12 +96,18 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   };
 
   const handleTileSelected = (tileId: string) => {
-    if (!selectedRoomForTile) return;
+    console.log('Tile selected:', tileId, 'for room:', selectedRoomForTile);
+    
+    if (!selectedRoomForTile) {
+      console.error('No room selected for tile');
+      return;
+    }
 
     const roomSelections = tileSelections[selectedRoomForTile] || [];
     if (roomSelections.includes(tileId)) {
       toast.error("This tile is already selected for this room");
       setShowTileCatalog(false);
+      setSelectedRoomForTile(null);
       return;
     }
 
@@ -114,6 +121,12 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       toast.success(`Tile "${tile.name}" added to room`);
     }
     
+    setShowTileCatalog(false);
+    setSelectedRoomForTile(null);
+  };
+
+  const handleCloseTileCatalog = () => {
+    console.log('Closing tile catalog');
     setShowTileCatalog(false);
     setSelectedRoomForTile(null);
   };
@@ -342,6 +355,13 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           />
         </div>
       </div>
+
+      <TileCatalog
+        isOpen={showTileCatalog}
+        onClose={handleCloseTileCatalog}
+        onTileSelect={handleTileSelected}
+        selectedTileIds={selectedRoomForTile ? (tileSelections[selectedRoomForTile] || []) : []}
+      />
 
       <QRScanner
         isOpen={isQRScannerOpen}

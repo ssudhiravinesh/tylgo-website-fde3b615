@@ -1,230 +1,181 @@
+
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Search, Package, IndianRupee, X } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
-import { useCustomers } from "@/hooks/useCustomers";
-import { useRoomsByCustomer, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
-import { useGenerateQRForTile } from "@/hooks/useTileManagement";
-import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { SearchBar } from "./SearchBar";
-import { TileCard } from "./TileCard";
-import { TileAssignmentDialog } from "./TileAssignmentDialog";
-import { EmptyTileState } from "./EmptyTileState";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import type { Tile } from "@/hooks/useTiles";
 
 interface TileCatalogProps {
-  onTileSelected?: (tileId: string) => void;
-  preSelectedCustomerId?: string;
-  preSelectedRoomIds?: string[];
-  showAssignButton?: boolean;
+  isOpen: boolean;
+  onClose: () => void;
+  onTileSelect: (tileId: string) => void;
+  selectedTileIds?: string[];
 }
 
-export const TileCatalog = ({ 
-  onTileSelected, 
-  preSelectedCustomerId = "",
-  preSelectedRoomIds = [],
-  showAssignButton = true 
-}: TileCatalogProps) => {
+export const TileCatalog = ({ isOpen, onClose, onTileSelect, selectedTileIds = [] }: TileCatalogProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTile, setSelectedTile] = useState<string | null>(null);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId);
-  const [selectedRooms, setSelectedRooms] = useState<string[]>(preSelectedRoomIds);
-  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  
   const { data: tiles = [], isLoading } = useTiles();
-  const { data: customers = [] } = useCustomers();
-  const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
-  const saveSelectionsMutation = useSaveRoomTileSelections();
-  const deleteSelectionMutation = useDeleteRoomTileSelection();
-  const generateQRMutation = useGenerateQRForTile();
-  const navigate = useNavigate();
-  const { profile } = useAuth();
-
-  // Check if user is admin
-  const isAdmin = profile?.role === 'admin';
 
   const filteredTiles = tiles.filter(tile =>
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleQRScanned = (tileCode: string) => {
-    // Set the search term to the scanned tile code
-    setSearchTerm(tileCode);
-    
-    // Find the tile with the scanned code
-    const tile = tiles.find(t => t.code === tileCode);
-    if (tile) {
-      // Auto-select the tile
-      setSelectedTile(tile.id);
-      toast.success(`Tile "${tile.name}" (${tile.code}) found and selected`);
-    } else {
-      toast.error(`No tile found with code: ${tileCode}`);
-    }
-  };
-
   const handleTileSelect = (tileId: string) => {
-    const wasSelected = selectedTile === tileId;
-    setSelectedTile(wasSelected ? null : tileId);
+    onTileSelect(tileId);
+    onClose();
+  };
+
+  const calculatePricePerSqFt = (tile: Tile) => {
+    if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
+      return 0;
+    }
     
-    // If this is being used as a selector (from tile selection step), call the callback
-    if (onTileSelected && !wasSelected) {
-      onTileSelected(tileId);
-    }
+    const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
+    const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
+    return tile.price_per_box / areaPerBoxSqFt;
   };
 
-  const handleGenerateQR = async (tileId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    await generateQRMutation.mutateAsync(tileId);
-  };
-
-  const handleDownloadQR = (qrUrl: string, tileCode: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const link = document.createElement('a');
-    link.href = qrUrl;
-    link.download = `${tileCode}-qr.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleViewDetails = (tileId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigate(`/tile/${tileId}`);
-  };
-
-  const handleAssignTile = async () => {
-    if (!selectedTile || !selectedCustomerId || selectedRooms.length === 0) {
-      toast.error("Please select a customer and at least one room");
-      return;
-    }
-
-    // First, remove any existing selections for these rooms and this tile
-    try {
-      await Promise.all(
-        selectedRooms.map(roomId => 
-          deleteSelectionMutation.mutateAsync({ roomId, tileId: selectedTile })
-        )
-      );
-    } catch (error) {
-      // Ignore errors for non-existing selections
-      console.log("Some selections didn't exist, continuing...");
-    }
-
-    // Then add the new selections
-    const selectionsToSave = selectedRooms.map(roomId => ({
-      customer_id: selectedCustomerId,
-      room_id: roomId,
-      tile_id: selectedTile
-    }));
-
-    try {
-      await saveSelectionsMutation.mutateAsync(selectionsToSave);
-      toast.success(`Tile assigned to ${selectedRooms.length} room(s) successfully!`);
-      // Clear room selections but keep dialog open and tile selected
-      setSelectedRooms([]);
-    } catch (error) {
-      console.error("Error assigning tile:", error);
-      toast.error("Failed to assign tile to rooms");
-    }
-  };
-
-  const handleRoomToggle = (roomId: string) => {
-    setSelectedRooms(prev => 
-      prev.includes(roomId) 
-        ? prev.filter(id => id !== roomId)
-        : [...prev, roomId]
-    );
-  };
-
-  const handleSelectAllRooms = () => {
-    if (selectedRooms.length === rooms.length) {
-      setSelectedRooms([]);
+  const formatTileSize = (tile: Tile) => {
+    if (!tile.size_length || !tile.size_breadth) return 'N/A';
+    
+    const lengthInMm = tile.size_length;
+    const widthInMm = tile.size_breadth;
+    
+    if (lengthInMm >= 1000 || widthInMm >= 1000) {
+      const lengthInM = (lengthInMm / 1000).toFixed(2);
+      const widthInM = (widthInMm / 1000).toFixed(2);
+      return `${lengthInM} × ${widthInM} m`;
+    } else if (lengthInMm >= 100 || widthInMm >= 100) {
+      const lengthInCm = (lengthInMm / 10).toFixed(1);
+      const widthInCm = (widthInMm / 10).toFixed(1);
+      return `${lengthInCm} × ${widthInCm} cm`;
     } else {
-      setSelectedRooms(rooms.map(room => room.id));
+      return `${lengthInMm} × ${widthInMm} mm`;
     }
   };
-
-  const handleClearSelections = () => {
-    setSelectedRooms([]);
-  };
-
-  const handleCustomerChange = (customerId: string) => {
-    setSelectedCustomerId(customerId);
-    setSelectedRooms([]); // Clear room selections when customer changes
-  };
-
-  const handleDialogOpenChange = (open: boolean) => {
-    setIsAssignDialogOpen(open);
-    if (!open) {
-      // Only clear room selections when dialog closes, keep tile and customer selection
-      setSelectedRooms([]);
-    }
-  };
-
-  const handleAssignButtonClick = (tileId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedTile(tileId);
-    setIsAssignDialogOpen(true);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Tile Catalog</h1>
-          <p className="text-gray-600">Browse, search, and assign tiles to customer rooms</p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Select Tile</span>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search tiles by name or code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <div className="overflow-y-auto max-h-[60vh] pr-2">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : filteredTiles.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
+                <p className="text-gray-500">
+                  {searchTerm ? "Try adjusting your search terms" : "No tiles are available"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredTiles.map((tile) => {
+                  const pricePerSqFt = calculatePricePerSqFt(tile);
+                  const isSelected = selectedTileIds.includes(tile.id);
+                  
+                  return (
+                    <Card 
+                      key={tile.id} 
+                      className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+                      onClick={() => handleTileSelect(tile.id)}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                            <Package className="h-5 w-5 text-blue-600" />
+                            {tile.name}
+                          </CardTitle>
+                          <Badge variant="secondary" className="text-xs font-mono">
+                            {tile.code}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="space-y-3">
+                        {tile.image_url && (
+                          <div className="w-full h-32 bg-gray-100 rounded-md overflow-hidden">
+                            <img 
+                              src={tile.image_url} 
+                              alt={tile.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Size:</span>
+                            <span className="text-sm font-medium">{formatTileSize(tile)}</span>
+                          </div>
+                          
+                          {tile.pieces_per_box && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Pieces/Box:</span>
+                              <span className="text-sm font-medium">{tile.pieces_per_box}</span>
+                            </div>
+                          )}
+                          
+                          {tile.price_per_box && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Price/Box:</span>
+                              <div className="text-right">
+                                <div className="flex items-center gap-1 text-sm font-bold text-green-600">
+                                  <IndianRupee className="h-4 w-4" />
+                                  {tile.price_per_box.toLocaleString()}
+                                </div>
+                                {pricePerSqFt > 0 && (
+                                  <div className="text-xs text-gray-500">
+                                    ₹{pricePerSqFt.toFixed(2)}/sq ft
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <Button 
+                          className="w-full mt-3"
+                          variant={isSelected ? "secondary" : "default"}
+                        >
+                          {isSelected ? "Selected" : "Select Tile"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-
-      <SearchBar 
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        onQRScanned={handleQRScanned}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredTiles.map((tile) => (
-          <TileCard
-            key={tile.id}
-            tile={tile}
-            isSelected={selectedTile === tile.id}
-            isAdmin={isAdmin}
-            showAssignButton={showAssignButton}
-            onTileSelect={handleTileSelect}
-            onGenerateQR={handleGenerateQR}
-            onDownloadQR={handleDownloadQR}
-            onViewDetails={handleViewDetails}
-            onAssignClick={(e) => handleAssignButtonClick(tile.id, e)}
-            isGeneratingQR={generateQRMutation.isPending}
-          />
-        ))}
-      </div>
-
-      {filteredTiles.length === 0 && !isLoading && <EmptyTileState />}
-
-      <TileAssignmentDialog
-        isOpen={isAssignDialogOpen}
-        onOpenChange={handleDialogOpenChange}
-        customers={customers}
-        rooms={rooms}
-        selectedCustomerId={selectedCustomerId}
-        selectedRooms={selectedRooms}
-        onCustomerChange={handleCustomerChange}
-        onRoomToggle={handleRoomToggle}
-        onSelectAllRooms={handleSelectAllRooms}
-        onClearSelections={handleClearSelections}
-        onAssignTile={handleAssignTile}
-        isAssigning={saveSelectionsMutation.isPending}
-      />
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

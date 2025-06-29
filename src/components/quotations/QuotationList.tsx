@@ -1,4 +1,5 @@
 
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -163,15 +164,14 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
             <h1 className="text-2xl font-bold text-gray-800">Quotations</h1>
             <p className="text-gray-600">Manage customer quotations and proposals</p>
           </div>
-          {userRole === "worker" && (
-            <Button 
-              onClick={() => setViewMode("create")}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Quotation
-            </Button>
-          )}
+          {/* Both admin and worker can create quotations */}
+          <Button 
+            onClick={() => setViewMode("create")}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Quotation
+          </Button>
         </div>
 
         <div className="relative">
@@ -308,7 +308,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
             <p className="text-gray-500 mb-4">
               {searchTerm ? "Try adjusting your search terms" : "No quotations have been created yet"}
             </p>
-            {userRole === "worker" && !searchTerm && (
+            {!searchTerm && (
               <Button 
                 onClick={() => setViewMode("create")}
                 className="bg-blue-600 hover:bg-blue-700"

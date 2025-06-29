@@ -1,23 +1,11 @@
 
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { 
-  FileText, 
-  User, 
-  Calendar, 
-  IndianRupee, 
-  Phone,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Home,
-  Grid3X3
-} from "lucide-react";
-import { Quotation } from "@/hooks/useQuotations";
-import { format } from "date-fns";
+import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download } from "lucide-react";
+import { formatDimensions, formatArea, calculateAreaInSquareFeet } from "@/utils/unitConversions";
+import { usePDFGeneration } from "@/hooks/usePDFGeneration";
+import type { Quotation } from "@/hooks/useQuotations";
 
 interface QuotationDetailsProps {
   quotation: Quotation;
@@ -25,211 +13,302 @@ interface QuotationDetailsProps {
 }
 
 export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) => {
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "approved":
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "draft":
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
-    }
-  };
+  const { generateQuotationPDF } = usePDFGeneration();
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-green-100 text-green-800";
       case "draft":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-yellow-100 text-yellow-800";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
+    if (!sizeLength || !sizeBreadth) return 'N/A';
+    
+    const lengthInMm = sizeLength;
+    const widthInMm = sizeBreadth;
+    
+    if (lengthInMm >= 1000 || widthInMm >= 1000) {
+      const lengthInM = (lengthInMm / 1000).toFixed(2);
+      const widthInM = (widthInMm / 1000).toFixed(2);
+      return `${lengthInM} × ${widthInM} m`;
+    } else if (lengthInMm >= 100 || widthInMm >= 100) {
+      const lengthInCm = (lengthInMm / 10).toFixed(1);
+      const widthInCm = (widthInMm / 10).toFixed(1);
+      return `${lengthInCm} × ${widthInCm} cm`;
+    } else {
+      return `${lengthInMm} × ${widthInMm} mm`;
+    }
+  };
+
+  const calculateItemDetails = (item: any) => {
+    const room = item.room;
+    const tile = item.tile;
+    
+    if (!room || !tile) return null;
+
+    // Calculate area in square feet
+    const areaInSqFt = room.length && room.width && room.unit 
+      ? calculateAreaInSquareFeet(room.length, room.width, room.unit)
+      : parseFloat(item.area) || 0;
+
+    // Calculate tiles and boxes needed (assuming 10% wastage)
+    const wastagePercentage = 10;
+    let tilesNeeded = 0;
+    let boxesNeeded = 0;
+
+    if (tile.size_length && tile.size_breadth && tile.pieces_per_box) {
+      // Convert tile dimensions to feet
+      const tileLengthFt = tile.size_length / 304.8; // mm to ft
+      const tileWidthFt = tile.size_breadth / 304.8; // mm to ft
+      const tileAreaSqFt = tileLengthFt * tileWidthFt;
+      
+      if (tileAreaSqFt > 0) {
+        // Calculate basic tiles needed for the area
+        const basicTilesNeeded = Math.ceil(areaInSqFt / tileAreaSqFt);
+        
+        // Add wastage percentage to tiles
+        tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        
+        // Calculate boxes needed from total tiles
+        boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
+      }
+    }
+
+    return {
+      areaInSqFt,
+      tilesNeeded,
+      boxesNeeded,
+    };
+  };
+
+  const handleDownloadPDF = () => {
+    generateQuotationPDF(quotation, 10); // Default 10% wastage
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <FileText className="h-6 w-6 text-blue-600" />
-            Quotation Details
-          </h1>
-          <p className="text-gray-600">View quotation information</p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBack}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to List
+          </Button>
+          
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Quotation {quotation.quotation_number}
+            </h1>
+            <p className="text-gray-600">View quotation details and items</p>
+          </div>
         </div>
-        <Button variant="outline" onClick={onBack}>
-          Back to List
-        </Button>
+
+        <div className="flex gap-2">
+          <Button
+            onClick={handleDownloadPDF}
+            className="gap-2 bg-blue-600 hover:bg-blue-700"
+          >
+            <Download className="h-4 w-4" />
+            Download PDF
+          </Button>
+        </div>
       </div>
 
-      {/* Quotation Overview */}
-      <Card>
+      {/* Quotation Header */}
+      <Card className="border-gray-200 shadow-sm">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {quotation.quotation_number}
+          <div className="flex items-start justify-between">
+            <CardTitle className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+              <FileText className="h-6 w-6 text-blue-600" />
+              Quotation Details
             </CardTitle>
-            <div className="flex items-center gap-2">
-              {getStatusIcon(quotation.status)}
-              <Badge className={`${getStatusColor(quotation.status)} border`}>
-                {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
-              </Badge>
-            </div>
+            <Badge className={`text-sm capitalize ${getStatusColor(quotation.status)}`}>
+              {quotation.status}
+            </Badge>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
             {/* Customer Information */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Customer Details
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <User className="h-5 w-5 text-blue-600" />
+                Customer Information
               </h3>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-3 pl-7">
                 <div className="flex items-center gap-2">
-                  <User className="h-3 w-3 text-gray-400" />
+                  <User className="h-4 w-4 text-gray-500" />
                   <span className="font-medium">{quotation.customer?.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Phone className="h-3 w-3 text-gray-400" />
+                  <Phone className="h-4 w-4 text-gray-500" />
                   <span>{quotation.customer?.mobile}</span>
                 </div>
+                {quotation.customer?.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-gray-500 mt-1" />
+                    <span className="text-sm">{quotation.customer.address}</span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Quotation Information */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Quotation Info
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                Quotation Information
               </h3>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-3 pl-7">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-3 w-3 text-gray-400" />
-                  <span>Created: {format(new Date(quotation.created_at), 'PPP')}</span>
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span>Created: {new Date(quotation.created_at).toLocaleDateString()}</span>
                 </div>
-                {quotation.updated_at && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3 w-3 text-gray-400" />
-                    <span>Updated: {format(new Date(quotation.updated_at), 'PPP')}</span>
-                  </div>
-                )}
                 <div className="flex items-center gap-2">
-                  <User className="h-3 w-3 text-gray-400" />
+                  <User className="h-4 w-4 text-gray-500" />
                   <span>Created by: {quotation.worker?.name}</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Total Amount */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <IndianRupee className="h-4 w-4" />
-                Total Amount
-              </h3>
-              <div className="flex items-center gap-1 text-2xl font-bold text-green-600">
-                <IndianRupee className="h-6 w-6" />
-                {quotation.total_cost?.toLocaleString() || '0'}
+                <div className="flex items-center gap-2">
+                  <IndianRupee className="h-4 w-4 text-gray-500" />
+                  <span className="font-bold text-lg text-green-600">
+                    Total: ₹{(quotation.total_cost || 0).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
+
+          {quotation.notes && (
+            <div className="border-t pt-4">
+              <h4 className="font-medium text-gray-800 mb-2">Notes:</h4>
+              <p className="text-gray-600 text-sm">{quotation.notes}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Rooms and Tiles Details */}
-      {quotation.quotation_items && quotation.quotation_items.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Home className="h-5 w-5" />
-              Rooms & Tiles Selected
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {quotation.quotation_items.map((item, index) => (
-                <div key={item.id || index} className="border rounded-lg p-4 bg-gray-50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Room Details */}
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                        <Home className="h-4 w-4 text-blue-600" />
-                        Room: {item.room?.name || 'Unknown Room'}
-                      </h4>
-                      <div className="text-sm text-gray-600">
-                        <p>Dimensions: {item.room?.length || 0} × {item.room?.width || 0} {item.room?.unit || 'metre'}</p>
-                        <p>Area: {item.area} sq ft</p>
-                      </div>
-                    </div>
-
-                    {/* Tile Details */}
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                        <Grid3X3 className="h-4 w-4 text-green-600" />
-                        Tile: {item.tile?.name || 'Unknown Tile'}
-                      </h4>
-                      <div className="text-sm text-gray-600">
-                        <p>Code: {item.tile?.code || 'N/A'}</p>
-                        <p>Size: {item.tile?.size_length || 0} × {item.tile?.size_breadth || 0} mm</p>
-                        <p>Price per box: ₹{item.tile?.price_per_box?.toLocaleString() || 0}</p>
-                        <p>Pieces per box: {item.tile?.pieces_per_box || 0}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Separator className="my-3" />
-                  
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Item Total:</span>
-                    <span className="font-semibold text-green-600">₹{item.total_price?.toLocaleString() || 0}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Notes Section */}
-      {quotation.notes && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Additional Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-gray-700 whitespace-pre-wrap">{quotation.notes}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Status History */}
-      <Card>
+      {/* Quotation Items */}
+      <Card className="border-gray-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Status History</CardTitle>
+          <CardTitle className="text-lg font-semibold text-gray-800">
+            Quotation Items
+          </CardTitle>
         </CardHeader>
+        
         <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-sm">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span className="font-medium">Created as Draft</span>
-              <span className="text-gray-500">
-                {format(new Date(quotation.created_at), 'PPP p')}
-              </span>
+          {quotation.quotation_items && quotation.quotation_items.length > 0 ? (
+            <div className="space-y-4">
+              {quotation.quotation_items.map((item, index) => {
+                const details = calculateItemDetails(item);
+                
+                return (
+                  <div key={item.id || index} className="border rounded-lg p-4 bg-gray-50">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {/* Room Details */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-blue-600" />
+                          Room: {item.room?.name || 'Unknown Room'}
+                        </h4>
+                        <div className="space-y-2 pl-6">
+                          {item.room && (
+                            <>
+                              <div className="text-sm">
+                                <span className="text-gray-600">Dimensions: </span>
+                                <span className="font-medium">
+                                  {formatDimensions(item.room.length, item.room.width, item.room.unit)}
+                                </span>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-gray-600">Area: </span>
+                                <span className="font-medium">
+                                  {formatArea(details?.areaInSqFt || 0)}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Tile Details */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                          Tile: {item.tile?.name || 'Unknown Tile'}
+                        </h4>
+                        <div className="space-y-2 pl-6">
+                          {item.tile && (
+                            <>
+                              <div className="text-sm">
+                                <span className="text-gray-600">Code: </span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {item.tile.code}
+                                </Badge>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-gray-600">Size: </span>
+                                <span className="font-medium">
+                                  {formatTileSize(item.tile.size_length, item.tile.size_breadth)}
+                                </span>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-gray-600">Price per box: </span>
+                                <span className="font-medium text-green-600">
+                                  ₹{(item.tile.price_per_box || 0).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-gray-600">Pieces per box: </span>
+                                <span className="font-medium">{item.tile.pieces_per_box || 'N/A'}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Calculation Summary */}
+                    {details && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                          <div>
+                            <div className="text-sm text-gray-600">Tiles Required</div>
+                            <div className="font-semibold text-lg">{details.tilesNeeded}</div>
+                            <div className="text-xs text-gray-500">+10% wastage</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-600">Boxes Needed</div>
+                            <div className="font-semibold text-lg">{details.boxesNeeded}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-600">Item Total</div>
+                            <div className="font-bold text-lg text-green-600">
+                              ₹{(details.boxesNeeded * (item.tile?.price_per_box || 0)).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            {quotation.status !== 'draft' && (
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="font-medium">Status changed to {quotation.status}</span>
-                <span className="text-gray-500">
-                  {quotation.updated_at ? format(new Date(quotation.updated_at), 'PPP p') : 'Unknown'}
-                </span>
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No items found in this quotation</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
