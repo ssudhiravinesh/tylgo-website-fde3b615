@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +10,11 @@ import { ArrowLeft, FileText, User, Phone, MapPin } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
-import { useCreateQuotation, useUpdateQuotation } from "@/hooks/useQuotations";
+import { useQuotations } from "@/hooks/useQuotations";
 import { MobileNumberSearch } from "@/components/customers/MobileNumberSearch";
 import { toast } from "sonner";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
-import { supabase } from "@/integrations/supabase/client"; // Add this import
+import { supabase } from "@/integrations/supabase/client";
 import type { Quotation } from "@/hooks/useQuotations";
 
 interface QuotationFormProps {
@@ -52,13 +53,12 @@ export const QuotationForm = ({
     wastagePercentage?: number;
   }>>([]);
 
-  const [currentUser, setCurrentUser] = useState<any>(null); // Add state for current user
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(formData.customer_id);
   const { data: tiles = [] } = useTiles();
-  const createQuotation = useCreateQuotation();
-  const updateQuotation = useUpdateQuotation();
+  const { createQuotation, updateQuotation, isCreating, isUpdating } = useQuotations();
 
   // Get current user on component mount
   useEffect(() => {
@@ -159,27 +159,45 @@ export const QuotationForm = ({
       const totalCost = quotationItems.reduce((sum, item) => sum + (item.area * item.pricePerBox), 0);
       
       if (editMode && existingQuotation) {
-        await updateQuotation.mutateAsync({
+        const items = quotationItems.map(item => ({
+          tile_id: item.tileId,
+          room_id: item.roomId,
+          area: item.area,
+          price_per_box: item.pricePerBox,
+          total_price: item.area * item.pricePerBox
+        }));
+
+        await updateQuotation({
           id: existingQuotation.id,
           customer_id: formData.customer_id,
           notes: formData.notes,
           status: formData.status,
-          total_cost: totalCost
+          total_cost: totalCost,
+          items
         });
       } else {
         // Generate quotation number (simple implementation)
         const quotationNumber = `QUO-${Date.now()}`;
         
+        const items = quotationItems.map(item => ({
+          tile_id: item.tileId,
+          room_id: item.roomId,
+          area: item.area,
+          price_per_box: item.pricePerBox,
+          total_price: item.area * item.pricePerBox
+        }));
+
         const quotationData = {
           quotation_number: quotationNumber,
           customer_id: formData.customer_id,
-          worker_id: currentUser.id, // Use the authenticated user's ID
+          worker_id: currentUser.id,
           total_cost: totalCost,
           notes: formData.notes,
-          status: formData.status
+          status: formData.status,
+          items
         };
 
-        await createQuotation.mutateAsync(quotationData);
+        await createQuotation(quotationData);
       }
       
       if (onSuccess) {
@@ -388,11 +406,11 @@ export const QuotationForm = ({
               </Button>
               <Button
                 type="submit"
-                disabled={editMode ? updateQuotation.isPending : createQuotation.isPending}
+                disabled={editMode ? isUpdating : isCreating}
               >
                 {editMode 
-                  ? (updateQuotation.isPending ? "Updating..." : "Update Quotation")
-                  : (createQuotation.isPending ? "Creating..." : "Create Quotation")
+                  ? (isUpdating ? "Updating..." : "Update Quotation")
+                  : (isCreating ? "Creating..." : "Create Quotation")
                 }
               </Button>
             </div>

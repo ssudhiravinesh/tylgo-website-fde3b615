@@ -1,10 +1,11 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, FileText, Calendar, IndianRupee, User, Plus } from "lucide-react";
-import { useQuotations, useDeleteQuotation } from "@/hooks/useQuotations";
+import { useQuotations } from "@/hooks/useQuotations";
 import { usePDFGeneration } from "@/hooks/usePDFGeneration";
 import { useEmailSending } from "@/hooks/useEmailSending";
 import { QuotationForm } from "./QuotationForm";
@@ -35,12 +36,11 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [filterYear, setFilterYear] = useState<number | null>(null);
   const [filterMonth, setFilterMonth] = useState<number | null>(null);
   
-  const { data: quotations = [], isLoading, refetch } = useQuotations({
+  const { data: quotations = [], isLoading, refetch, deleteQuotation, isDeleting } = useQuotations({
     quickSort,
     year: filterYear,
     month: filterMonth
   });
-  const deleteQuotationMutation = useDeleteQuotation();
   const { generateQuotationPDF } = usePDFGeneration();
   const { sendQuotationEmail, isSending } = useEmailSending();
   
@@ -124,7 +124,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
       console.log('Confirming delete for quotation:', selectedQuotationForAction);
       
       try {
-        await deleteQuotationMutation.mutateAsync(selectedQuotationForAction);
+        await deleteQuotation(selectedQuotationForAction);
         console.log('Delete successful, closing dialogs...');
         setDeleteDialogOpen(false);
         setSelectedQuotationForAction(null);
@@ -376,7 +376,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
         onClose={closeDialogs}
         onConfirm={handleDeleteConfirm}
         quotationNumber={selectedQuotationForActionObj?.quotation_number || ""}
-        isDeleting={deleteQuotationMutation.isPending}
+        isDeleting={isDeleting}
       />
 
       {/* Edit Dialog */}
