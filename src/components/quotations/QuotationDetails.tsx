@@ -53,7 +53,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
 
     // Calculate area in square feet
     const areaInSqFt = room.length && room.width && room.unit 
-      ? calculateAreaInSquareFeet(room.length, room.width, room.unit)
+      ? calculateAreaInSquareFeet(room.length, room.width, room.unit as Unit)
       : parseFloat(item.area) || 0;
 
     // Calculate tiles and boxes needed (assuming 10% wastage)
@@ -226,7 +226,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                               <div className="text-sm">
                                 <span className="text-gray-600">Dimensions: </span>
                                 <span className="font-medium">
-                                  {formatDimensions(item.room.length, item.room.width, item.room.unit)}
+                                  {formatDimensions(item.room.length, item.room.width, item.room.unit as Unit)}
                                 </span>
                               </div>
                               <div className="text-sm">
