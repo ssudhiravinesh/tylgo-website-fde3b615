@@ -1,52 +1,34 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { 
   FileText, 
   User, 
   Calendar, 
   IndianRupee, 
-  Download, 
-  Mail, 
-  Edit, 
-  Trash2,
   Phone,
-  MapPin,
   Clock,
   CheckCircle,
-  XCircle,
   AlertCircle,
-  Percent
+  Home,
+  Grid3X3
 } from "lucide-react";
 import { Quotation } from "@/hooks/useQuotations";
-import { usePDFGeneration } from "@/hooks/usePDFGeneration";
 import { format } from "date-fns";
 
 interface QuotationDetailsProps {
   quotation: Quotation;
-  onEdit?: () => void;
-  onDelete?: () => void;
   onBack: () => void;
-  userRole?: "admin" | "worker";
 }
 
-export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole }: QuotationDetailsProps) => {
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [wastagePercentage, setWastagePercentage] = useState<number>(10);
-  const { generateQuotationPDF } = usePDFGeneration();
-
+export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "approved":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "rejected":
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case "sent":
-        return <Mail className="h-4 w-4 text-blue-600" />;
       case "draft":
         return <AlertCircle className="h-4 w-4 text-yellow-600" />;
       default:
@@ -56,40 +38,13 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "sent":
-        return "bg-green-100 text-green-800 border-green-200";
       case "approved":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "rejected":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-green-100 text-green-800 border-green-200";
       case "draft":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
-  };
-
-  const handleDownloadPDF = async () => {
-    setIsGeneratingPDF(true);
-    try {
-      await generateQuotationPDF(quotation, wastagePercentage);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  };
-
-  const handleWastageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value >= 0) {
-      setWastagePercentage(value);
-    }
-  };
-
-  const handleSendEmail = () => {
-    // TODO: Implement email sending
-    console.log("Email sending would happen here");
   };
 
   return (
@@ -101,7 +56,7 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole
             <FileText className="h-6 w-6 text-blue-600" />
             Quotation Details
           </h1>
-          <p className="text-gray-600">View and manage quotation information</p>
+          <p className="text-gray-600">View quotation information</p>
         </div>
         <Button variant="outline" onClick={onBack}>
           Back to List
@@ -183,6 +138,60 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole
         </CardContent>
       </Card>
 
+      {/* Rooms and Tiles Details */}
+      {quotation.quotation_items && quotation.quotation_items.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              Rooms & Tiles Selected
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {quotation.quotation_items.map((item, index) => (
+                <div key={item.id || index} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Room Details */}
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                        <Home className="h-4 w-4 text-blue-600" />
+                        Room: {item.room?.name || 'Unknown Room'}
+                      </h4>
+                      <div className="text-sm text-gray-600">
+                        <p>Dimensions: {item.room?.length || 0} × {item.room?.width || 0} {item.room?.unit || 'metre'}</p>
+                        <p>Area: {item.area} sq ft</p>
+                      </div>
+                    </div>
+
+                    {/* Tile Details */}
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                        <Grid3X3 className="h-4 w-4 text-green-600" />
+                        Tile: {item.tile?.name || 'Unknown Tile'}
+                      </h4>
+                      <div className="text-sm text-gray-600">
+                        <p>Code: {item.tile?.code || 'N/A'}</p>
+                        <p>Size: {item.tile?.size_length || 0} × {item.tile?.size_breadth || 0} mm</p>
+                        <p>Price per box: ₹{item.tile?.price_per_box?.toLocaleString() || 0}</p>
+                        <p>Pieces per box: {item.tile?.pieces_per_box || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator className="my-3" />
+                  
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Item Total:</span>
+                    <span className="font-semibold text-green-600">₹{item.total_price?.toLocaleString() || 0}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Notes Section */}
       {quotation.notes && (
         <Card>
@@ -197,82 +206,7 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onBack, userRole
         </Card>
       )}
 
-      {/* Action Buttons */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Wastage Percentage Input */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-3">
-                <Percent className="h-4 w-4 text-blue-600" />
-                <Label htmlFor="pdf-wastage" className="text-sm font-medium">
-                  Wastage Percentage for PDF (%)
-                </Label>
-              </div>
-              <Input
-                id="pdf-wastage"
-                type="number"
-                value={wastagePercentage}
-                onChange={handleWastageChange}
-                min="0"
-                step="0.1"
-                className="w-32"
-                placeholder="Enter wastage"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                This will be applied to calculations in the generated PDF
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Button
-                onClick={handleDownloadPDF}
-                disabled={isGeneratingPDF}
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                {isGeneratingPDF ? "Generating..." : "Download PDF"}
-              </Button>
-              
-              <Button
-                variant="outline"
-                onClick={handleSendEmail}
-                className="flex items-center gap-2"
-              >
-                <Mail className="h-4 w-4" />
-                Send Email
-              </Button>
-              
-              {onEdit && (userRole === "admin" || userRole === "worker") && (
-                <Button
-                  variant="outline"
-                  onClick={onEdit}
-                  className="flex items-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  Edit
-                </Button>
-              )}
-              
-              {onDelete && (userRole === "admin" || userRole === "worker") && (
-                <Button
-                  variant="destructive"
-                  onClick={onDelete}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Status History (Placeholder for future enhancement) */}
+      {/* Status History */}
       <Card>
         <CardHeader>
           <CardTitle>Status History</CardTitle>

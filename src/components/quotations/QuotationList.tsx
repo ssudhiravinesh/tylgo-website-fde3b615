@@ -5,11 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, FileText, Calendar, IndianRupee, User, Plus } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
-import { usePDFGeneration } from "@/hooks/usePDFGeneration";
-import { useEmailSending } from "@/hooks/useEmailSending";
 import { QuotationForm } from "./QuotationForm";
 import { QuotationDetails } from "./QuotationDetails";
-import { EmailDialog } from "./EmailDialog";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
 import { EditQuotationDialog } from "./EditQuotationDialog";
 import { QuotationActionButtons } from "./QuotationActionButtons";
@@ -25,7 +22,6 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedQuotationForAction, setSelectedQuotationForAction] = useState<string | null>(null);
@@ -40,8 +36,6 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     year: filterYear,
     month: filterMonth
   });
-  const { generateQuotationPDF } = usePDFGeneration();
-  const { sendQuotationEmail, isSending } = useEmailSending();
   
   const filteredQuotations = quotations.filter(quotation =>
     quotation.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -59,12 +53,8 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "sent":
-        return "bg-green-100 text-green-800";
       case "approved":
-        return "bg-blue-100 text-blue-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
+        return "bg-green-100 text-green-800";
       case "draft":
         return "bg-yellow-100 text-yellow-800";
       default:
@@ -86,32 +76,6 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const handleCreateSuccess = () => {
     setViewMode("list");
     refetch();
-  };
-
-  const handleDownloadPDF = (quotationId: string) => {
-    const quotation = quotations.find(q => q.id === quotationId);
-    if (quotation) {
-      // Get wastage percentage from the most recent quotation item or use default
-      const wastagePercentage = 10; // You might want to store this in the quotation or get it from items
-      generateQuotationPDF(quotation, wastagePercentage);
-    }
-  };
-
-  const handleSendEmail = (quotationId: string) => {
-    setSelectedQuotationForAction(quotationId);
-    setEmailDialogOpen(true);
-  };
-
-  const handleEmailSend = async (email: string) => {
-    if (selectedQuotationForActionObj) {
-      try {
-        await sendQuotationEmail(selectedQuotationForActionObj, email);
-        setEmailDialogOpen(false);
-        setSelectedQuotationForAction(null);
-      } catch (error) {
-        console.error('Error sending email:', error);
-      }
-    }
   };
 
   const handleDelete = (quotationId: string) => {
@@ -150,7 +114,6 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   };
 
   const closeDialogs = () => {
-    setEmailDialogOpen(false);
     setDeleteDialogOpen(false);
     setEditDialogOpen(false);
     setSelectedQuotationForAction(null);
@@ -267,7 +230,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Pending</p>
                   <p className="text-2xl font-bold">
-                    {quotations.filter(q => q.status === 'sent').length}
+                    {quotations.filter(q => q.status === 'draft').length}
                   </p>
                 </div>
               </div>
@@ -331,8 +294,6 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                 
                 <QuotationActionButtons
                   onView={() => handleViewDetails(quotation.id)}
-                  onDownload={() => handleDownloadPDF(quotation.id)}
-                  onSendEmail={() => handleSendEmail(quotation.id)}
                   onEdit={() => handleEdit(quotation.id)}
                   onDelete={() => handleDelete(quotation.id)}
                   userRole={userRole}
@@ -361,15 +322,6 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
           </div>
         )}
       </div>
-
-      {/* Email Dialog */}
-      <EmailDialog
-        isOpen={emailDialogOpen}
-        onClose={closeDialogs}
-        onSend={handleEmailSend}
-        defaultEmail={selectedQuotationForActionObj?.customer?.mobile ? "" : ""}
-        isLoading={isSending}
-      />
 
       {/* Delete Confirmation Dialog */}
       <DeleteQuotationDialog

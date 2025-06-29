@@ -1,11 +1,9 @@
 
 import { Button } from "@/components/ui/button";
-import { Eye, Download, Mail, Edit, Trash2 } from "lucide-react";
+import { Eye, Edit, Trash2 } from "lucide-react";
 
 interface QuotationActionButtonsProps {
   onView: () => void;
-  onDownload: () => void;
-  onSendEmail: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   userRole: "admin" | "worker";
@@ -13,8 +11,6 @@ interface QuotationActionButtonsProps {
 
 export const QuotationActionButtons = ({
   onView,
-  onDownload,
-  onSendEmail,
   onEdit,
   onDelete,
   userRole
@@ -51,24 +47,6 @@ export const QuotationActionButtons = ({
       >
         <Eye className="h-3 w-3 mr-1" />
         View
-      </Button>
-      <Button 
-        size="sm" 
-        variant="outline" 
-        className="text-xs"
-        onClick={onDownload}
-      >
-        <Download className="h-3 w-3 mr-1" />
-        PDF
-      </Button>
-      <Button 
-        size="sm" 
-        variant="outline" 
-        className="text-xs"
-        onClick={onSendEmail}
-      >
-        <Mail className="h-3 w-3 mr-1" />
-        Email
       </Button>
       {(userRole === "worker" || userRole === "admin") && (
         <>

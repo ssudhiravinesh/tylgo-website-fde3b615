@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +43,7 @@ export const QuotationForm = ({
   const [formData, setFormData] = useState({
     customer_id: preSelectedCustomerId || existingQuotation?.customer_id || "",
     notes: existingQuotation?.notes || "",
-    status: (existingQuotation?.status as "draft" | "pending" | "approved" | "rejected") || "draft"
+    status: (existingQuotation?.status as "draft" | "approved") || "draft"
   });
 
   const [quotationItems, setQuotationItems] = useState<Array<{
@@ -177,6 +176,32 @@ export const QuotationForm = ({
       return;
     }
 
+    // In edit mode, we only update the status and notes
+    if (editMode && existingQuotation) {
+      if (!currentUser) {
+        toast.error("User not authenticated");
+        return;
+      }
+
+      try {
+        await updateQuotation({
+          id: existingQuotation.id,
+          status: formData.status,
+          notes: formData.notes
+        });
+        
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          onBack();
+        }
+      } catch (error) {
+        console.error("Error updating quotation:", error);
+      }
+      return;
+    }
+
+    // For create mode, we need items
     if (quotationItems.length === 0) {
       toast.error("Please add at least one item to the quotation");
       return;
@@ -190,47 +215,28 @@ export const QuotationForm = ({
     try {
       const totalCost = calculateTotalCost();
       
-      if (editMode && existingQuotation) {
-        const items = quotationItems.map(item => ({
-          tile_id: item.tileId,
-          room_id: item.roomId,
-          area: item.area,
-          price_per_box: item.pricePerBox,
-          total_price: item.area * item.pricePerBox
-        }));
+      // Generate quotation number (simple implementation)
+      const quotationNumber = `QUO-${Date.now()}`;
+      
+      const items = quotationItems.map(item => ({
+        tile_id: item.tileId,
+        room_id: item.roomId,
+        area: item.area,
+        price_per_box: item.pricePerBox,
+        total_price: item.area * item.pricePerBox
+      }));
 
-        await updateQuotation({
-          id: existingQuotation.id,
-          customer_id: formData.customer_id,
-          notes: formData.notes,
-          status: formData.status,
-          total_cost: totalCost,
-          items
-        });
-      } else {
-        // Generate quotation number (simple implementation)
-        const quotationNumber = `QUO-${Date.now()}`;
-        
-        const items = quotationItems.map(item => ({
-          tile_id: item.tileId,
-          room_id: item.roomId,
-          area: item.area,
-          price_per_box: item.pricePerBox,
-          total_price: item.area * item.pricePerBox
-        }));
+      const quotationData = {
+        quotation_number: quotationNumber,
+        customer_id: formData.customer_id,
+        worker_id: currentUser.id,
+        total_cost: totalCost,
+        notes: formData.notes,
+        status: formData.status,
+        items
+      };
 
-        const quotationData = {
-          quotation_number: quotationNumber,
-          customer_id: formData.customer_id,
-          worker_id: currentUser.id,
-          total_cost: totalCost,
-          notes: formData.notes,
-          status: formData.status,
-          items
-        };
-
-        await createQuotation(quotationData);
-      }
+      await createQuotation(quotationData);
       
       if (onSuccess) {
         onSuccess();
@@ -260,7 +266,7 @@ export const QuotationForm = ({
             {editMode ? `Edit Quotation ${existingQuotation?.quotation_number}` : "Create Quotation"}
           </h1>
           <p className="text-gray-600">
-            {editMode ? "Update quotation details" : "Enter quotation details to generate a new record"}
+            {editMode ? "Update quotation status" : "Enter quotation details to generate a new record"}
           </p>
         </div>
       </div>
@@ -275,53 +281,71 @@ export const QuotationForm = ({
         
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="customer_id" className="text-sm font-medium text-gray-700">
-                Customer *
-              </Label>
-              <MobileNumberSearch
-                value={customerDetails.mobile}
-                onChange={(value) => setCustomerDetails(prev => ({ ...prev, mobile: value }))}
-                onCustomerFound={(customer) => {
-                  if (customer) {
-                    handleCustomerSelect(customer.id);
-                    setCustomerDetails({
-                      name: customer.name,
-                      mobile: customer.mobile,
-                      address: customer.address || ""
-                    });
-                  } else {
-                    handleCustomerSelect("");
-                    setCustomerDetails({ name: "", mobile: "", address: "" });
-                  }
-                }}
-                placeholder="Enter customer mobile number"
-                searchType="customer"
-              />
-              {customerDetails.name && (
-                <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-100">
+            {!editMode && (
+              <div className="space-y-2">
+                <Label htmlFor="customer_id" className="text-sm font-medium text-gray-700">
+                  Customer *
+                </Label>
+                <MobileNumberSearch
+                  value={customerDetails.mobile}
+                  onChange={(value) => setCustomerDetails(prev => ({ ...prev, mobile: value }))}
+                  onCustomerFound={(customer) => {
+                    if (customer) {
+                      handleCustomerSelect(customer.id);
+                      setCustomerDetails({
+                        name: customer.name,
+                        mobile: customer.mobile,
+                        address: customer.address || ""
+                      });
+                    } else {
+                      handleCustomerSelect("");
+                      setCustomerDetails({ name: "", mobile: "", address: "" });
+                    }
+                  }}
+                  placeholder="Enter customer mobile number"
+                  searchType="customer"
+                />
+                {customerDetails.name && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-100">
+                    <p className="text-sm font-medium text-gray-800">
+                      {customerDetails.name}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {customerDetails.address || "No address available"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {editMode && existingQuotation && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Customer</Label>
+                <div className="p-3 bg-gray-50 rounded-md border border-gray-100">
                   <p className="text-sm font-medium text-gray-800">
-                    {customerDetails.name}
+                    {existingQuotation.customer?.name}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {customerDetails.address || "No address available"}
+                    {existingQuotation.customer?.mobile}
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
-                Notes
-              </Label>
-              <Textarea
-                id="notes"
-                placeholder="Enter any additional notes for the quotation"
-                value={formData.notes}
-                onChange={(e) => handleInputChange("notes", e.target.value)}
-                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
+            {!editMode && (
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
+                  Notes
+                </Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Enter any additional notes for the quotation"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
+                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="status" className="text-sm font-medium text-gray-700">
@@ -329,19 +353,32 @@ export const QuotationForm = ({
               </Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: "draft" | "pending" | "approved" | "rejected") => handleInputChange("status", value)}
+                onValueChange={(value: "draft" | "approved") => handleInputChange("status", value)}
               >
                 <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {editMode && (
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
+                  Notes
+                </Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Enter any additional notes for the quotation"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
+                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+            )}
 
             <div className="flex gap-3 pt-4">
               <Button
