@@ -158,7 +158,7 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       ) : filteredTiles.length === 0 ? (
-        <EmptyTileState searchTerm={searchTerm} />
+        <EmptyTileState />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredTiles.map((tile) => (
