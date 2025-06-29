@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -142,9 +143,6 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
       <QuotationDetails
         quotation={selectedQuotation}
         onBack={handleBackToList}
-        onEdit={() => handleEdit(selectedQuotation.id)}
-        onDelete={() => handleDelete(selectedQuotation.id)}
-        userRole={userRole}
       />
     );
   }
