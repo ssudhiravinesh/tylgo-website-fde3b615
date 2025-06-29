@@ -1,16 +1,25 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calculator, Package, DollarSign, Ruler, Percent } from "lucide-react";
-import type { Room } from "@/hooks/useRooms";
-import type { Tile } from "@/hooks/useTiles";
-import { calculateAreaInSquareFeet, formatDimensions, formatArea } from "@/utils/unitConversions";
+import { Calculator, Package, IndianRupee, Layers } from "lucide-react";
 
 interface TileCalculation {
-  tile: Tile;
-  rooms: Room[];
+  tile: {
+    id: string;
+    name: string;
+    code: string;
+    price_per_box?: number;
+    pieces_per_box?: number;
+    size_length: number;
+    size_breadth: number;
+  };
+  rooms: Array<{
+    id: string;
+    name: string;
+    length: number;
+    width: number;
+    unit: string;
+  }>;
   totalArea: number;
-  effectiveArea: number;
   tilesNeeded: number;
   boxesNeeded: number;
   totalPrice: number;
@@ -23,82 +32,95 @@ interface TileCalculationsCardProps {
 }
 
 export const TileCalculationsCard = ({ calculations, grandTotal, wastagePercentage }: TileCalculationsCardProps) => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calculator className="h-5 w-5" />
-          Tile Requirements & Pricing (Square Feet)
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {calculations.length === 0 ? (
+  if (calculations.length === 0) {
+    return (
+      <Card className="border-gray-200 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Calculator className="h-5 w-5 text-blue-600" />
+            Tile Calculations
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <p className="text-gray-500 text-center py-8">
             Select tiles for rooms to see calculations
           </p>
-        ) : (
-          <>
-            {calculations.map((calc, index) => (
-              <div key={index} className="p-4 border rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">{calc.tile.name}</h4>
-                  <Badge variant="outline">{calc.tile.code}</Badge>
-                </div>
-                
-                <div className="text-sm space-y-2">
-                  <div>
-                    <p className="font-medium mb-1">Room Details:</p>
-                    {calc.rooms.map((room, roomIndex) => {
-                      const roomAreaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-                      return (
-                        <div key={roomIndex} className="ml-2 text-xs text-gray-600">
-                          <span className="font-medium">{room.name}:</span> {formatDimensions(room.length, room.width, room.unit)} = {formatArea(roomAreaSqFt)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  
-                  <p className="flex items-center gap-1">
-                    <Ruler className="h-3 w-3" />
-                    <strong>Original Area:</strong> {formatArea(calc.totalArea)}
-                  </p>
-                  
-                  {wastagePercentage > 0 && (
-                    <p className="flex items-center gap-1 text-orange-600">
-                      <Percent className="h-3 w-3" />
-                      <strong>Effective Area (with {wastagePercentage}% wastage):</strong> {formatArea(calc.effectiveArea)}
-                    </p>
-                  )}
-                  
-                  <p className="flex items-center gap-1">
-                    <Calculator className="h-3 w-3" />
-                    <strong>Tiles Needed:</strong> {calc.tilesNeeded}
-                  </p>
-                  <p className="flex items-center gap-1">
-                    <Package className="h-3 w-3" />
-                    <strong>Boxes Needed:</strong> {calc.boxesNeeded}
-                  </p>
-                  <p className="flex items-center gap-1">
-                    <DollarSign className="h-3 w-3" />
-                    <strong>Total Price:</strong> ₹{calc.totalPrice.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            ))}
-            
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <h4 className="font-bold text-blue-800">Grand Total</h4>
-                <p className="text-xl font-bold text-blue-800">₹{grandTotal.toFixed(2)}</p>
-              </div>
-              {wastagePercentage > 0 && (
-                <p className="text-xs text-blue-600 mt-1">
-                  * Includes {wastagePercentage}% wastage allowance
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-gray-200 shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Calculator className="h-5 w-5 text-blue-600" />
+          Tile Calculations ({wastagePercentage}% wastage included)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {calculations.map((calc) => (
+          <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h4 className="font-semibold text-gray-800">{calc.tile.name}</h4>
+                <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
+                <p className="text-xs text-gray-500">
+                  Rooms: {calc.rooms.map(r => r.name).join(', ')}
                 </p>
-              )}
+              </div>
             </div>
-          </>
-        )}
+            
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-gray-400" />
+                <div>
+                  <p className="text-gray-600">Total Area</p>
+                  <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-green-600" />
+                <div>
+                  <p className="text-gray-600">Tiles Required</p>
+                  <p className="font-medium text-green-600">
+                    {calc.tilesNeeded} tiles
+                    <span className="text-xs text-gray-500 block">
+                      (+{wastagePercentage}% wastage)
+                    </span>
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-blue-600" />
+                <div>
+                  <p className="text-gray-600">Boxes Needed</p>
+                  <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <IndianRupee className="h-4 w-4 text-purple-600" />
+                <div>
+                  <p className="text-gray-600">Total Cost</p>
+                  <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        <div className="border-t pt-4 mt-4">
+          <div className="flex justify-between items-center">
+            <span className="text-lg font-semibold text-gray-800">Grand Total:</span>
+            <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            All calculations include {wastagePercentage}% wastage allowance
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

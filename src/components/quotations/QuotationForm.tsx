@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +25,7 @@ interface QuotationFormProps {
     quantity: number;
     wastagePercentage: number;
   }>;
+  wastagePercentage?: number;
   onSuccess?: () => void;
   editMode?: boolean;
   existingQuotation?: Quotation;
@@ -35,6 +35,7 @@ export const QuotationForm = ({
   onBack, 
   preSelectedCustomerId, 
   selectedRoomsData = [],
+  wastagePercentage = 10,
   onSuccess,
   editMode = false,
   existingQuotation
@@ -137,6 +138,36 @@ export const QuotationForm = ({
     setQuotationItems(updatedItems);
   };
 
+  const calculateTotalCost = () => {
+    return quotationItems.reduce((sum, item) => {
+      const tile = tiles.find(t => t.id === item.tileId);
+      if (!tile || !tile.size_length || !tile.size_breadth || !tile.pieces_per_box || !tile.price_per_box) {
+        return sum;
+      }
+
+      // Calculate tile area in square feet
+      const tileLengthFt = tile.size_length / 304.8; // mm to ft
+      const tileBreadthFt = tile.size_breadth / 304.8; // mm to ft
+      const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+
+      if (tileAreaSqFt > 0) {
+        // Step 1: Calculate basic tiles needed
+        const basicTilesNeeded = Math.ceil(item.area / tileAreaSqFt);
+        
+        // Step 2: Add wastage percentage to tiles
+        const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        
+        // Step 3: Calculate boxes needed
+        const boxesNeeded = Math.ceil(tilesWithWastage / tile.pieces_per_box);
+        
+        // Step 4: Calculate price
+        return sum + (boxesNeeded * tile.price_per_box);
+      }
+      
+      return sum;
+    }, 0);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -156,7 +187,7 @@ export const QuotationForm = ({
     }
 
     try {
-      const totalCost = quotationItems.reduce((sum, item) => sum + (item.area * item.pricePerBox), 0);
+      const totalCost = calculateTotalCost();
       
       if (editMode && existingQuotation) {
         const items = quotationItems.map(item => ({
@@ -305,118 +336,4 @@ export const QuotationForm = ({
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-800">Quotation Items</h3>
-              {quotationItems.map((item, index) => (
-                <div key={index} className="grid grid-cols-4 gap-4 items-center">
-                  <div className="space-y-1">
-                    <Label htmlFor={`room-${index}`} className="text-sm font-medium text-gray-700">
-                      Room
-                    </Label>
-                    <Select
-                      value={item.roomId}
-                      onValueChange={(value) => handleItemChange(index, "roomId", value)}
-                    >
-                      <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                        <SelectValue placeholder="Select room" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {rooms.map(room => (
-                          <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor={`tile-${index}`} className="text-sm font-medium text-gray-700">
-                      Tile
-                    </Label>
-                    <Select
-                      value={item.tileId}
-                      onValueChange={(value) => handleItemChange(index, "tileId", value)}
-                    >
-                      <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                        <SelectValue placeholder="Select tile" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tiles.map(tile => (
-                          <SelectItem key={tile.id} value={tile.id}>{tile.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor={`area-${index}`} className="text-sm font-medium text-gray-700">
-                      Area (sq ft)
-                    </Label>
-                    <Input
-                      type="number"
-                      id={`area-${index}`}
-                      placeholder="Enter area"
-                      value={item.area}
-                      onChange={(e) => handleItemChange(index, "area", parseFloat(e.target.value))}
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor={`price-${index}`} className="text-sm font-medium text-gray-700">
-                      Price per Box
-                    </Label>
-                    <Input
-                      type="number"
-                      id={`price-${index}`}
-                      placeholder="Enter price"
-                      value={item.pricePerBox}
-                      onChange={(e) => handleItemChange(index, "pricePerBox", parseFloat(e.target.value))}
-                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleRemoveItem(index)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" variant="secondary" onClick={handleAddItem}>
-                Add Item
-              </Button>
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onBack}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={editMode ? isUpdating : isCreating}
-              >
-                {editMode 
-                  ? (isUpdating ? "Updating..." : "Update Quotation")
-                  : (isCreating ? "Creating..." : "Create Quotation")
-                }
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
+                  <SelectItem value="approved">Approve

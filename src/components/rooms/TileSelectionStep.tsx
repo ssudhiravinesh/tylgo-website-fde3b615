@@ -25,7 +25,6 @@ interface TileCalculation {
   tile: Tile;
   rooms: Room[];
   totalArea: number;
-  effectiveArea: number;
   tilesNeeded: number;
   boxesNeeded: number;
   totalPrice: number;
@@ -173,52 +172,38 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
             tile,
             rooms: [],
             totalArea: 0,
-            effectiveArea: 0,
             tilesNeeded: 0,
             boxesNeeded: 0,
             totalPrice: 0
           };
         }
 
-        // Convert room area to square meters for calculation
+        // Convert room area to square feet for calculation
         const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-        const roomAreaInSqM = roomAreaInSqFt * 0.092903; // Convert sq ft to sq m
         
         tileCalculations[tileId].rooms.push(room);
-        tileCalculations[tileId].totalArea += roomAreaInSqFt; // Keep in sq ft for display
+        tileCalculations[tileId].totalArea += roomAreaInSqFt;
       });
     });
 
     Object.values(tileCalculations).forEach(calc => {
-      // Convert total area to square meters for calculations
-      const totalAreaInSqM = calc.totalArea * 0.092903;
+      // Calculate tile area in square feet
+      const tileLengthFt = (calc.tile.size_length || 0) / 304.8; // mm to ft
+      const tileBreadthFt = (calc.tile.size_breadth || 0) / 304.8; // mm to ft
+      const tileAreaSqFt = tileLengthFt * tileBreadthFt;
       
-      // Step 1: Calculate effective area with wastage
-      calc.effectiveArea = calc.totalArea * (1 + (wastagePercentage / 100));
-      const effectiveAreaInSqM = totalAreaInSqM * (1 + (wastagePercentage / 100));
-      
-      // Calculate tile area in square meters
-      const tileLengthInM = (calc.tile.size_length || 0) / 1000; // mm to m
-      const tileBreadthInM = (calc.tile.size_breadth || 0) / 1000; // mm to m
-      const tileAreaInSqM = tileLengthInM * tileBreadthInM;
-      
-      if (tileAreaInSqM > 0 && calc.tile.pieces_per_box && calc.tile.price_per_box) {
-        // Calculate area covered by one box
-        const areaPerBoxInSqM = tileAreaInSqM * calc.tile.pieces_per_box;
+      if (tileAreaSqFt > 0 && calc.tile.pieces_per_box && calc.tile.price_per_box) {
+        // Step 1: Calculate basic tiles needed for the area
+        const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
         
-        if (areaPerBoxInSqM > 0) {
-          // Step 2: Calculate boxes needed (always round up)
-          calc.boxesNeeded = Math.ceil(effectiveAreaInSqM / areaPerBoxInSqM);
-          
-          // Step 3: Price per box is already given
-          const pricePerBox = calc.tile.price_per_box;
-          
-          // Step 4: Calculate total price
-          calc.totalPrice = calc.boxesNeeded * pricePerBox;
-          
-          // Calculate tiles needed for display
-          calc.tilesNeeded = Math.ceil(effectiveAreaInSqM / tileAreaInSqM);
-        }
+        // Step 2: Add wastage percentage to tiles
+        calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        
+        // Step 3: Calculate boxes needed from total tiles
+        calc.boxesNeeded = Math.ceil(calc.tilesNeeded / calc.tile.pieces_per_box);
+        
+        // Step 4: Calculate total price
+        calc.totalPrice = calc.boxesNeeded * calc.tile.price_per_box;
       }
     });
 
@@ -293,32 +278,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       <QuotationForm
         preSelectedCustomerId={customerId}
         selectedRoomsData={prepareQuotationData()}
+        wastagePercentage={wastagePercentage}
         onBack={handleBackFromQuotation}
         onSuccess={handleQuotationSuccess}
       />
-    );
-  }
-
-  if (showTileCatalog) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => setShowTileCatalog(false)} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Room Selection
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Choose Tile</h2>
-            <p className="text-gray-600">
-              Select a tile for: {rooms.find(r => r.id === selectedRoomForTile)?.name}
-            </p>
-          </div>
-        </div>
-        <TileCatalog 
-          onTileSelected={handleTileSelected}
-          showAssignButton={false}
-        />
-      </div>
     );
   }
 
@@ -368,7 +331,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
               placeholder="Enter wastage percentage (0-15)"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Additional area to account for cutting and installation waste (Maximum 15%)
+              Additional tiles to account for cutting and installation waste (Maximum 15%)
             </p>
           </div>
 

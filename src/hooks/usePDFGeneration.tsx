@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,7 +10,7 @@ export const usePDFGeneration = () => {
     try {
       console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
       
-      // Fetch quotation items using Supabase client instead of direct API call
+      // Fetch quotation items using Supabase client
       const { data: quotationItems, error } = await supabase
         .from('quotation_items')
         .select(`
@@ -44,15 +45,16 @@ export const usePDFGeneration = () => {
           const room = item.room;
           const tile = item.tile;
           
-          // Calculate area in square feet if room dimensions are available
+          // Calculate area in square feet
           let roomDetails = 'N/A';
-          let areaInSqFt = 'N/A';
+          let areaInSqFt = parseFloat(item.area) || 0;
           
           if (room && room.length && room.width && room.unit) {
             try {
-              const areaSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
+              const calculatedArea = calculateAreaInSquareFeet(room.length, room.width, room.unit);
               roomDetails = formatDimensions(room.length, room.width, room.unit);
-              areaInSqFt = formatArea(areaSqFt);
+              // Use the stored area from database, which should match calculated area
+              areaInSqFt = calculatedArea;
             } catch (error) {
               console.error('Error calculating area:', error);
             }
@@ -77,37 +79,44 @@ export const usePDFGeneration = () => {
             }
           }
 
-          // Use effective quantity (with wastage) for calculations
-          const originalArea = parseFloat(item.area) || 0;
-          const unitPrice = parseFloat(item.price_per_box) || 0;
-
-          // Calculate boxes needed based on effective quantity
+          // Calculate tiles and boxes needed
+          let tilesNeeded = 0;
           let boxesNeeded = 0;
-          let boxPricing = '';
-          if (tile && tile.price_per_box && tile.pieces_per_box) {
-            // Calculate tile area in sq ft
+          let totalPrice = 0;
+
+          if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
+            // Convert tile dimensions to feet
             const tileLengthFt = (parseFloat(tile.size_length) || 0) / 304.8; // mm to ft
             const tileWidthFt = (parseFloat(tile.size_breadth) || 0) / 304.8; // mm to ft
             const tileAreaSqFt = tileLengthFt * tileWidthFt;
             
             if (tileAreaSqFt > 0) {
-              const tiles = Math.ceil(originalArea / tileAreaSqFt);
-              const tilesNeeded = Math.ceil(tiles * (1 + (wastagePercentage / 100)));
+              // Step 1: Calculate basic tiles needed for the area
+              const basicTilesNeeded = Math.ceil(areaInSqFt / tileAreaSqFt);
+              
+              // Step 2: Add wastage percentage to tiles
+              tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+              
+              // Step 3: Calculate boxes needed from total tiles
               boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
+              
+              // Step 4: Calculate total price
+              totalPrice = boxesNeeded * parseFloat(tile.price_per_box);
+              
               totalBoxes += boxesNeeded;
+              grandTotal += totalPrice;
             }
-            
-            boxPricing = `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>`;
           }
-          const totalPrice = totalBoxes * unitPrice;
-          grandTotal += totalPrice;
+
+          const boxPricing = tile?.price_per_box ? 
+            `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>` : '';
 
           return `
             <tr>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${room?.name || 'Unknown Room'}</strong><br/>
                 <small style="color: #666; font-size: 9px;">Dim: ${roomDetails}</small><br/>
-                <small style="color: #666; font-size: 9px;">Original: ${areaInSqFt}</small>
+                <small style="color: #666; font-size: 9px;">Area: ${formatArea(areaInSqFt)}</small>
               </td>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${tile?.name || 'Unknown Tile'}</strong><br/>
@@ -116,17 +125,17 @@ export const usePDFGeneration = () => {
                 ${boxPricing}
               </td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
-                ${originalArea.toFixed(2)} sq ft
+                ${tilesNeeded || 'N/A'}<br/>
+                <small style="color: #666; font-size: 9px;">+${wastagePercentage}% wastage</small>
               </td>
               <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${boxesNeeded || 'N/A'}</td>
-              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${tile?.pieces_per_box || 'N/A'}</td>
-              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${tile?.price_per_box ? parseFloat(tile.price_per_box).toLocaleString('en-IN') : 'N/A'}</td>
               <td style="text-align: right; font-weight: bold; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           `;
         }).join('');
       } else {
-        itemsRows = '<tr><td colspan="7" class="no-items">No items found in this quotation</td></tr>';
+        itemsRows = '<tr><td colspan="6" class="no-items">No items found in this quotation</td></tr>';
       }
 
       const pdfContent = `
@@ -244,10 +253,6 @@ export const usePDFGeneration = () => {
               border-left: 3px solid #ffc107; 
               border-radius: 3px; 
             }
-            .notes-section .section-title {
-              font-size: 12px;
-              margin-bottom: 5px;
-            }
             .footer { 
               margin-top: 20px; 
               text-align: center; 
@@ -256,15 +261,11 @@ export const usePDFGeneration = () => {
               border-top: 1px solid #ddd; 
               padding-top: 10px; 
             }
-            .footer p { 
-              margin: 4px 0; 
-            }
             .no-items {
               text-align: center; 
               padding: 20px; 
               color: #999; 
               font-style: italic;
-              font-size: 11px;
             }
           </style>
         </head>
@@ -288,18 +289,17 @@ export const usePDFGeneration = () => {
               <div class="info-row"><span class="label">Date:</span> ${new Date(quotation.created_at).toLocaleDateString()}</div>
               <div class="info-row"><span class="label">Status:</span> ${quotation.status.toUpperCase()}</div>
               <div class="info-row"><span class="label">Created by:</span> ${quotation.worker?.name || 'N/A'}</div>
-              ${wastagePercentage > 0 ? `<div class="info-row"><span class="label">Wastage:</span> ${wastagePercentage}%</div>` : ''}
+              <div class="info-row"><span class="label">Wastage:</span> ${wastagePercentage}%</div>
             </div>
           </div>
 
           <table class="items-table">
             <thead>
               <tr>
-                <th style="width: 20%;">Room Details</th>
+                <th style="width: 25%;">Room Details</th>
                 <th style="width: 25%;">Tile Details</th>
-                <th style="width: 12%; text-align: center;">Area</th>
-                <th style="width: 13%; text-align: right;">Boxes</th>
-                <th style="width: 10%; text-align: center;">Pieces/Box</th>
+                <th style="width: 15%; text-align: center;">Tiles Required</th>
+                <th style="width: 15%; text-align: center;">Boxes</th>
                 <th style="width: 10%; text-align: center;">Price/Box</th>
                 <th style="width: 15%; text-align: right;">Total Amount</th>
               </tr>

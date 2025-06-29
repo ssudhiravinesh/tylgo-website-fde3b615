@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -92,7 +91,9 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const handleDownloadPDF = (quotationId: string) => {
     const quotation = quotations.find(q => q.id === quotationId);
     if (quotation) {
-      generateQuotationPDF(quotation);
+      // Get wastage percentage from the most recent quotation item or use default
+      const wastagePercentage = 10; // You might want to store this in the quotation or get it from items
+      generateQuotationPDF(quotation, wastagePercentage);
     }
   };
 
