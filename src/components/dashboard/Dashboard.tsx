@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { CustomerList } from "@/components/customers/CustomerList";
 import { CustomerForm } from "@/components/customers/CustomerForm";
-import { TileCatalog } from "@/components/tiles/TileCatalog";
+import { TileManagement } from "@/components/tiles/TileManagement";
 import { QuotationList } from "@/components/quotations/QuotationList";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { CustomerRoomManagement } from "@/components/rooms/CustomerRoomManagement";
@@ -33,7 +32,6 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedCustomerForQuote, setSelectedCustomerForQuote] = useState<string | null>(null);
-  const [isTileCatalogOpen, setIsTileCatalogOpen] = useState(false);
 
   const handleNewQuote = (customerId: string) => {
     setSelectedCustomerForQuote(customerId);
@@ -48,11 +46,6 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const handleBackFromRooms = () => {
     setSelectedCustomerForQuote(null);
     setActiveView("customers");
-  };
-
-  const handleTileSelect = (tileId: string) => {
-    console.log('Tile selected:', tileId);
-    setIsTileCatalogOpen(false);
   };
 
   const renderContent = () => {
@@ -73,23 +66,7 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
           />
         ) : <div>Access denied</div>;
       case "tiles":
-        return user.role === "worker" ? (
-          <div>
-            <div className="mb-4">
-              <button 
-                onClick={() => setIsTileCatalogOpen(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Browse Tiles
-              </button>
-            </div>
-            <TileCatalog 
-              isOpen={isTileCatalogOpen}
-              onClose={() => setIsTileCatalogOpen(false)}
-              onTileSelect={handleTileSelect}
-            />
-          </div>
-        ) : <div>Access denied</div>;
+        return <TileManagement userRole={user.role} />;
       case "quotations":
         return <QuotationList userRole={user.role} />;
       case "admin":
