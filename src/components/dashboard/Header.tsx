@@ -97,7 +97,7 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
 
       <LogoutConfirmDialog
         isOpen={showLogoutDialog}
-        onClose={() => setShowLogoutDialog(false)}
+        onOpenChange={setShowLogoutDialog}
         onConfirm={onLogout}
       />
 
