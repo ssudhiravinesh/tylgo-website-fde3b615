@@ -54,7 +54,7 @@ export const TileCard = ({
         
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Badge variant="secondary" className="text-xs font-mono">
+            <Badge variant="secondary" className="h-2 text-xs font-mono">
               {tile.code}
             </Badge>
             {isSelected && (
