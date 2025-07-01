@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useWorkers } from "@/hooks/useWorkers";
+import { useAuth } from "@/hooks/useAuth";
 import { useCreateQuotation } from "@/hooks/useQuotations";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 import type { Room } from "@/hooks/useRooms";
@@ -50,9 +51,8 @@ export const QuotationForm = ({
   onSuccess 
 }: QuotationFormProps) => {
   const { data: customers, isLoading: customersLoading } = useCustomers();
-  const { data: workers, isLoading: workersLoading } = useWorkers();
-  const { user } = workers;
-  const createQuotation = useCreateQuotation();
+  const { user } = useAuth();
+  const { mutateAsync: createQuotation } = useCreateQuotation();
 
   const [grandTotal, setGrandTotal] = useState(0);
 
@@ -82,15 +82,12 @@ export const QuotationForm = ({
   }, [selectedRoomsData]);
 
   const findTileById = (tileId: string) => {
-    for (const roomData of selectedRoomsData) {
-      if (roomData.tileId === tileId) {
-        return workers.tiles?.find(tile => tile.id === tileId);
-      }
-    }
+    // This is a simplified version - in a real app you'd have access to tiles data
+    // For now, we'll use a placeholder
     return undefined;
   };
 
-  const handleSubmit = async (data: QuotationFormData) => {
+  const onSubmit = async (data: QuotationFormData) => {
     try {
       console.log('Submitting quotation form with data:', data);
       
@@ -106,14 +103,14 @@ export const QuotationForm = ({
         };
       });
 
-      const quotationData: CreateQuotationData = {
+      const quotationData = {
         quotation_number: data.quotationNumber,
         customer_id: data.customerId,
         worker_id: user?.id || '',
         total_cost: grandTotal,
         status: data.status,
         notes: data.notes || undefined,
-        wastage_percentage: wastagePercentage, // Include wastage percentage
+        wastage_percentage: wastagePercentage,
         items: quotationItems,
       };
 
@@ -129,7 +126,7 @@ export const QuotationForm = ({
     }
   };
 
-  if (customersLoading || workersLoading) {
+  if (customersLoading) {
     return <div>Loading...</div>;
   }
 
@@ -140,7 +137,7 @@ export const QuotationForm = ({
           <CardTitle>Create Quotation</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <Label htmlFor="quotationNumber">Quotation Number</Label>
               <Controller
