@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Percent } from "lucide-react";
+import { ArrowLeft, Percent, ArrowRight } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
+import { WallTileSelectionStep } from "./WallTileSelectionStep";
 import { TileSelectionCard } from "./TileSelectionCard";
 import { TileCalculationsCard } from "./TileCalculationsCard";
 import { toast } from "sonner";
@@ -42,6 +43,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const [selectedRoomForTile, setSelectedRoomForTile] = useState<string | null>(null);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [showQuotationForm, setShowQuotationForm] = useState(false);
+  const [showWallTileSelection, setShowWallTileSelection] = useState(false);
 
   useEffect(() => {
     // Initialize selections from database
@@ -249,6 +251,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     onBack();
   };
 
+  const handleBackFromWallTiles = () => {
+    setShowWallTileSelection(false);
+  };
+
   const prepareQuotationData = () => {
     const roomsData: Array<{
       roomId: string;
@@ -287,6 +293,16 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     );
   }
 
+  if (showWallTileSelection) {
+    return (
+      <WallTileSelectionStep
+        customerId={customerId}
+        rooms={rooms}
+        onBack={handleBackFromWallTiles}
+      />
+    );
+  }
+
   if (showQuotationForm) {
     return (
       <QuotationForm
@@ -306,10 +322,17 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           <ArrowLeft className="h-4 w-4" />
           Back to Rooms
         </Button>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Select Tiles for Rooms</h2>
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold text-gray-800">Select Floor Tiles for Rooms</h2>
           <p className="text-gray-600">Choose tiles from the catalog or scan QR codes for each room</p>
         </div>
+        <Button 
+          onClick={() => setShowWallTileSelection(true)}
+          className="gap-2"
+        >
+          Configure Wall Tiles
+          <ArrowRight className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
