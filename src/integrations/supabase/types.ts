@@ -145,6 +145,7 @@ export type Database = {
           status: string | null
           total_cost: number | null
           updated_at: string | null
+          wastage_percentage: number | null
           worker_id: string
         }
         Insert: {
@@ -156,6 +157,7 @@ export type Database = {
           status?: string | null
           total_cost?: number | null
           updated_at?: string | null
+          wastage_percentage?: number | null
           worker_id: string
         }
         Update: {
@@ -167,6 +169,7 @@ export type Database = {
           status?: string | null
           total_cost?: number | null
           updated_at?: string | null
+          wastage_percentage?: number | null
           worker_id?: string
         }
         Relationships: [

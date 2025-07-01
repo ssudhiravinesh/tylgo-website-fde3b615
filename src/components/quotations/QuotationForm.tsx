@@ -12,10 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useAuth } from "@/hooks/useAuth";
-import { useCreateQuotation } from "@/hooks/useQuotations";
-import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
-import type { Room } from "@/hooks/useRooms";
-import type { Tile } from "@/hooks/useTiles";
+import { useCreateQuotation, type CreateQuotationData } from "@/hooks/useQuotations";
 
 interface QuotationFormProps {
   preSelectedCustomerId?: string;
@@ -72,38 +69,26 @@ export const QuotationForm = ({
     // Calculate grand total based on selected rooms data
     let total = 0;
     selectedRoomsData.forEach(roomData => {
-      const tileId = roomData.tileId;
-      const tile = findTileById(tileId);
-      if (tile) {
-        total += (roomData.quantity * (1 + (roomData.wastagePercentage / 100))) * (tile.price_per_box || 0);
-      }
+      const tilePrice = 100; // Placeholder price - in real app this would come from tile data
+      total += (roomData.quantity * (1 + (roomData.wastagePercentage / 100))) * tilePrice;
     });
     setGrandTotal(total);
   }, [selectedRoomsData]);
-
-  const findTileById = (tileId: string) => {
-    // This is a simplified version - in a real app you'd have access to tiles data
-    // For now, we'll use a placeholder
-    return undefined;
-  };
 
   const onSubmit = async (data: QuotationFormData) => {
     try {
       console.log('Submitting quotation form with data:', data);
       
       // Prepare quotation items
-      const quotationItems = selectedRoomsData.map(roomData => {
-        const tile = findTileById(roomData.tileId);
-        return {
-          tile_id: roomData.tileId,
-          room_id: roomData.roomId,
-          area: roomData.quantity,
-          price_per_box: tile?.price_per_box || 0,
-          total_price: (roomData.quantity * (1 + (roomData.wastagePercentage / 100))) * (tile?.price_per_box || 0),
-        };
-      });
+      const quotationItems = selectedRoomsData.map(roomData => ({
+        tile_id: roomData.tileId,
+        room_id: roomData.roomId,
+        area: roomData.quantity,
+        price_per_box: 100, // Placeholder price
+        total_price: (roomData.quantity * (1 + (roomData.wastagePercentage / 100))) * 100,
+      }));
 
-      const quotationData = {
+      const quotationData: CreateQuotationData = {
         quotation_number: data.quotationNumber,
         customer_id: data.customerId,
         worker_id: user?.id || '',

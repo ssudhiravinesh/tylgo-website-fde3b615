@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, FileText, Calendar, IndianRupee, User, Plus } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
-import { QuotationForm } from "./QuotationForm";
 import { QuotationDetails } from "./QuotationDetails";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
 import { EditQuotationDialog } from "./EditQuotationDialog";
@@ -129,7 +128,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   };
 
   if (viewMode === "create") {
-    // For now, we'll show a message that creation needs to be done from the rooms page
+    // Show a message that creation needs to be done from the rooms page
     return (
       <div className="container max-w-4xl mx-auto py-10">
         <Card>
