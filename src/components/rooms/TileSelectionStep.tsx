@@ -235,6 +235,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       toast.error("Please select tiles for at least one room before generating quotation");
       return;
     }
+    // Save the current wastage percentage and tile selections to pass to quotation form
     setShowQuotationForm(true);
   };
 

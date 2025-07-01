@@ -22,7 +22,7 @@ interface QuotationFormProps {
     quantity: number;
     wastagePercentage: number;
   }>;
-  wastagePercentage?: number;
+  wastagePercentage: number; // Now required, passed from TileSelectionStep
   onBack?: () => void;
   onSuccess?: () => void;
 }
@@ -43,7 +43,7 @@ type QuotationFormData = z.infer<typeof quotationFormSchema>;
 export const QuotationForm = ({ 
   preSelectedCustomerId, 
   selectedRoomsData, 
-  wastagePercentage = 10,
+  wastagePercentage, // Use the passed wastage percentage
   onBack, 
   onSuccess 
 }: QuotationFormProps) => {
@@ -66,26 +66,27 @@ export const QuotationForm = ({
   });
 
   useEffect(() => {
-    // Calculate grand total based on selected rooms data
+    // Calculate grand total based on selected rooms data using the passed wastage percentage
     let total = 0;
     selectedRoomsData.forEach(roomData => {
       const tilePrice = 100; // Placeholder price - in real app this would come from tile data
-      total += (roomData.quantity * (1 + (roomData.wastagePercentage / 100))) * tilePrice;
+      total += (roomData.quantity * (1 + (wastagePercentage / 100))) * tilePrice;
     });
     setGrandTotal(total);
-  }, [selectedRoomsData]);
+  }, [selectedRoomsData, wastagePercentage]);
 
   const onSubmit = async (data: QuotationFormData) => {
     try {
       console.log('Submitting quotation form with data:', data);
+      console.log('Using wastage percentage:', wastagePercentage);
       
-      // Prepare quotation items
+      // Prepare quotation items using the passed wastage percentage
       const quotationItems = selectedRoomsData.map(roomData => ({
         tile_id: roomData.tileId,
         room_id: roomData.roomId,
         area: roomData.quantity,
         price_per_box: 100, // Placeholder price
-        total_price: (roomData.quantity * (1 + (roomData.wastagePercentage / 100))) * 100,
+        total_price: (roomData.quantity * (1 + (wastagePercentage / 100))) * 100,
       }));
 
       const quotationData: CreateQuotationData = {
@@ -95,7 +96,7 @@ export const QuotationForm = ({
         total_cost: grandTotal,
         status: data.status,
         notes: data.notes || undefined,
-        wastage_percentage: wastagePercentage,
+        wastage_percentage: wastagePercentage, // Store the selected wastage percentage
         items: quotationItems,
       };
 
@@ -198,9 +199,22 @@ export const QuotationForm = ({
               )}
             </div>
 
+            {/* Display the selected wastage percentage (read-only) */}
+            <div className="bg-blue-50 p-4 rounded-lg border">
+              <Label className="text-sm font-medium text-blue-700">
+                Wastage Percentage Applied: {wastagePercentage}%
+              </Label>
+              <p className="text-xs text-blue-600 mt-1">
+                This percentage was selected in the tile selection step and will be included in all calculations.
+              </p>
+            </div>
+
             <div>
               <Label>Total Cost</Label>
               <div className="font-bold text-2xl">₹{grandTotal.toLocaleString()}</div>
+              <p className="text-xs text-gray-500 mt-1">
+                Includes {wastagePercentage}% wastage allowance
+              </p>
             </div>
 
             <div className="flex justify-between">

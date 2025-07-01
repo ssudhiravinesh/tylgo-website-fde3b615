@@ -5,12 +5,12 @@ import type { Quotation } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
 
 export const usePDFGeneration = () => {
-  const generateQuotationPDF = useCallback(async (quotation: Quotation, wastagePercentage?: number) => {
+  const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     try {
-      // Use the quotation's stored wastage percentage or the provided one, defaulting to 10%
-      const finalWastagePercentage = wastagePercentage ?? quotation.wastage_percentage ?? 10;
+      // Use the quotation's stored wastage percentage, defaulting to 10% if not set
+      const wastagePercentage = quotation.wastage_percentage ?? 10;
       
-      console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', finalWastagePercentage);
+      console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
       
       // Fetch quotation items using Supabase client
       const { data: quotationItems, error } = await supabase
@@ -69,7 +69,7 @@ export const usePDFGeneration = () => {
           tileCalculations[tileId].totalArea += roomAreaInSqFt;
         });
 
-        // Calculate tiles, boxes, and pricing for each tile (matching TileCalculationsCard logic)
+        // Calculate tiles, boxes, and pricing for each tile using the stored wastage percentage
         Object.values(tileCalculations).forEach(calc => {
           const tile = calc.tile;
           
@@ -83,8 +83,8 @@ export const usePDFGeneration = () => {
               // Step 1: Calculate basic tiles needed for the area
               const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
               
-              // Step 2: Add wastage percentage to tiles
-              calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (finalWastagePercentage / 100)));
+              // Step 2: Add wastage percentage to tiles (using stored percentage)
+              calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
               
               // Step 3: Calculate boxes needed from total tiles
               calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
@@ -96,7 +96,7 @@ export const usePDFGeneration = () => {
         });
       }
 
-      // Generate items rows for the table
+      // generate items rows, PDF content with updated wastage percentage display
       let itemsRows = '';
       let totalBoxes = 0;
       let grandTotal = 0;
@@ -149,7 +149,7 @@ export const usePDFGeneration = () => {
               </td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 ${calc.tilesNeeded || 'N/A'}<br/>
-                <small style="color: #666; font-size: 9px;">+${finalWastagePercentage}% wastage</small>
+                <small style="color: #666; font-size: 9px;">+${wastagePercentage}% wastage</small>
               </td>
               <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${calc.boxesNeeded || 'N/A'}</td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${tile?.price_per_box ? parseFloat(tile.price_per_box).toLocaleString('en-IN') : 'N/A'}</td>
@@ -312,7 +312,7 @@ export const usePDFGeneration = () => {
               <div class="info-row"><span class="label">Date:</span> ${new Date(quotation.created_at).toLocaleDateString()}</div>
               <div class="info-row"><span class="label">Status:</span> ${quotation.status.toUpperCase()}</div>
               <div class="info-row"><span class="label">Created by:</span> ${quotation.worker?.name || 'N/A'}</div>
-              <div class="info-row"><span class="label">Wastage:</span> ${finalWastagePercentage}%</div>
+              <div class="info-row"><span class="label">Wastage:</span> ${wastagePercentage}%</div>
             </div>
           </div>
 
@@ -351,7 +351,7 @@ export const usePDFGeneration = () => {
           <div class="footer">
             <p><strong>Thank you for choosing Tile Solutions!</strong></p>
             <p>This quotation is valid for 30 days from the date of issue.</p>
-            <p><strong>Note:</strong> All tile quantities include a ${finalWastagePercentage}% wastage allowance.</p>
+            <p><strong>Note:</strong> All tile quantities include a ${wastagePercentage}% wastage allowance.</p>
             <p>All calculations are based on square feet measurements for accuracy.</p>
           </div>
         </body>
