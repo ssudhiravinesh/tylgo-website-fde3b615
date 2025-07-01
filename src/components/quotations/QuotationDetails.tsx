@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +70,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   // Calculate tile requirements grouped by tile (same logic as TileCalculationsCard)
   const calculateTileRequirements = (): { calculations: TileCalculation[]; wastagePercentage: number } => {
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
-    let wastagePercentage = 10; // Default
+    let wastagePercentage = quotation.wastage_percentage || 10; // Use stored wastage percentage
 
     if (quotation.quotation_items && quotation.quotation_items.length > 0) {
       quotation.quotation_items.forEach((item) => {
@@ -136,7 +135,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
 
   const handleDownloadPDF = () => {
-    generateQuotationPDF(quotation, wastagePercentage);
+    generateQuotationPDF(quotation);
   };
 
   return (
