@@ -1,401 +1,231 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FileText, User, Phone, MapPin } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useRoomsByCustomer } from "@/hooks/useRooms";
-import { useTiles } from "@/hooks/useTiles";
-import { useQuotations } from "@/hooks/useQuotations";
-import { MobileNumberSearch } from "@/components/customers/MobileNumberSearch";
-import { toast } from "sonner";
+import { useWorkers } from "@/hooks/useWorkers";
+import { useCreateQuotation } from "@/hooks/useQuotations";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
-import { supabase } from "@/integrations/supabase/client";
-import type { Quotation } from "@/hooks/useQuotations";
+import type { Room } from "@/hooks/useRooms";
+import type { Tile } from "@/hooks/useTiles";
 
 interface QuotationFormProps {
-  onBack: () => void;
   preSelectedCustomerId?: string;
-  selectedRoomsData?: Array<{
+  selectedRoomsData: Array<{
     roomId: string;
     tileId: string;
     quantity: number;
     wastagePercentage: number;
   }>;
   wastagePercentage?: number;
+  onBack?: () => void;
   onSuccess?: () => void;
-  editMode?: boolean;
-  existingQuotation?: Quotation;
 }
 
+const quotationFormSchema = z.object({
+  quotationNumber: z.string().min(3, {
+    message: "Quotation number must be at least 3 characters.",
+  }),
+  customerId: z.string().uuid({
+    message: "Please select a valid customer.",
+  }),
+  status: z.enum(["draft", "approved"]),
+  notes: z.string().optional(),
+});
+
+type QuotationFormData = z.infer<typeof quotationFormSchema>;
+
 export const QuotationForm = ({ 
-  onBack, 
   preSelectedCustomerId, 
-  selectedRoomsData = [],
+  selectedRoomsData, 
   wastagePercentage = 10,
-  onSuccess,
-  editMode = false,
-  existingQuotation
+  onBack, 
+  onSuccess 
 }: QuotationFormProps) => {
-  const [formData, setFormData] = useState({
-    customer_id: preSelectedCustomerId || existingQuotation?.customer_id || "",
-    notes: existingQuotation?.notes || "",
-    status: (existingQuotation?.status as "draft" | "approved") || "draft"
+  const { data: customers, isLoading: customersLoading } = useCustomers();
+  const { data: workers, isLoading: workersLoading } = useWorkers();
+  const { user } = workers;
+  const createQuotation = useCreateQuotation();
+
+  const [grandTotal, setGrandTotal] = useState(0);
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<QuotationFormData>({
+    resolver: zodResolver(quotationFormSchema),
+    defaultValues: {
+      customerId: preSelectedCustomerId,
+      status: "draft",
+    },
   });
 
-  const [quotationItems, setQuotationItems] = useState<Array<{
-    roomId: string;
-    tileId: string;
-    area: number;
-    pricePerBox: number;
-    wastagePercentage?: number;
-  }>>([]);
-
-  const [currentUser, setCurrentUser] = useState<any>(null);
-
-  const { data: customers = [] } = useCustomers();
-  const { data: rooms = [] } = useRoomsByCustomer(formData.customer_id);
-  const { data: tiles = [] } = useTiles();
-  const { createQuotation, updateQuotation, isCreating, isUpdating } = useQuotations();
-
-  // Get current user on component mount
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-    };
-    getCurrentUser();
-  }, []);
+    // Calculate grand total based on selected rooms data
+    let total = 0;
+    selectedRoomsData.forEach(roomData => {
+      const tileId = roomData.tileId;
+      const tile = findTileById(tileId);
+      if (tile) {
+        total += (roomData.quantity * (1 + (roomData.wastagePercentage / 100))) * (tile.price_per_box || 0);
+      }
+    });
+    setGrandTotal(total);
+  }, [selectedRoomsData]);
 
-  // Load existing quotation items if in edit mode
-  useEffect(() => {
-    if (editMode && existingQuotation) {
-      // Load quotation items - this would need to be implemented
-      // For now, we'll initialize with empty items
-      setQuotationItems([]);
-    } else if (selectedRoomsData.length > 0) {
-      const items = selectedRoomsData.map(item => {
-        const tile = tiles.find(t => t.id === item.tileId);
+  const findTileById = (tileId: string) => {
+    for (const roomData of selectedRoomsData) {
+      if (roomData.tileId === tileId) {
+        return workers.tiles?.find(tile => tile.id === tileId);
+      }
+    }
+    return undefined;
+  };
+
+  const handleSubmit = async (data: QuotationFormData) => {
+    try {
+      console.log('Submitting quotation form with data:', data);
+      
+      // Prepare quotation items
+      const quotationItems = selectedRoomsData.map(roomData => {
+        const tile = findTileById(roomData.tileId);
         return {
-          roomId: item.roomId,
-          tileId: item.tileId,
-          area: item.quantity, // Save area as-is without adding wastage
-          pricePerBox: tile?.price_per_box || 0,
-          wastagePercentage: item.wastagePercentage
+          tile_id: roomData.tileId,
+          room_id: roomData.roomId,
+          area: roomData.quantity,
+          price_per_box: tile?.price_per_box || 0,
+          total_price: (roomData.quantity * (1 + (roomData.wastagePercentage / 100))) * (tile?.price_per_box || 0),
         };
       });
-      setQuotationItems(items);
-    }
-  }, [selectedRoomsData, tiles, editMode, existingQuotation]);
 
-  const [customerDetails, setCustomerDetails] = useState({
-    name: "",
-    mobile: "",
-    address: ""
-  });
-
-  useEffect(() => {
-    if (formData.customer_id) {
-      const selectedCustomer = customers.find(c => c.id === formData.customer_id);
-      if (selectedCustomer) {
-        setCustomerDetails({
-          name: selectedCustomer.name,
-          mobile: selectedCustomer.mobile,
-          address: selectedCustomer.address || ""
-        });
-      } else {
-        setCustomerDetails({ name: "", mobile: "", address: "" });
-      }
-    } else {
-      setCustomerDetails({ name: "", mobile: "", address: "" });
-    }
-  }, [formData.customer_id, customers]);
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleCustomerSelect = (customerId: string) => {
-    setFormData(prev => ({ ...prev, customer_id: customerId }));
-  };
-
-  const handleAddItem = () => {
-    setQuotationItems(prev => [...prev, { roomId: "", tileId: "", area: 0, pricePerBox: 0 }]);
-  };
-
-  const handleItemChange = (index: number, field: string, value: any) => {
-    const updatedItems = [...quotationItems];
-    updatedItems[index][field] = value;
-    setQuotationItems(updatedItems);
-  };
-
-  const handleRemoveItem = (index: number) => {
-    const updatedItems = [...quotationItems];
-    updatedItems.splice(index, 1);
-    setQuotationItems(updatedItems);
-  };
-
-  const calculateTotalCost = () => {
-    return quotationItems.reduce((sum, item) => {
-      const tile = tiles.find(t => t.id === item.tileId);
-      if (!tile || !tile.size_length || !tile.size_breadth || !tile.pieces_per_box || !tile.price_per_box) {
-        return sum;
-      }
-
-      // Calculate tile area in square feet
-      const tileLengthFt = tile.size_length / 304.8; // mm to ft
-      const tileBreadthFt = tile.size_breadth / 304.8; // mm to ft
-      const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-
-      if (tileAreaSqFt > 0) {
-        // Step 1: Calculate basic tiles needed
-        const basicTilesNeeded = Math.ceil(item.area / tileAreaSqFt);
-        
-        // Step 2: Add wastage percentage to tiles
-        const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-        
-        // Step 3: Calculate boxes needed
-        const boxesNeeded = Math.ceil(tilesWithWastage / tile.pieces_per_box);
-        
-        // Step 4: Calculate price
-        return sum + (boxesNeeded * tile.price_per_box);
-      }
-      
-      return sum;
-    }, 0);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.customer_id) {
-      toast.error("Please select a customer");
-      return;
-    }
-
-    // In edit mode, we only update the status and notes
-    if (editMode && existingQuotation) {
-      if (!currentUser) {
-        toast.error("User not authenticated");
-        return;
-      }
-
-      try {
-        await updateQuotation({
-          id: existingQuotation.id,
-          status: formData.status,
-          notes: formData.notes
-        });
-        
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          onBack();
-        }
-      } catch (error) {
-        console.error("Error updating quotation:", error);
-      }
-      return;
-    }
-
-    // For create mode, we need items
-    if (quotationItems.length === 0) {
-      toast.error("Please add at least one item to the quotation");
-      return;
-    }
-
-    if (!currentUser) {
-      toast.error("User not authenticated");
-      return;
-    }
-
-    try {
-      const totalCost = calculateTotalCost();
-      
-      // Generate quotation number (simple implementation)
-      const quotationNumber = `QUO-${Date.now()}`;
-      
-      const items = quotationItems.map(item => ({
-        tile_id: item.tileId,
-        room_id: item.roomId,
-        area: item.area,
-        price_per_box: item.pricePerBox,
-        total_price: item.area * item.pricePerBox
-      }));
-
-      const quotationData = {
-        quotation_number: quotationNumber,
-        customer_id: formData.customer_id,
-        worker_id: currentUser.id,
-        total_cost: totalCost,
-        notes: formData.notes,
-        status: formData.status,
-        items
+      const quotationData: CreateQuotationData = {
+        quotation_number: data.quotationNumber,
+        customer_id: data.customerId,
+        worker_id: user?.id || '',
+        total_cost: grandTotal,
+        status: data.status,
+        notes: data.notes || undefined,
+        wastage_percentage: wastagePercentage, // Include wastage percentage
+        items: quotationItems,
       };
 
+      console.log('Creating quotation with data:', quotationData);
+
       await createQuotation(quotationData);
-      
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        onBack();
-      }
+
+      toast.success('Quotation created successfully!');
+      onSuccess?.();
     } catch (error) {
-      console.error("Error saving quotation:", error);
+      console.error('Error creating quotation:', error);
+      toast.error('Failed to create quotation. Please try again.');
     }
   };
 
+  if (customersLoading || workersLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onBack}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {editMode ? `Edit Quotation ${existingQuotation?.quotation_number}` : "Create Quotation"}
-          </h1>
-          <p className="text-gray-600">
-            {editMode ? "Update quotation status" : "Enter quotation details to generate a new record"}
-          </p>
-        </div>
-      </div>
-
-      <Card className="border-gray-200 shadow-sm">
+    <div className="container max-w-4xl mx-auto py-10">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-blue-600" />
-            Quotation Information
-          </CardTitle>
+          <CardTitle>Create Quotation</CardTitle>
         </CardHeader>
-        
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {!editMode && (
-              <div className="space-y-2">
-                <Label htmlFor="customer_id" className="text-sm font-medium text-gray-700">
-                  Customer *
-                </Label>
-                <MobileNumberSearch
-                  value={customerDetails.mobile}
-                  onChange={(value) => setCustomerDetails(prev => ({ ...prev, mobile: value }))}
-                  onCustomerFound={(customer) => {
-                    if (customer) {
-                      handleCustomerSelect(customer.id);
-                      setCustomerDetails({
-                        name: customer.name,
-                        mobile: customer.mobile,
-                        address: customer.address || ""
-                      });
-                    } else {
-                      handleCustomerSelect("");
-                      setCustomerDetails({ name: "", mobile: "", address: "" });
-                    }
-                  }}
-                  placeholder="Enter customer mobile number"
-                  searchType="customer"
-                />
-                {customerDetails.name && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-100">
-                    <p className="text-sm font-medium text-gray-800">
-                      {customerDetails.name}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {customerDetails.address || "No address available"}
-                    </p>
-                  </div>
+          <form onSubmit={handleSubmit(handleSubmit)} className="space-y-4">
+            <div>
+              <Label htmlFor="quotationNumber">Quotation Number</Label>
+              <Controller
+                control={control}
+                name="quotationNumber"
+                render={({ field }) => (
+                  <Input id="quotationNumber" placeholder="Enter quotation number" {...field} />
                 )}
-              </div>
-            )}
-
-            {editMode && existingQuotation && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Customer</Label>
-                <div className="p-3 bg-gray-50 rounded-md border border-gray-100">
-                  <p className="text-sm font-medium text-gray-800">
-                    {existingQuotation.customer?.name}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {existingQuotation.customer?.mobile}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {!editMode && (
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Enter any additional notes for the quotation"
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange("notes", e.target.value)}
-                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-sm font-medium text-gray-700">
-                Status
-              </Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: "draft" | "approved") => handleInputChange("status", value)}
-              >
-                <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                </SelectContent>
-              </Select>
+              />
+              {errors.quotationNumber && (
+                <p className="text-red-500 text-sm">{errors.quotationNumber.message}</p>
+              )}
             </div>
 
-            {editMode && (
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Enter any additional notes for the quotation"
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange("notes", e.target.value)}
-                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            )}
+            <div>
+              <Label htmlFor="customerId">Customer</Label>
+              <Controller
+                control={control}
+                name="customerId"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers?.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.customerId && (
+                <p className="text-red-500 text-sm">{errors.customerId.message}</p>
+              )}
+            </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onBack}
-                className="flex-1"
-              >
-                Cancel
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Controller
+                control={control}
+                name="status"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.status && (
+                <p className="text-red-500 text-sm">{errors.status.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="notes">Notes</Label>
+              <Controller
+                control={control}
+                name="notes"
+                render={({ field }) => (
+                  <Textarea id="notes" placeholder="Enter any notes" {...field} />
+                )}
+              />
+              {errors.notes && (
+                <p className="text-red-500 text-sm">{errors.notes.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label>Total Cost</Label>
+              <div className="font-bold text-2xl">₹{grandTotal.toLocaleString()}</div>
+            </div>
+
+            <div className="flex justify-between">
+              <Button type="button" variant="outline" onClick={onBack}>
+                Back
               </Button>
-              <Button
-                type="submit"
-                disabled={isCreating || isUpdating}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
-                {editMode ? (isUpdating ? "Updating..." : "Update Quotation") : (isCreating ? "Creating..." : "Create Quotation")}
-              </Button>
+              <Button type="submit">Create Quotation</Button>
             </div>
           </form>
         </CardContent>

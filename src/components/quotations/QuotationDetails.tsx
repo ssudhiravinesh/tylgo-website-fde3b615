@@ -1,7 +1,8 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
 import { usePDFGeneration } from "@/hooks/usePDFGeneration";
 import type { Quotation } from "@/hooks/useQuotations";
@@ -9,6 +10,29 @@ import type { Quotation } from "@/hooks/useQuotations";
 interface QuotationDetailsProps {
   quotation: Quotation;
   onBack: () => void;
+}
+
+interface TileCalculation {
+  tile: {
+    id: string;
+    name: string;
+    code: string;
+    price_per_box?: number;
+    pieces_per_box?: number;
+    size_length: number;
+    size_breadth: number;
+  };
+  rooms: Array<{
+    id: string;
+    name: string;
+    length: number;
+    width: number;
+    unit: string;
+  }>;
+  totalArea: number;
+  tilesNeeded: number;
+  boxesNeeded: number;
+  totalPrice: number;
 }
 
 export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) => {
@@ -44,49 +68,75 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
     }
   };
 
-  const calculateItemDetails = (item: any) => {
-    const room = item.room;
-    const tile = item.tile;
-    
-    if (!room || !tile) return null;
+  // Calculate tile requirements grouped by tile (same logic as TileCalculationsCard)
+  const calculateTileRequirements = (): { calculations: TileCalculation[]; wastagePercentage: number } => {
+    const tileCalculations: { [tileId: string]: TileCalculation } = {};
+    let wastagePercentage = 10; // Default
 
-    // Calculate area in square feet
-    const areaInSqFt = room.length && room.width && room.unit 
-      ? calculateAreaInSquareFeet(room.length, room.width, room.unit as Unit)
-      : parseFloat(item.area) || 0;
-
-    // Calculate tiles and boxes needed (assuming 10% wastage)
-    const wastagePercentage = 10;
-    let tilesNeeded = 0;
-    let boxesNeeded = 0;
-
-    if (tile.size_length && tile.size_breadth && tile.pieces_per_box) {
-      // Convert tile dimensions to feet
-      const tileLengthFt = tile.size_length / 304.8; // mm to ft
-      const tileWidthFt = tile.size_breadth / 304.8; // mm to ft
-      const tileAreaSqFt = tileLengthFt * tileWidthFt;
-      
-      if (tileAreaSqFt > 0) {
-        // Calculate basic tiles needed for the area
-        const basicTilesNeeded = Math.ceil(areaInSqFt / tileAreaSqFt);
+    if (quotation.quotation_items && quotation.quotation_items.length > 0) {
+      quotation.quotation_items.forEach((item) => {
+        const tileId = item.tile_id;
+        const room = item.room;
+        const tile = item.tile;
         
-        // Add wastage percentage to tiles
-        tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        if (!tileCalculations[tileId] && tile) {
+          tileCalculations[tileId] = {
+            tile,
+            rooms: [],
+            totalArea: 0,
+            tilesNeeded: 0,
+            boxesNeeded: 0,
+            totalPrice: 0
+          };
+        }
+
+        if (room && tileCalculations[tileId]) {
+          // Use the stored area from the quotation item (original area without wastage)
+          const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
+          
+          tileCalculations[tileId].rooms.push(room);
+          tileCalculations[tileId].totalArea += roomAreaInSqFt;
+        }
+      });
+
+      // Calculate tiles, boxes, and pricing for each tile (matching TileCalculationsCard logic)
+      Object.values(tileCalculations).forEach(calc => {
+        const tile = calc.tile;
         
-        // Calculate boxes needed from total tiles
-        boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
-      }
+        if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
+          // Calculate tile area in square feet (exactly as in TileCalculationsCard)
+          const tileLengthFt = (parseFloat(tile.size_length.toString()) || 0) / 304.8; // mm to ft
+          const tileBreadthFt = (parseFloat(tile.size_breadth.toString()) || 0) / 304.8; // mm to ft
+          const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+          
+          if (tileAreaSqFt > 0) {
+            // Step 1: Calculate basic tiles needed for the area
+            const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+            
+            // Step 2: Add wastage percentage to tiles
+            calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+            
+            // Step 3: Calculate boxes needed from total tiles
+            calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
+            
+            // Step 4: Calculate total price
+            calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
+          }
+        }
+      });
     }
 
     return {
-      areaInSqFt,
-      tilesNeeded,
-      boxesNeeded,
+      calculations: Object.values(tileCalculations),
+      wastagePercentage
     };
   };
 
+  const { calculations, wastagePercentage } = calculateTileRequirements();
+  const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
+
   const handleDownloadPDF = () => {
-    generateQuotationPDF(quotation, 10); // Default 10% wastage
+    generateQuotationPDF(quotation, wastagePercentage);
   };
 
   return (
@@ -180,7 +230,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                 <div className="flex items-center gap-2">
                   <IndianRupee className="h-4 w-4 text-gray-500" />
                   <span className="font-bold text-lg text-green-600">
-                    Total: ₹{(quotation.total_cost || 0).toLocaleString()}
+                    Total: ₹{grandTotal > 0 ? grandTotal.toLocaleString() : (quotation.total_cost || 0).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -196,111 +246,83 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         </CardContent>
       </Card>
 
-      {/* Quotation Items */}
+      {/* Tile Calculations */}
       <Card className="border-gray-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-800">
-            Quotation Items
+          <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <Calculator className="h-5 w-5 text-blue-600" />
+            Tile Calculations ({wastagePercentage}% wastage included)
           </CardTitle>
         </CardHeader>
         
         <CardContent>
-          {quotation.quotation_items && quotation.quotation_items.length > 0 ? (
+          {calculations.length > 0 ? (
             <div className="space-y-4">
-              {quotation.quotation_items.map((item, index) => {
-                const details = calculateItemDetails(item);
-                
-                return (
-                  <div key={item.id || index} className="border rounded-lg p-4 bg-gray-50">
-                    <div className="grid md:grid-cols-2 gap-6">
-                      {/* Room Details */}
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-blue-600" />
-                          Room: {item.room?.name || 'Unknown Room'}
-                        </h4>
-                        <div className="space-y-2 pl-6">
-                          {item.room && (
-                            <>
-                              <div className="text-sm">
-                                <span className="text-gray-600">Dimensions: </span>
-                                <span className="font-medium">
-                                  {formatDimensions(item.room.length, item.room.width, item.room.unit as Unit)}
-                                </span>
-                              </div>
-                              <div className="text-sm">
-                                <span className="text-gray-600">Area: </span>
-                                <span className="font-medium">
-                                  {formatArea(details?.areaInSqFt || 0)}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Tile Details */}
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-blue-600" />
-                          Tile: {item.tile?.name || 'Unknown Tile'}
-                        </h4>
-                        <div className="space-y-2 pl-6">
-                          {item.tile && (
-                            <>
-                              <div className="text-sm">
-                                <span className="text-gray-600">Code: </span>
-                                <Badge variant="secondary" className="text-xs">
-                                  {item.tile.code}
-                                </Badge>
-                              </div>
-                              <div className="text-sm">
-                                <span className="text-gray-600">Size: </span>
-                                <span className="font-medium">
-                                  {formatTileSize(item.tile.size_length, item.tile.size_breadth)}
-                                </span>
-                              </div>
-                              <div className="text-sm">
-                                <span className="text-gray-600">Price per box: </span>
-                                <span className="font-medium text-green-600">
-                                  ₹{(item.tile.price_per_box || 0).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="text-sm">
-                                <span className="text-gray-600">Pieces per box: </span>
-                                <span className="font-medium">{item.tile.pieces_per_box || 'N/A'}</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
+              {calculations.map((calc) => (
+                <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold text-gray-800">{calc.tile.name}</h4>
+                      <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
+                      <p className="text-xs text-gray-500">
+                        Rooms: {calc.rooms.map(r => r.name).join(', ')}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <p className="text-gray-600">Total Area</p>
+                        <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
                       </div>
                     </div>
-
-                    {/* Calculation Summary */}
-                    {details && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="grid grid-cols-3 gap-4 text-center">
-                          <div>
-                            <div className="text-sm text-gray-600">Tiles Required</div>
-                            <div className="font-semibold text-lg">{details.tilesNeeded}</div>
-                            <div className="text-xs text-gray-500">+10% wastage</div>
-                          </div>
-                          <div>
-                            <div className="text-sm text-gray-600">Boxes Needed</div>
-                            <div className="font-semibold text-lg">{details.boxesNeeded}</div>
-                          </div>
-                          <div>
-                            <div className="text-sm text-gray-600">Item Total</div>
-                            <div className="font-bold text-lg text-green-600">
-                              ₹{(details.boxesNeeded * (item.tile?.price_per_box || 0)).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Calculator className="h-4 w-4 text-green-600" />
+                      <div>
+                        <p className="text-gray-600">Tiles Required</p>
+                        <p className="font-medium text-green-600">
+                          {calc.tilesNeeded} tiles
+                          <span className="text-xs text-gray-500 block">
+                            (+{wastagePercentage}% wastage)
+                          </span>
+                        </p>
                       </div>
-                    )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-blue-600" />
+                      <div>
+                        <p className="text-gray-600">Boxes Needed</p>
+                        <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <IndianRupee className="h-4 w-4 text-purple-600" />
+                      <div>
+                        <p className="text-gray-600">Total Cost</p>
+                        <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
+              
+              <div className="border-t pt-4 mt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold text-gray-800">Grand Total:</span>
+                  <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  All calculations include {wastagePercentage}% wastage allowance
+                </p>
+              </div>
             </div>
           ) : (
             <div className="text-center py-8">
