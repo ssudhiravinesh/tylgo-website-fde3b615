@@ -8,7 +8,7 @@ import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSele
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
-import { WallTileSelectionStep } from "./WallTileSelectionStep";
+import { WallTileConfigurationStep } from "./WallTileConfigurationStep";
 import { TileSelectionCard } from "./TileSelectionCard";
 import { TileCalculationsCard } from "./TileCalculationsCard";
 import { toast } from "sonner";
@@ -43,8 +43,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const [selectedRoomForTile, setSelectedRoomForTile] = useState<string | null>(null);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [showQuotationForm, setShowQuotationForm] = useState(false);
-  const [showWallTileSelection, setShowWallTileSelection] = useState(false);
-  const [wallTileData, setWallTileData] = useState<any>(null);
+  const [showWallTileConfiguration, setShowWallTileConfiguration] = useState(false);
 
   useEffect(() => {
     // Initialize selections from database
@@ -251,10 +250,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     onBack();
   };
 
-  const handleBackFromWallTiles = () => {
-    setShowWallTileSelection(false);
-  };
-
   const prepareQuotationData = () => {
     const roomsData: Array<{
       roomId: string;
@@ -293,12 +288,12 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     );
   }
 
-  if (showWallTileSelection) {
+  if (showWallTileConfiguration) {
     return (
-      <WallTileSelectionStep
+      <WallTileConfigurationStep
         customerId={customerId}
         rooms={rooms}
-        onBack={handleBackFromWallTiles}
+        onBack={() => setShowWallTileConfiguration(false)}
       />
     );
   }
@@ -327,7 +322,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           <p className="text-gray-600">Choose tiles from the catalog or scan QR codes for each room</p>
         </div>
         <Button 
-          onClick={() => setShowWallTileSelection(true)}
+          onClick={() => setShowWallTileConfiguration(true)}
           className="gap-2"
         >
           Configure Wall Tiles
