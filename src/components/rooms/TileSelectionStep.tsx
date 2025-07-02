@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -204,50 +205,65 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       });
     });
 
-    // Wall tiles calculations
+    // Wall tiles calculations - using the same calculation logic as floor tiles
+    const wallTileGroups: { [tileId: string]: { data: WallTileData[], totalArea: number, layers: number[] } } = {};
+    
     wallTileData.forEach(wallTile => {
-      const tile = tiles.find(t => t.id === wallTile.tileId);
-      const room = rooms.find(r => r.id === wallTile.roomId);
-      if (!tile || !room) return;
-
-      const wallTileKey = `${wallTile.tileId}_wall`;
-      if (!tileCalculations[wallTileKey]) {
-        tileCalculations[wallTileKey] = {
-          tile,
-          rooms: [],
+      const tileId = wallTile.tileId;
+      if (!wallTileGroups[tileId]) {
+        wallTileGroups[tileId] = {
+          data: [],
           totalArea: 0,
-          tilesNeeded: 0,
-          boxesNeeded: 0,
-          totalPrice: 0,
-          isWallTile: true,
-          wallLayers: []
+          layers: []
         };
       }
-
-      if (!tileCalculations[wallTileKey].rooms.find(r => r.id === room.id)) {
-        tileCalculations[wallTileKey].rooms.push(room);
-      }
-      
-      tileCalculations[wallTileKey].totalArea += wallTile.quantity;
-      if (!tileCalculations[wallTileKey].wallLayers?.includes(wallTile.layerNumber)) {
-        tileCalculations[wallTileKey].wallLayers?.push(wallTile.layerNumber);
+      wallTileGroups[tileId].data.push(wallTile);
+      wallTileGroups[tileId].totalArea += wallTile.quantity;
+      if (!wallTileGroups[tileId].layers.includes(wallTile.layerNumber)) {
+        wallTileGroups[tileId].layers.push(wallTile.layerNumber);
       }
     });
 
-    // Calculate tiles, boxes, and pricing
+    Object.entries(wallTileGroups).forEach(([tileId, group]) => {
+      const tile = tiles.find(t => t.id === tileId);
+      if (!tile) return;
+
+      const wallTileKey = `${tileId}_wall`;
+      const roomIds = [...new Set(group.data.map(d => d.roomId))];
+      const wallRooms = rooms.filter(r => roomIds.includes(r.id));
+
+      tileCalculations[wallTileKey] = {
+        tile,
+        rooms: wallRooms,
+        totalArea: group.totalArea,
+        tilesNeeded: 0,
+        boxesNeeded: 0,
+        totalPrice: 0,
+        isWallTile: true,
+        wallLayers: group.layers
+      };
+    });
+
+    // Calculate tiles, boxes, and pricing using the same logic for both floor and wall tiles
     Object.values(tileCalculations).forEach(calc => {
       const tile = calc.tile;
       
       if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
+        // Convert tile dimensions from mm to feet
         const tileLengthFt = (tile.size_length || 0) / 304.8;
         const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
         const tileAreaSqFt = tileLengthFt * tileBreadthFt;
         
         if (tileAreaSqFt > 0) {
+          // Calculate basic tiles needed for the area
           const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+          
+          // Add wastage percentage
           calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+          
+          // Calculate boxes and price
           calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
-          calc.totalPrice = calc.boxesNeeded * tile.price_per_box;
+          calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
         }
       }
     });

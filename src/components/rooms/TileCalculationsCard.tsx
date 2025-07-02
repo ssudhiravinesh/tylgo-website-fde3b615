@@ -72,7 +72,7 @@ export const TileCalculationsCard = ({ calculations, grandTotal, wastagePercenta
               Floor Tiles
             </h4>
             {floorTiles.map((calc) => (
-              <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
+              <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50 mb-3">
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h4 className="font-semibold text-gray-800">{calc.tile.name}</h4>
@@ -126,7 +126,7 @@ export const TileCalculationsCard = ({ calculations, grandTotal, wastagePercenta
           </div>
         )}
 
-        {/* Wall Tiles Section */}
+        {/* Wall Tiles Section - Compact Display */}
         {wallTiles.length > 0 && (
           <div>
             <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -134,58 +134,41 @@ export const TileCalculationsCard = ({ calculations, grandTotal, wastagePercenta
               Wall Tiles
             </h4>
             {wallTiles.map((calc) => (
-              <div key={`${calc.tile.id}_wall`} className="border rounded-lg p-4 bg-blue-50">
-                <div className="flex items-start justify-between mb-3">
+              <div key={`${calc.tile.id}_wall`} className="border rounded-lg p-3 bg-blue-50 mb-2">
+                <div className="flex items-start justify-between mb-2">
                   <div>
-                    <h4 className="font-semibold text-gray-800">{calc.tile.name}</h4>
-                    <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
+                    <h4 className="font-semibold text-gray-800 text-sm">{calc.tile.name}</h4>
+                    <p className="text-xs text-gray-600">Code: {calc.tile.code}</p>
                     <p className="text-xs text-gray-500">
-                      Rooms: {calc.rooms.map(r => r.name).join(', ')}
+                      Room: {calc.rooms.map(r => r.name).join(', ')}
                     </p>
                     {calc.wallLayers && calc.wallLayers.length > 0 && (
                       <p className="text-xs text-blue-600">
-                        Wall Layers: {calc.wallLayers.sort((a, b) => a - b).join(', ')}
+                        Layers: {calc.wallLayers.sort((a, b) => a - b).join(', ')}
                       </p>
                     )}
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-gray-400" />
-                    <div>
-                      <p className="text-gray-600">Total Area</p>
-                      <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
-                    </div>
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                  <div>
+                    <p className="text-gray-600">Area</p>
+                    <p className="font-medium">{calc.totalArea.toFixed(1)} sq ft</p>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <Calculator className="h-4 w-4 text-green-600" />
-                    <div>
-                      <p className="text-gray-600">Tiles Required</p>
-                      <p className="font-medium text-green-600">
-                        {calc.tilesNeeded} tiles
-                        <span className="text-xs text-gray-500 block">
-                          (+{wastagePercentage}% wastage)
-                        </span>
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-gray-600">Tiles</p>
+                    <p className="font-medium text-green-600">{calc.tilesNeeded}</p>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-blue-600" />
-                    <div>
-                      <p className="text-gray-600">Boxes Needed</p>
-                      <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
-                    </div>
+                  <div>
+                    <p className="text-gray-600">Boxes</p>
+                    <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <IndianRupee className="h-4 w-4 text-purple-600" />
-                    <div>
-                      <p className="text-gray-600">Total Cost</p>
-                      <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
-                    </div>
+                  <div>
+                    <p className="text-gray-600">Cost</p>
+                    <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
                   </div>
                 </div>
               </div>

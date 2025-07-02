@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,7 +70,7 @@ export const usePDFGeneration = () => {
           tileCalculations[tileId].totalArea += roomAreaInSqFt;
         });
 
-        // Calculate tiles, boxes, and pricing for each tile using the stored wastage percentage
+        // Calculate tiles, boxes, and pricing for each tile using the same logic as TileCalculationsCard
         Object.values(tileCalculations).forEach(calc => {
           const tile = calc.tile;
           
