@@ -46,27 +46,27 @@ export const WallTileConfigurationStep = ({
   const [wallHeight, setWallHeight] = useState<number>(0);
   const [wallLength, setWallLength] = useState<number>(0);
   const [dimensionUnit, setDimensionUnit] = useState<"metre" | "feet">("metre");
-  const [heightFeet, setHeightFeet] = useState<number>(0);
-  const [heightInches, setHeightInches] = useState<number>(0);
-  const [lengthFeet, setLengthFeet] = useState<number>(0);
-  const [lengthInches, setLengthInches] = useState<number>(0);
+  const [heightValue, setHeightValue] = useState<string>("");
+  const [lengthValue, setLengthValue] = useState<string>("");
   const [baseTileId, setBaseTileId] = useState<string>("");
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [layers, setLayers] = useState<LayerConfiguration[]>([]);
   const [wastagePercentage, setWastagePercentage] = useState<number>(10);
   const [step, setStep] = useState<"room" | "dimensions" | "base-tile" | "layers">("room");
 
-  // Convert feet and inches to metres for calculations
-  const convertToMetres = (feet: number, inches: number): number => {
-    return (feet * 0.3048) + (inches * 0.0254);
+  // Convert feet string to metres for calculations
+  const convertFeetStringToMetres = (feetString: string): number => {
+    if (!feetString) return 0;
+    const decimalFeet = parseFloat(feetString);
+    return decimalFeet * 0.3048;
   };
 
   // Calculate dimensions based on unit
   const getCalculationDimensions = () => {
     if (dimensionUnit === "feet") {
       return {
-        height: convertToMetres(heightFeet, heightInches),
-        length: convertToMetres(lengthFeet, lengthInches)
+        height: convertFeetStringToMetres(heightValue),
+        length: convertFeetStringToMetres(lengthValue)
       };
     }
     return {
@@ -310,23 +310,17 @@ export const WallTileConfigurationStep = ({
                 <div>
                   <Label>Wall Height</Label>
                   <FeetInchInput
-                    feet={heightFeet}
-                    inches={heightInches}
-                    onFeetChange={setHeightFeet}
-                    onInchesChange={setHeightInches}
-                    feetPlaceholder="Height (feet)"
-                    inchesPlaceholder="Height (inches)"
+                    value={heightValue}
+                    onChange={setHeightValue}
+                    placeholder="8 0"
                   />
                 </div>
                 <div>
                   <Label>Wall Length</Label>
                   <FeetInchInput
-                    feet={lengthFeet}
-                    inches={lengthInches}
-                    onFeetChange={setLengthFeet}
-                    onInchesChange={setLengthInches}
-                    feetPlaceholder="Length (feet)"
-                    inchesPlaceholder="Length (inches)"
+                    value={lengthValue}
+                    onChange={setLengthValue}
+                    placeholder="20 0"
                   />
                 </div>
               </>
@@ -337,7 +331,7 @@ export const WallTileConfigurationStep = ({
               disabled={
                 dimensionUnit === "metre" 
                   ? (wallHeight <= 0 || wallLength <= 0)
-                  : (heightFeet <= 0 || lengthFeet <= 0)
+                  : (!heightValue || !lengthValue)
               }
               className="w-full"
             >
