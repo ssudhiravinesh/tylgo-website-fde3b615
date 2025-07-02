@@ -59,12 +59,11 @@ export const WallTileSelectionStep = ({ customerId, rooms, onBack }: WallTileSel
 
   const calculateLayers = (roomId: string): number => {
     const selection = wallSelections[roomId];
-    if (!selection?.dimensions) return 0;
+    if (!selection?.dimensions?.height) return 0;
     
-    // Find the smallest tile height to determine layer count
-    const minTileHeight = Math.min(...tiles.map(tile => tile.size_length || 1000)) / 304.8; // Convert mm to feet
-    
-    return Math.ceil(selection.dimensions.height / minTileHeight);
+    // Assume each layer is 1 foot high (standard tile height)
+    const layerHeight = 1; // feet
+    return Math.ceil(selection.dimensions.height / layerHeight);
   };
 
   const handleSelectTileForLayer = (roomId: string, layerNumber: number) => {
@@ -135,7 +134,7 @@ export const WallTileSelectionStep = ({ customerId, rooms, onBack }: WallTileSel
 
     Object.entries(wallSelections).forEach(([roomId, selection]) => {
       const room = rooms.find(r => r.id === roomId);
-      if (!room || !selection.dimensions.height || !selection.dimensions.length) return;
+      if (!room || !selection.dimensions?.height || !selection.dimensions?.length) return;
 
       const layerCalculations: any[] = [];
       let roomTotalPrice = 0;
@@ -148,7 +147,7 @@ export const WallTileSelectionStep = ({ customerId, rooms, onBack }: WallTileSel
         const tileLengthFt = tile.size_length / 304.8; // mm to ft
         const tileBreadthFt = tile.size_breadth / 304.8; // mm to ft
         
-        // Calculate how many tiles needed for this layer
+        // Calculate how many tiles needed for this layer (horizontal across the wall length)
         const tilesPerRow = Math.ceil(selection.dimensions.length / tileBreadthFt);
         const tilesNeeded = tilesPerRow;
         
@@ -169,13 +168,15 @@ export const WallTileSelectionStep = ({ customerId, rooms, onBack }: WallTileSel
         roomTotalPrice += totalPrice;
       });
 
-      calculations.push({
-        roomId,
-        roomName: room.name,
-        wallDimensions: selection.dimensions,
-        layerCalculations,
-        totalPrice: roomTotalPrice
-      });
+      if (layerCalculations.length > 0) {
+        calculations.push({
+          roomId,
+          roomName: room.name,
+          wallDimensions: selection.dimensions,
+          layerCalculations,
+          totalPrice: roomTotalPrice
+        });
+      }
     });
 
     return calculations;
@@ -226,8 +227,13 @@ export const WallTileSelectionStep = ({ customerId, rooms, onBack }: WallTileSel
                         id={`height-${room.id}`}
                         type="number"
                         value={roomSelection?.dimensions?.height || ''}
-                        onChange={(e) => handleDimensionChange(room.id, 'height', parseFloat(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          handleDimensionChange(room.id, 'height', value);
+                        }}
                         placeholder="Enter height"
+                        min="0"
+                        step="0.1"
                       />
                     </div>
                     <div>
@@ -236,8 +242,13 @@ export const WallTileSelectionStep = ({ customerId, rooms, onBack }: WallTileSel
                         id={`length-${room.id}`}
                         type="number"
                         value={roomSelection?.dimensions?.length || ''}
-                        onChange={(e) => handleDimensionChange(room.id, 'length', parseFloat(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          handleDimensionChange(room.id, 'length', value);
+                        }}
                         placeholder="Enter length"
+                        min="0"
+                        step="0.1"
                       />
                     </div>
                     <div className="flex items-end">

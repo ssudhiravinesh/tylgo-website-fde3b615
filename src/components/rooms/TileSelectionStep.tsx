@@ -44,6 +44,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [showQuotationForm, setShowQuotationForm] = useState(false);
   const [showWallTileSelection, setShowWallTileSelection] = useState(false);
+  const [wallTileData, setWallTileData] = useState<any>(null);
 
   useEffect(() => {
     // Initialize selections from database
@@ -237,7 +238,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       toast.error("Please select tiles for at least one room before generating quotation");
       return;
     }
-    // Save the current wastage percentage and tile selections to pass to quotation form
     setShowQuotationForm(true);
   };
 
