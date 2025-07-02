@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Home, Ruler, Calculator, Plus, Trash2, Package } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Home, Ruler, Calculator, Plus, Trash2, Package, Copy, CheckCircle } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { toast } from "sonner";
@@ -16,11 +17,17 @@ interface WallTileConfigurationStepProps {
   customerId: string;
   rooms: Room[];
   onBack: () => void;
+  onWallTileDataChange?: (data: WallTileData[]) => void;
 }
 
 interface WallDimensions {
   height: number;
   length: number;
+  unit: 'feet' | 'metre';
+  heightFeet?: number;
+  heightInches?: number;
+  lengthFeet?: number;
+  lengthInches?: number;
 }
 
 interface LayerConfiguration {
@@ -37,11 +44,28 @@ interface WallConfiguration {
   layerConfigurations: LayerConfiguration[];
 }
 
-export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTileConfigurationStepProps) => {
+export interface WallTileData {
+  roomId: string;
+  tileId: string;
+  quantity: number;
+  wastagePercentage: number;
+  layerNumber: number;
+}
+
+export const WallTileConfigurationStep = ({ 
+  customerId, 
+  rooms, 
+  onBack, 
+  onWallTileDataChange 
+}: WallTileConfigurationStepProps) => {
   const { data: tiles = [], isLoading: tilesLoading } = useTiles();
   
   const [selectedRoomId, setSelectedRoomId] = useState<string>("");
-  const [wallDimensions, setWallDimensions] = useState<WallDimensions>({ height: 0, length: 0 });
+  const [wallDimensions, setWallDimensions] = useState<WallDimensions>({ 
+    height: 0, 
+    length: 0, 
+    unit: 'feet' 
+  });
   const [selectedTileType, setSelectedTileType] = useState<Tile | null>(null);
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [isSelectingTileType, setIsSelectingTileType] = useState(false);
@@ -50,6 +74,20 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
   const [wallConfiguration, setWallConfiguration] = useState<WallConfiguration | null>(null);
   const [currentLayerForTileSelection, setCurrentLayerForTileSelection] = useState<number | null>(null);
   const [wastagePercentage, setWastagePercentage] = useState<number>(10);
+
+  // Convert dimensions to feet for calculations
+  const getDimensionsInFeet = (dimensions: WallDimensions) => {
+    if (dimensions.unit === 'feet') {
+      const height = (dimensions.heightFeet || 0) + (dimensions.heightInches || 0) / 12;
+      const length = (dimensions.lengthFeet || 0) + (dimensions.lengthInches || 0) / 12;
+      return { height, length };
+    } else {
+      return {
+        height: dimensions.height * 3.28084, // metres to feet
+        length: dimensions.length * 3.28084
+      };
+    }
+  };
 
   const calculateLayers = (height: number, tileHeight: number) => {
     if (height <= 0 || tileHeight <= 0) return 0;
@@ -67,7 +105,8 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
   };
 
   const handleDimensionsSubmit = () => {
-    if (wallDimensions.height <= 0 || wallDimensions.length <= 0) {
+    const dimensions = getDimensionsInFeet(wallDimensions);
+    if (dimensions.height <= 0 || dimensions.length <= 0) {
       toast.error("Please enter valid dimensions");
       return;
     }
@@ -87,11 +126,10 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
     setShowTileCatalog(false);
     setIsSelectingTileType(false);
 
-    // Calculate layers and tiles per layer
-    const totalLayers = calculateLayers(wallDimensions.height, tile.size_length || 0);
-    const tilesPerLayer = calculateTilesPerLayer(wallDimensions.length, tile.size_breadth || 0);
+    const dimensions = getDimensionsInFeet(wallDimensions);
+    const totalLayers = calculateLayers(dimensions.height, tile.size_length || 0);
+    const tilesPerLayer = calculateTilesPerLayer(dimensions.length, tile.size_breadth || 0);
 
-    // Initialize layer configurations
     const layerConfigurations: LayerConfiguration[] = [];
     for (let i = 1; i <= totalLayers; i++) {
       layerConfigurations.push({
@@ -159,6 +197,28 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
     });
   };
 
+  const copyTilesToAllLayers = (layerNumber: number) => {
+    if (!wallConfiguration) return;
+
+    const sourceLayer = wallConfiguration.layerConfigurations.find(config => config.layerNumber === layerNumber);
+    if (!sourceLayer || sourceLayer.selectedTileIds.length === 0) {
+      toast.error("No tiles selected in this layer to copy");
+      return;
+    }
+
+    const updatedConfigurations = wallConfiguration.layerConfigurations.map(config => ({
+      ...config,
+      selectedTileIds: [...sourceLayer.selectedTileIds]
+    }));
+
+    setWallConfiguration({
+      ...wallConfiguration,
+      layerConfigurations: updatedConfigurations
+    });
+
+    toast.success(`Copied tiles from Layer ${layerNumber} to all layers`);
+  };
+
   const calculateTotalPrice = () => {
     if (!wallConfiguration) return 0;
 
@@ -181,7 +241,29 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
   const handleSaveConfiguration = () => {
     if (!wallConfiguration) return;
     
-    // Here you would save the wall configuration to your backend
+    // Prepare wall tile data for integration with floor tiles
+    const wallTileData: WallTileData[] = [];
+    
+    wallConfiguration.layerConfigurations.forEach(layerConfig => {
+      layerConfig.selectedTileIds.forEach(tileId => {
+        const dimensions = getDimensionsInFeet(wallConfiguration.dimensions);
+        const areaPerLayer = dimensions.length * (wallConfiguration.selectedTileType?.size_length || 0) / 304.8;
+        
+        wallTileData.push({
+          roomId: wallConfiguration.roomId,
+          tileId: tileId,
+          quantity: areaPerLayer,
+          wastagePercentage: wastagePercentage,
+          layerNumber: layerConfig.layerNumber
+        });
+      });
+    });
+
+    // Pass data to parent component
+    if (onWallTileDataChange) {
+      onWallTileDataChange(wallTileData);
+    }
+    
     toast.success("Wall tile configuration saved successfully!");
     onBack();
   };
@@ -251,32 +333,117 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="wall-height">Wall Height (feet)</Label>
-                <Input
-                  id="wall-height"
-                  type="number"
-                  value={wallDimensions.height || ''}
-                  onChange={(e) => setWallDimensions(prev => ({ ...prev, height: parseFloat(e.target.value) || 0 }))}
-                  placeholder="Enter wall height"
-                  min="0"
-                  step="0.1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="wall-length">Wall Length (feet)</Label>
-                <Input
-                  id="wall-length"
-                  type="number"
-                  value={wallDimensions.length || ''}
-                  onChange={(e) => setWallDimensions(prev => ({ ...prev, length: parseFloat(e.target.value) || 0 }))}
-                  placeholder="Enter wall length"
-                  min="0"
-                  step="0.1"
-                />
-              </div>
+            <div>
+              <Label htmlFor="dimension-unit">Measurement Unit</Label>
+              <Select 
+                value={wallDimensions.unit} 
+                onValueChange={(value: 'feet' | 'metre') => setWallDimensions(prev => ({ ...prev, unit: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="feet">Feet & Inches</SelectItem>
+                  <SelectItem value="metre">Metres</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {wallDimensions.unit === 'feet' ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label>Wall Height</Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        placeholder="Feet"
+                        value={wallDimensions.heightFeet || ''}
+                        onChange={(e) => setWallDimensions(prev => ({ 
+                          ...prev, 
+                          heightFeet: parseFloat(e.target.value) || 0 
+                        }))}
+                        min="0"
+                      />
+                      <Label className="text-xs text-gray-500">Feet</Label>
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        placeholder="Inches"
+                        value={wallDimensions.heightInches || ''}
+                        onChange={(e) => setWallDimensions(prev => ({ 
+                          ...prev, 
+                          heightInches: parseFloat(e.target.value) || 0 
+                        }))}
+                        min="0"
+                        max="11"
+                      />
+                      <Label className="text-xs text-gray-500">Inches</Label>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <Label>Wall Length</Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        placeholder="Feet"
+                        value={wallDimensions.lengthFeet || ''}
+                        onChange={(e) => setWallDimensions(prev => ({ 
+                          ...prev, 
+                          lengthFeet: parseFloat(e.target.value) || 0 
+                        }))}
+                        min="0"
+                      />
+                      <Label className="text-xs text-gray-500">Feet</Label>
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        placeholder="Inches"
+                        value={wallDimensions.lengthInches || ''}
+                        onChange={(e) => setWallDimensions(prev => ({ 
+                          ...prev, 
+                          lengthInches: parseFloat(e.target.value) || 0 
+                        }))}
+                        min="0"
+                        max="11"
+                      />
+                      <Label className="text-xs text-gray-500">Inches</Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="wall-height">Wall Height (metres)</Label>
+                  <Input
+                    id="wall-height"
+                    type="number"
+                    value={wallDimensions.height || ''}
+                    onChange={(e) => setWallDimensions(prev => ({ ...prev, height: parseFloat(e.target.value) || 0 }))}
+                    placeholder="Enter wall height"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="wall-length">Wall Length (metres)</Label>
+                  <Input
+                    id="wall-length"
+                    type="number"
+                    value={wallDimensions.length || ''}
+                    onChange={(e) => setWallDimensions(prev => ({ ...prev, length: parseFloat(e.target.value) || 0 }))}
+                    placeholder="Enter wall length"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+              </div>
+            )}
             <Button onClick={handleDimensionsSubmit} className="w-full">
               Next: Select Tile Type
             </Button>
@@ -326,7 +493,7 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
                 Layer Configuration
               </CardTitle>
               <div className="text-sm text-gray-600">
-                Wall: {wallDimensions.height} × {wallDimensions.length} ft | 
+                Wall: {getDimensionsInFeet(wallDimensions).height.toFixed(1)} × {getDimensionsInFeet(wallDimensions).length.toFixed(1)} ft | 
                 Layers: {wallConfiguration.totalLayers} | 
                 Tiles per layer: {wallConfiguration.layerConfigurations[0]?.tilesPerLayer || 0}
               </div>
@@ -357,39 +524,80 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
                   <div key={layerConfig.layerNumber} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-medium">Layer {layerConfig.layerNumber}</h4>
-                      <Button
-                        size="sm"
-                        onClick={() => handleLayerTileSelection(layerConfig.layerNumber)}
-                        className="gap-2"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Tiles
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => copyTilesToAllLayers(layerConfig.layerNumber)}
+                          className="gap-1"
+                          disabled={layerConfig.selectedTileIds.length === 0}
+                        >
+                          <Copy className="h-3 w-3" />
+                          Copy to All
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleLayerTileSelection(layerConfig.layerNumber)}
+                          className="gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Tiles
+                        </Button>
+                      </div>
                     </div>
                     
-                    <div className="flex flex-wrap gap-2">
-                      {layerConfig.selectedTileIds.map(tileId => {
-                        const tile = tiles.find(t => t.id === tileId);
-                        return tile ? (
-                          <Badge
-                            key={tileId}
-                            variant="secondary"
-                            className="flex items-center gap-1"
-                          >
-                            {tile.name}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 hover:bg-red-100"
-                              onClick={() => removeTileFromLayer(layerConfig.layerNumber, tileId)}
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {layerConfig.selectedTileIds.map(tileId => {
+                          const tile = tiles.find(t => t.id === tileId);
+                          return tile ? (
+                            <Badge
+                              key={tileId}
+                              variant="secondary"
+                              className="flex items-center gap-1"
                             >
-                              <Trash2 className="h-3 w-3 text-red-600" />
-                            </Button>
-                          </Badge>
-                        ) : null;
-                      })}
-                      {layerConfig.selectedTileIds.length === 0 && (
-                        <span className="text-sm text-gray-500">No tiles selected</span>
+                              {tile.name}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-4 w-4 p-0 hover:bg-red-100"
+                                onClick={() => removeTileFromLayer(layerConfig.layerNumber, tileId)}
+                              >
+                                <Trash2 className="h-3 w-3 text-red-600" />
+                              </Button>
+                            </Badge>
+                          ) : null;
+                        })}
+                        {layerConfig.selectedTileIds.length === 0 && (
+                          <span className="text-sm text-gray-500">No tiles selected</span>
+                        )}
+                      </div>
+
+                      {/* Tile Details */}
+                      {layerConfig.selectedTileIds.length > 0 && (
+                        <div className="bg-gray-50 p-3 rounded text-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            {layerConfig.selectedTileIds.map(tileId => {
+                              const tile = tiles.find(t => t.id === tileId);
+                              if (!tile) return null;
+                              
+                              const tilesNeeded = Math.ceil(layerConfig.tilesPerLayer * (1 + (wastagePercentage / 100)));
+                              const boxesNeeded = tile.pieces_per_box ? Math.ceil(tilesNeeded / tile.pieces_per_box) : 0;
+                              
+                              return (
+                                <div key={tileId} className="bg-white p-2 rounded border">
+                                  <div className="font-medium text-xs">{tile.name}</div>
+                                  <div className="text-xs text-gray-600">
+                                    Tiles: {tilesNeeded} | Boxes: {boxesNeeded}
+                                  </div>
+                                  <div className="text-xs text-green-600 font-medium">
+                                    ₹{tile.price_per_box ? (boxesNeeded * tile.price_per_box).toLocaleString() : 'N/A'}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -410,6 +618,7 @@ export const WallTileConfigurationStep = ({ customerId, rooms, onBack }: WallTil
               </div>
 
               <Button onClick={handleSaveConfiguration} className="w-full">
+                <CheckCircle className="h-4 w-4 mr-2" />
                 Save Wall Tile Configuration
               </Button>
             </CardContent>
