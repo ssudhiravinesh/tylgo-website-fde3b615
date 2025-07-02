@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,7 @@ import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
-import { FeetInchesInput } from "@/components/ui/feet-inches-input";
+import { FeetInchInput } from "@/components/ui/feet-inch-input";
 
 export interface WallTileData {
   roomId: string;
@@ -310,7 +309,7 @@ export const WallTileConfigurationStep = ({
               <>
                 <div>
                   <Label>Wall Height</Label>
-                  <FeetInchesInput
+                  <FeetInchInput
                     feet={heightFeet}
                     inches={heightInches}
                     onFeetChange={setHeightFeet}
@@ -321,7 +320,7 @@ export const WallTileConfigurationStep = ({
                 </div>
                 <div>
                   <Label>Wall Length</Label>
-                  <FeetInchesInput
+                  <FeetInchInput
                     feet={lengthFeet}
                     inches={lengthInches}
                     onFeetChange={setLengthFeet}
