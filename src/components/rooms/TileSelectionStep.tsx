@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +41,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   
   const [tileSelections, setTileSelections] = useState<{ [roomId: string]: string[] }>({});
   const [wallTileSelections, setWallTileSelections] = useState<{ [key: string]: string }>({});
-  const [wastagePercentage, setWastagePercentage] = useState<number>(10);
+  const [wastagePercentage, setWastagePercentage] = useState<number>(5);
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [selectedRoomForTile, setSelectedRoomForTile] = useState<string | null>(null);
   const [showQuotationForm, setShowQuotationForm] = useState(false);
@@ -175,6 +176,11 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       });
     });
 
+    if (selectionsToSave.length === 0) {
+      toast.error("No tile selections to save");
+      return;
+    }
+
     try {
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
       toast.success("Tile selections saved successfully!");
@@ -263,20 +269,27 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       }
     });
 
-    // Calculate tiles, boxes, and pricing
+    // Calculate tiles, boxes, and pricing with consistent logic
     Object.values(tileCalculations).forEach(calc => {
       const tile = calc.tile;
       
       if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
-        // Convert tile dimensions from mm to feet
-        const tileLengthFt = (tile.size_length || 0) / 304.8;
-        const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+        // Calculate tile area in square feet (consistent with QuotationForm)
+        const tileLengthFt = (tile.size_length || 0) / 304.8; // mm to ft
+        const tileBreadthFt = (tile.size_breadth || 0) / 304.8; // mm to ft
         const tileAreaSqFt = tileLengthFt * tileBreadthFt;
         
         if (tileAreaSqFt > 0) {
+          // Step 1: Calculate basic tiles needed for the area
           const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+          
+          // Step 2: Add wastage percentage to tiles
           calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+          
+          // Step 3: Calculate boxes needed from total tiles
           calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
+          
+          // Step 4: Calculate total price
           calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
         }
       }
@@ -480,10 +493,11 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       <div className="flex gap-2 pt-4 border-t">
         <Button 
           onClick={handleSaveSelections}
+          disabled={saveSelectionsMutation.isPending}
           className="flex-1 gap-2"
         >
           <Save className="h-4 w-4" />
-          Save Selections
+          {saveSelectionsMutation.isPending ? "Saving..." : "Save Selections"}
         </Button>
         
         <Button 
