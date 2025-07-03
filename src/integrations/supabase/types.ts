@@ -194,6 +194,7 @@ export type Database = {
           created_at: string
           customer_id: string
           id: string
+          layer_number: number | null
           room_id: string
           tile_id: string
         }
@@ -201,6 +202,7 @@ export type Database = {
           created_at?: string
           customer_id: string
           id?: string
+          layer_number?: number | null
           room_id: string
           tile_id: string
         }
@@ -208,6 +210,7 @@ export type Database = {
           created_at?: string
           customer_id?: string
           id?: string
+          layer_number?: number | null
           room_id?: string
           tile_id?: string
         }
@@ -242,7 +245,10 @@ export type Database = {
           id: string
           length: number
           name: string
+          room_type: string
           unit: string
+          wall_height: number | null
+          wall_length: number | null
           width: number
         }
         Insert: {
@@ -251,7 +257,10 @@ export type Database = {
           id?: string
           length?: number
           name: string
+          room_type?: string
           unit?: string
+          wall_height?: number | null
+          wall_length?: number | null
           width?: number
         }
         Update: {
@@ -260,7 +269,10 @@ export type Database = {
           id?: string
           length?: number
           name?: string
+          room_type?: string
           unit?: string
+          wall_height?: number | null
+          wall_length?: number | null
           width?: number
         }
         Relationships: [

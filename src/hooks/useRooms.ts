@@ -8,6 +8,9 @@ export interface Room {
   length: number;
   width: number;
   unit: 'metre' | 'inches' | 'mm' | 'feet';
+  room_type: 'floor' | 'wall';
+  wall_height?: number;
+  wall_length?: number;
   created_at: string;
 }
 
@@ -17,6 +20,9 @@ export interface CreateRoomData {
   length: number;
   width: number;
   unit: 'metre' | 'inches' | 'mm' | 'feet';
+  room_type: 'floor' | 'wall';
+  wall_height?: number;
+  wall_length?: number;
 }
 
 export interface UpdateRoomData extends CreateRoomData {
@@ -28,6 +34,7 @@ export interface RoomTileSelection {
   customer_id: string;
   room_id: string;
   tile_id: string;
+  layer_number?: number;
   created_at: string;
 }
 
@@ -47,7 +54,8 @@ const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
 
   return (data || []).map(room => ({
     ...room,
-    unit: room.unit as 'metre' | 'inches' | 'mm' | 'feet'
+    unit: room.unit as 'metre' | 'inches' | 'mm' | 'feet',
+    room_type: room.room_type as 'floor' | 'wall'
   }));
 };
 
@@ -65,7 +73,8 @@ const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
 
   return {
     ...data,
-    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet'
+    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet',
+    room_type: data.room_type as 'floor' | 'wall'
   };
 };
 
@@ -86,7 +95,8 @@ const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
 
   return {
     ...data,
-    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet'
+    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet',
+    room_type: data.room_type as 'floor' | 'wall'
   };
 };
 
@@ -141,12 +151,17 @@ const fetchRoomTileSelections = async (customerId: string): Promise<RoomTileSele
   return data || [];
 };
 
-const saveRoomTileSelections = async (selections: { customer_id: string; room_id: string; tile_id: string }[]): Promise<void> => {
+const saveRoomTileSelections = async (selections: { 
+  customer_id: string; 
+  room_id: string; 
+  tile_id: string; 
+  layer_number?: number;
+}[]): Promise<void> => {
   if (selections.length === 0) return;
 
   const { error } = await supabase
     .from('room_tile_selections')
-    .upsert(selections, { onConflict: 'room_id,tile_id' });
+    .upsert(selections, { onConflict: 'room_id,tile_id,layer_number' });
 
   if (error) {
     console.error('Error saving room tile selections:', error);
@@ -154,12 +169,20 @@ const saveRoomTileSelections = async (selections: { customer_id: string; room_id
   }
 };
 
-const deleteRoomTileSelection = async (roomId: string, tileId: string): Promise<void> => {
-  const { error } = await supabase
+const deleteRoomTileSelection = async (roomId: string, tileId: string, layerNumber?: number): Promise<void> => {
+  let query = supabase
     .from('room_tile_selections')
     .delete()
     .eq('room_id', roomId)
     .eq('tile_id', tileId);
+
+  if (layerNumber !== undefined) {
+    query = query.eq('layer_number', layerNumber);
+  } else {
+    query = query.is('layer_number', null);
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error('Error deleting room tile selection:', error);
@@ -235,8 +258,8 @@ export const useDeleteRoomTileSelection = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ roomId, tileId }: { roomId: string; tileId: string }) => 
-      deleteRoomTileSelection(roomId, tileId),
+    mutationFn: ({ roomId, tileId, layerNumber }: { roomId: string; tileId: string; layerNumber?: number }) => 
+      deleteRoomTileSelection(roomId, tileId, layerNumber),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
     },

@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { QrCode, Trash2, Save, FileText } from "lucide-react";
+import { Trash2, Save, FileText } from "lucide-react";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 
@@ -11,7 +11,6 @@ interface TileSelectionCardProps {
   tiles: Tile[];
   tileSelections: { [roomId: string]: string[] };
   onChooseTile: (roomId: string) => void;
-  onScanQR: (roomId: string) => void;
   onRemoveTile: (roomId: string, tileId: string) => void;
   onSaveSelections: () => void;
   onGenerateQuotation: () => void;
@@ -23,7 +22,6 @@ export const TileSelectionCard = ({
   tiles,
   tileSelections,
   onChooseTile,
-  onScanQR,
   onRemoveTile,
   onSaveSelections,
   onGenerateQuotation,
@@ -46,7 +44,7 @@ export const TileSelectionCard = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Room Tile Selections</CardTitle>
+        <CardTitle className="text-lg">Floor Room Tile Selections</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {rooms.map((room) => (
@@ -55,7 +53,7 @@ export const TileSelectionCard = ({
               <div>
                 <h4 className="font-medium text-gray-800">{room.name}</h4>
                 <p className="text-sm text-gray-600">
-                  {room.length} × {room.width} {room.unit}
+                  {room.length} × {room.width} {room.unit} (Floor)
                 </p>
               </div>
               <div className="flex gap-2">
@@ -66,15 +64,6 @@ export const TileSelectionCard = ({
                   className="text-xs"
                 >
                   Choose Tile
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onScanQR(room.id)}
-                  className="text-xs"
-                >
-                  <QrCode className="h-3 w-3 mr-1" />
-                  Scan QR
                 </Button>
               </div>
             </div>

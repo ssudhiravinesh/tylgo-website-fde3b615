@@ -12,7 +12,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
 import { toast } from "sonner";
-import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 
 interface QuotationFormProps {
   preSelectedCustomerId?: string;
@@ -21,6 +20,8 @@ interface QuotationFormProps {
     tileId: string;
     quantity: number;
     wastagePercentage: number;
+    isWallTile?: boolean;
+    layerNumber?: number;
   }>;
   wastagePercentage?: number;
   onBack: () => void;
@@ -251,6 +252,12 @@ export const QuotationForm = ({
                         <p className="text-sm text-gray-600">{tile?.name || 'Unknown Tile'}</p>
                         <p className="text-xs text-gray-500">
                           Area: {roomData.quantity.toFixed(2)} sq ft
+                          {roomData.isWallTile && roomData.layerNumber && (
+                            <span> (Layer {roomData.layerNumber})</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-blue-600">
+                          {roomData.isWallTile ? 'Wall Tile' : 'Floor Tile'}
                         </p>
                       </div>
                     </div>
