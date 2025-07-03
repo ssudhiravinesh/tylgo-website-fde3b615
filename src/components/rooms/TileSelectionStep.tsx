@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Percent } from "lucide-react";
+import { ArrowLeft, Percent, Save, FileText } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
@@ -238,9 +237,19 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
         };
       }
 
-      // Calculate wall area for this layer
-      const wallAreaInSqFt = calculateAreaInSquareFeet(room.wall_height, room.wall_length, room.unit);
-      const layerHeight = room.wall_height / Math.ceil(room.wall_height / 0.3); // Assuming standard layer height
+      // Calculate layer area
+      let tileHeightInRoomUnit = tile.size_length / 1000; // Convert mm to meters
+      
+      // Convert to room's unit if needed
+      if (room.unit === "feet") {
+        tileHeightInRoomUnit = tileHeightInRoomUnit * 3.28084;
+      } else if (room.unit === "inches") {
+        tileHeightInRoomUnit = tileHeightInRoomUnit * 39.3701;
+      } else if (room.unit === "mm") {
+        tileHeightInRoomUnit = tile.size_length;
+      }
+
+      const layerHeight = Math.min(tileHeightInRoomUnit, room.wall_height - (parseInt(layerNumber) - 1) * tileHeightInRoomUnit);
       const layerAreaInSqFt = calculateAreaInSquareFeet(layerHeight, room.wall_length, room.unit);
       
       if (!tileCalculations[wallTileKey].rooms.find(r => r.id === roomId)) {
@@ -335,10 +344,23 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     Object.entries(wallTileSelections).forEach(([key, tileId]) => {
       const [roomId, layerNumber] = key.split('_');
       const room = rooms.find(r => r.id === roomId);
+      const tile = tiles.find(t => t.id === tileId);
       
-      if (!room || !room.wall_height || !room.wall_length) return;
+      if (!room || !tile || !room.wall_height || !room.wall_length) return;
       
-      const layerHeight = room.wall_height / Math.ceil(room.wall_height / 0.3);
+      // Calculate layer area
+      let tileHeightInRoomUnit = tile.size_length / 1000; // Convert mm to meters
+      
+      // Convert to room's unit if needed
+      if (room.unit === "feet") {
+        tileHeightInRoomUnit = tileHeightInRoomUnit * 3.28084;
+      } else if (room.unit === "inches") {
+        tileHeightInRoomUnit = tileHeightInRoomUnit * 39.3701;
+      } else if (room.unit === "mm") {
+        tileHeightInRoomUnit = tile.size_length;
+      }
+
+      const layerHeight = Math.min(tileHeightInRoomUnit, room.wall_height - (parseInt(layerNumber) - 1) * tileHeightInRoomUnit);
       const layerAreaInSqFt = calculateAreaInSquareFeet(layerHeight, room.wall_length, room.unit);
       
       roomsData.push({
@@ -400,8 +422,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
               tileSelections={tileSelections}
               onChooseTile={handleChooseTile}
               onRemoveTile={removeTileSelection}
-              onSaveSelections={handleSaveSelections}
-              onGenerateQuotation={handleGenerateQuotation}
               isDeleting={deleteSelectionMutation.isPending}
             />
           )}
@@ -454,6 +474,26 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
             wastagePercentage={wastagePercentage}
           />
         </div>
+      </div>
+
+      {/* Action Buttons at Bottom */}
+      <div className="flex gap-2 pt-4 border-t">
+        <Button 
+          onClick={handleSaveSelections}
+          className="flex-1 gap-2"
+        >
+          <Save className="h-4 w-4" />
+          Save Selections
+        </Button>
+        
+        <Button 
+          onClick={handleGenerateQuotation}
+          variant="outline"
+          className="flex-1 gap-2"
+        >
+          <FileText className="h-4 w-4" />
+          Generate Quotation
+        </Button>
       </div>
 
       <TileCatalog

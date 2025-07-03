@@ -57,7 +57,7 @@ export const QuotationForm = ({
 
   const [quotationNumber] = useState(generateQuotationNumber());
 
-  // Calculate total from selected rooms data
+  // Calculate total from selected rooms data with consistent logic
   const calculateTotal = () => {
     if (!selectedRoomsData.length) return 0;
 
@@ -112,14 +112,14 @@ export const QuotationForm = ({
     setIsSubmitting(true);
 
     try {
-      // Prepare quotation items
+      // Prepare quotation items with consistent calculation logic
       const quotationItems = selectedRoomsData.map(roomData => {
         const tile = tiles.find(t => t.id === roomData.tileId);
         if (!tile) {
           throw new Error(`Tile not found for ID: ${roomData.tileId}`);
         }
 
-        // Calculate pricing
+        // Calculate pricing with exact same logic as calculateTotal
         let totalPrice = 0;
         if (tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
           const tileLengthFt = (tile.size_length || 0) / 304.8;

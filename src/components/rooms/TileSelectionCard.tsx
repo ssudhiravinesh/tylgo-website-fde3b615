@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Save, FileText } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 
@@ -12,8 +12,6 @@ interface TileSelectionCardProps {
   tileSelections: { [roomId: string]: string[] };
   onChooseTile: (roomId: string) => void;
   onRemoveTile: (roomId: string, tileId: string) => void;
-  onSaveSelections: () => void;
-  onGenerateQuotation: () => void;
   isDeleting: boolean;
 }
 
@@ -23,8 +21,6 @@ export const TileSelectionCard = ({
   tileSelections,
   onChooseTile,
   onRemoveTile,
-  onSaveSelections,
-  onGenerateQuotation,
   isDeleting,
 }: TileSelectionCardProps) => {
   const getTileById = (tileId: string) => {
@@ -110,25 +106,6 @@ export const TileSelectionCard = ({
             </div>
           </div>
         ))}
-
-        <div className="flex gap-2 pt-4">
-          <Button 
-            onClick={onSaveSelections}
-            className="flex-1 gap-2"
-          >
-            <Save className="h-4 w-4" />
-            Save Selections
-          </Button>
-          
-          <Button 
-            onClick={onGenerateQuotation}
-            variant="outline"
-            className="flex-1 gap-2"
-          >
-            <FileText className="h-4 w-4" />
-            Generate Quotation
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );
