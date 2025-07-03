@@ -37,13 +37,15 @@ export const TileSelectionCard = ({
     return tile.price_per_box / areaPerBoxSqFt;
   };
 
+  const floorRooms = rooms.filter(room => room.room_type === 'floor');
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Floor Room Tile Selections</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {rooms.map((room) => (
+        {floorRooms.map((room) => (
           <div key={room.id} className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -106,6 +108,10 @@ export const TileSelectionCard = ({
             </div>
           </div>
         ))}
+
+        {floorRooms.length === 0 && (
+          <p className="text-sm text-gray-500 italic text-center py-4">No floor rooms available</p>
+        )}
       </CardContent>
     </Card>
   );

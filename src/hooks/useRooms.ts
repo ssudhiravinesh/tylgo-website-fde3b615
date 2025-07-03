@@ -161,7 +161,10 @@ const saveRoomTileSelections = async (selections: {
 
   const { error } = await supabase
     .from('room_tile_selections')
-    .upsert(selections, { onConflict: 'room_id,tile_id,layer_number' });
+    .upsert(selections, { 
+      onConflict: 'room_id,tile_id,layer_number',
+      ignoreDuplicates: false 
+    });
 
   if (error) {
     console.error('Error saving room tile selections:', error);
