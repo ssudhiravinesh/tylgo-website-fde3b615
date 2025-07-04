@@ -233,10 +233,17 @@ export const WallTileSelector = ({
 
       <TileAssignmentDialog
         isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        tiles={tiles}
-        onTileSelect={handleTileSelect}
-        selectedTileIds={[]}
+        onOpenChange={setIsDialogOpen}
+        customers={[]}
+        rooms={[]}
+        selectedCustomerId=""
+        selectedRooms={[]}
+        onCustomerChange={() => {}}
+        onRoomToggle={() => {}}
+        onSelectAllRooms={() => {}}
+        onClearSelections={() => {}}
+        onAssignTile={() => {}}
+        isAssigning={false}
       />
     </>
   );

@@ -2,21 +2,26 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Home, Square } from "lucide-react";
+import { Plus, Edit, Trash2, Home, Square, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { RoomFormDialog } from "./RoomFormDialog";
+import { TileSelectionStep } from "./TileSelectionStep";
+import { useTiles } from "@/hooks/useTiles";
 import type { Customer } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom, type Room } from "@/hooks/useRooms";
 
 interface CustomerRoomManagementProps {
   customer: Customer;
+  onBack?: () => void;
 }
 
-export const CustomerRoomManagement = ({ customer }: CustomerRoomManagementProps) => {
+export const CustomerRoomManagement = ({ customer, onBack }: CustomerRoomManagementProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [showTileSelection, setShowTileSelection] = useState(false);
   
   const { data: rooms = [], isLoading, refetch } = useRoomsByCustomer(customer.id);
+  const { data: tiles = [] } = useTiles();
   const deleteRoomMutation = useDeleteRoom();
 
   const handleEditRoom = (room: Room) => {
@@ -59,6 +64,26 @@ export const CustomerRoomManagement = ({ customer }: CustomerRoomManagementProps
     return roomType === 'wall' ? 'Wall' : 'Floor';
   };
 
+  if (showTileSelection) {
+    return (
+      <div>
+        <Button 
+          onClick={() => setShowTileSelection(false)} 
+          variant="outline" 
+          className="mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Rooms
+        </Button>
+        <TileSelectionStep 
+          customer={customer}
+          rooms={rooms}
+          tiles={tiles}
+        />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return <div>Loading rooms...</div>;
   }
@@ -68,17 +93,38 @@ export const CustomerRoomManagement = ({ customer }: CustomerRoomManagementProps
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
+            {onBack && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onBack}
+                className="p-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
             <Home className="h-5 w-5" />
             Rooms for {customer.name}
           </CardTitle>
-          <Button 
-            onClick={() => setIsDialogOpen(true)}
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Room
-          </Button>
+          <div className="flex gap-2">
+            {rooms.length > 0 && (
+              <Button 
+                onClick={() => setShowTileSelection(true)}
+                variant="default"
+                size="sm"
+              >
+                Select Tiles & Create Quote
+              </Button>
+            )}
+            <Button 
+              onClick={() => setIsDialogOpen(true)}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Room
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

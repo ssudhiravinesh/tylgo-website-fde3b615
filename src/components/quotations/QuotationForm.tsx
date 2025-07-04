@@ -59,7 +59,7 @@ export const QuotationForm = ({
 }: QuotationFormProps) => {
   const [quotationNumber, setQuotationNumber] = useState("");
   const [notes, setNotes] = useState("");
-  const [wastagePercentage, setWastagePercentage] = useState<number>(5);
+  const [wastagePercentage, setWastagePercentage] = useState<number>(0);
   const [status, setStatus] = useState("draft");
   const { user } = useAuth();
   
@@ -230,6 +230,11 @@ export const QuotationForm = ({
       return;
     }
 
+    if (wastagePercentage === 0) {
+      toast.error("Please enter a wastage percentage");
+      return;
+    }
+
     try {
       const quotationData = {
         quotation_number: quotationNumber.trim(),
@@ -251,12 +256,13 @@ export const QuotationForm = ({
             const tile = tiles.find(t => t.id === tileId);
             if (tile && tile.price_per_box) {
               const roomArea = calculateAreaInSquareFeet(room.length, room.width, room.unit);
+              const tileCalc = calculations.find(c => c.tile.id === tileId && !c.isWallTile);
               quotationItems.push({
                 room_id: roomId,
                 tile_id: tileId,
                 area: roomArea,
                 price_per_box: tile.price_per_box,
-                total_price: calculations.find(c => c.tile.id === tileId && !c.isWallTile)?.totalPrice || 0,
+                total_price: tileCalc?.totalPrice || 0,
               });
             }
           });
@@ -276,12 +282,13 @@ export const QuotationForm = ({
                   room.wall_height || room.width, 
                   room.unit
                 );
+                const tileCalc = calculations.find(c => c.tile.id === tileId && c.isWallTile);
                 quotationItems.push({
                   room_id: roomId,
                   tile_id: tileId,
                   area: layerArea,
                   price_per_box: tile.price_per_box,
-                  total_price: calculations.find(c => c.tile.id === tileId && c.isWallTile)?.totalPrice || 0,
+                  total_price: tileCalc?.totalPrice || 0,
                 });
               }
             }
@@ -290,7 +297,7 @@ export const QuotationForm = ({
       });
 
       await createQuotationMutation.mutateAsync({
-        quotation: quotationData,
+        ...quotationData,
         items: quotationItems,
       });
 
@@ -338,6 +345,7 @@ export const QuotationForm = ({
                   step="0.1"
                   value={wastagePercentage}
                   onChange={(e) => setWastagePercentage(Number(e.target.value))}
+                  placeholder="Enter wastage %"
                   required
                 />
               </div>

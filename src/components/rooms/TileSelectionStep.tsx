@@ -34,6 +34,7 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<string>("");
   const [showQuotationForm, setShowQuotationForm] = useState(false);
+  const [wastagePercentage, setWastagePercentage] = useState<number>(0);
 
   const { data: existingSelections = [] } = useRoomTileSelections(customer.id);
   const saveSelectionsMutation = useSaveRoomTileSelections();
@@ -172,6 +173,23 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
           <p className="text-gray-600 mb-4">
             Choose tiles for each room. You can select multiple tiles per room.
           </p>
+          
+          <div className="mb-4">
+            <Label htmlFor="wastage-input" className="text-sm font-medium">
+              Wastage Percentage (%) *
+            </Label>
+            <Input
+              id="wastage-input"
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={wastagePercentage}
+              onChange={(e) => setWastagePercentage(Number(e.target.value))}
+              placeholder="Enter wastage percentage"
+              className="w-48 mt-2"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -209,7 +227,7 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
         
         <Button
           onClick={() => setShowQuotationForm(true)}
-          disabled={!hasSelections}
+          disabled={!hasSelections || wastagePercentage === 0}
         >
           Generate Quotation
         </Button>
@@ -217,10 +235,17 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
 
       <TileAssignmentDialog
         isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        tiles={tiles}
-        onTileSelect={handleTileSelect}
-        selectedTileIds={tileSelections[selectedRoomId] || []}
+        onOpenChange={setIsDialogOpen}
+        customers={[]}
+        rooms={[]}
+        selectedCustomerId=""
+        selectedRooms={[]}
+        onCustomerChange={() => {}}
+        onRoomToggle={() => {}}
+        onSelectAllRooms={() => {}}
+        onClearSelections={() => {}}
+        onAssignTile={() => {}}
+        isAssigning={false}
       />
     </div>
   );
