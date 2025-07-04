@@ -314,7 +314,7 @@ export const QuotationForm = ({
       <TileCalculationsCard 
         calculations={calculations} 
         grandTotal={grandTotal}
-        wastagePercentage={wastage}
+        wastagePercentage={wastagePercentage}
       />
 
       <Card>
@@ -344,9 +344,9 @@ export const QuotationForm = ({
                   max="100"
                   step="0.1"
                   value={wastagePercentage}
-                  onChange={(e) => setWastagePercentage(Number(e.target.value))}
                   placeholder="Enter wastage %"
-                  required
+                  disabled
+                  readOnly
                 />
               </div>
 
