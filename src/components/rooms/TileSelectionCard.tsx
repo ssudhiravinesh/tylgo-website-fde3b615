@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ interface TileSelectionCardProps {
   rooms: Room[];
   tiles: Tile[];
   tileSelections: { [roomId: string]: string[] };
+  wastagePercentage: number;
   onChooseTile: (roomId: string) => void;
   onRemoveTile: (roomId: string, tileId: string) => void;
   isDeleting: boolean;
@@ -19,6 +19,7 @@ export const TileSelectionCard = ({
   rooms,
   tiles,
   tileSelections,
+  wastagePercentage,
   onChooseTile,
   onRemoveTile,
   isDeleting,

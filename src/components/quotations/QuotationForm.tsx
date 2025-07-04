@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ interface QuotationFormProps {
   tiles: Tile[];
   tileSelections: { [roomId: string]: string[] };
   wallTileSelections: { [roomId: string]: { [layerNumber: number]: string } };
+  wastagePercentage: number;
   onSuccess: () => void;
 }
 
@@ -55,11 +55,11 @@ export const QuotationForm = ({
   tiles,
   tileSelections,
   wallTileSelections,
+  wastagePercentage,
   onSuccess,
 }: QuotationFormProps) => {
   const [quotationNumber, setQuotationNumber] = useState("");
   const [notes, setNotes] = useState("");
-  const [wastagePercentage, setWastagePercentage] = useState<number>(0);
   const [status, setStatus] = useState("draft");
   const { user } = useAuth();
   
@@ -314,7 +314,7 @@ export const QuotationForm = ({
       <TileCalculationsCard 
         calculations={calculations} 
         grandTotal={grandTotal}
-        wastagePercentage={wastagePercentage}
+        wastagePercentage={wastage}
       />
 
       <Card>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ interface WallTileSelectorProps {
   wallRooms: Room[];
   tiles: Tile[];
   wallTileSelections: WallTileSelection;
+  wastagePercentage: number;
   onWallTileSelectionChange: (selections: WallTileSelection) => void;
 }
 
@@ -25,6 +25,7 @@ export const WallTileSelector = ({
   wallRooms,
   tiles,
   wallTileSelections,
+  wastagePercentage,
   onWallTileSelectionChange,
 }: WallTileSelectorProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
