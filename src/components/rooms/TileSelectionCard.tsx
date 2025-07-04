@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,6 @@ interface TileSelectionCardProps {
   rooms: Room[];
   tiles: Tile[];
   tileSelections: { [roomId: string]: string[] };
-  wastagePercentage: number;
   onChooseTile: (roomId: string) => void;
   onRemoveTile: (roomId: string, tileId: string) => void;
   isDeleting: boolean;
@@ -19,7 +19,6 @@ export const TileSelectionCard = ({
   rooms,
   tiles,
   tileSelections,
-  wastagePercentage,
   onChooseTile,
   onRemoveTile,
   isDeleting,
@@ -38,15 +37,13 @@ export const TileSelectionCard = ({
     return tile.price_per_box / areaPerBoxSqFt;
   };
 
-  const floorRooms = rooms.filter(room => room.room_type === 'floor');
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Floor Room Tile Selections</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {floorRooms.map((room) => (
+        {rooms.map((room) => (
           <div key={room.id} className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -109,10 +106,6 @@ export const TileSelectionCard = ({
             </div>
           </div>
         ))}
-
-        {floorRooms.length === 0 && (
-          <p className="text-sm text-gray-500 italic text-center py-4">No floor rooms available</p>
-        )}
       </CardContent>
     </Card>
   );

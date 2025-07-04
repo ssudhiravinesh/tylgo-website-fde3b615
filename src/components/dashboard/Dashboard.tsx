@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -8,7 +7,6 @@ import { TileManagement } from "@/components/tiles/TileManagement";
 import { QuotationList } from "@/components/quotations/QuotationList";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { CustomerRoomManagement } from "@/components/rooms/CustomerRoomManagement";
-import { useCustomers } from "@/hooks/useCustomers";
 
 interface User {
   id: string;
@@ -34,8 +32,6 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedCustomerForQuote, setSelectedCustomerForQuote] = useState<string | null>(null);
-  
-  const { data: customers = [] } = useCustomers();
 
   const handleNewQuote = (customerId: string) => {
     setSelectedCustomerForQuote(customerId);
@@ -76,15 +72,12 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "admin":
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
       case "rooms":
-        const selectedCustomer = selectedCustomerForQuote ? 
-          customers.find(c => c.id === selectedCustomerForQuote) : null;
-        
-        return user.role === "worker" && selectedCustomer ? (
+        return user.role === "worker" ? (
           <CustomerRoomManagement 
-            customer={selectedCustomer}
+            preSelectedCustomerId={selectedCustomerForQuote}
             onBack={handleBackFromRooms}
           />
-        ) : <div>Please select a customer first</div>;
+        ) : <div>Access denied</div>;
       default:
         return (
           <CustomerList 
