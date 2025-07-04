@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,10 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     name: "",
     length: "",
     width: "",
-    unit: "metre" as "metre" | "inches" | "mm" | "feet"
+    unit: "metre" as "metre" | "inches" | "mm" | "feet",
+    room_type: "floor" as "floor" | "wall",
+    wall_height: "",
+    wall_length: ""
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,13 +39,19 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         length: room.length.toString(),
         width: room.width.toString(),
         unit: room.unit,
+        room_type: room.room_type,
+        wall_height: room.wall_height?.toString() || "",
+        wall_length: room.wall_length?.toString() || ""
       });
     } else {
       setFormData({
         name: "",
         length: "",
         width: "",
-        unit: "metre"
+        unit: "metre",
+        room_type: "floor",
+        wall_height: "",
+        wall_length: ""
       });
     }
   }, [room]);
@@ -59,17 +69,34 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       return;
     }
 
-    const length = parseFloat(formData.length);
-    const width = parseFloat(formData.width);
+    // For wall rooms, validate wall dimensions
+    if (formData.room_type === "wall") {
+      const wallHeight = parseFloat(formData.wall_height);
+      const wallLength = parseFloat(formData.wall_length);
+      
+      if (isNaN(wallHeight) || wallHeight <= 0) {
+        toast.error("Please enter a valid wall height");
+        return;
+      }
+      
+      if (isNaN(wallLength) || wallLength <= 0) {
+        toast.error("Please enter a valid wall length");
+        return;
+      }
+    } else {
+      // For floor rooms, validate floor dimensions
+      const length = parseFloat(formData.length);
+      const width = parseFloat(formData.width);
 
-    if (isNaN(length) || length <= 0) {
-      toast.error("Please enter a valid length");
-      return;
-    }
+      if (isNaN(length) || length <= 0) {
+        toast.error("Please enter a valid length");
+        return;
+      }
 
-    if (isNaN(width) || width <= 0) {
-      toast.error("Please enter a valid width");
-      return;
+      if (isNaN(width) || width <= 0) {
+        toast.error("Please enter a valid width");
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -78,9 +105,12 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       const roomData = {
         name: formData.name.trim(),
         customer_id: customerId,
-        length,
-        width,
+        length: formData.room_type === "floor" ? parseFloat(formData.length) : 0,
+        width: formData.room_type === "floor" ? parseFloat(formData.width) : 0,
         unit: formData.unit,
+        room_type: formData.room_type,
+        wall_height: formData.room_type === "wall" ? parseFloat(formData.wall_height) : undefined,
+        wall_length: formData.room_type === "wall" ? parseFloat(formData.wall_length) : undefined,
       };
 
       if (room) {
@@ -117,7 +147,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const renderDimensionInput = (field: "length" | "width", label: string) => {
+  const renderDimensionInput = (field: "length" | "width" | "wall_height" | "wall_length", label: string) => {
     if (formData.unit === "feet") {
       return (
         <FeetInchInput
@@ -145,7 +175,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {room ? "Edit Room" : "Add New Room"}
@@ -167,6 +197,23 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="room-type">Room Type *</Label>
+            <Select 
+              value={formData.room_type} 
+              onValueChange={(value: "floor" | "wall") => handleInputChange("room_type", value)}
+              disabled={isLoading}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="floor">Floor</SelectItem>
+                <SelectItem value="wall">Wall</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="unit">Measurement Unit *</Label>
             <Select 
               value={formData.unit} 
@@ -185,26 +232,56 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="length">
-                Length * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
-              </Label>
-              {renderDimensionInput("length", "Length")}
-            </div>
+          {formData.room_type === "floor" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="length">
+                  Length * 
+                  {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
+                </Label>
+                {renderDimensionInput("length", "Length")}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="width">
-                Width * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
-              </Label>
-              {renderDimensionInput("width", "Width")}
+              <div className="space-y-2">
+                <Label htmlFor="width">
+                  Width * 
+                  {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
+                </Label>
+                {renderDimensionInput("width", "Width")}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="wall_height">
+                  Wall Height * 
+                  {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
+                </Label>
+                {renderDimensionInput("wall_height", "Wall Height")}
+              </div>
 
-          {formData.length && formData.width && (
+              <div className="space-y-2">
+                <Label htmlFor="wall_length">
+                  Wall Length * 
+                  {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
+                </Label>
+                {renderDimensionInput("wall_length", "Wall Length")}
+              </div>
+            </div>
+          )}
+
+          {formData.room_type === "floor" && formData.length && formData.width && (
             <div className="p-3 bg-green-50 rounded-lg border border-green-200">
               <div className="text-sm text-green-700">
                 <p><strong>Floor Area:</strong> {(parseFloat(formData.length || "0") * parseFloat(formData.width || "0")).toFixed(2)} {formData.unit}²</p>
+              </div>
+            </div>
+          )}
+
+          {formData.room_type === "wall" && formData.wall_height && formData.wall_length && (
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="text-sm text-blue-700">
+                <p><strong>Wall Area:</strong> {(parseFloat(formData.wall_height || "0") * parseFloat(formData.wall_length || "0")).toFixed(2)} {formData.unit}²</p>
               </div>
             </div>
           )}
@@ -220,7 +297,9 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !formData.name.trim() || !formData.length || !formData.width}
+              disabled={isLoading || !formData.name.trim() || 
+                (formData.room_type === "floor" && (!formData.length || !formData.width)) ||
+                (formData.room_type === "wall" && (!formData.wall_height || !formData.wall_length))}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? "Saving..." : room ? "Update Room" : "Create Room"}
