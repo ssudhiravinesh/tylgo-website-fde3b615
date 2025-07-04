@@ -36,7 +36,6 @@ export interface Quotation {
   total_cost: number;
   status: string;
   notes?: string;
-  wastage_percentage?: number; // Add wastage percentage field
   created_at: string;
   updated_at: string;
   customer?: {
@@ -60,7 +59,6 @@ export interface CreateQuotationData {
   total_cost: number;
   status?: string;
   notes?: string;
-  wastage_percentage?: number; // Add wastage percentage field
   items: Omit<QuotationItem, 'id' | 'quotation_id'>[];
 }
 

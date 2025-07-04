@@ -8,9 +8,6 @@ export interface Room {
   length: number;
   width: number;
   unit: 'metre' | 'inches' | 'mm' | 'feet';
-  room_type: 'floor' | 'wall';
-  wall_height?: number;
-  wall_length?: number;
   created_at: string;
 }
 
@@ -20,9 +17,6 @@ export interface CreateRoomData {
   length: number;
   width: number;
   unit: 'metre' | 'inches' | 'mm' | 'feet';
-  room_type: 'floor' | 'wall';
-  wall_height?: number;
-  wall_length?: number;
 }
 
 export interface UpdateRoomData extends CreateRoomData {
@@ -34,7 +28,6 @@ export interface RoomTileSelection {
   customer_id: string;
   room_id: string;
   tile_id: string;
-  layer_number?: number;
   created_at: string;
 }
 
@@ -54,8 +47,7 @@ const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
 
   return (data || []).map(room => ({
     ...room,
-    unit: room.unit as 'metre' | 'inches' | 'mm' | 'feet',
-    room_type: room.room_type as 'floor' | 'wall'
+    unit: room.unit as 'metre' | 'inches' | 'mm' | 'feet'
   }));
 };
 
@@ -73,8 +65,7 @@ const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
 
   return {
     ...data,
-    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet',
-    room_type: data.room_type as 'floor' | 'wall'
+    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet'
   };
 };
 
@@ -95,43 +86,19 @@ const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
 
   return {
     ...data,
-    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet',
-    room_type: data.room_type as 'floor' | 'wall'
+    unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet'
   };
 };
 
 const deleteRoom = async (roomId: string): Promise<void> => {
-  // First, delete all tile selections for this room
-  const { error: selectionsError } = await supabase
-    .from('room_tile_selections')
-    .delete()
-    .eq('room_id', roomId);
-
-  if (selectionsError) {
-    console.error('Error deleting room tile selections:', selectionsError);
-    throw selectionsError;
-  }
-
-  // Then, delete all quotation items for this room
-  const { error: quotationItemsError } = await supabase
-    .from('quotation_items')
-    .delete()
-    .eq('room_id', roomId);
-
-  if (quotationItemsError) {
-    console.error('Error deleting quotation items:', quotationItemsError);
-    throw quotationItemsError;
-  }
-
-  // Finally, delete the room itself
-  const { error: roomError } = await supabase
+  const { error } = await supabase
     .from('rooms')
     .delete()
     .eq('id', roomId);
 
-  if (roomError) {
-    console.error('Error deleting room:', roomError);
-    throw roomError;
+  if (error) {
+    console.error('Error deleting room:', error);
+    throw error;
   }
 };
 
@@ -151,17 +118,12 @@ const fetchRoomTileSelections = async (customerId: string): Promise<RoomTileSele
   return data || [];
 };
 
-const saveRoomTileSelections = async (selections: { 
-  customer_id: string; 
-  room_id: string; 
-  tile_id: string; 
-  layer_number?: number;
-}[]): Promise<void> => {
+const saveRoomTileSelections = async (selections: { customer_id: string; room_id: string; tile_id: string }[]): Promise<void> => {
   if (selections.length === 0) return;
 
   const { error } = await supabase
     .from('room_tile_selections')
-    .upsert(selections, { onConflict: 'room_id,tile_id,layer_number' });
+    .upsert(selections, { onConflict: 'room_id,tile_id' });
 
   if (error) {
     console.error('Error saving room tile selections:', error);
@@ -169,20 +131,12 @@ const saveRoomTileSelections = async (selections: {
   }
 };
 
-const deleteRoomTileSelection = async (roomId: string, tileId: string, layerNumber?: number): Promise<void> => {
-  let query = supabase
+const deleteRoomTileSelection = async (roomId: string, tileId: string): Promise<void> => {
+  const { error } = await supabase
     .from('room_tile_selections')
     .delete()
     .eq('room_id', roomId)
     .eq('tile_id', tileId);
-
-  if (layerNumber !== undefined) {
-    query = query.eq('layer_number', layerNumber);
-  } else {
-    query = query.is('layer_number', null);
-  }
-
-  const { error } = await query;
 
   if (error) {
     console.error('Error deleting room tile selection:', error);
@@ -227,8 +181,6 @@ export const useDeleteRoom = () => {
     mutationFn: deleteRoom,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
     },
   });
 };
@@ -258,8 +210,8 @@ export const useDeleteRoomTileSelection = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ roomId, tileId, layerNumber }: { roomId: string; tileId: string; layerNumber?: number }) => 
-      deleteRoomTileSelection(roomId, tileId, layerNumber),
+    mutationFn: ({ roomId, tileId }: { roomId: string; tileId: string }) => 
+      deleteRoomTileSelection(roomId, tileId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
     },

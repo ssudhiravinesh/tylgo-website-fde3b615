@@ -1,3 +1,5 @@
+
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -5,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, FileText, Calendar, IndianRupee, User, Plus } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
+import { QuotationForm } from "./QuotationForm";
 import { QuotationDetails } from "./QuotationDetails";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
 import { EditQuotationDialog } from "./EditQuotationDialog";
@@ -128,26 +131,11 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   };
 
   if (viewMode === "create") {
-    // Show a message that creation needs to be done from the rooms page
     return (
-      <div className="container max-w-4xl mx-auto py-10">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Quotation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <p className="text-gray-600 mb-4">
-                To create a quotation, please go to the Rooms page, select a customer, 
-                add rooms, select tiles, and then generate the quotation from there.
-              </p>
-              <Button onClick={handleBackToList} variant="outline">
-                Back to Quotations
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <QuotationForm 
+        onBack={handleBackToList}
+        onSuccess={handleCreateSuccess}
+      />
     );
   }
 
