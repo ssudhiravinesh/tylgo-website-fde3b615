@@ -1,7 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { TileSelectionCard } from "./TileSelectionCard";
 import { WallTileSelector } from "./WallTileSelector";
@@ -20,6 +21,8 @@ interface TileSelectionStepProps {
   customer: Customer;
   rooms: Room[];
   tiles: Tile[];
+  wastagePercentage?: number;
+  onWastageChange?: (percentage: number) => void;
 }
 
 interface WallTileSelection {
@@ -28,13 +31,19 @@ interface WallTileSelection {
   };
 }
 
-export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepProps) => {
+export const TileSelectionStep = ({ 
+  customer, 
+  rooms, 
+  tiles, 
+  wastagePercentage = 0, 
+  onWastageChange 
+}: TileSelectionStepProps) => {
   const [tileSelections, setTileSelections] = useState<{ [roomId: string]: string[] }>({});
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection>({});
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<string>("");
   const [showQuotationForm, setShowQuotationForm] = useState(false);
-  const [wastagePercentage, setWastagePercentage] = useState<number>(0);
+  const [localWastagePercentage, setLocalWastagePercentage] = useState<number>(wastagePercentage);
 
   const { data: existingSelections = [] } = useRoomTileSelections(customer.id);
   const saveSelectionsMutation = useSaveRoomTileSelections();
@@ -136,6 +145,13 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
     }
   };
 
+  const handleWastageChange = (newWastage: number) => {
+    setLocalWastagePercentage(newWastage);
+    if (onWastageChange) {
+      onWastageChange(newWastage);
+    }
+  };
+
   const hasSelections = Object.keys(tileSelections).length > 0 || Object.keys(wallTileSelections).length > 0;
 
   if (showQuotationForm) {
@@ -154,6 +170,7 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
           tiles={tiles}
           tileSelections={tileSelections}
           wallTileSelections={wallTileSelections}
+          wastagePercentage={localWastagePercentage}
           onSuccess={() => {
             setShowQuotationForm(false);
             toast.success("Quotation created successfully!");
@@ -184,8 +201,8 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
               min="0"
               max="100"
               step="0.1"
-              value={wastagePercentage}
-              onChange={(e) => setWastagePercentage(Number(e.target.value))}
+              value={localWastagePercentage}
+              onChange={(e) => handleWastageChange(Number(e.target.value))}
               placeholder="Enter wastage percentage"
               className="w-48 mt-2"
             />
@@ -199,6 +216,7 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
           rooms={floorRooms}
           tiles={tiles}
           tileSelections={tileSelections}
+          wastagePercentage={localWastagePercentage}
           onChooseTile={handleChooseTile}
           onRemoveTile={handleRemoveTile}
           isDeleting={deleteSelectionMutation.isPending}
@@ -211,6 +229,7 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
           wallRooms={wallRooms}
           tiles={tiles}
           wallTileSelections={wallTileSelections}
+          wastagePercentage={localWastagePercentage}
           onWallTileSelectionChange={setWallTileSelections}
         />
       )}
@@ -227,7 +246,7 @@ export const TileSelectionStep = ({ customer, rooms, tiles }: TileSelectionStepP
         
         <Button
           onClick={() => setShowQuotationForm(true)}
-          disabled={!hasSelections || wastagePercentage === 0}
+          disabled={!hasSelections || localWastagePercentage === 0}
         >
           Generate Quotation
         </Button>
