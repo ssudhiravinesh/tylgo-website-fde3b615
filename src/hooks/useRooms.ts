@@ -91,14 +91,37 @@ const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
 };
 
 const deleteRoom = async (roomId: string): Promise<void> => {
-  const { error } = await supabase
+  // First, delete all tile selections for this room
+  const { error: selectionsError } = await supabase
+    .from('room_tile_selections')
+    .delete()
+    .eq('room_id', roomId);
+
+  if (selectionsError) {
+    console.error('Error deleting room tile selections:', selectionsError);
+    throw selectionsError;
+  }
+
+  // Then, delete all quotation items for this room
+  const { error: quotationItemsError } = await supabase
+    .from('quotation_items')
+    .delete()
+    .eq('room_id', roomId);
+
+  if (quotationItemsError) {
+    console.error('Error deleting quotation items:', quotationItemsError);
+    throw quotationItemsError;
+  }
+
+  // Finally, delete the room itself
+  const { error: roomError } = await supabase
     .from('rooms')
     .delete()
     .eq('id', roomId);
 
-  if (error) {
-    console.error('Error deleting room:', error);
-    throw error;
+  if (roomError) {
+    console.error('Error deleting room:', roomError);
+    throw roomError;
   }
 };
 
@@ -181,6 +204,8 @@ export const useDeleteRoom = () => {
     mutationFn: deleteRoom,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
     },
   });
 };

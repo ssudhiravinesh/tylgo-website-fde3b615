@@ -54,6 +54,10 @@ export const TileCard = ({
         
         <div className="space-y-2">
           <div className="flex items-center justify-between">
+            {tile.name}
+          </div>
+          
+          <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">
             <Badge variant="secondary" className="text-xs font-mono">
               {tile.code}
             </Badge>
@@ -63,10 +67,6 @@ export const TileCard = ({
                 Selected
               </Badge>
             )}
-          </div>
-          
-          <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">
-            {tile.name}
           </h3>
           
           <div className="flex items-center gap-1 text-xs text-gray-600">

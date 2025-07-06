@@ -8,21 +8,62 @@ export const useCameraAccess = () => {
   const [debugInfo, setDebugInfo] = useState<string>('');
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const checkCameraPermissions = async () => {
+    try {
+      const permissions = await navigator.permissions.query({ name: 'camera' as PermissionName });
+      console.log('Camera permission status:', permissions.state);
+      setDebugInfo(prev => prev + `Camera permission: ${permissions.state}\n`);
+      return permissions.state;
+    } catch (error) {
+      console.log('Could not check camera permissions:', error);
+      return 'unknown';
+    }
+  };
+
+  const detectDevices = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log('Available video devices:', videoDevices.length);
+      setDebugInfo(prev => prev + `Video devices found: ${videoDevices.length}\n`);
+      return videoDevices;
+    } catch (error) {
+      console.error('Error enumerating devices:', error);
+      return [];
+    }
+  };
+
   const startCamera = useCallback(async (onCameraReady?: () => void) => {
     try {
       console.log('Starting camera initialization...');
       setCameraError('');
       setDebugInfo('Initializing camera...\n');
-      setHasCamera(false);
       
-      // Check if camera API is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera API not supported. Please use HTTPS or try a different browser.');
+        throw new Error('Camera API not supported in this browser');
       }
 
-      // Simple, progressive constraint approach
-      const constraints = [
-        // Best case: back camera with good resolution
+      await checkCameraPermissions();
+      const devices = await detectDevices();
+      
+      if (devices.length === 0) {
+        throw new Error('No camera devices found');
+      }
+
+      // Optimized constraints for mobile QR scanning
+      const constraintOptions = [
+        // High-resolution back camera with autofocus (best for QR scanning)
+        { 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+            focusMode: 'continuous',
+            exposureMode: 'continuous'
+          }, 
+          audio: false 
+        },
+        // Standard back camera
         { 
           video: { 
             facingMode: 'environment',
@@ -31,7 +72,7 @@ export const useCameraAccess = () => {
           }, 
           audio: false 
         },
-        // Fallback: any camera
+        // Any camera with good resolution
         { 
           video: { 
             width: { ideal: 640 }, 
@@ -40,110 +81,134 @@ export const useCameraAccess = () => {
           audio: false 
         },
         // Basic fallback
-        { video: true, audio: false }
+        { video: true, audio: false },
+        // Specific device fallback
+        ...(devices.length > 0 ? [{ 
+          video: { 
+            deviceId: { exact: devices[0].deviceId },
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          }, 
+          audio: false 
+        }] : [])
       ];
 
       let mediaStream = null;
       let lastError = null;
 
-      for (let i = 0; i < constraints.length; i++) {
+      for (let i = 0; i < constraintOptions.length; i++) {
+        const constraints = constraintOptions[i];
         try {
-          console.log(`Trying camera access attempt ${i + 1}...`);
-          setDebugInfo(prev => prev + `Attempt ${i + 1}: Requesting camera access...\n`);
+          console.log(`Trying constraints ${i + 1}:`, constraints);
+          setDebugInfo(prev => prev + `Trying option ${i + 1}...\n`);
           
-          mediaStream = await navigator.mediaDevices.getUserMedia(constraints[i]);
-          console.log('Camera access granted!');
-          setDebugInfo(prev => prev + `Success! Camera stream obtained.\n`);
+          mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+          console.log('Camera stream obtained with constraints:', constraints);
+          setDebugInfo(prev => prev + `Success with option ${i + 1}!\n`);
           break;
         } catch (error) {
-          console.log(`Camera attempt ${i + 1} failed:`, error);
-          setDebugInfo(prev => prev + `Attempt ${i + 1} failed: ${(error as Error).message}\n`);
+          console.log(`Failed with constraints ${i + 1}:`, error);
+          setDebugInfo(prev => prev + `Option ${i + 1} failed: ${(error as Error).message}\n`);
           lastError = error;
-          
-          // If permission denied, don't try other constraints
-          if ((error as Error).name === 'NotAllowedError') {
-            break;
-          }
+          continue;
         }
       }
 
       if (!mediaStream) {
-        throw lastError || new Error('Unable to access camera');
+        throw lastError || new Error('Unable to access camera with any configuration');
       }
       
-      // Log camera details
-      const videoTrack = mediaStream.getVideoTracks()[0];
-      if (videoTrack) {
-        console.log('Camera details:', {
-          label: videoTrack.label,
-          settings: videoTrack.getSettings()
+      const videoTracks = mediaStream.getVideoTracks();
+      if (videoTracks.length > 0) {
+        const track = videoTracks[0];
+        console.log('Video track details:', {
+          label: track.label,
+          enabled: track.enabled,
+          readyState: track.readyState,
+          settings: track.getSettings()
         });
-        setDebugInfo(prev => prev + `Camera: ${videoTrack.label}\n`);
+        setDebugInfo(prev => prev + `Using: ${track.label}\n`);
+
+        // Apply additional mobile-optimized settings
+        try {
+          if ('applyConstraints' in track) {
+            await track.applyConstraints({
+              focusMode: 'continuous',
+              exposureMode: 'continuous',
+              whiteBalanceMode: 'continuous'
+            } as any);
+          }
+        } catch (error) {
+          console.log('Could not apply advanced constraints:', error);
+        }
       }
       
       setStream(mediaStream);
       setHasCamera(true);
       
-      // Setup video element
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        
+        // Mobile-optimized video settings
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('webkit-playsinline', 'true');
         videoRef.current.muted = true;
-        videoRef.current.playsInline = true;
+        videoRef.current.autoplay = true;
         
-        // Wait for video to be ready
-        const video = videoRef.current;
-        
-        const handleCanPlay = () => {
-          console.log('Video ready to play');
-          video.play().then(() => {
-            console.log('Video playing successfully');
-            if (onCameraReady) {
-              setTimeout(() => onCameraReady(), 500);
-            }
-          }).catch(error => {
-            console.error('Video play error:', error);
-            setCameraError('Unable to start video playback');
-          });
-          video.removeEventListener('canplay', handleCanPlay);
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          if (videoRef.current) {
+            console.log('Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+            setDebugInfo(prev => prev + `Video: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}\n`);
+          }
         };
 
-        video.addEventListener('canplay', handleCanPlay);
-        
-        // Fallback timeout
-        setTimeout(() => {
-          if (video.readyState >= 3) { // HAVE_FUTURE_DATA or better
-            handleCanPlay();
+        videoRef.current.oncanplay = () => {
+          console.log('Video can play, starting playback...');
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              console.log('Video playing');
+              if (onCameraReady) {
+                // Longer delay for mobile to ensure camera is fully ready
+                setTimeout(() => onCameraReady(), 1000);
+              }
+            }).catch(error => {
+              console.error('Error playing video:', error);
+              setCameraError('Error starting video playback: ' + error.message);
+            });
           }
-        }, 2000);
+        };
+
+        videoRef.current.onerror = (error) => {
+          console.error('Video error:', error);
+          setCameraError('Video playback error');
+        };
       }
       
     } catch (error) {
-      console.error('Camera access error:', error);
+      console.error('Error accessing camera:', error);
       setHasCamera(false);
       
-      let errorMessage = 'Unknown camera error';
-      
       if (error instanceof Error) {
-        switch (error.name) {
-          case 'NotAllowedError':
-            errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-            break;
-          case 'NotFoundError':
-            errorMessage = 'No camera found on this device.';
-            break;
-          case 'NotSupportedError':
-            errorMessage = 'Camera not supported by this browser.';
-            break;
-          case 'NotReadableError':
-            errorMessage = 'Camera is already in use by another application.';
-            break;
-          default:
-            errorMessage = error.message;
+        let errorMessage = '';
+        if (error.name === 'NotAllowedError') {
+          errorMessage = 'Camera permission denied. Please allow camera access in your browser settings and refresh the page.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = 'No camera found on this device.';
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage = 'Camera not supported by this browser. Try using Chrome, Firefox, or Safari.';
+        } else if (error.name === 'OverconstrainedError') {
+          errorMessage = 'Camera constraints not supported by your device.';
+        } else if (error.message.includes('Camera API not supported')) {
+          errorMessage = 'Camera API not supported. Please use HTTPS or try a different browser.';
+        } else {
+          errorMessage = `Camera error: ${error.message}. Try refreshing the page or using a different browser.`;
         }
-        setDebugInfo(prev => prev + `Final error: ${error.name} - ${error.message}\n`);
+        setCameraError(errorMessage);
+        setDebugInfo(prev => prev + `Error: ${error.name} - ${error.message}\n`);
+      } else {
+        setCameraError('Unknown camera error. Please try refreshing the page.');
       }
-      
-      setCameraError(errorMessage);
     }
   }, []);
 
@@ -151,6 +216,7 @@ export const useCameraAccess = () => {
     console.log('Stopping camera...');
     if (stream) {
       stream.getTracks().forEach(track => {
+        console.log('Stopping track:', track.kind, track.label);
         track.stop();
       });
       setStream(null);
@@ -164,9 +230,11 @@ export const useCameraAccess = () => {
   }, [stream]);
 
   const retryCamera = useCallback(() => {
-    stopCamera();
-    setTimeout(() => startCamera(), 100);
-  }, [startCamera, stopCamera]);
+    setCameraError('');
+    setDebugInfo('');
+    setHasCamera(false);
+    startCamera();
+  }, [startCamera]);
 
   return {
     hasCamera,

@@ -1,23 +1,20 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FileText, User, Phone, MapPin } from "lucide-react";
+import { ArrowLeft, Save, User, FileText } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useCreateQuotation } from "@/hooks/useQuotations";
+import { useAuth } from "@/hooks/useAuth";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
-import { useQuotations } from "@/hooks/useQuotations";
-import { MobileNumberSearch } from "@/components/customers/MobileNumberSearch";
 import { toast } from "sonner";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
-import { supabase } from "@/integrations/supabase/client";
-import type { Quotation } from "@/hooks/useQuotations";
 
 interface QuotationFormProps {
-  onBack: () => void;
   preSelectedCustomerId?: string;
   selectedRoomsData?: Array<{
     roomId: string;
@@ -26,380 +23,259 @@ interface QuotationFormProps {
     wastagePercentage: number;
   }>;
   wastagePercentage?: number;
-  onSuccess?: () => void;
-  editMode?: boolean;
-  existingQuotation?: Quotation;
+  onBack: () => void;
+  onSuccess: () => void;
 }
 
 export const QuotationForm = ({ 
-  onBack, 
   preSelectedCustomerId, 
-  selectedRoomsData = [],
+  selectedRoomsData = [], 
   wastagePercentage = 10,
-  onSuccess,
-  editMode = false,
-  existingQuotation
+  onBack, 
+  onSuccess 
 }: QuotationFormProps) => {
-  const [formData, setFormData] = useState({
-    customer_id: preSelectedCustomerId || existingQuotation?.customer_id || "",
-    notes: existingQuotation?.notes || "",
-    status: (existingQuotation?.status as "draft" | "approved") || "draft"
-  });
-
-  const [quotationItems, setQuotationItems] = useState<Array<{
-    roomId: string;
-    tileId: string;
-    area: number;
-    pricePerBox: number;
-    wastagePercentage?: number;
-  }>>([]);
-
-  const [currentUser, setCurrentUser] = useState<any>(null);
-
+  const { user } = useAuth();
   const { data: customers = [] } = useCustomers();
-  const { data: rooms = [] } = useRoomsByCustomer(formData.customer_id);
+  const { data: rooms = [] } = useRoomsByCustomer(preSelectedCustomerId || '');
   const { data: tiles = [] } = useTiles();
-  const { createQuotation, updateQuotation, isCreating, isUpdating } = useQuotations();
+  const createQuotationMutation = useCreateQuotation();
 
-  // Get current user on component mount
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-    };
-    getCurrentUser();
-  }, []);
+  const [customerId, setCustomerId] = useState(preSelectedCustomerId || '');
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load existing quotation items if in edit mode
-  useEffect(() => {
-    if (editMode && existingQuotation) {
-      // Load quotation items - this would need to be implemented
-      // For now, we'll initialize with empty items
-      setQuotationItems([]);
-    } else if (selectedRoomsData.length > 0) {
-      const items = selectedRoomsData.map(item => {
-        const tile = tiles.find(t => t.id === item.tileId);
-        return {
-          roomId: item.roomId,
-          tileId: item.tileId,
-          area: item.quantity, // Save area as-is without adding wastage
-          pricePerBox: tile?.price_per_box || 0,
-          wastagePercentage: item.wastagePercentage
-        };
-      });
-      setQuotationItems(items);
-    }
-  }, [selectedRoomsData, tiles, editMode, existingQuotation]);
-
-  const [customerDetails, setCustomerDetails] = useState({
-    name: "",
-    mobile: "",
-    address: ""
-  });
-
-  useEffect(() => {
-    if (formData.customer_id) {
-      const selectedCustomer = customers.find(c => c.id === formData.customer_id);
-      if (selectedCustomer) {
-        setCustomerDetails({
-          name: selectedCustomer.name,
-          mobile: selectedCustomer.mobile,
-          address: selectedCustomer.address || ""
-        });
-      } else {
-        setCustomerDetails({ name: "", mobile: "", address: "" });
-      }
-    } else {
-      setCustomerDetails({ name: "", mobile: "", address: "" });
-    }
-  }, [formData.customer_id, customers]);
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  // Auto-generate quotation number based on timestamp
+  const generateQuotationNumber = () => {
+    const now = new Date();
+    const year = now.getFullYear().toString().substr(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const time = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+    return `QT${year}${month}${day}${time}`;
   };
 
-  const handleCustomerSelect = (customerId: string) => {
-    setFormData(prev => ({ ...prev, customer_id: customerId }));
-  };
+  const [quotationNumber] = useState(generateQuotationNumber());
 
-  const handleAddItem = () => {
-    setQuotationItems(prev => [...prev, { roomId: "", tileId: "", area: 0, pricePerBox: 0 }]);
-  };
+  // Calculate total from selected rooms data
+  const calculateTotal = () => {
+    if (!selectedRoomsData.length) return 0;
 
-  const handleItemChange = (index: number, field: string, value: any) => {
-    const updatedItems = [...quotationItems];
-    updatedItems[index][field] = value;
-    setQuotationItems(updatedItems);
-  };
-
-  const handleRemoveItem = (index: number) => {
-    const updatedItems = [...quotationItems];
-    updatedItems.splice(index, 1);
-    setQuotationItems(updatedItems);
-  };
-
-  const calculateTotalCost = () => {
-    return quotationItems.reduce((sum, item) => {
-      const tile = tiles.find(t => t.id === item.tileId);
-      if (!tile || !tile.size_length || !tile.size_breadth || !tile.pieces_per_box || !tile.price_per_box) {
-        return sum;
-      }
-
-      // Calculate tile area in square feet
-      const tileLengthFt = tile.size_length / 304.8; // mm to ft
-      const tileBreadthFt = tile.size_breadth / 304.8; // mm to ft
-      const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-
-      if (tileAreaSqFt > 0) {
-        // Step 1: Calculate basic tiles needed
-        const basicTilesNeeded = Math.ceil(item.area / tileAreaSqFt);
+    let total = 0;
+    selectedRoomsData.forEach(roomData => {
+      const tile = tiles.find(t => t.id === roomData.tileId);
+      if (tile && tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
+        // Calculate tile area in square feet
+        const tileLengthFt = (tile.size_length || 0) / 304.8; // mm to ft
+        const tileBreadthFt = (tile.size_breadth || 0) / 304.8; // mm to ft
+        const tileAreaSqFt = tileLengthFt * tileBreadthFt;
         
-        // Step 2: Add wastage percentage to tiles
-        const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-        
-        // Step 3: Calculate boxes needed
-        const boxesNeeded = Math.ceil(tilesWithWastage / tile.pieces_per_box);
-        
-        // Step 4: Calculate price
-        return sum + (boxesNeeded * tile.price_per_box);
+        if (tileAreaSqFt > 0) {
+          // Step 1: Calculate basic tiles needed for the area
+          const basicTilesNeeded = Math.ceil(roomData.quantity / tileAreaSqFt);
+          
+          // Step 2: Add wastage percentage to tiles
+          const tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+          
+          // Step 3: Calculate boxes needed from total tiles
+          const boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
+          
+          // Step 4: Calculate total price
+          const totalPrice = boxesNeeded * tile.price_per_box;
+          total += totalPrice;
+        }
       }
-      
-      return sum;
-    }, 0);
+    });
+    return total;
   };
+
+  const totalCost = calculateTotal();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.customer_id) {
+    if (!user) {
+      toast.error("You must be logged in to create quotations");
+      return;
+    }
+
+    if (!customerId) {
       toast.error("Please select a customer");
       return;
     }
 
-    // In edit mode, we only update the status and notes
-    if (editMode && existingQuotation) {
-      if (!currentUser) {
-        toast.error("User not authenticated");
-        return;
-      }
-
-      try {
-        await updateQuotation({
-          id: existingQuotation.id,
-          status: formData.status,
-          notes: formData.notes
-        });
-        
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          onBack();
-        }
-      } catch (error) {
-        console.error("Error updating quotation:", error);
-      }
+    if (!selectedRoomsData.length) {
+      toast.error("No room data provided");
       return;
     }
 
-    // For create mode, we need items
-    if (quotationItems.length === 0) {
-      toast.error("Please add at least one item to the quotation");
-      return;
-    }
-
-    if (!currentUser) {
-      toast.error("User not authenticated");
-      return;
-    }
+    setIsSubmitting(true);
 
     try {
-      const totalCost = calculateTotalCost();
-      
-      // Generate quotation number (simple implementation)
-      const quotationNumber = `QUO-${Date.now()}`;
-      
-      const items = quotationItems.map(item => ({
-        tile_id: item.tileId,
-        room_id: item.roomId,
-        area: item.area,
-        price_per_box: item.pricePerBox,
-        total_price: item.area * item.pricePerBox
-      }));
+      // Prepare quotation items
+      const quotationItems = selectedRoomsData.map(roomData => {
+        const tile = tiles.find(t => t.id === roomData.tileId);
+        if (!tile) {
+          throw new Error(`Tile not found for ID: ${roomData.tileId}`);
+        }
+
+        // Calculate pricing
+        let totalPrice = 0;
+        if (tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
+          const tileLengthFt = (tile.size_length || 0) / 304.8;
+          const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+          const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+          
+          if (tileAreaSqFt > 0) {
+            const basicTilesNeeded = Math.ceil(roomData.quantity / tileAreaSqFt);
+            const tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+            const boxesNeeded = Math.ceil(tilesNeeded / tile.pieces_per_box);
+            totalPrice = boxesNeeded * tile.price_per_box;
+          }
+        }
+
+        return {
+          tile_id: roomData.tileId,
+          room_id: roomData.roomId,
+          area: roomData.quantity, // Original area without wastage
+          price_per_box: tile.price_per_box || 0,
+          total_price: totalPrice,
+        };
+      });
 
       const quotationData = {
         quotation_number: quotationNumber,
-        customer_id: formData.customer_id,
-        worker_id: currentUser.id,
+        customer_id: customerId,
+        worker_id: user.id,
         total_cost: totalCost,
-        notes: formData.notes,
-        status: formData.status,
-        items
+        status: 'draft',
+        notes: notes || undefined,
+        wastage_percentage: wastagePercentage,
+        items: quotationItems,
       };
 
-      await createQuotation(quotationData);
-      
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        onBack();
-      }
+      console.log('Creating quotation with data:', quotationData);
+      await createQuotationMutation.mutateAsync(quotationData);
+      onSuccess();
     } catch (error) {
-      console.error("Error saving quotation:", error);
+      console.error('Error creating quotation:', error);
+      toast.error('Failed to create quotation');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  const selectedCustomer = customers.find(c => c.id === customerId);
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onBack}
-          className="gap-2"
-        >
+        <Button variant="outline" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {editMode ? `Edit Quotation ${existingQuotation?.quotation_number}` : "Create Quotation"}
-          </h1>
-          <p className="text-gray-600">
-            {editMode ? "Update quotation status" : "Enter quotation details to generate a new record"}
-          </p>
+          <h2 className="text-2xl font-bold text-gray-800">Generate Quotation</h2>
+          <p className="text-gray-600">Create a quotation for the selected tiles and rooms</p>
         </div>
       </div>
 
-      <Card className="border-gray-200 shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-blue-600" />
-            Quotation Information
-          </CardTitle>
-        </CardHeader>
-        
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {!editMode && (
-              <div className="space-y-2">
-                <Label htmlFor="customer_id" className="text-sm font-medium text-gray-700">
-                  Customer *
-                </Label>
-                <MobileNumberSearch
-                  value={customerDetails.mobile}
-                  onChange={(value) => setCustomerDetails(prev => ({ ...prev, mobile: value }))}
-                  onCustomerFound={(customer) => {
-                    if (customer) {
-                      handleCustomerSelect(customer.id);
-                      setCustomerDetails({
-                        name: customer.name,
-                        mobile: customer.mobile,
-                        address: customer.address || ""
-                      });
-                    } else {
-                      handleCustomerSelect("");
-                      setCustomerDetails({ name: "", mobile: "", address: "" });
-                    }
-                  }}
-                  placeholder="Enter customer mobile number"
-                  searchType="customer"
-                />
-                {customerDetails.name && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-100">
-                    <p className="text-sm font-medium text-gray-800">
-                      {customerDetails.name}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {customerDetails.address || "No address available"}
-                    </p>
-                  </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Customer and Quotation Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Customer & Quotation Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="quotation-number">Quotation Number</Label>
+              <Input
+                id="quotation-number"
+                value={quotationNumber}
+                readOnly
+                className="bg-gray-50"
+              />
+            </div>
+
+            {selectedCustomer && (
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-800">{selectedCustomer.name}</h4>
+                <p className="text-sm text-blue-600">{selectedCustomer.mobile}</p>
+                {selectedCustomer.address && (
+                  <p className="text-xs text-blue-500 mt-1">{selectedCustomer.address}</p>
                 )}
               </div>
             )}
 
-            {editMode && existingQuotation && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Customer</Label>
-                <div className="p-3 bg-gray-50 rounded-md border border-gray-100">
-                  <p className="text-sm font-medium text-gray-800">
-                    {existingQuotation.customer?.name}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {existingQuotation.customer?.mobile}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {!editMode && (
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Enter any additional notes for the quotation"
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange("notes", e.target.value)}
-                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-sm font-medium text-gray-700">
-                Status
-              </Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: "draft" | "approved") => handleInputChange("status", value)}
-              >
-                <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                </SelectContent>
-              </Select>
+            <div>
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any additional notes for this quotation..."
+                rows={3}
+              />
             </div>
 
-            {editMode && (
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Enter any additional notes for the quotation"
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange("notes", e.target.value)}
-                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onBack}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isCreating || isUpdating}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
-                {editMode ? (isUpdating ? "Updating..." : "Update Quotation") : (isCreating ? "Creating..." : "Create Quotation")}
-              </Button>
+            <div className="p-3 bg-green-50 rounded-lg">
+              <p className="text-sm text-green-600 mb-1">Wastage Percentage: {wastagePercentage}%</p>
+              <p className="text-lg font-bold text-green-800">
+                Total Amount: ₹{totalCost.toLocaleString()}
+              </p>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Quotation Items Preview */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Quotation Items ({selectedRoomsData.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {selectedRoomsData.map((roomData, index) => {
+                const room = rooms.find(r => r.id === roomData.roomId);
+                const tile = tiles.find(t => t.id === roomData.tileId);
+                
+                return (
+                  <div key={index} className="border rounded-lg p-3 bg-gray-50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h5 className="font-medium">{room?.name || 'Unknown Room'}</h5>
+                        <p className="text-sm text-gray-600">{tile?.name || 'Unknown Tile'}</p>
+                        <p className="text-xs text-gray-500">
+                          Area: {roomData.quantity.toFixed(2)} sq ft
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Form Actions */}
+      <div className="flex justify-end gap-4">
+        <Button variant="outline" onClick={onBack}>
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit}
+          disabled={isSubmitting || !customerId || !selectedRoomsData.length}
+          className="gap-2"
+        >
+          <Save className="h-4 w-4" />
+          {isSubmitting ? 'Creating...' : 'Create Quotation'}
+        </Button>
+      </div>
     </div>
   );
 };

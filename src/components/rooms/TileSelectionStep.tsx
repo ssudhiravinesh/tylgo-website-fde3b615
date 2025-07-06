@@ -1,13 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Percent } from "lucide-react";
+import { ArrowLeft, Percent, ArrowRight } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
+import { WallTileConfigurationStep, type WallTileData } from "./WallTileConfigurationStep";
 import { TileSelectionCard } from "./TileSelectionCard";
 import { TileCalculationsCard } from "./TileCalculationsCard";
 import { toast } from "sonner";
@@ -28,6 +30,8 @@ interface TileCalculation {
   tilesNeeded: number;
   boxesNeeded: number;
   totalPrice: number;
+  isWallTile?: boolean;
+  wallLayers?: number[];
 }
 
 export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionStepProps) => {
@@ -37,11 +41,13 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const deleteSelectionMutation = useDeleteRoomTileSelection();
   
   const [tileSelections, setTileSelections] = useState<{ [roomId: string]: string[] }>({});
+  const [wallTileData, setWallTileData] = useState<WallTileData[]>([]);
   const [wastagePercentage, setWastagePercentage] = useState<number>(10);
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [selectedRoomForTile, setSelectedRoomForTile] = useState<string | null>(null);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [showQuotationForm, setShowQuotationForm] = useState(false);
+  const [showWallTileConfiguration, setShowWallTileConfiguration] = useState(false);
 
   useEffect(() => {
     // Initialize selections from database
@@ -172,6 +178,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const calculateTileRequirements = (): TileCalculation[] => {
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
 
+    // Floor tiles calculations
     Object.entries(tileSelections).forEach(([roomId, tileIds]) => {
       const room = rooms.find(r => r.id === roomId);
       if (!room) return;
@@ -187,36 +194,77 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
             totalArea: 0,
             tilesNeeded: 0,
             boxesNeeded: 0,
-            totalPrice: 0
+            totalPrice: 0,
+            isWallTile: false
           };
         }
 
-        // Convert room area to square feet for calculation
         const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-        
         tileCalculations[tileId].rooms.push(room);
         tileCalculations[tileId].totalArea += roomAreaInSqFt;
       });
     });
 
+    // Wall tiles calculations - using the same calculation logic as floor tiles
+    const wallTileGroups: { [tileId: string]: { data: WallTileData[], totalArea: number, layers: number[] } } = {};
+    
+    wallTileData.forEach(wallTile => {
+      const tileId = wallTile.tileId;
+      if (!wallTileGroups[tileId]) {
+        wallTileGroups[tileId] = {
+          data: [],
+          totalArea: 0,
+          layers: []
+        };
+      }
+      wallTileGroups[tileId].data.push(wallTile);
+      wallTileGroups[tileId].totalArea += wallTile.quantity;
+      if (!wallTileGroups[tileId].layers.includes(wallTile.layerNumber)) {
+        wallTileGroups[tileId].layers.push(wallTile.layerNumber);
+      }
+    });
+
+    Object.entries(wallTileGroups).forEach(([tileId, group]) => {
+      const tile = tiles.find(t => t.id === tileId);
+      if (!tile) return;
+
+      const wallTileKey = `${tileId}_wall`;
+      const roomIds = [...new Set(group.data.map(d => d.roomId))];
+      const wallRooms = rooms.filter(r => roomIds.includes(r.id));
+
+      tileCalculations[wallTileKey] = {
+        tile,
+        rooms: wallRooms,
+        totalArea: group.totalArea,
+        tilesNeeded: 0,
+        boxesNeeded: 0,
+        totalPrice: 0,
+        isWallTile: true,
+        wallLayers: group.layers
+      };
+    });
+
+    // Calculate tiles, boxes, and pricing using the same logic for both floor and wall tiles
     Object.values(tileCalculations).forEach(calc => {
-      // Calculate tile area in square feet
-      const tileLengthFt = (calc.tile.size_length || 0) / 304.8; // mm to ft
-      const tileBreadthFt = (calc.tile.size_breadth || 0) / 304.8; // mm to ft
-      const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+      const tile = calc.tile;
       
-      if (tileAreaSqFt > 0 && calc.tile.pieces_per_box && calc.tile.price_per_box) {
-        // Step 1: Calculate basic tiles needed for the area
-        const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+      if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
+        // Convert tile dimensions from mm to feet
+        const tileLengthFt = (tile.size_length || 0) / 304.8;
+        const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+        const tileAreaSqFt = tileLengthFt * tileBreadthFt;
         
-        // Step 2: Add wastage percentage to tiles
-        calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-        
-        // Step 3: Calculate boxes needed from total tiles
-        calc.boxesNeeded = Math.ceil(calc.tilesNeeded / calc.tile.pieces_per_box);
-        
-        // Step 4: Calculate total price
-        calc.totalPrice = calc.boxesNeeded * calc.tile.price_per_box;
+        if (tileAreaSqFt > 0) {
+          // Calculate basic tiles needed for the area
+          const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+          
+          // Add wastage percentage
+          calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+          
+          // Calculate boxes and price
+          calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
+          calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
+        }
       }
     });
 
@@ -230,8 +278,15 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     }
   };
 
+  const handleWallTileDataChange = (data: WallTileData[]) => {
+    setWallTileData(data);
+  };
+
   const handleGenerateQuotation = () => {
-    if (Object.keys(tileSelections).length === 0) {
+    const hasFloorTiles = Object.keys(tileSelections).length > 0;
+    const hasWallTiles = wallTileData.length > 0;
+    
+    if (!hasFloorTiles && !hasWallTiles) {
       toast.error("Please select tiles for at least one room before generating quotation");
       return;
     }
@@ -254,21 +309,36 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       tileId: string;
       quantity: number;
       wastagePercentage: number;
+      isWallTile?: boolean;
+      layerNumber?: number;
     }> = [];
 
+    // Floor tiles data
     Object.entries(tileSelections).forEach(([roomId, tileIds]) => {
       const room = rooms.find(r => r.id === roomId);
       if (!room) return;
 
       tileIds.forEach(tileId => {
-        // Save original area without wastage to database
         const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
         roomsData.push({
           roomId: roomId,
           tileId: tileId,
-          quantity: roomAreaInSqFt, // Original area without wastage
+          quantity: roomAreaInSqFt,
           wastagePercentage: wastagePercentage,
+          isWallTile: false,
         });
+      });
+    });
+
+    // Wall tiles data
+    wallTileData.forEach(wallTile => {
+      roomsData.push({
+        roomId: wallTile.roomId,
+        tileId: wallTile.tileId,
+        quantity: wallTile.quantity,
+        wastagePercentage: wastagePercentage,
+        isWallTile: true,
+        layerNumber: wallTile.layerNumber,
       });
     });
 
@@ -283,6 +353,17 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  if (showWallTileConfiguration) {
+    return (
+      <WallTileConfigurationStep
+        customerId={customerId}
+        rooms={rooms}
+        onBack={() => setShowWallTileConfiguration(false)}
+        onWallTileDataChange={handleWallTileDataChange}
+      />
     );
   }
 
@@ -305,10 +386,17 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           <ArrowLeft className="h-4 w-4" />
           Back to Rooms
         </Button>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Select Tiles for Rooms</h2>
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold text-gray-800">Select Floor Tiles for Rooms</h2>
           <p className="text-gray-600">Choose tiles from the catalog or scan QR codes for each room</p>
         </div>
+        <Button 
+          onClick={() => setShowWallTileConfiguration(true)}
+          className="gap-2"
+        >
+          Configure Wall Tiles
+          <ArrowRight className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
