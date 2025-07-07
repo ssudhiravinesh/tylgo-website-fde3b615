@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download } from "lucide-react";
+import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
+import { useImageUpload } from "@/hooks/useImageUpload";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,12 +37,15 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const [editingTile, setEditingTile] = useState<any>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   const { data: tiles = [], isLoading } = useTiles();
   const createTileMutation = useCreateTile();
   const updateTileMutation = useUpdateTile();
   const deleteTileMutation = useDeleteTile();
   const generateQRMutation = useGenerateQRForTile();
+  const { uploadImage, isUploading } = useImageUpload();
 
   const form = useForm<TileFormData>({
     resolver: zodResolver(tileSchema),
@@ -61,8 +65,33 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddTile = (data: TileFormData) => {
-    // Ensure all required fields are present and convert image_url to proper format
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImageFile(file);
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    }
+  };
+
+  const resetImageStates = () => {
+    setSelectedImageFile(null);
+    setImagePreview("");
+  };
+
+  const handleAddTile = async (data: TileFormData) => {
+    let imageUrl = data.image_url || null;
+    
+    // If user selected a file, upload it first
+    if (selectedImageFile) {
+      const uploadedUrl = await uploadImage(selectedImageFile);
+      if (uploadedUrl) {
+        imageUrl = uploadedUrl;
+      }
+    }
+
     const tileData = {
       code: data.code,
       name: data.name,
@@ -70,19 +99,30 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       size_breadth: data.size_breadth,
       price_per_box: data.price_per_box || null,
       pieces_per_box: data.pieces_per_box || null,
-      image_url: data.image_url || null,
+      image_url: imageUrl,
     };
     
     createTileMutation.mutate(tileData, {
       onSuccess: () => {
         setIsAddDialogOpen(false);
         form.reset();
+        resetImageStates();
       },
     });
   };
 
-  const handleEditTile = (data: TileFormData) => {
+  const handleEditTile = async (data: TileFormData) => {
     if (editingTile) {
+      let imageUrl = data.image_url || null;
+      
+      // If user selected a new file, upload it first
+      if (selectedImageFile) {
+        const uploadedUrl = await uploadImage(selectedImageFile);
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        }
+      }
+
       const updateData = {
         id: editingTile.id,
         code: data.code,
@@ -91,7 +131,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         size_breadth: data.size_breadth,
         price_per_box: data.price_per_box || null,
         pieces_per_box: data.pieces_per_box || null,
-        image_url: data.image_url || null,
+        image_url: imageUrl,
       };
       
       updateTileMutation.mutate(updateData, {
@@ -99,6 +139,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
           setIsEditDialogOpen(false);
           setEditingTile(null);
           form.reset();
+          resetImageStates();
         },
       });
     }
@@ -132,6 +173,15 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       pieces_per_box: tile.pieces_per_box || 0,
       image_url: tile.image_url || "",
     });
+    
+    // Reset image states when opening edit dialog
+    resetImageStates();
+    
+    // Set current image as preview if exists
+    if (tile.image_url) {
+      setImagePreview(tile.image_url);
+    }
+    
     setIsEditDialogOpen(true);
   };
 
@@ -297,19 +347,67 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="image_url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Image URL (Optional)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="https://..." />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <div className="space-y-3">
+                  <FormLabel>Tile Image</FormLabel>
+                  <div className="flex items-center justify-center w-full">
+                    <label
+                      htmlFor="image-upload-add"
+                      className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                    >
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        {imagePreview ? (
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-20 h-20 object-cover rounded-lg mb-2"
+                          />
+                        ) : (
+                          <>
+                            <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                            <p className="mb-2 text-sm text-gray-500">
+                              <span className="font-semibold">Click to upload</span> or drag and drop
+                            </p>
+                            <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        id="image-upload-add"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageFileChange}
+                      />
+                    </label>
+                  </div>
+                  {imagePreview && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setImagePreview("");
+                        setSelectedImageFile(null);
+                      }}
+                      className="w-full"
+                    >
+                      Remove Image
+                    </Button>
                   )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="image_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Or paste Image URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="https://..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <div className="flex justify-end gap-2 pt-4">
                   <Button
                     type="button"
@@ -321,9 +419,9 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                   <Button
                     type="submit"
                     className="bg-blue-600 hover:bg-blue-700"
-                    disabled={createTileMutation.isPending}
+                    disabled={createTileMutation.isPending || isUploading}
                   >
-                    {createTileMutation.isPending ? "Adding..." : "Add Tile"}
+                    {isUploading ? "Uploading..." : createTileMutation.isPending ? "Adding..." : "Add Tile"}
                   </Button>
                 </div>
               </form>
@@ -588,19 +686,67 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="image_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Image URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="https://..." />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+              <div className="space-y-3">
+                <FormLabel>Tile Image</FormLabel>
+                <div className="flex items-center justify-center w-full">
+                  <label
+                    htmlFor="image-upload-edit"
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                  >
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-20 h-20 object-cover rounded-lg mb-2"
+                        />
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                          <p className="mb-2 text-sm text-gray-500">
+                            <span className="font-semibold">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      id="image-upload-edit"
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageFileChange}
+                    />
+                  </label>
+                </div>
+                {imagePreview && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setImagePreview("");
+                      setSelectedImageFile(null);
+                    }}
+                    className="w-full"
+                  >
+                    Remove Image
+                  </Button>
                 )}
-              />
+                <FormField
+                  control={form.control}
+                  name="image_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Or paste Image URL</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="https://..." />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button
                   type="button"
@@ -612,9 +758,9 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                 <Button
                   type="submit"
                   className="bg-blue-600 hover:bg-blue-700"
-                  disabled={updateTileMutation.isPending}
+                  disabled={updateTileMutation.isPending || isUploading}
                 >
-                  {updateTileMutation.isPending ? "Updating..." : "Update Tile"}
+                  {isUploading ? "Uploading..." : updateTileMutation.isPending ? "Updating..." : "Update Tile"}
                 </Button>
               </div>
             </form>
