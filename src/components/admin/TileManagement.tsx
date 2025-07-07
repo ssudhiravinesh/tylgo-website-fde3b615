@@ -239,40 +239,44 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               Add New Tile
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Tile</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleAddTile)} className="space-y-4">
-                
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tile Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="e.g., TH007" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tile Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="e.g., Marble Classic White" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-2">
+                {/* Basic Info Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="code"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tile Code</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g., TH007" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tile Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g., Marble Classic White" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Size and Pricing Row */}
+                <div className="grid grid-cols-4 gap-3">
                   <FormField
                     control={form.control}
                     name="size_length"
@@ -309,104 +313,106 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       </FormItem>
                     )}
                   />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="price_per_box"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price per Box (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          step="0.01"
-                          placeholder="450.00"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="pieces_per_box"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pieces per Box (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          placeholder="4"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="space-y-3">
-                  <FormLabel>Tile Image</FormLabel>
-                  <div className="flex items-center justify-center w-full">
-                    <label
-                      htmlFor="image-upload-add"
-                      className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
-                    >
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        {imagePreview ? (
-                          <img
-                            src={imagePreview}
-                            alt="Preview"
-                            className="w-20 h-20 object-cover rounded-lg mb-2"
-                          />
-                        ) : (
-                          <>
-                            <Upload className="w-8 h-8 mb-2 text-gray-500" />
-                            <p className="mb-2 text-sm text-gray-500">
-                              <span className="font-semibold">Click to upload</span> or drag and drop
-                            </p>
-                            <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
-                          </>
-                        )}
-                      </div>
-                      <input
-                        id="image-upload-add"
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleImageFileChange}
-                      />
-                    </label>
-                  </div>
-                  {imagePreview && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setImagePreview("");
-                        setSelectedImageFile(null);
-                      }}
-                      className="w-full"
-                    >
-                      Remove Image
-                    </Button>
-                  )}
                   <FormField
                     control={form.control}
-                    name="image_url"
+                    name="price_per_box"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Or paste Image URL</FormLabel>
+                        <FormLabel>Price/Box</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="https://..." />
+                          <Input
+                            {...field}
+                            type="number"
+                            step="0.01"
+                            placeholder="450"
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="pieces_per_box"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Pieces/Box</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="number"
+                            placeholder="4"
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Image Section */}
+                <div className="space-y-3">
+                  <FormLabel>Tile Image</FormLabel>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Image Upload */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="image-upload-add"
+                        className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                      >
+                        {imagePreview ? (
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-16 h-16 object-cover rounded-md"
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                            <p className="text-xs text-gray-500">Upload Image</p>
+                          </div>
+                        )}
+                        <input
+                          id="image-upload-add"
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                        />
+                      </label>
+                      {imagePreview && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setImagePreview("");
+                            setSelectedImageFile(null);
+                          }}
+                          className="w-full text-xs"
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* URL Input */}
+                    <FormField
+                      control={form.control}
+                      name="image_url"
+                      render={({ field }) => (
+                        <FormItem className="flex-1">
+                          <FormLabel>Or Image URL</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="https://..." />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
                   <Button
@@ -578,40 +584,44 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Tile</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleEditTile)} className="space-y-4">
-              
-              <FormField
-                control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tile Code</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g., TH007" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tile Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g., Marble Classic White" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-2">
+              {/* Basic Info Row */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tile Code</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., TH007" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tile Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., Marble Classic White" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Size and Pricing Row */}
+              <div className="grid grid-cols-4 gap-3">
                 <FormField
                   control={form.control}
                   name="size_length"
@@ -648,104 +658,106 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     </FormItem>
                   )}
                 />
-              </div>
-              <FormField
-                control={form.control}
-                name="price_per_box"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price per Box (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        step="0.01"
-                        placeholder="450.00"
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="pieces_per_box"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pieces per Box (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        placeholder="4"
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="space-y-3">
-                <FormLabel>Tile Image</FormLabel>
-                <div className="flex items-center justify-center w-full">
-                  <label
-                    htmlFor="image-upload-edit"
-                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
-                  >
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {imagePreview ? (
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-20 h-20 object-cover rounded-lg mb-2"
-                        />
-                      ) : (
-                        <>
-                          <Upload className="w-8 h-8 mb-2 text-gray-500" />
-                          <p className="mb-2 text-sm text-gray-500">
-                            <span className="font-semibold">Click to upload</span> or drag and drop
-                          </p>
-                          <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      id="image-upload-edit"
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleImageFileChange}
-                    />
-                  </label>
-                </div>
-                {imagePreview && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setImagePreview("");
-                      setSelectedImageFile(null);
-                    }}
-                    className="w-full"
-                  >
-                    Remove Image
-                  </Button>
-                )}
                 <FormField
                   control={form.control}
-                  name="image_url"
+                  name="price_per_box"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Or paste Image URL</FormLabel>
+                      <FormLabel>Price/Box</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="https://..." />
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          placeholder="450"
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="pieces_per_box"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pieces/Box</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="4"
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Image Section */}
+              <div className="space-y-3">
+                <FormLabel>Tile Image</FormLabel>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Image Upload */}
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="image-upload-edit"
+                      className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-16 h-16 object-cover rounded-md"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                          <p className="text-xs text-gray-500">Upload Image</p>
+                        </div>
+                      )}
+                      <input
+                        id="image-upload-edit"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageFileChange}
+                      />
+                    </label>
+                    {imagePreview && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setImagePreview("");
+                          setSelectedImageFile(null);
+                        }}
+                        className="w-full text-xs"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* URL Input */}
+                  <FormField
+                    control={form.control}
+                    name="image_url"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>Or Image URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="https://..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button
