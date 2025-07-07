@@ -68,8 +68,8 @@ export const usePDFGeneration = () => {
           const tile = calc.tile;
           
           if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
-            const tileLengthFt = (parseFloat(tile.size_length) || 0) / 304.8;
-            const tileBreadthFt = (parseFloat(tile.size_breadth) || 0) / 304.8;
+            const tileLengthFt = (tile.size_length || 0) / 304.8;
+            const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
             
             if (tileAreaSqFt > 0) {
@@ -96,8 +96,8 @@ export const usePDFGeneration = () => {
           // Calculate tile dimensions for display
           let tileDimensions = 'N/A';
           if (tile && tile.size_length && tile.size_breadth) {
-            const lengthInMm = parseFloat(tile.size_length) || 0;
-            const widthInMm = parseFloat(tile.size_breadth) || 0;
+            const lengthInMm = tile.size_length || 0;
+            const widthInMm = tile.size_breadth || 0;
             
             if (lengthInMm >= 1000 || widthInMm >= 1000) {
               const lengthInM = (lengthInMm / 1000).toFixed(2);
