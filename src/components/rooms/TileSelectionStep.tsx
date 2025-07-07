@@ -364,169 +364,178 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        {/* Floor Rooms */}
-        {floorRooms.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-green-600" />
-                Floor Rooms ({floorRooms.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {floorRooms.map(room => {
-                const roomSelections = floorTileSelections.filter(fs => fs.roomId === room.id);
-                return (
-                  <div key={room.id} className="border rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">{room.name}</h4>
-                      <Button
-                        size="sm"
-                        onClick={() => handleAddFloorTile(room.id)}
-                        className="gap-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add Tile
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-2">
-                      {room.length} × {room.width} {room.unit} ({calculateAreaInSquareFeet(room.length, room.width, room.unit).toFixed(2)} sq ft)
-                    </p>
-                    
-                    {roomSelections.length > 0 ? (
-                      <div className="space-y-2">
-                        {roomSelections.map(fs => {
-                          const tile = tiles.find(t => t.id === fs.tileId);
-                          return tile ? (
-                            <div key={fs.tileId} className="flex items-center justify-between bg-gray-50 p-2 rounded text-xs">
-                              <div>
-                                <p className="font-medium">{tile.name}</p>
-                                <p className="text-gray-500">{tile.code}</p>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleRemoveFloorTile(room.id, fs.tileId)}
-                              >
-                                <Trash2 className="h-3 w-3 text-red-500" />
-                              </Button>
-                            </div>
-                          ) : null;
-                        })}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Rooms Section */}
+        <div className="space-y-4">
+          {/* Floor Rooms */}
+          {floorRooms.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Package className="h-5 w-5 text-green-600" />
+                  Floor Rooms ({floorRooms.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {floorRooms.map(room => {
+                  const roomSelections = floorTileSelections.filter(fs => fs.roomId === room.id);
+                  return (
+                    <div key={room.id} className="border rounded-lg p-3 bg-green-50/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <h4 className="font-medium text-sm">{room.name}</h4>
+                          <p className="text-xs text-gray-500">
+                            {calculateAreaInSquareFeet(room.length, room.width, room.unit).toFixed(2)} sq ft
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleAddFloorTile(room.id)}
+                          className="gap-1 h-8"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add
+                        </Button>
                       </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic">No tiles selected</p>
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Wall Rooms */}
-        {wallRooms.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-blue-600" />
-                Wall Rooms ({wallRooms.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {wallRooms.map(room => {
-                const wallSelection = wallTileSelections.find(ws => ws.roomId === room.id);
-                return (
-                  <div key={room.id} className="border rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">{room.name}</h4>
-                      <Button
-                        size="sm"
-                        onClick={() => handleConfigureWallTiles(room.id)}
-                        className="gap-1"
-                      >
-                        <Layers className="h-3 w-3" />
-                        Configure
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-2">
-                      {room.wall_height || 0} × {room.wall_length || room.length || 0} {room.unit} 
-                      ({calculateAreaInSquareFeet(room.wall_height || 0, room.wall_length || room.length || 0, room.unit).toFixed(2)} sq ft)
-                    </p>
-                    
-                    {wallSelection && wallSelection.layers.length > 0 ? (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-blue-600">
-                          {wallSelection.totalLayers} layers configured
-                        </p>
-                        <div className="max-h-48 overflow-y-auto space-y-2">
-                          {wallSelection.layers.map(layer => {
-                            const tile = tiles.find(t => t.id === layer.tileId);
+                      
+                      {roomSelections.length > 0 ? (
+                        <div className="space-y-2">
+                          {roomSelections.map(fs => {
+                            const tile = tiles.find(t => t.id === fs.tileId);
                             return tile ? (
-                              <div key={layer.layerNumber} className="flex items-center justify-between bg-blue-50 p-2 rounded text-xs">
+                              <div key={fs.tileId} className="flex items-center justify-between bg-white p-2 rounded text-xs border">
                                 <div>
-                                  <p className="font-medium">Layer {layer.layerNumber}: {tile.name}</p>
-                                  <p className="text-gray-500">{tile.code} ({layer.tilesNeeded} tiles)</p>
+                                  <p className="font-medium">{tile.name}</p>
+                                  <p className="text-gray-500">{tile.code}</p>
                                 </div>
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleChangeLayerTile(room.id, layer.layerNumber)}
-                                    title="Change tile for this layer"
-                                  >
-                                    Change
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleCopyTileToAllLayers(room.id, layer.tileId)}
-                                    title="Copy this tile to all layers"
-                                  >
-                                    <Copy className="h-3 w-3" />
-                                  </Button>
-                                  {wallSelection.layers.length > 1 && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteLayer(room.id, layer.layerNumber)}
-                                      title="Delete this layer"
-                                      className="text-red-500 hover:text-red-700"
-                                    >
-                                      <Minus className="h-3 w-3" />
-                                    </Button>
-                                  )}
-                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleRemoveFloorTile(room.id, fs.tileId)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                </Button>
                               </div>
                             ) : null;
                           })}
                         </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic">No wall tiles configured</p>
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">No tiles selected</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Calculations & Actions */}
+          {/* Wall Rooms */}
+          {wallRooms.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Layers className="h-5 w-5 text-blue-600" />
+                  Wall Rooms ({wallRooms.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {wallRooms.map(room => {
+                  const wallSelection = wallTileSelections.find(ws => ws.roomId === room.id);
+                  return (
+                    <div key={room.id} className="border rounded-lg p-3 bg-blue-50/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <h4 className="font-medium text-sm">{room.name}</h4>
+                          <p className="text-xs text-gray-500">
+                            {calculateAreaInSquareFeet(room.wall_height || 0, room.wall_length || room.length || 0, room.unit).toFixed(2)} sq ft
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleConfigureWallTiles(room.id)}
+                          className="gap-1 h-8"
+                        >
+                          <Layers className="h-3 w-3" />
+                          Setup
+                        </Button>
+                      </div>
+                      
+                      {wallSelection && wallSelection.layers.length > 0 ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-blue-600 mb-2">
+                            {wallSelection.layers.length} layers configured
+                          </p>
+                          <div className="max-h-32 overflow-y-auto space-y-1">
+                            {wallSelection.layers.map(layer => {
+                              const tile = tiles.find(t => t.id === layer.tileId);
+                              return tile ? (
+                                <div key={layer.layerNumber} className="flex items-center justify-between bg-white p-2 rounded text-xs border">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">L{layer.layerNumber}: {tile.name}</p>
+                                    <p className="text-gray-500">{tile.code}</p>
+                                  </div>
+                                  <div className="flex gap-1 ml-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleChangeLayerTile(room.id, layer.layerNumber)}
+                                      className="h-6 w-6 p-0"
+                                      title="Change tile"
+                                    >
+                                      <Layers className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleCopyTileToAllLayers(room.id, layer.tileId)}
+                                      className="h-6 w-6 p-0"
+                                      title="Copy to all layers"
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                    {wallSelection.layers.length > 1 && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeleteLayer(room.id, layer.layerNumber)}
+                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                        title="Delete layer"
+                                      >
+                                        <Minus className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">No wall tiles configured</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Summary & Actions */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <Calculator className="h-5 w-5 text-green-600" />
-              Calculations & Summary
+              Summary & Actions
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Wastage Percentage Input */}
+            {/* Wastage Percentage */}
             <div>
-              <Label htmlFor="wastage" className="text-sm font-medium flex items-center gap-2">
+              <Label htmlFor="wastage" className="text-sm font-medium flex items-center gap-2 mb-2">
                 <Percent className="h-4 w-4" />
-                Wastage % (Max 15%)
+                Wastage Percentage (0-15%)
               </Label>
               <Input
                 id="wastage"
@@ -534,7 +543,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                 value={wastagePercentage}
                 onChange={(e) => {
                   const value = e.target.value;
-                  // Only allow numbers and decimal points
                   if (/^\d*\.?\d*$/.test(value)) {
                     const numValue = parseFloat(value);
                     if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 15)) {
@@ -542,53 +550,57 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                     }
                   }
                 }}
-                placeholder="0-15"
-                className="mt-1"
+                placeholder="Enter 0-15"
+                className="text-center"
               />
             </div>
 
-            {/* Tile Calculations */}
+            {/* Calculations Summary */}
             {calculations.length > 0 ? (
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold">Tile Requirements:</h4>
-                <div className="max-h-64 overflow-y-auto space-y-2">
-                  {calculations.map((calc, index) => (
-                    <div key={index} className="border rounded p-2 text-xs bg-gray-50">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="font-medium">{calc.tile.name}</p>
-                        <Badge variant={calc.isWallTile ? "secondary" : "default"} className="text-xs">
-                          {calc.isWallTile ? "Wall" : "Floor"}
-                        </Badge>
-                      </div>
-                      <p className="text-gray-500 mb-2">{calc.tile.code}</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <p className="text-gray-500">Tiles</p>
-                          <p className="font-medium">{calc.tilesNeeded}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Boxes</p>
-                          <p className="font-medium">{calc.boxesNeeded}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Price</p>
-                          <p className="font-medium">₹{calc.totalPrice.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="bg-green-50 p-3 rounded-lg border">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold">Total Amount:</span>
+                    <span className="font-bold text-green-600 text-xl">₹{grandTotal.toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Includes {getWastagePercentage()}% wastage</p>
                 </div>
                 
-                <div className="border-t pt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Grand Total:</span>
-                    <span className="font-bold text-green-600 text-lg">₹{grandTotal.toLocaleString()}</span>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">Breakdown:</h4>
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {calculations.map((calc, index) => (
+                      <div key={index} className="bg-gray-50 p-2 rounded text-xs">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-medium truncate">{calc.tile.name}</span>
+                          <Badge variant={calc.isWallTile ? "secondary" : "default"} className="text-xs">
+                            {calc.isWallTile ? "Wall" : "Floor"}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="text-center">
+                            <p className="text-gray-500">Tiles</p>
+                            <p className="font-medium">{calc.tilesNeeded}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-gray-500">Boxes</p>
+                            <p className="font-medium">{calc.boxesNeeded}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-gray-500">Amount</p>
+                            <p className="font-medium">₹{calc.totalPrice.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Includes {getWastagePercentage()}% wastage</p>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-400 text-center text-sm">No tiles selected</p>
+              <div className="text-center py-8 text-gray-400">
+                <Calculator className="h-8 w-8 mx-auto mb-2" />
+                <p className="text-sm">Select tiles to see calculations</p>
+              </div>
             )}
 
             {/* Action Buttons */}
@@ -597,6 +609,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                 onClick={handleSaveSelections}
                 disabled={floorTileSelections.length === 0 && wallTileSelections.length === 0}
                 className="w-full"
+                size="lg"
               >
                 Save Selections
               </Button>
@@ -604,6 +617,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                 onClick={handleGenerateQuotation}
                 disabled={calculations.length === 0}
                 className="w-full bg-green-600 hover:bg-green-700"
+                size="lg"
               >
                 Generate Quotation
               </Button>

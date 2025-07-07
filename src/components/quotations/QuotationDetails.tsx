@@ -67,10 +67,10 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
     }
   };
 
-  // Calculate tile requirements grouped by tile (same logic as TileCalculationsCard)
+  // Use unified calculation system from tileCalculations.ts
   const calculateTileRequirements = (): { calculations: TileCalculation[]; wastagePercentage: number } => {
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
-    let wastagePercentage = quotation.wastage_percentage || 10; // Use stored wastage percentage
+    const wastagePercentage = quotation.wastage_percentage || 10; // Use stored wastage percentage
 
     if (quotation.quotation_items && quotation.quotation_items.length > 0) {
       quotation.quotation_items.forEach((item) => {
@@ -98,28 +98,33 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         }
       });
 
-      // Calculate tiles, boxes, and pricing for each tile (matching TileCalculationsCard logic)
+      // Use the same unified calculation logic
       Object.values(tileCalculations).forEach(calc => {
         const tile = calc.tile;
         
         if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
-          // Calculate tile area in square feet (exactly as in TileCalculationsCard)
-          const tileLengthFt = (parseFloat(tile.size_length.toString()) || 0) / 304.8; // mm to ft
-          const tileBreadthFt = (parseFloat(tile.size_breadth.toString()) || 0) / 304.8; // mm to ft
-          const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+          const pricePerBox = parseFloat(tile.price_per_box.toString());
+          const piecesPerBox = parseInt(tile.pieces_per_box.toString());
           
-          if (tileAreaSqFt > 0) {
-            // Step 1: Calculate basic tiles needed for the area
-            const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+          if (!isNaN(pricePerBox) && !isNaN(piecesPerBox) && piecesPerBox > 0) {
+            // Convert tile dimensions from mm to feet (unified logic)
+            const tileLengthFt = (tile.size_length || 0) / 304.8;
+            const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+            const tileAreaSqFt = tileLengthFt * tileBreadthFt;
             
-            // Step 2: Add wastage percentage to tiles
-            calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-            
-            // Step 3: Calculate boxes needed from total tiles
-            calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
-            
-            // Step 4: Calculate total price
-            calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
+            if (tileAreaSqFt > 0) {
+              // Step 1: Calculate basic tiles needed for the area
+              const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+              
+              // Step 2: Add wastage percentage to tiles
+              calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+              
+              // Step 3: Calculate boxes needed from total tiles
+              calc.boxesNeeded = Math.ceil(calc.tilesNeeded / piecesPerBox);
+              
+              // Step 4: Calculate total price
+              calc.totalPrice = calc.boxesNeeded * pricePerBox;
+            }
           }
         }
       });

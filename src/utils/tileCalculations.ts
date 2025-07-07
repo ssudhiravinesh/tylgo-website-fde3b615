@@ -85,13 +85,13 @@ export const calculateTileRequirements = (
       layersByTile[layer.tileId].push(layer.layerNumber);
     });
 
-    // Calculate area per layer
+    // Calculate area per layer (prevent division by zero)
     const wallAreaSqFt = calculateAreaInSquareFeet(
       room.wall_height || 0,
       room.wall_length || room.length || 0,
       room.unit
     );
-    const areaPerLayer = wallAreaSqFt / ws.totalLayers;
+    const areaPerLayer = ws.totalLayers > 0 ? wallAreaSqFt / ws.totalLayers : 0;
 
     // Create calculation entry for each unique tile used in wall
     Object.entries(layersByTile).forEach(([tileId, layerNumbers]) => {
@@ -247,7 +247,7 @@ export const prepareQuotationItems = (
       room.wall_length || room.length || 0,
       room.unit
     );
-    const areaPerLayer = wallAreaSqFt / ws.totalLayers;
+    const areaPerLayer = ws.totalLayers > 0 ? wallAreaSqFt / ws.totalLayers : 0;
 
     ws.layers.forEach(layer => {
       const tile = tiles.find(t => t.id === layer.tileId);
