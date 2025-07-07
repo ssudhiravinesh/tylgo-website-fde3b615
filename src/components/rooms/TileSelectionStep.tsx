@@ -4,13 +4,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy } from "lucide-react";
+import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { toast } from "sonner";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
+import { 
+  calculateTileRequirements, 
+  calculateGrandTotal, 
+  prepareQuotationItems,
+  type FloorTileSelection,
+  type WallTileSelection,
+  type WallTileLayer 
+} from "@/utils/tileCalculations";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 
@@ -20,34 +28,6 @@ interface TileSelectionStepProps {
   onBack: () => void;
 }
 
-interface FloorTileSelection {
-  roomId: string;
-  tileId: string;
-}
-
-interface WallTileLayer {
-  layerNumber: number;
-  tileId: string;
-  tilesNeeded: number;
-}
-
-interface WallTileSelection {
-  roomId: string;
-  baseTileId: string | null;
-  layers: WallTileLayer[];
-  totalLayers: number;
-}
-
-interface TileCalculation {
-  tile: Tile;
-  rooms: Room[];
-  totalArea: number;
-  tilesNeeded: number;
-  boxesNeeded: number;
-  totalPrice: number;
-  isWallTile?: boolean;
-  wallLayers?: number[];
-}
 
 export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionStepProps) => {
   const { data: tiles = [], isLoading: tilesLoading } = useTiles();
@@ -57,7 +37,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
-  const [wastagePercentage, setWastagePercentage] = useState<number>(10);
+  const [wastagePercentage, setWastagePercentage] = useState<string>("10");
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [catalogContext, setCatalogContext] = useState<{
     roomId: string;
@@ -264,6 +244,21 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     toast.success("Tile copied to all layers");
   };
 
+  const handleDeleteLayer = (roomId: string, layerNumber: number) => {
+    setWallTileSelections(prev =>
+      prev.map(ws =>
+        ws.roomId === roomId
+          ? {
+              ...ws,
+              layers: ws.layers.filter(layer => layer.layerNumber !== layerNumber),
+              totalLayers: Math.max(1, ws.totalLayers - 1)
+            }
+          : ws
+      )
+    );
+    toast.success(`Layer ${layerNumber} deleted`);
+  };
+
   const handleSaveSelections = async () => {
     const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
     
@@ -297,90 +292,9 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     }
   };
 
-  const calculateTileRequirements = (): TileCalculation[] => {
-    const tileCalculations: { [tileId: string]: TileCalculation } = {};
-
-    // Floor tiles calculations
-    floorTileSelections.forEach(fs => {
-      const room = rooms.find(r => r.id === fs.roomId);
-      const tile = tiles.find(t => t.id === fs.tileId);
-      
-      if (!room || !tile) return;
-
-      if (!tileCalculations[fs.tileId]) {
-        tileCalculations[fs.tileId] = {
-          tile,
-          rooms: [],
-          totalArea: 0,
-          tilesNeeded: 0,
-          boxesNeeded: 0,
-          totalPrice: 0,
-          isWallTile: false
-        };
-      }
-
-      const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-      tileCalculations[fs.tileId].rooms.push(room);
-      tileCalculations[fs.tileId].totalArea += roomAreaInSqFt;
-    });
-
-    // Wall tiles calculations
-    wallTileSelections.forEach(ws => {
-      const room = rooms.find(r => r.id === ws.roomId);
-      if (!room) return;
-
-      const wallAreaSqFt = calculateAreaInSquareFeet(
-        room.wall_height || 0,
-        room.wall_length || room.length || 0,
-        room.unit
-      );
-
-      ws.layers.forEach(layer => {
-        const tileKey = `${layer.tileId}_wall_${ws.roomId}`;
-        const tile = tiles.find(t => t.id === layer.tileId);
-        
-        if (!tile) return;
-
-        if (!tileCalculations[tileKey]) {
-          tileCalculations[tileKey] = {
-            tile,
-            rooms: [room],
-            totalArea: wallAreaSqFt / ws.totalLayers, // Area per layer
-            tilesNeeded: 0,
-            boxesNeeded: 0,
-            totalPrice: 0,
-            isWallTile: true,
-            wallLayers: [layer.layerNumber]
-          };
-        }
-      });
-    });
-
-    // Calculate tiles, boxes, and pricing
-    Object.values(tileCalculations).forEach(calc => {
-      const tile = calc.tile;
-      
-      if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
-        // Convert tile dimensions from mm to feet
-        const tileLengthFt = (tile.size_length || 0) / 304.8;
-        const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
-        const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-        
-        if (tileAreaSqFt > 0) {
-          // Calculate basic tiles needed for the area
-          const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-          
-          // Add wastage percentage
-          calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-          
-          // Calculate boxes and price
-          calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
-          calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
-        }
-      }
-    });
-
-    return Object.values(tileCalculations);
+  const getWastagePercentage = (): number => {
+    const parsed = parseFloat(wastagePercentage);
+    return isNaN(parsed) ? 10 : Math.max(0, Math.min(15, parsed));
   };
 
   const handleGenerateQuotation = () => {
@@ -394,59 +308,24 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     setShowQuotationForm(true);
   };
 
+  const calculations = calculateTileRequirements(
+    floorTileSelections,
+    wallTileSelections,
+    rooms,
+    tiles,
+    getWastagePercentage()
+  );
+  const grandTotal = calculateGrandTotal(calculations);
+
   const prepareQuotationData = () => {
-    const roomsData: Array<{
-      roomId: string;
-      tileId: string;
-      quantity: number;
-      wastagePercentage: number;
-      isWallTile?: boolean;
-      layerNumber?: number;
-    }> = [];
-
-    // Floor tiles data
-    floorTileSelections.forEach(fs => {
-      const room = rooms.find(r => r.id === fs.roomId);
-      if (!room) return;
-
-      const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-      roomsData.push({
-        roomId: fs.roomId,
-        tileId: fs.tileId,
-        quantity: roomAreaInSqFt,
-        wastagePercentage: wastagePercentage,
-        isWallTile: false,
-      });
-    });
-
-    // Wall tiles data
-    wallTileSelections.forEach(ws => {
-      const room = rooms.find(r => r.id === ws.roomId);
-      if (!room) return;
-
-      const wallAreaSqFt = calculateAreaInSquareFeet(
-        room.wall_height || 0,
-        room.wall_length || room.length || 0,
-        room.unit
-      );
-
-      ws.layers.forEach(layer => {
-        roomsData.push({
-          roomId: ws.roomId,
-          tileId: layer.tileId,
-          quantity: wallAreaSqFt / ws.totalLayers,
-          wastagePercentage: wastagePercentage,
-          isWallTile: true,
-          layerNumber: layer.layerNumber,
-        });
-      });
-    });
-
-    return roomsData;
+    return prepareQuotationItems(
+      floorTileSelections,
+      wallTileSelections,
+      rooms,
+      tiles,
+      getWastagePercentage()
+    );
   };
-
-  const calculations = calculateTileRequirements();
-  const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
 
   if (tilesLoading || selectionsLoading) {
     return (
@@ -461,7 +340,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       <QuotationForm
         preSelectedCustomerId={customerId}
         selectedRoomsData={prepareQuotationData()}
-        wastagePercentage={wastagePercentage}
+        wastagePercentage={getWastagePercentage()}
         onBack={() => setShowQuotationForm(false)}
         onSuccess={() => {
           setShowQuotationForm(false);
@@ -581,38 +460,48 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                         <p className="text-xs font-medium text-blue-600">
                           {wallSelection.totalLayers} layers configured
                         </p>
-                        {wallSelection.layers.slice(0, 3).map(layer => {
-                          const tile = tiles.find(t => t.id === layer.tileId);
-                          return tile ? (
-                            <div key={layer.layerNumber} className="flex items-center justify-between bg-blue-50 p-2 rounded text-xs">
-                              <div>
-                                <p className="font-medium">Layer {layer.layerNumber}: {tile.name}</p>
-                                <p className="text-gray-500">{tile.code} ({layer.tilesNeeded} tiles)</p>
+                        <div className="max-h-48 overflow-y-auto space-y-2">
+                          {wallSelection.layers.map(layer => {
+                            const tile = tiles.find(t => t.id === layer.tileId);
+                            return tile ? (
+                              <div key={layer.layerNumber} className="flex items-center justify-between bg-blue-50 p-2 rounded text-xs">
+                                <div>
+                                  <p className="font-medium">Layer {layer.layerNumber}: {tile.name}</p>
+                                  <p className="text-gray-500">{tile.code} ({layer.tilesNeeded} tiles)</p>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleChangeLayerTile(room.id, layer.layerNumber)}
+                                    title="Change tile for this layer"
+                                  >
+                                    Change
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleCopyTileToAllLayers(room.id, layer.tileId)}
+                                    title="Copy this tile to all layers"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                  {wallSelection.layers.length > 1 && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteLayer(room.id, layer.layerNumber)}
+                                      title="Delete this layer"
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleChangeLayerTile(room.id, layer.layerNumber)}
-                                >
-                                  Change
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleCopyTileToAllLayers(room.id, layer.tileId)}
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          ) : null;
-                        })}
-                        {wallSelection.layers.length > 3 && (
-                          <p className="text-xs text-gray-400 italic">
-                            +{wallSelection.layers.length - 3} more layers...
-                          </p>
-                        )}
+                            ) : null;
+                          })}
+                        </div>
                       </div>
                     ) : (
                       <p className="text-xs text-gray-400 italic">No wall tiles configured</p>
@@ -641,16 +530,19 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
               </Label>
               <Input
                 id="wastage"
-                type="number"
+                type="text"
                 value={wastagePercentage}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (!isNaN(value) && value >= 0 && value <= 15) {
-                    setWastagePercentage(value);
+                  const value = e.target.value;
+                  // Only allow numbers and decimal points
+                  if (/^\d*\.?\d*$/.test(value)) {
+                    const numValue = parseFloat(value);
+                    if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 15)) {
+                      setWastagePercentage(value);
+                    }
                   }
                 }}
-                min="0"
-                max="15"
+                placeholder="0-15"
                 className="mt-1"
               />
             </div>
@@ -692,7 +584,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                     <span className="font-semibold">Grand Total:</span>
                     <span className="font-bold text-green-600 text-lg">₹{grandTotal.toLocaleString()}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Includes {wastagePercentage}% wastage</p>
+                  <p className="text-xs text-gray-500 mt-1">Includes {getWastagePercentage()}% wastage</p>
                 </div>
               </div>
             ) : (

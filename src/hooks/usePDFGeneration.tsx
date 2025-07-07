@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
+import { calculateTileRequirements, type TileCalculationResult } from '@/utils/tileCalculations';
 
 export const usePDFGeneration = () => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
@@ -36,15 +37,8 @@ export const usePDFGeneration = () => {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
 
-      // Group items by tile to match the Tile Calculations card logic
-      const tileCalculations: { [tileId: string]: {
-        tile: any;
-        rooms: any[];
-        totalArea: number;
-        tilesNeeded: number;
-        boxesNeeded: number;
-        totalPrice: number;
-      } } = {};
+      // Group items by tile using unified calculation system
+      const tileCalculations: { [tileId: string]: TileCalculationResult } = {};
 
       if (quotationItems && quotationItems.length > 0) {
         quotationItems.forEach((item: any) => {
@@ -63,35 +57,25 @@ export const usePDFGeneration = () => {
             };
           }
 
-          // Use the stored area from the quotation item (original area without wastage)
           const roomAreaInSqFt = parseFloat(item.area) || 0;
-          
           tileCalculations[tileId].rooms.push(room);
           tileCalculations[tileId].totalArea += roomAreaInSqFt;
+          tileCalculations[tileId].totalPrice += parseFloat(item.total_price) || 0;
         });
 
-        // Calculate tiles, boxes, and pricing for each tile using the same logic as TileCalculationsCard
+        // Calculate tiles and boxes for display
         Object.values(tileCalculations).forEach(calc => {
           const tile = calc.tile;
           
           if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
-            // Calculate tile area in square feet (exactly as in TileCalculationsCard)
-            const tileLengthFt = (parseFloat(tile.size_length) || 0) / 304.8; // mm to ft
-            const tileBreadthFt = (parseFloat(tile.size_breadth) || 0) / 304.8; // mm to ft
+            const tileLengthFt = (parseFloat(tile.size_length) || 0) / 304.8;
+            const tileBreadthFt = (parseFloat(tile.size_breadth) || 0) / 304.8;
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
             
             if (tileAreaSqFt > 0) {
-              // Step 1: Calculate basic tiles needed for the area
               const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-              
-              // Step 2: Add wastage percentage to tiles (using stored percentage)
               calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-              
-              // Step 3: Calculate boxes needed from total tiles
               calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
-              
-              // Step 4: Calculate total price
-              calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box);
             }
           }
         });
