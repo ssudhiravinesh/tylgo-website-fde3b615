@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -68,20 +69,28 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       return;
     }
 
-    const length = parseFloat(formData.length);
+    let length = 0;
     let width = 0;
     let wall_height = 0;
     let wall_length = 0;
 
     if (formData.room_type === "floor") {
+      length = parseFloat(formData.length);
       width = parseFloat(formData.width);
+      
+      if (isNaN(length) || length <= 0) {
+        toast.error("Please enter a valid length");
+        return;
+      }
       if (isNaN(width) || width <= 0) {
         toast.error("Please enter a valid width");
         return;
       }
     } else {
+      // For wall rooms, we use wall_height and wall_length
       wall_height = parseFloat(formData.wall_height);
       wall_length = parseFloat(formData.wall_length);
+      
       if (isNaN(wall_height) || wall_height <= 0) {
         toast.error("Please enter a valid wall height");
         return;
@@ -90,6 +99,10 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         toast.error("Please enter a valid wall length");
         return;
       }
+      
+      // For wall rooms, set length to wall_length and width to 0
+      length = wall_length;
+      width = 0;
     }
 
     setIsLoading(true);
@@ -99,7 +112,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         name: formData.name.trim(),
         customer_id: customerId,
         length,
-        width: formData.room_type === "floor" ? width : 0,
+        width,
         unit: formData.unit,
         room_type: formData.room_type,
         wall_height: formData.room_type === "wall" ? wall_height : undefined,
