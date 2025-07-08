@@ -189,6 +189,15 @@ export const prepareQuotationItems = (
   price_per_box: number;
   total_price: number;
 }> => {
+  // Get the unified calculations first
+  const calculations = calculateTileRequirements(
+    floorSelections,
+    wallSelections,
+    rooms,
+    tiles,
+    wastagePercentage
+  );
+
   const items: Array<{
     tile_id: string;
     room_id: string;
@@ -197,9 +206,7 @@ export const prepareQuotationItems = (
     total_price: number;
   }> = [];
 
-  const validWastage = Math.max(0, Math.min(15, wastagePercentage));
-
-  // Floor tiles
+  // Floor tiles - use calculations from unified system
   floorSelections.forEach(fs => {
     const room = rooms.find(r => r.id === fs.roomId);
     const tile = tiles.find(t => t.id === fs.tileId);
@@ -207,37 +214,21 @@ export const prepareQuotationItems = (
     if (!room || !tile) return;
 
     const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-    let totalPrice = 0;
-
-    // Calculate price using the same unified logic
-    if (tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
-      const pricePerBox = parseFloat(tile.price_per_box.toString());
-      const piecesPerBox = parseInt(tile.pieces_per_box.toString());
-      
-      if (!isNaN(pricePerBox) && !isNaN(piecesPerBox) && piecesPerBox > 0) {
-        const tileLengthFt = (parseFloat(tile.size_length.toString()) || 0) / 304.8;
-        const tileBreadthFt = (parseFloat(tile.size_breadth.toString()) || 0) / 304.8;
-        const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-        
-        if (tileAreaSqFt > 0) {
-          const basicTilesNeeded = Math.ceil(roomAreaInSqFt / tileAreaSqFt);
-          const tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (validWastage / 100)));
-          const boxesNeeded = Math.ceil(tilesNeeded / piecesPerBox);
-          totalPrice = boxesNeeded * pricePerBox;
-        }
-      }
-    }
+    
+    // Find the corresponding calculation
+    const calc = calculations.find(c => c.tile.id === fs.tileId && !c.isWallTile);
+    const totalPrice = calc ? calc.totalPrice : 0;
 
     items.push({
       tile_id: fs.tileId,
       room_id: fs.roomId,
-      area: roomAreaInSqFt, // Original area without wastage
+      area: roomAreaInSqFt,
       price_per_box: parseFloat(tile.price_per_box?.toString() || '0'),
       total_price: totalPrice,
     });
   });
 
-  // Wall tiles
+  // Wall tiles - use calculations from unified system  
   wallSelections.forEach(ws => {
     const room = rooms.find(r => r.id === ws.roomId);
     if (!room) return;
@@ -249,35 +240,32 @@ export const prepareQuotationItems = (
     );
     const areaPerLayer = ws.totalLayers > 0 ? wallAreaSqFt / ws.totalLayers : 0;
 
+    // Group layers by tile ID to match calculation structure
+    const layersByTile: { [tileId: string]: number[] } = {};
     ws.layers.forEach(layer => {
-      const tile = tiles.find(t => t.id === layer.tileId);
+      if (!layersByTile[layer.tileId]) {
+        layersByTile[layer.tileId] = [];
+      }
+      layersByTile[layer.tileId].push(layer.layerNumber);
+    });
+
+    // Create items for each unique tile
+    Object.entries(layersByTile).forEach(([tileId, layerNumbers]) => {
+      const tile = tiles.find(t => t.id === tileId);
       if (!tile) return;
 
-      let totalPrice = 0;
-
-      // Calculate price using the same unified logic
-      if (tile.price_per_box && tile.pieces_per_box && tile.size_length && tile.size_breadth) {
-        const pricePerBox = parseFloat(tile.price_per_box.toString());
-        const piecesPerBox = parseInt(tile.pieces_per_box.toString());
-        
-        if (!isNaN(pricePerBox) && !isNaN(piecesPerBox) && piecesPerBox > 0) {
-          const tileLengthFt = (parseFloat(tile.size_length.toString()) || 0) / 304.8;
-          const tileBreadthFt = (parseFloat(tile.size_breadth.toString()) || 0) / 304.8;
-          const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-          
-          if (tileAreaSqFt > 0) {
-            const basicTilesNeeded = Math.ceil(areaPerLayer / tileAreaSqFt);
-            const tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (validWastage / 100)));
-            const boxesNeeded = Math.ceil(tilesNeeded / piecesPerBox);
-            totalPrice = boxesNeeded * pricePerBox;
-          }
-        }
-      }
+      // Find the corresponding wall calculation
+      const tileKey = `${tileId}_wall`;
+      const calc = calculations.find(c => c.tile.id === tileId && c.isWallTile);
+      
+      // Calculate proportional price for this tile in this room
+      const layerCount = layerNumbers.length;
+      const totalPrice = calc ? (calc.totalPrice * layerCount * areaPerLayer) / calc.totalArea : 0;
 
       items.push({
-        tile_id: layer.tileId,
+        tile_id: tileId,
         room_id: ws.roomId,
-        area: areaPerLayer, // Original area per layer without wastage
+        area: areaPerLayer * layerCount,
         price_per_box: parseFloat(tile.price_per_box?.toString() || '0'),
         total_price: totalPrice,
       });

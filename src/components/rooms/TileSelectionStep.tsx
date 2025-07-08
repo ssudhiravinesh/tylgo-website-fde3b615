@@ -9,6 +9,7 @@ import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
+import { WallTileSelectionPage } from "./WallTileSelectionPage";
 import { toast } from "sonner";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 import { 
@@ -45,6 +46,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     layerNumber?: number;
   } | null>(null);
   const [showQuotationForm, setShowQuotationForm] = useState(false);
+  const [showWallTileSelection, setShowWallTileSelection] = useState<{
+    roomId: string;
+    room: Room;
+  } | null>(null);
 
   const floorRooms = rooms.filter(room => room.room_type === "floor");
   const wallRooms = rooms.filter(room => room.room_type === "wall");
@@ -114,9 +119,8 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       setWallTileSelections(prev => [...prev, wallSelection!]);
     }
 
-    // Open catalog to select base tile
-    setCatalogContext({ roomId, isWallTile: true });
-    setShowTileCatalog(true);
+    // Open wall tile selection page
+    setShowWallTileSelection({ roomId, room });
   };
 
   const calculateWallLayers = (roomId: string, baseTileId: string) => {
@@ -335,6 +339,33 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     );
   }
 
+  if (showWallTileSelection) {
+    const wallSelection = wallTileSelections.find(ws => ws.roomId === showWallTileSelection.roomId) || {
+      roomId: showWallTileSelection.roomId,
+      baseTileId: null,
+      layers: [],
+      totalLayers: 0
+    };
+
+    return (
+      <WallTileSelectionPage
+        room={showWallTileSelection.room}
+        wallSelection={wallSelection}
+        tiles={tiles}
+        onBack={() => setShowWallTileSelection(null)}
+        onUpdateSelection={(selection) => {
+          setWallTileSelections(prev =>
+            prev.map(ws =>
+              ws.roomId === selection.roomId ? selection : ws
+            ).concat(
+              prev.find(ws => ws.roomId === selection.roomId) ? [] : [selection]
+            )
+          );
+        }}
+      />
+    );
+  }
+
   if (showQuotationForm) {
     return (
       <QuotationForm
@@ -364,9 +395,9 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-8 lg:grid-cols-3">
         {/* Rooms Section */}
-        <div className="space-y-4">
+        <div className="space-y-6 lg:col-span-2">
           {/* Floor Rooms */}
           {floorRooms.length > 0 && (
             <Card>
@@ -380,48 +411,47 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                 {floorRooms.map(room => {
                   const roomSelections = floorTileSelections.filter(fs => fs.roomId === room.id);
                   return (
-                    <div key={room.id} className="border rounded-lg p-3 bg-green-50/50">
-                      <div className="flex items-center justify-between mb-2">
+                    <div key={room.id} className="border rounded-lg p-4 bg-green-50/50">
+                      <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h4 className="font-medium text-sm">{room.name}</h4>
-                          <p className="text-xs text-gray-500">
+                          <h4 className="font-semibold text-base">{room.name}</h4>
+                          <p className="text-sm text-gray-600">
                             {calculateAreaInSquareFeet(room.length, room.width, room.unit).toFixed(2)} sq ft
                           </p>
                         </div>
                         <Button
-                          size="sm"
                           onClick={() => handleAddFloorTile(room.id)}
-                          className="gap-1 h-8"
+                          className="gap-2"
                         >
-                          <Plus className="h-3 w-3" />
-                          Add
+                          <Plus className="h-4 w-4" />
+                          Add Tile
                         </Button>
                       </div>
                       
                       {roomSelections.length > 0 ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {roomSelections.map(fs => {
                             const tile = tiles.find(t => t.id === fs.tileId);
                             return tile ? (
-                              <div key={fs.tileId} className="flex items-center justify-between bg-white p-2 rounded text-xs border">
+                              <div key={fs.tileId} className="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
                                 <div>
-                                  <p className="font-medium">{tile.name}</p>
-                                  <p className="text-gray-500">{tile.code}</p>
+                                  <p className="font-semibold">{tile.name}</p>
+                                  <p className="text-sm text-gray-600">{tile.code}</p>
                                 </div>
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleRemoveFloorTile(room.id, fs.tileId)}
-                                  className="h-6 w-6 p-0"
+                                  className="h-8 w-8 p-0"
                                 >
-                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                  <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>
                               </div>
                             ) : null;
                           })}
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400 italic">No tiles selected</p>
+                        <p className="text-sm text-gray-500 italic">No tiles selected</p>
                       )}
                     </div>
                   );
@@ -443,76 +473,34 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                 {wallRooms.map(room => {
                   const wallSelection = wallTileSelections.find(ws => ws.roomId === room.id);
                   return (
-                    <div key={room.id} className="border rounded-lg p-3 bg-blue-50/50">
-                      <div className="flex items-center justify-between mb-2">
+                    <div key={room.id} className="border rounded-lg p-4 bg-blue-50/50">
+                      <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h4 className="font-medium text-sm">{room.name}</h4>
-                          <p className="text-xs text-gray-500">
+                          <h4 className="font-semibold text-base">{room.name}</h4>
+                          <p className="text-sm text-gray-600">
                             {calculateAreaInSquareFeet(room.wall_height || 0, room.wall_length || room.length || 0, room.unit).toFixed(2)} sq ft
                           </p>
                         </div>
                         <Button
-                          size="sm"
                           onClick={() => handleConfigureWallTiles(room.id)}
-                          className="gap-1 h-8"
+                          className="gap-2"
                         >
-                          <Layers className="h-3 w-3" />
-                          Setup
+                          <Layers className="h-4 w-4" />
+                          Configure
                         </Button>
                       </div>
                       
                       {wallSelection && wallSelection.layers.length > 0 ? (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-blue-600 mb-2">
+                        <div className="space-y-3">
+                          <p className="text-sm font-semibold text-blue-600">
                             {wallSelection.layers.length} layers configured
                           </p>
-                          <div className="max-h-32 overflow-y-auto space-y-1">
-                            {wallSelection.layers.map(layer => {
-                              const tile = tiles.find(t => t.id === layer.tileId);
-                              return tile ? (
-                                <div key={layer.layerNumber} className="flex items-center justify-between bg-white p-2 rounded text-xs border">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium truncate">L{layer.layerNumber}: {tile.name}</p>
-                                    <p className="text-gray-500">{tile.code}</p>
-                                  </div>
-                                  <div className="flex gap-1 ml-2">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleChangeLayerTile(room.id, layer.layerNumber)}
-                                      className="h-6 w-6 p-0"
-                                      title="Change tile"
-                                    >
-                                      <Layers className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleCopyTileToAllLayers(room.id, layer.tileId)}
-                                      className="h-6 w-6 p-0"
-                                      title="Copy to all layers"
-                                    >
-                                      <Copy className="h-3 w-3" />
-                                    </Button>
-                                    {wallSelection.layers.length > 1 && (
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => handleDeleteLayer(room.id, layer.layerNumber)}
-                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                        title="Delete layer"
-                                      >
-                                        <Minus className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : null;
-                            })}
+                          <div className="bg-white p-3 rounded-lg border">
+                            <p className="text-sm text-gray-600">Click Configure to manage layers and tiles</p>
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400 italic">No wall tiles configured</p>
+                        <p className="text-sm text-gray-500 italic">No wall tiles configured</p>
                       )}
                     </div>
                   );

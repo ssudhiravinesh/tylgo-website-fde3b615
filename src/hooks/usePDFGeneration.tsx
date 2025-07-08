@@ -118,12 +118,13 @@ export const usePDFGeneration = () => {
           const boxPricing = tile?.price_per_box ? 
             `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>` : '';
 
-          const roomNames = rooms.map(r => r?.name || 'Unknown Room').join(', ');
+          // Get unique room names to avoid duplication
+          const uniqueRoomNames = Array.from(new Set(rooms.map(r => r?.name || 'Unknown Room'))).join(', ');
 
           return `
             <tr>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
-                <strong>${roomNames}</strong><br/>
+                <strong>${uniqueRoomNames}</strong><br/>
                 <small style="color: #666; font-size: 9px;">Total Area: ${formatArea(calc.totalArea)}</small>
               </td>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
