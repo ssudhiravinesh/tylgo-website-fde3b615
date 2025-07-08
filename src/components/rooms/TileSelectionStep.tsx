@@ -298,7 +298,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
 
   const getWastagePercentage = (): number => {
     const parsed = parseFloat(wastagePercentage);
-    return isNaN(parsed) ? 10 : Math.max(0, Math.min(15, parsed));
+    return isNaN(parsed) ? 0 : Math.max(0, Math.min(15, parsed));
   };
 
   const handleGenerateQuotation = () => {
