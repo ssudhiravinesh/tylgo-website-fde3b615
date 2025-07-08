@@ -70,7 +70,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   // Use unified calculation system from tileCalculations.ts
   const calculateTileRequirements = (): { calculations: TileCalculation[]; wastagePercentage: number } => {
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
-    const wastagePercentage = quotation.wastage_percentage || 10; // Use stored wastage percentage
+    const wastagePercentage = quotation.wastage_percentage || 5; // Use stored wastage percentage
 
     if (quotation.quotation_items && quotation.quotation_items.length > 0) {
       quotation.quotation_items.forEach((item) => {
