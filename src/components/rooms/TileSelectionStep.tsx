@@ -64,10 +64,16 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       if (!room) return;
 
       if (room.room_type === "floor") {
-        floorSelections.push({
-          roomId: selection.room_id,
-          tileId: selection.tile_id
-        });
+        // Check if this floor selection already exists to prevent duplicates
+        const existingFloorSelection = floorSelections.find(
+          fs => fs.roomId === selection.room_id && fs.tileId === selection.tile_id
+        );
+        if (!existingFloorSelection) {
+          floorSelections.push({
+            roomId: selection.room_id,
+            tileId: selection.tile_id
+          });
+        }
       } else {
         // For wall tiles, group by room and layer
         let wallSelection = wallSelections.find(ws => ws.roomId === selection.room_id);
@@ -131,7 +137,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
 
     setFloorTileSelections(floorSelections);
     setWallTileSelections(wallSelections);
-  }, [selections, rooms]);
+  }, [selections, rooms, tiles]);
 
   const handleAddFloorTile = (roomId: string) => {
     setCatalogContext({ roomId, isWallTile: false });
@@ -466,10 +472,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                       
                       {roomSelections.length > 0 ? (
                         <div className="space-y-3">
-                          {roomSelections.map(fs => {
+                          {roomSelections.map((fs, index) => {
                             const tile = tiles.find(t => t.id === fs.tileId);
                             return tile ? (
-                              <div key={fs.tileId} className="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
+                              <div key={`${fs.roomId}-${fs.tileId}-${index}`} className="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
                                 <div>
                                   <p className="font-semibold">{tile.name}</p>
                                   <p className="text-sm text-gray-600">{tile.code}</p>
