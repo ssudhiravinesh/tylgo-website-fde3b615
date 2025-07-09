@@ -125,6 +125,48 @@ export const useQuotations = (filters?: QuotationFilters) => {
         `)
         .order('created_at', { ascending: false });
 
+      // Apply date filters
+      if (filters?.quickSort && filters.quickSort !== 'all') {
+        const now = new Date();
+        let startDate: string;
+        
+        switch (filters.quickSort) {
+          case 'current-month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            query = query.gte('created_at', startDate);
+            break;
+          case 'last-month':
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+            query = query.gte('created_at', lastMonth.toISOString())
+                        .lte('created_at', lastMonthEnd.toISOString());
+            break;
+          case 'last-2-months':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString();
+            query = query.gte('created_at', startDate);
+            break;
+          case 'last-year':
+            const lastYear = new Date(now.getFullYear() - 1, 0, 1);
+            const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+            query = query.gte('created_at', lastYear.toISOString())
+                        .lte('created_at', lastYearEnd.toISOString());
+            break;
+        }
+      }
+
+      // Apply precise year/month filters
+      if (filters?.year && filters.year > 0) {
+        const yearStart = new Date(filters.year, 0, 1).toISOString();
+        const yearEnd = new Date(filters.year, 11, 31, 23, 59, 59).toISOString();
+        query = query.gte('created_at', yearStart).lte('created_at', yearEnd);
+        
+        if (filters.month && filters.month > 0 && filters.month <= 12) {
+          const monthStart = new Date(filters.year, filters.month - 1, 1).toISOString();
+          const monthEnd = new Date(filters.year, filters.month, 0, 23, 59, 59).toISOString();
+          query = query.gte('created_at', monthStart).lte('created_at', monthEnd);
+        }
+      }
+
       const { data, error } = await query;
 
       if (error) {

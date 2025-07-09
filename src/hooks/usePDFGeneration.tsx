@@ -9,8 +9,8 @@ import { calculateTileRequirements, type TileCalculationResult } from '@/utils/t
 export const usePDFGeneration = () => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     try {
-      // Use the quotation's stored wastage percentage, defaulting to 10% if not set
-      const wastagePercentage = quotation.wastage_percentage ?? 10;
+      // Use the quotation's stored wastage percentage, defaulting to 0% if not set
+      const wastagePercentage = quotation.wastage_percentage ?? 0;
       
       console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
       
