@@ -84,12 +84,48 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
         const layerNumber = selection.layer_number || 1;
         const existingLayer = wallSelection.layers.find(l => l.layerNumber === layerNumber);
         if (!existingLayer) {
+          // Calculate tilesNeeded for this layer
+          const baseTile = tiles.find(t => t.id === selection.tile_id);
+          let tilesNeeded = 0;
+          
+          if (baseTile && room) {
+            const wallHeight = room.wall_height || 0;
+            const wallLength = room.wall_length || room.length || 0;
+            
+            let tileHeightInRoomUnit: number;
+            let tileLengthInRoomUnit: number;
+            
+            if (room.unit === "feet") {
+              tileHeightInRoomUnit = (baseTile.size_length || 0) / 304.8;
+              tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
+            } else if (room.unit === "metre") {
+              tileHeightInRoomUnit = (baseTile.size_length || 0) / 1000;
+              tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 1000;
+            } else {
+              tileHeightInRoomUnit = baseTile.size_length || 0;
+              tileLengthInRoomUnit = baseTile.size_breadth || 0;
+            }
+            
+            if (tileHeightInRoomUnit > 0 && tileLengthInRoomUnit > 0) {
+              tilesNeeded = Math.ceil(wallLength / tileLengthInRoomUnit);
+            }
+          }
+          
           wallSelection.layers.push({
             layerNumber,
             tileId: selection.tile_id,
-            tilesNeeded: 0 // Will be calculated
+            tilesNeeded
           });
         }
+      }
+    });
+
+    // Calculate totalLayers for each wall selection
+    wallSelections.forEach(ws => {
+      ws.totalLayers = Math.max(ws.layers.length, 1);
+      // Set baseTileId to the first tile if not already set
+      if (!ws.baseTileId && ws.layers.length > 0) {
+        ws.baseTileId = ws.layers[0].tileId;
       }
     });
 

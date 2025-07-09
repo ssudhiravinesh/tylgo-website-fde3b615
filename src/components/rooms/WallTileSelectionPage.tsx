@@ -32,6 +32,13 @@ export const WallTileSelectionPage = ({
   } | null>(null);
   const [originalLayers, setOriginalLayers] = useState<WallTileLayer[]>([]);
 
+  // Initialize originalLayers from existing wallSelection when component loads
+  useEffect(() => {
+    if (wallSelection.layers.length > 0 && originalLayers.length === 0) {
+      setOriginalLayers([...wallSelection.layers]);
+    }
+  }, [wallSelection.layers, originalLayers.length]);
+
   const calculateWallLayers = (baseTileId: string) => {
     const baseTile = tiles.find(t => t.id === baseTileId);
     
