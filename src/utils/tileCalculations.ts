@@ -260,7 +260,16 @@ export const prepareQuotationItems = (
       
       // Calculate proportional price for this tile in this room
       const layerCount = layerNumbers.length;
-      const totalPrice = calc ? (calc.totalPrice * layerCount * areaPerLayer) / calc.totalArea : 0;
+      let totalPrice = 0;
+      
+      if (calc && calc.totalArea > 0) {
+        totalPrice = (calc.totalPrice * layerCount * areaPerLayer) / calc.totalArea;
+      }
+      
+      // Ensure totalPrice is a valid number
+      if (isNaN(totalPrice) || !isFinite(totalPrice)) {
+        totalPrice = 0;
+      }
 
       items.push({
         tile_id: tileId,

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Layers, Copy, Minus, Plus } from "lucide-react";
+import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ export const WallTileSelectionPage = ({
     layerNumber?: number;
     isBaseSelection?: boolean;
   } | null>(null);
+  const [originalLayers, setOriginalLayers] = useState<WallTileLayer[]>([]);
 
   const calculateWallLayers = (baseTileId: string) => {
     const baseTile = tiles.find(t => t.id === baseTileId);
@@ -73,6 +74,8 @@ export const WallTileSelectionPage = ({
       totalLayers: layerCount
     };
 
+    // Store original layers for reset functionality
+    setOriginalLayers(layers);
     onUpdateSelection(updatedSelection);
   };
 
@@ -167,6 +170,22 @@ export const WallTileSelectionPage = ({
     setShowTileCatalog(true);
   };
 
+  const handleResetLayers = () => {
+    if (originalLayers.length === 0) {
+      toast.error("No original configuration to reset to");
+      return;
+    }
+
+    const updatedSelection = {
+      ...wallSelection,
+      layers: [...originalLayers],
+      totalLayers: originalLayers.length
+    };
+
+    onUpdateSelection(updatedSelection);
+    toast.success("Layers reset to original configuration");
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -230,9 +249,22 @@ export const WallTileSelectionPage = ({
         {/* Layer Configuration */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-green-600" />
-              Layer Configuration
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="h-5 w-5 text-green-600" />
+                Layer Configuration
+              </div>
+              {wallSelection.layers.length > 0 && originalLayers.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetLayers}
+                  className="gap-1"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Reset
+                </Button>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -38,7 +38,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
-  const [wastagePercentage, setWastagePercentage] = useState<string>("10");
+  const [wastagePercentage, setWastagePercentage] = useState<string>("0");
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [catalogContext, setCatalogContext] = useState<{
     roomId: string;
@@ -521,26 +521,26 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           <CardContent className="space-y-4">
             {/* Wastage Percentage */}
             <div>
-              <Label htmlFor="wastage" className="text-sm font-medium flex items-center gap-2 mb-2">
-                <Percent className="h-4 w-4" />
-                Wastage Percentage (0-15%)
-              </Label>
-              <Input
-                id="wastage"
-                type="text"
-                value={wastagePercentage}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^\d*\.?\d*$/.test(value)) {
-                    const numValue = parseFloat(value);
-                    if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 15)) {
-                      setWastagePercentage(value);
+                <Label htmlFor="wastage" className="text-sm font-medium flex items-center gap-2 mb-2">
+                  <Percent className="h-4 w-4" />
+                  Wastage Percentage (0-15%)
+                </Label>
+                <Input
+                  id="wastage"
+                  type="text"
+                  value={wastagePercentage}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*\.?\d*$/.test(value)) {
+                      const numValue = parseFloat(value);
+                      if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 15)) {
+                        setWastagePercentage(value);
+                      }
                     }
-                  }
-                }}
-                placeholder="Enter 0-15"
-                className="text-center"
-              />
+                  }}
+                  placeholder="Enter 0-15"
+                  className="text-center"
+                />
             </div>
 
             {/* Calculations Summary */}

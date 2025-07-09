@@ -31,7 +31,7 @@ interface QuotationFormProps {
 export const QuotationForm = ({ 
   preSelectedCustomerId, 
   selectedRoomsData = [], 
-  wastagePercentage = 10,
+  wastagePercentage = 0,
   onBack, 
   onSuccess 
 }: QuotationFormProps) => {
