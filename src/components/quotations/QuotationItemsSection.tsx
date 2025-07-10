@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, IndianRupee } from "lucide-react";
+import { Plus, Trash2, IndianRupee, QrCode, Search } from "lucide-react";
+import { QRScanner } from "@/components/qr/QRScanner";
+import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 
@@ -36,8 +38,56 @@ export const QuotationItemsSection = ({
   onRemoveItem,
   onUpdateItem
 }: QuotationItemsSectionProps) => {
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [scanningForIndex, setScanningForIndex] = useState<number | null>(null);
+  const [tileSearchTerms, setTileSearchTerms] = useState<{[key: number]: string}>({});
+
   const getTotalCost = () => {
     return items.reduce((sum, item) => sum + item.total_price, 0);
+  };
+
+  const handleQRScanned = (tileCode: string) => {
+    if (scanningForIndex !== null) {
+      const tile = tiles.find(t => t.code === tileCode);
+      if (tile) {
+        onUpdateItem(scanningForIndex, 'tile_id', tile.id);
+        toast.success(`Tile "${tile.name}" (${tileCode}) selected`);
+      } else {
+        toast.error(`No tile found with code: ${tileCode}`);
+      }
+    }
+    setIsQRScannerOpen(false);
+    setScanningForIndex(null);
+  };
+
+  const handleCodeSearch = (index: number, searchTerm: string) => {
+    setTileSearchTerms(prev => ({ ...prev, [index]: searchTerm }));
+    
+    if (searchTerm.trim()) {
+      const tile = tiles.find(t => 
+        t.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      if (tile && tile.code.toLowerCase() === searchTerm.toLowerCase()) {
+        onUpdateItem(index, 'tile_id', tile.id);
+        toast.success(`Tile "${tile.name}" selected`);
+      }
+    }
+  };
+
+  const openQRScanner = (index: number) => {
+    setScanningForIndex(index);
+    setIsQRScannerOpen(true);
+  };
+
+  const getFilteredTiles = (index: number) => {
+    const searchTerm = tileSearchTerms[index] || '';
+    if (!searchTerm.trim()) return tiles;
+    
+    return tiles.filter(tile =>
+      tile.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tile.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   };
 
   return (
@@ -87,18 +137,48 @@ export const QuotationItemsSection = ({
 
               <div className="space-y-2">
                 <Label>Tile</Label>
-                <Select value={item.tile_id} onValueChange={(value) => onUpdateItem(index, 'tile_id', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select tile" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tiles.map((tile) => (
-                      <SelectItem key={tile.id} value={tile.id}>
-                        {tile.name} - {tile.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  {/* Search Input for Manual Code Entry */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search by tile code or name..."
+                      value={tileSearchTerms[index] || ''}
+                      onChange={(e) => handleCodeSearch(index, e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  {/* QR Scanner Button and Dropdown Row */}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => openQRScanner(index)}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <QrCode className="h-4 w-4" />
+                      Scan QR
+                    </Button>
+                    
+                    <Select 
+                      value={item.tile_id} 
+                      onValueChange={(value) => onUpdateItem(index, 'tile_id', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select tile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getFilteredTiles(index).map((tile) => (
+                          <SelectItem key={tile.id} value={tile.id}>
+                            {tile.name} - {tile.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -160,6 +240,16 @@ export const QuotationItemsSection = ({
           </div>
         )}
       </CardContent>
+
+      {/* QR Scanner Dialog */}
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => {
+          setIsQRScannerOpen(false);
+          setScanningForIndex(null);
+        }}
+        onScan={handleQRScanned}
+      />
     </Card>
   );
 };
