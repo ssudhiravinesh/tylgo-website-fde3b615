@@ -7,128 +7,122 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log(`${req.method} ${req.url}`)
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  console.log('Admin reset password function called');
-
   try {
-    // Create a Supabase client with admin privileges
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    console.log('Environment check:', {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey
+    })
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase environment variables')
+    }
+
+    // Create a Supabase client with service role (admin) privileges
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
       }
-    )
+    })
 
     // Get the authorization header from the request
     const authHeader = req.headers.get('authorization')
-    console.log('Auth header present:', !!authHeader);
+    console.log('Auth header present:', !!authHeader)
     
     if (!authHeader) {
-      console.error('No authorization header provided');
-      throw new Error('No authorization header')
+      return new Response(
+        JSON.stringify({ error: 'No authorization header provided' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Create a client to verify the requesting user
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        },
-        global: {
-          headers: {
-            authorization: authHeader
-          }
-        }
-      }
-    )
+    const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || '', {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { authorization: authHeader } }
+    })
 
     // Verify the requesting user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
-    console.log('User verification:', { user: !!user, error: userError });
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser()
+    console.log('User verification:', { userId: user?.id, error: userError?.message })
     
     if (userError || !user) {
-      console.error('User authentication failed:', userError);
-      throw new Error('Invalid authentication')
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
-    // Check if the requesting user is an admin using the admin client
+    // Check if the requesting user is an admin
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError)
-      throw new Error('Failed to verify user role')
-    }
+    console.log('Profile check:', { role: profile?.role, error: profileError?.message })
 
-    console.log('User role:', profile?.role);
-    
-    if (profile?.role !== 'admin') {
-      console.error('Access denied. User role:', profile?.role);
-      throw new Error('Insufficient privileges. Admin access required.')
+    if (profileError || profile?.role !== 'admin') {
+      return new Response(
+        JSON.stringify({ error: 'Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Parse the request body
-    const { userId, newPassword } = await req.json()
-    console.log('Request data:', { userId: !!userId, passwordLength: newPassword?.length });
+    const body = await req.json()
+    const { userId, newPassword } = body
+    console.log('Request data:', { userId: !!userId, passwordLength: newPassword?.length })
 
     if (!userId || !newPassword) {
-      console.error('Missing required fields:', { userId: !!userId, newPassword: !!newPassword });
-      throw new Error('Missing userId or newPassword')
+      return new Response(
+        JSON.stringify({ error: 'Missing userId or newPassword' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     if (newPassword.length < 6) {
-      console.error('Password too short:', newPassword.length);
-      throw new Error('Password must be at least 6 characters long')
+      return new Response(
+        JSON.stringify({ error: 'Password must be at least 6 characters long' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Update the user's password using admin privileges
-    console.log('Attempting to update password for user:', userId);
-    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    )
+    console.log('Updating password for user:', userId)
+    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: newPassword
+    })
 
     if (error) {
-      console.error('Password update failed:', error);
-      throw error
+      console.error('Password update failed:', error)
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
-    
-    console.log('Password updated successfully for user:', userId);
 
+    console.log('Password updated successfully')
     return new Response(
       JSON.stringify({ success: true, message: 'Password updated successfully' }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
-    console.error('Error in admin-reset-password function:', error)
-    
+    console.error('Function error:', error)
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'An unexpected error occurred',
-        success: false 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      },
+      JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
