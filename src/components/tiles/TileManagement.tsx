@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Package, IndianRupee, Grid3X3, Ruler, Check, Plus, QrCode, Download } from "lucide-react";
+import { Search, Package, IndianRupee, Grid3X3, Ruler, Check, Plus, Download } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
-import { QRScanner } from "@/components/qr/QRScanner";
 import { TileAssignmentDialog } from "./TileAssignmentDialog";
 import { TileDetailsDialog } from "./TileDetailsDialog";
 import { SearchBar } from "./SearchBar";
@@ -41,18 +40,6 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleQRScanned = (tileCode: string) => {
-    // Set the search term to the scanned code to filter tiles
-    setSearchTerm(tileCode);
-    
-    const tile = tiles.find(t => t.code === tileCode);
-    if (tile) {
-      toast.success(`Tile "${tile.name}" (${tileCode}) found and filtered`);
-    } else {
-      toast.error(`No tile found with code: ${tileCode}`);
-    }
-  };
 
   const handleTileSelect = (tile: Tile) => {
     setSelectedTile(tile);
@@ -152,7 +139,6 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
       <SearchBar
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        onQRScanned={handleQRScanned}
       />
 
       {isLoading ? (
