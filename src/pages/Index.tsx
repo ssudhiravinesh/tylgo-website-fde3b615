@@ -1,24 +1,17 @@
 
 import { useState } from "react";
 import { Dashboard } from "@/components/dashboard/Dashboard";
-import { LogoutConfirmDialog } from "@/components/auth/LogoutConfirmDialog";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignUpForm } from "@/components/auth/SignUpForm";
 import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const { user, profile, signOut, loading } = useAuth();
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
 
-  const handleLogoutClick = () => {
-    setShowLogoutDialog(true);
-  };
-
-  const handleLogoutConfirm = async () => {
+  const handleLogoutClick = async () => {
     try {
       await signOut();
-      setShowLogoutDialog(false);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -50,14 +43,7 @@ const Index = () => {
   }
 
   return (
-    <>
-      <Dashboard user={profile} onLogout={handleLogoutClick} />
-      <LogoutConfirmDialog
-        isOpen={showLogoutDialog}
-        onOpenChange={setShowLogoutDialog}
-        onConfirm={handleLogoutConfirm}
-      />
-    </>
+    <Dashboard user={profile} onLogout={handleLogoutClick} />
   );
 };
 
