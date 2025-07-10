@@ -53,6 +53,8 @@ export const useCameraAccess = () => {
   };
 
   const startCamera = useCallback(async (onCameraReady?: () => void) => {
+    let currentStream: MediaStream | null = null;
+    
     try {
       console.log('Starting camera initialization...');
       setCameraError('');
@@ -103,7 +105,6 @@ export const useCameraAccess = () => {
         { video: true, audio: false }
       ];
 
-      let mediaStream = null;
       let lastError = null;
 
       for (let i = 0; i < constraintOptions.length; i++) {
@@ -112,7 +113,7 @@ export const useCameraAccess = () => {
           console.log(`Trying constraints ${i + 1}:`, constraints);
           setDebugInfo(prev => prev + `Trying option ${i + 1}...\n`);
           
-          mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+          currentStream = await navigator.mediaDevices.getUserMedia(constraints);
           console.log('Camera stream obtained with constraints:', constraints);
           setDebugInfo(prev => prev + `Success with option ${i + 1}!\n`);
           break;
@@ -124,11 +125,11 @@ export const useCameraAccess = () => {
         }
       }
 
-      if (!mediaStream) {
+      if (!currentStream) {
         throw lastError || new Error('Unable to access camera with any configuration');
       }
       
-      const videoTracks = mediaStream.getVideoTracks();
+      const videoTracks = currentStream.getVideoTracks();
       if (videoTracks.length > 0) {
         const track = videoTracks[0];
         console.log('Video track details:', {
@@ -153,11 +154,11 @@ export const useCameraAccess = () => {
         }
       }
       
-      setStream(mediaStream);
+      setStream(currentStream);
       
       if (videoRef.current) {
         const video = videoRef.current;
-        video.srcObject = mediaStream;
+        video.srcObject = currentStream;
         
         // Mobile-optimized video settings
         video.setAttribute('playsinline', 'true');
@@ -196,8 +197,8 @@ export const useCameraAccess = () => {
       setHasCamera(false);
       
       // Clean up stream if it was created
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
       }
       
       if (error instanceof Error) {
