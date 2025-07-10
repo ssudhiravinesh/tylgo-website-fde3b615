@@ -204,7 +204,7 @@ export const WallTileSelectionPage = ({
     if (!ctx) return;
 
     const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
-    const tileSize = 80; // Increased size for better visibility
+    const tileSize = 100; // Larger size for better visibility in bigger dialog
     const canvasWidth = tilesPerLayer * tileSize;
     const canvasHeight = wallSelection.layers.length * tileSize;
     
@@ -498,12 +498,12 @@ export const WallTileSelectionPage = ({
       />
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Wall Preview</DialogTitle>
           </DialogHeader>
-          <div className="flex justify-center p-4">
-            <div className="border rounded-lg overflow-hidden shadow-sm">
+          <div className="flex justify-center p-6">
+            <div className="border rounded-lg overflow-hidden shadow-sm bg-white">
               <canvas
                 ref={canvasRef}
                 className="block"
