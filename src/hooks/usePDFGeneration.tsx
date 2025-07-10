@@ -118,21 +118,32 @@ export const usePDFGeneration = () => {
           const boxPricing = tile?.price_per_box ? 
             `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>` : '';
 
-          // Get unique room names with layer information to avoid duplication
-          const roomNamesWithLayers = Array.from(new Set(rooms.map((r, index) => {
-            const roomName = r?.name || 'Unknown Room';
-            // Check if this is a wall tile with multiple layers by looking at the quotation items
-            const roomQuotationItems = quotationItems?.filter((item: any) => item.room && item.room.name === roomName) || [];
-            const layerNumbers = Array.from(new Set(roomQuotationItems.map((item: any) => (item as any).layer_number || 1)));
+          // Get unique room names with layer information specific to this tile
+          const tileQuotationItems = quotationItems?.filter((item: any) => item.tile_id === tile.id) || [];
+          const roomLayerMap = new Map();
+          
+          tileQuotationItems.forEach((item: any) => {
+            const roomName = item.room?.name || 'Unknown Room';
+            const layerNumber = item.layer_number || 1;
             
-            if (layerNumbers.length > 1 && layerNumbers.some(layer => layer > 1)) {
-              // Multiple layers, show with layer numbers
-              return layerNumbers.map(layer => `${roomName} (Layer ${layer})`).join(', ');
+            if (!roomLayerMap.has(roomName)) {
+              roomLayerMap.set(roomName, []);
+            }
+            if (!roomLayerMap.get(roomName).includes(layerNumber)) {
+              roomLayerMap.get(roomName).push(layerNumber);
+            }
+          });
+
+          const roomNamesWithLayers = Array.from(roomLayerMap.entries()).map(([roomName, layers]) => {
+            const sortedLayers = layers.sort((a, b) => a - b);
+            if (sortedLayers.length > 1) {
+              return `${roomName} (Layers: ${sortedLayers.join(', ')})`;
+            } else if (sortedLayers[0] > 1) {
+              return `${roomName} (Layer ${sortedLayers[0]})`;
             } else {
-              // Single layer or floor tile
               return roomName;
             }
-          }))).join(', ');
+          }).join(', ');
 
           return `
             <tr>
