@@ -54,12 +54,12 @@ export const TileCard = ({
         
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            {tile.name}
+            {tile.code}
           </div>
           
           <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">
             <Badge variant="secondary" className="text-xs font-mono">
-              {tile.code}
+              {tile.name}
             </Badge>
             {isSelected && (
               <Badge className="bg-blue-600 text-white text-xs">
