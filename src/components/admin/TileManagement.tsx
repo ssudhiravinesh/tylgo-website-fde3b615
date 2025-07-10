@@ -284,11 +284,12 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       <FormItem>
                         <FormLabel>Length (mm)</FormLabel>
                         <FormControl>
-                          <Input
+                           <Input
                             {...field}
                             type="number"
                             placeholder="600"
                             onChange={(e) => field.onChange(Number(e.target.value))}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </FormControl>
                         <FormMessage />
@@ -302,11 +303,12 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       <FormItem>
                         <FormLabel>Breadth (mm)</FormLabel>
                         <FormControl>
-                          <Input
+                           <Input
                             {...field}
                             type="number"
                             placeholder="600"
                             onChange={(e) => field.onChange(Number(e.target.value))}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </FormControl>
                         <FormMessage />
@@ -320,12 +322,13 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       <FormItem>
                         <FormLabel>Price/Box</FormLabel>
                         <FormControl>
-                          <Input
+                           <Input
                             {...field}
                             type="number"
                             step="0.01"
                             placeholder="450"
                             onChange={(e) => field.onChange(Number(e.target.value))}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </FormControl>
                         <FormMessage />
@@ -339,11 +342,12 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       <FormItem>
                         <FormLabel>Pieces/Box</FormLabel>
                         <FormControl>
-                          <Input
+                           <Input
                             {...field}
                             type="number"
                             placeholder="4"
                             onChange={(e) => field.onChange(Number(e.target.value))}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </FormControl>
                         <FormMessage />
@@ -629,12 +633,13 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     <FormItem>
                       <FormLabel>Length (mm)</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          placeholder="600"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
+                         <Input
+                           {...field}
+                           type="number"
+                           placeholder="600"
+                           onChange={(e) => field.onChange(Number(e.target.value))}
+                           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -647,12 +652,13 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     <FormItem>
                       <FormLabel>Breadth (mm)</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          placeholder="600"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
+                         <Input
+                           {...field}
+                           type="number"
+                           placeholder="600"
+                           onChange={(e) => field.onChange(Number(e.target.value))}
+                           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -665,13 +671,14 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     <FormItem>
                       <FormLabel>Price/Box</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          step="0.01"
-                          placeholder="450"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
+                         <Input
+                           {...field}
+                           type="number"
+                           step="0.01"
+                           placeholder="450"
+                           onChange={(e) => field.onChange(Number(e.target.value))}
+                           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -684,12 +691,13 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     <FormItem>
                       <FormLabel>Pieces/Box</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          placeholder="4"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
+                         <Input
+                           {...field}
+                           type="number"
+                           placeholder="4"
+                           onChange={(e) => field.onChange(Number(e.target.value))}
+                           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

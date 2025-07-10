@@ -118,13 +118,26 @@ export const usePDFGeneration = () => {
           const boxPricing = tile?.price_per_box ? 
             `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>` : '';
 
-          // Get unique room names to avoid duplication
-          const uniqueRoomNames = Array.from(new Set(rooms.map(r => r?.name || 'Unknown Room'))).join(', ');
+          // Get unique room names with layer information to avoid duplication
+          const roomNamesWithLayers = Array.from(new Set(rooms.map((r, index) => {
+            const roomName = r?.name || 'Unknown Room';
+            // Check if this is a wall tile with multiple layers by looking at the quotation items
+            const roomQuotationItems = quotationItems?.filter((item: any) => item.room && item.room.name === roomName) || [];
+            const layerNumbers = Array.from(new Set(roomQuotationItems.map((item: any) => (item as any).layer_number || 1)));
+            
+            if (layerNumbers.length > 1 && layerNumbers.some(layer => layer > 1)) {
+              // Multiple layers, show with layer numbers
+              return layerNumbers.map(layer => `${roomName} (Layer ${layer})`).join(', ');
+            } else {
+              // Single layer or floor tile
+              return roomName;
+            }
+          }))).join(', ');
 
           return `
             <tr>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
-                <strong>${uniqueRoomNames}</strong><br/>
+                <strong>${roomNamesWithLayers}</strong><br/>
                 <small style="color: #666; font-size: 9px;">Total Area: ${formatArea(calc.totalArea)}</small>
               </td>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">

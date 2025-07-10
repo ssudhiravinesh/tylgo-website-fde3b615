@@ -192,6 +192,16 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     const layerCount = Math.ceil(wallHeight / tileHeightInRoomUnit);
     const tilesPerLayer = Math.ceil(wallLength / tileLengthInRoomUnit);
 
+    console.log('Wall calculation:', {
+      wallHeight,
+      wallLength,
+      tileHeightInRoomUnit,
+      tileLengthInRoomUnit,
+      layerCount,
+      tilesPerLayer,
+      totalTilesNeeded: layerCount * tilesPerLayer
+    });
+
     const layers: WallTileLayer[] = [];
     for (let i = 1; i <= layerCount; i++) {
       layers.push({

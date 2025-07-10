@@ -110,8 +110,11 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
             setIsPasswordDialogOpen(false);
             setSelectedWorker(null);
             passwordForm.reset();
-            toast.success("Password reset successfully");
           },
+          onError: (error: any) => {
+            console.error('Password reset error:', error);
+            // Don't auto-close dialog on error so user can try again
+          }
         }
       );
     }

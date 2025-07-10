@@ -33,7 +33,10 @@ export const LogoutConfirmDialog = ({ isOpen, onOpenChange, onConfirm }: LogoutC
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={(e) => {
+              e.preventDefault();
+              onConfirm();
+            }}
             className="bg-red-600 hover:bg-red-700 text-white"
           >
             <LogOut className="h-4 w-4 mr-2" />

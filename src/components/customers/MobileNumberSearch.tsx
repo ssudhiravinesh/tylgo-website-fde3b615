@@ -51,11 +51,13 @@ export const MobileNumberSearch = ({
   }, [filteredCustomers.length, value]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
+    // Limit input to 10 digits for mobile numbers
+    const inputValue = e.target.value.replace(/\D/g, '').slice(0, 10);
+    onChange(inputValue);
     
     // Call onCustomerFound with null when input changes and no exact match
     if (onCustomerFound) {
-      const exactMatch = customers.find(customer => customer.mobile === e.target.value);
+      const exactMatch = customers.find(customer => customer.mobile === inputValue);
       onCustomerFound(exactMatch || null);
     }
   };

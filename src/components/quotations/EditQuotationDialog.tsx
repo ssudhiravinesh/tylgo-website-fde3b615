@@ -144,8 +144,8 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
                   <Input
                     id="quotation-number"
                     value={quotationNumber}
-                    onChange={(e) => setQuotationNumber(e.target.value)}
-                    required
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
                   />
                 </div>
 
