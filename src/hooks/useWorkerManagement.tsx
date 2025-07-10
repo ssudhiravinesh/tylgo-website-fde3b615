@@ -162,7 +162,10 @@ export const useWorkerManagement = () => {
         body: { userId, newPassword }
       });
 
+      console.log('Password reset response:', { data, error });
+
       if (error) {
+        console.error('Edge function error:', error);
         throw error;
       }
 
@@ -209,7 +212,10 @@ export const useWorkerManagement = () => {
         body: { name, email, password }
       });
 
+      console.log('Create worker response:', { data, error });
+
       if (error) {
+        console.error('Edge function error:', error);
         throw error;
       }
 
