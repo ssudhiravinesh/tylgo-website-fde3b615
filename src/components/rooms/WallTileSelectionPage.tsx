@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw, Eye } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { toast } from "sonner";
@@ -31,6 +32,8 @@ export const WallTileSelectionPage = ({
     isBaseSelection?: boolean;
   } | null>(null);
   const [originalLayers, setOriginalLayers] = useState<WallTileLayer[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Initialize originalLayers from existing wallSelection when component loads
   useEffect(() => {
@@ -193,6 +196,85 @@ export const WallTileSelectionPage = ({
     toast.success("Layers reset to original configuration");
   };
 
+  const generateWallPreview = () => {
+    if (!canvasRef.current || wallSelection.layers.length === 0) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
+    const tileSize = 60; // Size of each tile in pixels
+    const canvasWidth = tilesPerLayer * tileSize;
+    const canvasHeight = wallSelection.layers.length * tileSize;
+    
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    // Clear canvas
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    const sortedLayers = [...wallSelection.layers].sort((a, b) => a.layerNumber - b.layerNumber);
+    
+    sortedLayers.forEach((layer, layerIndex) => {
+      const tile = tiles.find(t => t.id === layer.tileId);
+      if (!tile) return;
+
+      const y = layerIndex * tileSize;
+      
+      for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
+        const x = tileIndex * tileSize;
+        
+        if (tile.image_url) {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            ctx.drawImage(img, x, y, tileSize, tileSize);
+            // Add subtle border
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, tileSize, tileSize);
+          };
+          img.onerror = () => {
+            // Fallback: draw a colored rectangle with tile name
+            ctx.fillStyle = `hsl(${(layer.layerNumber * 60) % 360}, 50%, 70%)`;
+            ctx.fillRect(x, y, tileSize, tileSize);
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, tileSize, tileSize);
+            
+            // Add tile code text
+            ctx.fillStyle = '#374151';
+            ctx.font = '8px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(tile.code.substring(0, 8), x + tileSize/2, y + tileSize/2);
+          };
+          img.src = tile.image_url;
+        } else {
+          // No image: draw a colored rectangle with tile info
+          ctx.fillStyle = `hsl(${(layer.layerNumber * 60) % 360}, 50%, 70%)`;
+          ctx.fillRect(x, y, tileSize, tileSize);
+          ctx.strokeStyle = '#e5e7eb';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, tileSize, tileSize);
+          
+          // Add tile code text
+          ctx.fillStyle = '#374151';
+          ctx.font = '8px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(tile.code.substring(0, 8), x + tileSize/2, y + tileSize/2);
+        }
+      }
+    });
+  };
+
+  const handlePreview = () => {
+    setShowPreview(true);
+    // Generate preview after a short delay to ensure dialog is open
+    setTimeout(() => generateWallPreview(), 100);
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -276,10 +358,22 @@ export const WallTileSelectionPage = ({
           </CardHeader>
           <CardContent>
             {wallSelection.layers.length > 0 ? (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {wallSelection.layers
-                  .sort((a, b) => a.layerNumber - b.layerNumber)
-                  .map(layer => {
+              <div className="space-y-3">
+                <div className="flex justify-center mb-3">
+                  <Button
+                    variant="outline"
+                    onClick={handlePreview}
+                    className="gap-2"
+                    size="sm"
+                  >
+                    <Eye className="h-4 w-4" />
+                    Preview Wall
+                  </Button>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {wallSelection.layers
+                    .sort((a, b) => a.layerNumber - b.layerNumber)
+                    .map(layer => {
                     const tile = tiles.find(t => t.id === layer.tileId);
                     return tile ? (
                       <div key={layer.layerNumber} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border">
@@ -329,7 +423,8 @@ export const WallTileSelectionPage = ({
                         </div>
                       </div>
                     ) : null;
-                  })}
+                   })}
+                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-400">
@@ -350,6 +445,27 @@ export const WallTileSelectionPage = ({
         onTileSelect={handleTileSelected}
         selectedTileIds={[]}
       />
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Wall Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center p-4">
+            <div className="border rounded-lg overflow-hidden shadow-sm">
+              <canvas
+                ref={canvasRef}
+                className="block"
+                style={{ maxWidth: '100%', height: 'auto' }}
+              />
+            </div>
+          </div>
+          <div className="text-sm text-gray-600 text-center">
+            <p>Preview shows 6 tiles per layer</p>
+            <p>Layers are stacked from bottom (Layer 1) to top</p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
