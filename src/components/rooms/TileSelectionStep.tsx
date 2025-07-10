@@ -542,11 +542,20 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                         </Button>
                       </div>
                       
-                      {wallSelection && wallSelection.layers.length > 0 ? (
+                       {wallSelection && wallSelection.layers.length > 0 ? (
                         <div className="space-y-3">
-                          <p className="text-sm font-semibold text-blue-600">
-                            {wallSelection.layers.length} layers configured
-                          </p>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="bg-white p-2 rounded border">
+                              <span className="text-gray-500">Layers:</span>
+                              <span className="font-semibold ml-2">{wallSelection.layers.length}</span>
+                            </div>
+                            <div className="bg-white p-2 rounded border">
+                              <span className="text-gray-500">Total Tiles:</span>
+                              <span className="font-semibold ml-2">
+                                {wallSelection.layers.reduce((sum, layer) => sum + layer.tilesNeeded, 0)}
+                              </span>
+                            </div>
+                          </div>
                           <div className="bg-white p-3 rounded-lg border">
                             <p className="text-sm text-gray-600">Click Configure to manage layers and tiles</p>
                           </div>

@@ -141,16 +141,32 @@ export const useWorkerManagement = () => {
     mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
       console.log('Resetting password for user:', userId);
       
-      // In a real application, you would need to use Supabase Admin API
-      // For now, we'll simulate the password reset
-      // This would typically require server-side code with admin privileges
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In production, you would make a call to a server endpoint that uses
-      // the Supabase Admin SDK to update the user's password
-      throw new Error('Password reset functionality requires server-side implementation with Supabase Admin SDK');
+      // Check if current user is admin
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        throw new Error('Insufficient privileges. Admin access required.');
+      }
+
+      // Call Supabase edge function for password reset (admin function)
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { userId, newPassword }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
     },
     onSuccess: () => {
       toast.success('Password reset successfully');
@@ -158,7 +174,13 @@ export const useWorkerManagement = () => {
     },
     onError: (error: any) => {
       console.error('Error resetting password:', error);
-      toast.error('Password reset functionality is not fully implemented yet. This requires server-side admin privileges.');
+      if (error.message?.includes('Insufficient privileges')) {
+        toast.error('Admin privileges required to reset passwords');
+      } else if (error.message?.includes('Function not found')) {
+        toast.error('Password reset feature is not yet implemented on the server');
+      } else {
+        toast.error(error.message || 'Failed to reset password');
+      }
     },
   });
 
