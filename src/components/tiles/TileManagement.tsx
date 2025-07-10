@@ -43,10 +43,12 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   );
 
   const handleQRScanned = (tileCode: string) => {
+    // Set the search term to the scanned code to filter tiles
+    setSearchTerm(tileCode);
+    
     const tile = tiles.find(t => t.code === tileCode);
     if (tile) {
-      setSelectedTile(tile);
-      setShowAssignmentDialog(true);
+      toast.success(`Tile "${tile.name}" (${tileCode}) found and filtered`);
     } else {
       toast.error(`No tile found with code: ${tileCode}`);
     }
