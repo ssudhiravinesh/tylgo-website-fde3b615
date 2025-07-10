@@ -88,9 +88,7 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
               <Building className="h-5 w-5 text-blue-600" />
               Rooms ({rooms.length})
             </div>
-            <Badge variant="outline">
-              Total Area: {rooms.reduce((sum, room) => sum + (room.length * room.width), 0).toFixed(2)} sqm
-            </Badge>
+          
           </CardTitle>
         </CardHeader>
         <CardContent>
