@@ -83,6 +83,19 @@ export const useQuotations = (filters?: QuotationFilters) => {
     queryFn: async () => {
       console.log('Fetching quotations with filters:', filters);
       
+      // Get current user to determine filtering
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get user profile to check role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
       let query = supabase
         .from('quotations')
         .select(`
@@ -124,6 +137,14 @@ export const useQuotations = (filters?: QuotationFilters) => {
           )
         `)
         .order('created_at', { ascending: false });
+
+      // Filter by worker_id if user is a worker (not admin)
+      if (profile?.role === 'worker') {
+        console.log('Filtering quotations for worker:', user.id);
+        query = query.eq('worker_id', user.id);
+      } else {
+        console.log('Admin user - showing all quotations');
+      }
 
       // Apply date filters
       if (filters?.quickSort && filters.quickSort !== 'all') {
