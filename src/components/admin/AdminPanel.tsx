@@ -20,7 +20,9 @@ import { CustomerAnalytics } from "./CustomerAnalytics";
 
 export const AdminPanel = () => {
   const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management" | "customer-analytics" | "references">("dashboard");
-
+  
+  // Always call hooks at the top level to avoid conditional hook calls
+  const { recentActivity } = useDashboardData();
 
   if (activeView === "tile-management") {
     return <TileManagement onBack={() => setActiveView("dashboard")} />;
@@ -37,8 +39,6 @@ export const AdminPanel = () => {
   if (activeView === "customer-analytics") {
     return <CustomerAnalytics onBack={() => setActiveView("dashboard")} />;
   }
-
-  const { recentActivity } = useDashboardData();
 
   return (
     <div className="space-y-6">
