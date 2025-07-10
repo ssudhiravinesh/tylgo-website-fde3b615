@@ -264,6 +264,50 @@ export const useWorkerManagement = () => {
     }
   };
 
+  const deleteWorkerMutation = useMutation({
+    mutationFn: async (workerId: string) => {
+      console.log('Deleting worker:', workerId);
+      
+      // Check if current user is admin
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        throw new Error('Insufficient privileges. Admin access required.');
+      }
+
+      // Delete from profiles table (this will cascade delete from auth.users due to trigger)
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', workerId);
+
+      if (error) {
+        console.error('Error deleting worker profile:', error);
+        throw error;
+      }
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast.success('Worker deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
+      queryClient.invalidateQueries({ queryKey: ['quotation-stats'] });
+    },
+    onError: (error: any) => {
+      console.error('Error deleting worker:', error);
+      toast.error(error.message || 'Failed to delete worker');
+    },
+  });
+
   return {
     workers,
     workerQuotations,
@@ -271,6 +315,7 @@ export const useWorkerManagement = () => {
     isLoading: workersLoading || statsLoading,
     resetPasswordMutation,
     addWorkerMutation,
+    deleteWorkerMutation,
     fetchWorkerQuotations,
   };
 };

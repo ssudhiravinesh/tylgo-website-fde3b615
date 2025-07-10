@@ -12,7 +12,8 @@ import {
   Search,
   Eye,
   BarChart3,
-  UserPlus
+  UserPlus,
+  Trash2
 } from "lucide-react";
 import {
   Dialog,
@@ -67,6 +68,7 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isQuotationsDialogOpen, setIsQuotationsDialogOpen] = useState(false);
   const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const { 
     workers, 
@@ -75,6 +77,7 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
     isLoading, 
     resetPasswordMutation,
     addWorkerMutation,
+    deleteWorkerMutation,
     fetchWorkerQuotations 
   } = useWorkerManagement();
 
@@ -141,6 +144,17 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
     setSelectedWorker(worker);
     fetchWorkerQuotations(worker.id);
     setIsQuotationsDialogOpen(true);
+  };
+
+  const handleDeleteWorker = () => {
+    if (selectedWorker) {
+      deleteWorkerMutation.mutate(selectedWorker.id, {
+        onSuccess: () => {
+          setIsDeleteDialogOpen(false);
+          setSelectedWorker(null);
+        },
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -345,6 +359,18 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
                     <Key className="h-4 w-4 mr-1" />
                     Reset Password
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedWorker(worker);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
                 </div>
               </div>
             ))}
@@ -442,6 +468,30 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
                 <p className="text-center text-gray-500 py-8">No quotations found for this worker</p>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Worker Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Worker</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete {selectedWorker?.name}? This action cannot be undone and will remove all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteWorker}
+              disabled={deleteWorkerMutation.isPending}
+            >
+              {deleteWorkerMutation.isPending ? "Deleting..." : "Delete Worker"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

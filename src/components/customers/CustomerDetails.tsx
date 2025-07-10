@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User, Phone, MapPin, Calendar, ArrowLeft, Building } from "lucide-react";
+import { User, Phone, MapPin, Calendar, ArrowLeft, Building, Square, Home } from "lucide-react";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import type { Customer } from "@/hooks/useCustomers";
 
@@ -108,21 +108,67 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
               {rooms.map((room) => (
                 <div key={room.id} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-gray-800">{room.name}</h4>
-                    <Badge variant="secondary" className="text-xs">
-                      {(room.length * room.width).toFixed(2)} {room.unit}²
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {room.room_type === 'wall' ? (
+                        <Square className="h-4 w-4 text-orange-600" />
+                      ) : (
+                        <Home className="h-4 w-4 text-blue-600" />
+                      )}
+                      <h4 className="font-medium text-gray-800">{room.name}</h4>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {room.room_type}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {room.room_type === 'wall' 
+                          ? `${(room.wall_height && room.wall_length ? room.wall_height * room.wall_length : room.length * room.width).toFixed(2)} ${room.unit}²`
+                          : `${(room.length * room.width).toFixed(2)} ${room.unit}²`
+                        }
+                      </Badge>
+                    </div>
                   </div>
                   
                   <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span>Length:</span>
-                      <span className="font-medium">{room.length} {room.unit}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Width:</span>
-                      <span className="font-medium">{room.width} {room.unit}</span>
-                    </div>
+                    {room.room_type === 'wall' ? (
+                      <>
+                        {room.wall_height && (
+                          <div className="flex justify-between">
+                            <span>Height:</span>
+                            <span className="font-medium">{room.wall_height} {room.unit}</span>
+                          </div>
+                        )}
+                        {room.wall_length && (
+                          <div className="flex justify-between">
+                            <span>Length:</span>
+                            <span className="font-medium">{room.wall_length} {room.unit}</span>
+                          </div>
+                        )}
+                        {(!room.wall_height || !room.wall_length) && (
+                          <>
+                            <div className="flex justify-between">
+                              <span>Length:</span>
+                              <span className="font-medium">{room.length} {room.unit}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Width:</span>
+                              <span className="font-medium">{room.width} {room.unit}</span>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Length:</span>
+                          <span className="font-medium">{room.length} {room.unit}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Width:</span>
+                          <span className="font-medium">{room.width} {room.unit}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
