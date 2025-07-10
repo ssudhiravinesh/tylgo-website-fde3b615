@@ -55,6 +55,9 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const wallRooms = rooms.filter(room => room.room_type === "wall");
 
   useEffect(() => {
+    // Only run if we have selections and tiles data, and prevent unnecessary updates
+    if (selections.length === 0 && tiles.length === 0) return;
+
     // Initialize selections from database
     const floorSelections: FloorTileSelection[] = [];
     const wallSelections: WallTileSelection[] = [];
@@ -135,9 +138,17 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       }
     });
 
-    setFloorTileSelections(floorSelections);
-    setWallTileSelections(wallSelections);
-  }, [selections, rooms, tiles]);
+    // Only update state if the data has actually changed
+    setFloorTileSelections(prev => {
+      const isEqual = JSON.stringify(prev) === JSON.stringify(floorSelections);
+      return isEqual ? prev : floorSelections;
+    });
+    
+    setWallTileSelections(prev => {
+      const isEqual = JSON.stringify(prev) === JSON.stringify(wallSelections);
+      return isEqual ? prev : wallSelections;
+    });
+  }, [selections, rooms]);
 
   const handleAddFloorTile = (roomId: string) => {
     setCatalogContext({ roomId, isWallTile: false });
