@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Package, IndianRupee, X } from "lucide-react";
+import { Search, Package, IndianRupee, X, QrCode } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
+import { QRScanner } from "@/components/qr/QRScanner";
+import { toast } from "sonner";
 import type { Tile } from "@/hooks/useTiles";
 
 interface TileCatalogProps {
@@ -18,6 +20,7 @@ interface TileCatalogProps {
 
 export const TileCatalog = ({ isOpen, onClose, onTileSelect, selectedTileIds = [] }: TileCatalogProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const { data: tiles = [], isLoading } = useTiles();
 
   const filteredTiles = tiles.filter(tile =>
@@ -28,6 +31,36 @@ export const TileCatalog = ({ isOpen, onClose, onTileSelect, selectedTileIds = [
   const handleTileSelect = (tileId: string) => {
     onTileSelect(tileId);
     onClose();
+  };
+
+  const handleQRScanned = (tileCode: string) => {
+    // First, set the search term to filter tiles
+    setSearchTerm(tileCode);
+    
+    // Check if there's an exact match
+    const exactMatch = tiles.find(t => 
+      t.code.toLowerCase() === tileCode.toLowerCase()
+    );
+    
+    if (exactMatch) {
+      // Auto-select the exact match
+      handleTileSelect(exactMatch.id);
+      toast.success(`Tile "${exactMatch.name}" (${exactMatch.code}) selected automatically`);
+    } else {
+      // Show filtered results
+      const partialMatches = tiles.filter(t => 
+        t.code.toLowerCase().includes(tileCode.toLowerCase()) ||
+        t.name.toLowerCase().includes(tileCode.toLowerCase())
+      );
+      
+      if (partialMatches.length > 0) {
+        toast.success(`Found ${partialMatches.length} matching tile(s) for "${tileCode}"`);
+      } else {
+        toast.error(`No tiles found matching "${tileCode}"`);
+      }
+    }
+    
+    setIsQRScannerOpen(false);
   };
 
   const calculatePricePerSqFt = (tile: Tile) => {
@@ -72,14 +105,25 @@ export const TileCatalog = ({ isOpen, onClose, onTileSelect, selectedTileIds = [
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search tiles by name or code..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          {/* Search and QR Section */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search tiles by name or code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button
+              onClick={() => setIsQRScannerOpen(true)}
+              variant="outline"
+              className="gap-2 px-4"
+            >
+              <QrCode className="h-4 w-4" />
+              Scan QR
+            </Button>
           </div>
 
           <div className="overflow-y-auto max-h-[60vh] pr-2">
@@ -92,7 +136,7 @@ export const TileCatalog = ({ isOpen, onClose, onTileSelect, selectedTileIds = [
                 <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
                 <p className="text-gray-500">
-                  {searchTerm ? "Try adjusting your search terms" : "No tiles are available"}
+                  {searchTerm ? "Try adjusting your search terms or scan a QR code" : "No tiles are available"}
                 </p>
               </div>
             ) : (
@@ -176,6 +220,13 @@ export const TileCatalog = ({ isOpen, onClose, onTileSelect, selectedTileIds = [
           </div>
         </div>
       </DialogContent>
+      
+      {/* QR Scanner */}
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={handleQRScanned}
+      />
     </Dialog>
   );
 };
