@@ -24,7 +24,12 @@ const tileSchema = z.object({
   price_per_box: z.number().min(0, "Price must be 0 or greater").optional(),
   pieces_per_box: z.number().min(1, "Pieces per box must be greater than 0").optional(),
   image_url: z.string().optional(),
-});
+}).transform((data) => ({
+  ...data,
+  // Ensure undefined values are handled properly for optional fields
+  price_per_box: data.price_per_box || undefined,
+  pieces_per_box: data.pieces_per_box || undefined,
+}));
 
 type TileFormData = z.infer<typeof tileSchema>;
 
@@ -52,10 +57,10 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     defaultValues: {
       code: "",
       name: "",
-      size_length: 0,
-      size_breadth: 0,
-      price_per_box: 0,
-      pieces_per_box: 0,
+      size_length: undefined,
+      size_breadth: undefined,
+      price_per_box: undefined,
+      pieces_per_box: undefined,
       image_url: "",
     },
   });
@@ -169,8 +174,8 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       name: tile.name,
       size_length: tile.size_length,
       size_breadth: tile.size_breadth,
-      price_per_box: tile.price_per_box || 0,
-      pieces_per_box: tile.pieces_per_box || 0,
+      price_per_box: tile.price_per_box || undefined,
+      pieces_per_box: tile.pieces_per_box || undefined,
       image_url: tile.image_url || "",
     });
     
@@ -277,83 +282,102 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
                 {/* Size and Pricing Row */}
                 <div className="grid grid-cols-4 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="size_length"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Length (mm)</FormLabel>
-                        <FormControl>
-                           <Input
-                            {...field}
-                            type="number"
-                            placeholder="600"
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="size_breadth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Breadth (mm)</FormLabel>
-                        <FormControl>
-                           <Input
-                            {...field}
-                            type="number"
-                            placeholder="600"
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="price_per_box"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Price/Box</FormLabel>
-                        <FormControl>
-                           <Input
-                            {...field}
-                            type="number"
-                            step="0.01"
-                            placeholder="450"
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="pieces_per_box"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Pieces/Box</FormLabel>
-                        <FormControl>
-                           <Input
-                            {...field}
-                            type="number"
-                            placeholder="4"
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                   <FormField
+                     control={form.control}
+                     name="size_length"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>Length (mm)</FormLabel>
+                         <FormControl>
+                            <Input
+                             {...field}
+                             inputMode="numeric"
+                             pattern="[0-9]*"
+                             placeholder="600"
+                             value={field.value || ""}
+                             onChange={(e) => {
+                               const value = e.target.value;
+                               field.onChange(value === "" ? undefined : Number(value));
+                             }}
+                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                           />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
+                   <FormField
+                     control={form.control}
+                     name="size_breadth"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>Breadth (mm)</FormLabel>
+                         <FormControl>
+                            <Input
+                             {...field}
+                             inputMode="numeric"
+                             pattern="[0-9]*"
+                             placeholder="600"
+                             value={field.value || ""}
+                             onChange={(e) => {
+                               const value = e.target.value;
+                               field.onChange(value === "" ? undefined : Number(value));
+                             }}
+                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                           />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
+                   <FormField
+                     control={form.control}
+                     name="price_per_box"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>Price/Box</FormLabel>
+                         <FormControl>
+                            <Input
+                             {...field}
+                             inputMode="decimal"
+                             pattern="[0-9]*\.?[0-9]*"
+                             placeholder="450"
+                             value={field.value || ""}
+                             onChange={(e) => {
+                               const value = e.target.value;
+                               field.onChange(value === "" ? undefined : Number(value));
+                             }}
+                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                           />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
+                   <FormField
+                     control={form.control}
+                     name="pieces_per_box"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>Pieces/Box</FormLabel>
+                         <FormControl>
+                            <Input
+                             {...field}
+                             inputMode="numeric"
+                             pattern="[0-9]*"
+                             placeholder="4"
+                             value={field.value || ""}
+                             onChange={(e) => {
+                               const value = e.target.value;
+                               field.onChange(value === "" ? undefined : Number(value));
+                             }}
+                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                           />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
                 </div>
 
                 {/* Image Section */}
@@ -626,83 +650,102 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
               {/* Size and Pricing Row */}
               <div className="grid grid-cols-4 gap-3">
-                <FormField
-                  control={form.control}
-                  name="size_length"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Length (mm)</FormLabel>
-                      <FormControl>
-                         <Input
-                           {...field}
-                           type="number"
-                           placeholder="600"
-                           onChange={(e) => field.onChange(Number(e.target.value))}
-                           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="size_breadth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Breadth (mm)</FormLabel>
-                      <FormControl>
-                         <Input
-                           {...field}
-                           type="number"
-                           placeholder="600"
-                           onChange={(e) => field.onChange(Number(e.target.value))}
-                           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="price_per_box"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price/Box</FormLabel>
-                      <FormControl>
-                         <Input
-                           {...field}
-                           type="number"
-                           step="0.01"
-                           placeholder="450"
-                           onChange={(e) => field.onChange(Number(e.target.value))}
-                           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="pieces_per_box"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pieces/Box</FormLabel>
-                      <FormControl>
-                         <Input
-                           {...field}
-                           type="number"
-                           placeholder="4"
-                           onChange={(e) => field.onChange(Number(e.target.value))}
-                           className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                 <FormField
+                   control={form.control}
+                   name="size_length"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Length (mm)</FormLabel>
+                       <FormControl>
+                          <Input
+                            {...field}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            placeholder="600"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === "" ? undefined : Number(value));
+                            }}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                       </FormControl>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
+                 <FormField
+                   control={form.control}
+                   name="size_breadth"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Breadth (mm)</FormLabel>
+                       <FormControl>
+                          <Input
+                            {...field}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            placeholder="600"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === "" ? undefined : Number(value));
+                            }}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                       </FormControl>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
+                 <FormField
+                   control={form.control}
+                   name="price_per_box"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Price/Box</FormLabel>
+                       <FormControl>
+                          <Input
+                            {...field}
+                            inputMode="decimal"
+                            pattern="[0-9]*\.?[0-9]*"
+                            placeholder="450"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === "" ? undefined : Number(value));
+                            }}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                       </FormControl>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
+                 <FormField
+                   control={form.control}
+                   name="pieces_per_box"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Pieces/Box</FormLabel>
+                       <FormControl>
+                          <Input
+                            {...field}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            placeholder="4"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === "" ? undefined : Number(value));
+                            }}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                       </FormControl>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
               </div>
 
               {/* Image Section */}
