@@ -220,41 +220,53 @@ export const WallTileSelectionPage = ({
     const totalImages = sortedLayers.length * tilesPerLayer;
     
     const drawTile = (x: number, y: number, tile: any, layer: any) => {
-      if (tile.image_url) {
+      if (tile.image_url && tile.image_url.trim() !== '') {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
         img.onload = () => {
           try {
-            ctx.drawImage(img, x, y, tileSize, tileSize);
-            // Add subtle border
-            ctx.strokeStyle = '#d1d5db';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x, y, tileSize, tileSize);
+            // Ensure image is fully loaded before drawing
+            if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              ctx.drawImage(img, x, y, tileSize, tileSize);
+              // Add subtle border
+              ctx.strokeStyle = '#d1d5db';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(x, y, tileSize, tileSize);
+            } else {
+              drawFallbackTile(x, y, tile, layer);
+            }
             
             loadedImages++;
             if (loadedImages === totalImages) {
-              // All images loaded, add layer labels
               addLayerLabels();
             }
           } catch (error) {
-            console.error('Error drawing image:', error);
+            console.error('Error drawing image for tile:', tile.code, error);
             drawFallbackTile(x, y, tile, layer);
           }
         };
         
-        img.onerror = () => {
+        img.onerror = (error) => {
+          console.error('Failed to load image for tile:', tile.code, tile.image_url, error);
           drawFallbackTile(x, y, tile, layer);
         };
         
         // Add timeout to prevent hanging
         setTimeout(() => {
-          if (!img.complete) {
+          if (!img.complete || img.naturalWidth === 0) {
+            console.warn('Image loading timeout for tile:', tile.code, tile.image_url);
             drawFallbackTile(x, y, tile, layer);
           }
-        }, 3000);
+        }, 5000);
         
-        img.src = tile.image_url;
+        // Start loading the image
+        try {
+          img.src = tile.image_url;
+        } catch (error) {
+          console.error('Error setting image src for tile:', tile.code, error);
+          drawFallbackTile(x, y, tile, layer);
+        }
       } else {
         drawFallbackTile(x, y, tile, layer);
       }
@@ -273,16 +285,21 @@ export const WallTileSelectionPage = ({
       
       // Add tile code text with better styling
       ctx.fillStyle = '#374151';
-      ctx.font = 'bold 10px Arial';
+      ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // Break long tile codes into multiple lines
-      const code = tile.code.substring(0, 12);
-      const words = code.split(' ');
-      if (words.length > 1) {
-        ctx.fillText(words[0], x + tileSize/2, y + tileSize/2 - 6);
-        ctx.fillText(words.slice(1).join(' '), x + tileSize/2, y + tileSize/2 + 6);
+      // Break long tile codes into multiple lines for better readability
+      const code = tile.code || tile.name || 'Unknown';
+      const maxLength = 10;
+      
+      if (code.length > maxLength) {
+        const firstLine = code.substring(0, maxLength);
+        const secondLine = code.substring(maxLength, maxLength * 2);
+        ctx.fillText(firstLine, x + tileSize/2, y + tileSize/2 - 8);
+        if (secondLine) {
+          ctx.fillText(secondLine, x + tileSize/2, y + tileSize/2 + 8);
+        }
       } else {
         ctx.fillText(code, x + tileSize/2, y + tileSize/2);
       }
@@ -296,20 +313,23 @@ export const WallTileSelectionPage = ({
     const addLayerLabels = () => {
       // Add layer numbers on the left side
       ctx.fillStyle = '#374151';
-      ctx.font = 'bold 12px Arial';
+      ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       
       sortedLayers.forEach((layer, layerIndex) => {
         const y = layerIndex * tileSize;
-        ctx.fillText(`L${layer.layerNumber}`, -5, y + tileSize/2);
+        ctx.fillText(`L${layer.layerNumber}`, -8, y + tileSize/2);
       });
     };
     
     // Draw all tiles
     sortedLayers.forEach((layer, layerIndex) => {
       const tile = tiles.find(t => t.id === layer.tileId);
-      if (!tile) return;
+      if (!tile) {
+        console.warn('Tile not found for layer:', layer.layerNumber, 'tileId:', layer.tileId);
+        return;
+      }
 
       const y = layerIndex * tileSize;
       
