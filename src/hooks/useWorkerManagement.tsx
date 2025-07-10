@@ -188,44 +188,32 @@ export const useWorkerManagement = () => {
     mutationFn: async ({ name, email, password }: { name: string; email: string; password: string }) => {
       console.log('Creating new worker account:', email);
       
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            name,
-            role: 'worker'
-          }
-        }
+      // Check if current user is admin
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        throw new Error('Insufficient privileges. Admin access required.');
+      }
+
+      // Call Supabase edge function for worker creation (admin function)
+      const { data, error } = await supabase.functions.invoke('admin-create-worker', {
+        body: { name, email, password }
       });
 
-      if (authError) {
-        console.error('Error creating auth user:', authError);
-        throw authError;
+      if (error) {
+        throw error;
       }
 
-      if (!authData.user) {
-        throw new Error('Failed to create user account');
-      }
-
-      // Create profile record
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          name,
-          email,
-          role: 'worker'
-        });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        throw profileError;
-      }
-
-      return authData.user;
+      return data;
     },
     onSuccess: () => {
       toast.success('Worker account created successfully');

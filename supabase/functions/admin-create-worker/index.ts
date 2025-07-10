@@ -71,28 +71,63 @@ serve(async (req) => {
     }
 
     // Parse the request body
-    const { userId, newPassword } = await req.json()
+    const { name, email, password } = await req.json()
 
-    if (!userId || !newPassword) {
-      throw new Error('Missing userId or newPassword')
+    if (!name || !email || !password) {
+      throw new Error('Missing required fields: name, email, password')
     }
 
-    if (newPassword.length < 6) {
+    if (password.length < 6) {
       throw new Error('Password must be at least 6 characters long')
     }
 
-    // Update the user's password using admin privileges
-    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    )
+    // Create the worker account using admin privileges
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      user_metadata: {
+        name,
+        role: 'worker'
+      },
+      email_confirm: true // Auto-confirm email
+    })
 
-    if (error) {
-      throw error
+    if (authError) {
+      console.error('Error creating auth user:', authError)
+      throw authError
+    }
+
+    if (!authData.user) {
+      throw new Error('Failed to create user account')
+    }
+
+    // Create profile record using admin client
+    const { error: profileInsertError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        name,
+        email,
+        role: 'worker'
+      })
+
+    if (profileInsertError) {
+      console.error('Error creating profile:', profileInsertError)
+      // If profile creation fails, delete the auth user
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      throw profileInsertError
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Password updated successfully' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Worker account created successfully',
+        user: {
+          id: authData.user.id,
+          email: authData.user.email,
+          name
+        }
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -100,7 +135,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in admin-reset-password function:', error)
+    console.error('Error in admin-create-worker function:', error)
     
     return new Response(
       JSON.stringify({ 
