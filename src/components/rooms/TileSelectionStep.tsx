@@ -621,7 +621,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                     {calculations.map((calc, index) => (
                       <div key={index} className="bg-gray-50 p-2 rounded text-xs">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-medium truncate">{calc.tile.name}</span>
+                          <div className="flex-1">
+                            <span className="font-medium truncate">{calc.tile.name}</span>
+                            {calc.isWallTile && calc.wallLayers && calc.wallLayers.length > 0 && (
+                              <span className="text-gray-500 text-xs ml-2">
+                                (Layer{calc.wallLayers.length > 1 ? 's' : ''}: {calc.wallLayers.sort((a, b) => a - b).join(', ')})
+                              </span>
+                            )}
+                          </div>
                           <Badge variant={calc.isWallTile ? "secondary" : "default"} className="text-xs">
                             {calc.isWallTile ? "Wall" : "Floor"}
                           </Badge>

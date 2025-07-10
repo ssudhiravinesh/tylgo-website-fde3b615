@@ -188,7 +188,17 @@ export const prepareQuotationItems = (
   area: number;
   price_per_box: number;
   total_price: number;
+  layer_number?: number;
 }> => {
+  const items: Array<{
+    tile_id: string;
+    room_id: string;
+    area: number;
+    price_per_box: number;
+    total_price: number;
+    layer_number?: number;
+  }> = [];
+
   // Get the unified calculations first
   const calculations = calculateTileRequirements(
     floorSelections,
@@ -197,14 +207,6 @@ export const prepareQuotationItems = (
     tiles,
     wastagePercentage
   );
-
-  const items: Array<{
-    tile_id: string;
-    room_id: string;
-    area: number;
-    price_per_box: number;
-    total_price: number;
-  }> = [];
 
   // Floor tiles - use calculations from unified system
   floorSelections.forEach(fs => {
@@ -225,6 +227,7 @@ export const prepareQuotationItems = (
       area: roomAreaInSqFt,
       price_per_box: parseFloat(tile.price_per_box?.toString() || '0'),
       total_price: totalPrice,
+      // Floor tiles don't have layer numbers
     });
   });
 
@@ -249,21 +252,21 @@ export const prepareQuotationItems = (
       layersByTile[layer.tileId].push(layer.layerNumber);
     });
 
-    // Create items for each unique tile
-    Object.entries(layersByTile).forEach(([tileId, layerNumbers]) => {
-      const tile = tiles.find(t => t.id === tileId);
+    // Create items for each layer individually
+    ws.layers.forEach(layer => {
+      const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) return;
 
-      // Find the corresponding wall calculation
-      const tileKey = `${tileId}_wall`;
-      const calc = calculations.find(c => c.tile.id === tileId && c.isWallTile);
+      // Find the corresponding wall calculation  
+      const calc = calculations.find(c => c.tile.id === layer.tileId && c.isWallTile);
       
-      // Calculate proportional price for this tile in this room
-      const layerCount = layerNumbers.length;
+      // Calculate proportional price for this specific layer
       let totalPrice = 0;
       
-      if (calc && calc.totalArea > 0) {
-        totalPrice = (calc.totalPrice * layerCount * areaPerLayer) / calc.totalArea;
+      if (calc && calc.totalArea > 0 && calc.wallLayers) {
+        // Calculate price per layer based on total calculation
+        const totalLayersForTile = calc.wallLayers.length;
+        totalPrice = calc.totalPrice / totalLayersForTile;
       }
       
       // Ensure totalPrice is a valid number
@@ -272,11 +275,12 @@ export const prepareQuotationItems = (
       }
 
       items.push({
-        tile_id: tileId,
+        tile_id: layer.tileId,
         room_id: ws.roomId,
-        area: areaPerLayer * layerCount,
+        area: areaPerLayer,
         price_per_box: parseFloat(tile.price_per_box?.toString() || '0'),
         total_price: totalPrice,
+        layer_number: layer.layerNumber,
       });
     });
   });
