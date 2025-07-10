@@ -45,7 +45,7 @@ export const TileCard = ({
             <img 
               src={tile.image_url} 
               alt={tile.name}
-              className="w-full h-full object-cover rounded-lg"
+              className="w-full h-full object-fit rounded-lg"
             />
           ) : (
             <Grid3X3 className="h-12 w-12 text-gray-400" />
