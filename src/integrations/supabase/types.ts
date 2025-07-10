@@ -90,6 +90,7 @@ export type Database = {
           area: number
           created_at: string | null
           id: string
+          layer_number: number | null
           price_per_box: number
           quotation_id: string
           room_id: string
@@ -100,6 +101,7 @@ export type Database = {
           area: number
           created_at?: string | null
           id?: string
+          layer_number?: number | null
           price_per_box: number
           quotation_id: string
           room_id: string
@@ -110,6 +112,7 @@ export type Database = {
           area?: number
           created_at?: string | null
           id?: string
+          layer_number?: number | null
           price_per_box?: number
           quotation_id?: string
           room_id?: string

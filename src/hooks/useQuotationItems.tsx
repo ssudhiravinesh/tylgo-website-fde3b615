@@ -11,6 +11,7 @@ export interface QuotationItem {
   area: number;
   price_per_box: number;
   total_price: number;
+  layer_number?: number;
   created_at: string;
   // Joined data
   room?: {

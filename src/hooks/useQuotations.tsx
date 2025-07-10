@@ -10,6 +10,7 @@ export interface QuotationItem {
   area: number;
   price_per_box: number;
   total_price: number;
+  layer_number?: number;
   tile?: {
     id: string;
     code: string;
@@ -118,6 +119,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
             area,
             price_per_box,
             total_price,
+            layer_number,
             tile:tiles!tile_id (
               id,
               code,
@@ -283,6 +285,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
             area,
             price_per_box,
             total_price,
+            layer_number,
             tile:tiles!tile_id (
               id,
               code,
@@ -388,6 +391,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
             area,
             price_per_box,
             total_price,
+            layer_number,
             tile:tiles!tile_id (
               id,
               code,
@@ -540,6 +544,7 @@ export const useCreateQuotation = () => {
             area,
             price_per_box,
             total_price,
+            layer_number,
             tile:tiles!tile_id (
               id,
               code,

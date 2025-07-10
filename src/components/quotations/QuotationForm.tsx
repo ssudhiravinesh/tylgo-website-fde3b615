@@ -22,6 +22,7 @@ interface QuotationFormProps {
     area: number;
     price_per_box: number;
     total_price: number;
+    layer_number?: number;
   }>;
   wastagePercentage?: number;
   onBack: () => void;
@@ -93,6 +94,7 @@ export const QuotationForm = ({
         area: roomData.area, // Original area without wastage
         price_per_box: roomData.price_per_box,
         total_price: roomData.total_price,
+        layer_number: roomData.layer_number, // Include layer number for wall tiles
       }));
 
       const quotationData = {
@@ -200,7 +202,14 @@ export const QuotationForm = ({
                   <div key={index} className="border rounded-lg p-3 bg-gray-50">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h5 className="font-medium">{room?.name || 'Unknown Room'}</h5>
+                        <h5 className="font-medium">
+                          {room?.name || 'Unknown Room'}
+                          {roomData.layer_number && (
+                            <span className="text-sm text-gray-500 ml-2">
+                              (Layer {roomData.layer_number})
+                            </span>
+                          )}
+                        </h5>
                         <p className="text-sm text-gray-600">{tile?.name || 'Unknown Tile'}</p>
                         <p className="text-xs text-gray-500">
                           Area: {roomData.area.toFixed(2)} sq ft

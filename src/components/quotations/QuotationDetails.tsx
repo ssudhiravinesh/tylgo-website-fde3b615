@@ -268,14 +268,30 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                     <div>
                       <h4 className="font-semibold text-gray-800">{calc.tile.name}</h4>
                       <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
-                      <p className="text-xs text-gray-500">
-                        Rooms: {calc.rooms.map(r => r.name).join(', ')}
-                      </p>
+                      <div className="text-xs text-gray-500">
+                        <p>
+                          Rooms: {calc.rooms.map(r => r.name).join(', ')}
+                        </p>
+                        {(() => {
+                          // Get layer information for this tile from quotation items
+                          const tileItems = quotation.quotation_items?.filter(item => item.tile_id === calc.tile.id) || [];
+                          const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
+                          
+                          if (layerNumbers.length > 0) {
+                            return (
+                              <p>
+                                Layers: {layerNumbers.sort((a, b) => a - b).join(', ')}
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                      </div>
                       <p className="text-xs text-gray-500">
                         Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
                       </p>
                     </div>
-                  </div>
                   
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="flex items-center gap-2">

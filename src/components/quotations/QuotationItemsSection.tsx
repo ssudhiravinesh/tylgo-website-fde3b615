@@ -16,6 +16,7 @@ interface QuotationItem {
   area: number;
   price_per_box: number;
   total_price: number;
+  layer_number?: number;
 }
 
 interface QuotationItemsSectionProps {
@@ -53,7 +54,7 @@ export const QuotationItemsSection = ({
       <CardContent>
         <div className="space-y-4">
           {items.map((item, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
+            <div key={index} className="grid grid-cols-1 md:grid-cols-7 gap-4 p-4 border rounded-lg">
               <div className="space-y-2">
                 <Label>Room</Label>
                 <Select value={item.room_id} onValueChange={(value) => onUpdateItem(index, 'room_id', value)}>
@@ -68,6 +69,20 @@ export const QuotationItemsSection = ({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Layer (optional)</Label>
+                <Input
+                  type="number"
+                  value={item.layer_number || ''}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? undefined : parseInt(e.target.value);
+                    onUpdateItem(index, 'layer_number', value);
+                  }}
+                  placeholder="Layer #"
+                  min="1"
+                />
               </div>
 
               <div className="space-y-2">
