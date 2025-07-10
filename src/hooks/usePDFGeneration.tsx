@@ -151,8 +151,8 @@ export const usePDFGeneration = () => {
                 <small style="color: #666; font-size: 9px;">Total Area: ${formatArea(calc.totalArea)}</small>
               </td>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
-                <strong>${tile?.name || 'Unknown Tile'}</strong><br/>
-                <small style="color: #666; font-size: 9px;">Code: ${tile?.code || 'N/A'}</small><br/>
+                <strong>Code: ${tile?.code || 'N/A'}</strong><br/>
+                <small style="color: #666; font-size: 9px;">${tile?.name || 'Unknown Tile'}</small><br/>
                 <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small><br/>
                 ${boxPricing}
               </td>
