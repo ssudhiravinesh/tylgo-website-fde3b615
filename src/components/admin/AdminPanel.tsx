@@ -44,9 +44,9 @@ export const AdminPanel = () => {
     <div className="space-y-6">
       <AdminDashboard />
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
-        <Card className="border-gray-200 w-[50vw]">
+        <Card className="border-gray-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-green-600" />
@@ -74,7 +74,7 @@ export const AdminPanel = () => {
         </Card>
 
         {/* Quick Actions */}
-        <Card className="border-gray-200 w-[50vw]">
+        <Card className="border-gray-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserCog className="h-5 w-5 text-blue-600" />
