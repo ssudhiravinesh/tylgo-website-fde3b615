@@ -87,11 +87,10 @@ export const usePDFGeneration = () => {
       let grandTotal = 0;
       
       if (Object.keys(tileCalculations).length > 0) {
-        itemsRows = Object.values(tileCalculations).map((calc: any) => {
+        itemsRows = Object.entries(tileCalculations).map(([tileId, calc]: [string, any]) => {
           console.log('Processing calc for PDF:', calc);
           
           const tile = calc.tile;
-          const rooms = calc.rooms;
           
           // Calculate tile dimensions for display
           let tileDimensions = 'N/A';
@@ -119,7 +118,7 @@ export const usePDFGeneration = () => {
             `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>` : '';
 
           // Get unique room names with layer information specific to this tile
-          const tileQuotationItems = quotationItems?.filter((item: any) => item.tile_id === tile.id) || [];
+          const tileQuotationItems = quotationItems?.filter((item: any) => item.tile_id === tileId) || [];
           const roomLayerMap = new Map();
           
           tileQuotationItems.forEach((item: any) => {
