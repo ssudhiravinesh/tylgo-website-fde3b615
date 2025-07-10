@@ -21,13 +21,13 @@ interface DashboardStats {
   monthlyRevenue: number;
 }
 
-interface RecentActivity {
+export interface RecentActivity {
   type: string;
   message: string;
   time: string;
 }
 
-export const AdminDashboard = () => {
+export const useDashboardData = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalCustomers: 0,
     activeQuotations: 0,
@@ -162,12 +162,6 @@ export const AdminDashboard = () => {
     return `₹${amount.toLocaleString()}`;
   };
 
-  const getChangePercentage = (current: number, previous: number): string => {
-    if (previous === 0) return "+100%";
-    const change = ((current - previous) / previous) * 100;
-    return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
-  };
-
   const statsData = [
     { 
       label: "Total Customers", 
@@ -199,6 +193,16 @@ export const AdminDashboard = () => {
     }
   ];
 
+  return {
+    stats: statsData,
+    recentActivity,
+    loading
+  };
+};
+
+export const AdminDashboard = () => {
+  const { stats, loading } = useDashboardData();
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -216,7 +220,7 @@ export const AdminDashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsData.map((stat, index) => {
+        {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <Card key={index} className="border-gray-200">
@@ -236,34 +240,6 @@ export const AdminDashboard = () => {
           );
         })}
       </div>
-
-      {/* Recent Activity */}
-      <Card className="border-gray-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-green-600" />
-            Recent Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {recentActivity.length > 0 ? (
-            recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800">{activity.message}</p>
-                  <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>No recent activity found</p>
-              <p className="text-xs mt-1">Start by adding customers or creating quotations</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };
