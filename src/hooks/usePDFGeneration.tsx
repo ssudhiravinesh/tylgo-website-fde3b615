@@ -20,7 +20,7 @@ export const usePDFGeneration = () => {
         .select(`
           *,
           room:rooms(name,length,width,unit),
-          tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth)
+          tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
         `)
         .eq('quotation_id', quotation.id);
 
@@ -144,6 +144,11 @@ export const usePDFGeneration = () => {
             }
           }).join(', ');
 
+          // Generate image cell content
+          const imageCell = tile?.image_url ? 
+            `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none';" />` :
+            '<small style="color: #999; font-style: italic;">No image</small>';
+
           return `
             <tr>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
@@ -156,6 +161,9 @@ export const usePDFGeneration = () => {
                 <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small><br/>
                 ${boxPricing}
               </td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; vertical-align: middle;">
+                ${imageCell}
+              </td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 ${calc.tilesNeeded || 'N/A'}<br/>
                 <small style="color: #666; font-size: 9px;">+${wastagePercentage}% wastage</small>
@@ -167,7 +175,7 @@ export const usePDFGeneration = () => {
           `;
         }).join('');
       } else {
-        itemsRows = '<tr><td colspan="6" class="no-items">No items found in this quotation</td></tr>';
+        itemsRows = '<tr><td colspan="7" class="no-items">No items found in this quotation</td></tr>';
       }
 
       const pdfContent = `
@@ -328,12 +336,13 @@ export const usePDFGeneration = () => {
           <table class="items-table">
             <thead>
               <tr>
-                <th style="width: 25%;">Room(s) & Area</th>
-                <th style="width: 25%;">Tile Details</th>
+                <th style="width: 20%;">Room(s) & Area</th>
+                <th style="width: 20%;">Tile Details</th>
+                <th style="width: 10%; text-align: center;">Image</th>
                 <th style="width: 15%; text-align: center;">Tiles Required</th>
-                <th style="width: 15%; text-align: center;">Boxes</th>
+                <th style="width: 12%; text-align: center;">Boxes</th>
                 <th style="width: 10%; text-align: center;">Price/Box</th>
-                <th style="width: 15%; text-align: right;">Total Amount</th>
+                <th style="width: 13%; text-align: right;">Total Amount</th>
               </tr>
             </thead>
             <tbody>
