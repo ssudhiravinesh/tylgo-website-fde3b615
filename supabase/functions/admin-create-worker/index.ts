@@ -12,6 +12,8 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  console.log('Admin create worker function called');
+
   try {
     // Create a Supabase client with admin privileges
     const supabaseAdmin = createClient(
@@ -27,7 +29,10 @@ serve(async (req) => {
 
     // Get the authorization header from the request
     const authHeader = req.headers.get('authorization')
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
+      console.error('No authorization header provided');
       throw new Error('No authorization header')
     }
 
@@ -50,7 +55,10 @@ serve(async (req) => {
 
     // Verify the requesting user
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    console.log('User verification:', { user: !!user, error: userError });
+    
     if (userError || !user) {
+      console.error('User authentication failed:', userError);
       throw new Error('Invalid authentication')
     }
 
@@ -66,22 +74,29 @@ serve(async (req) => {
       throw new Error('Failed to verify user role')
     }
 
-    if (profile.role !== 'admin') {
+    console.log('User role:', profile?.role);
+    
+    if (profile?.role !== 'admin') {
+      console.error('Access denied. User role:', profile?.role);
       throw new Error('Insufficient privileges. Admin access required.')
     }
 
     // Parse the request body
     const { name, email, password } = await req.json()
+    console.log('Request data:', { name: !!name, email: !!email, passwordLength: password?.length });
 
     if (!name || !email || !password) {
+      console.error('Missing required fields:', { name: !!name, email: !!email, password: !!password });
       throw new Error('Missing required fields: name, email, password')
     }
 
     if (password.length < 6) {
+      console.error('Password too short:', password.length);
       throw new Error('Password must be at least 6 characters long')
     }
 
     // Create the worker account using admin privileges
+    console.log('Creating worker account for:', email);
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -98,10 +113,14 @@ serve(async (req) => {
     }
 
     if (!authData.user) {
+      console.error('No user data returned from auth creation');
       throw new Error('Failed to create user account')
     }
+    
+    console.log('User created successfully:', authData.user.id);
 
     // Create profile record using admin client
+    console.log('Creating profile for user:', authData.user.id);
     const { error: profileInsertError } = await supabaseAdmin
       .from('profiles')
       .insert({
@@ -114,9 +133,12 @@ serve(async (req) => {
     if (profileInsertError) {
       console.error('Error creating profile:', profileInsertError)
       // If profile creation fails, delete the auth user
+      console.log('Cleaning up auth user due to profile creation failure');
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       throw profileInsertError
     }
+    
+    console.log('Profile created successfully for user:', authData.user.id);
 
     return new Response(
       JSON.stringify({ 

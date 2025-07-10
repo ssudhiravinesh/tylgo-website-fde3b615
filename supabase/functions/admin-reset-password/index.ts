@@ -12,6 +12,8 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  console.log('Admin reset password function called');
+
   try {
     // Create a Supabase client with admin privileges
     const supabaseAdmin = createClient(
@@ -27,7 +29,10 @@ serve(async (req) => {
 
     // Get the authorization header from the request
     const authHeader = req.headers.get('authorization')
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
+      console.error('No authorization header provided');
       throw new Error('No authorization header')
     }
 
@@ -50,7 +55,10 @@ serve(async (req) => {
 
     // Verify the requesting user
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    console.log('User verification:', { user: !!user, error: userError });
+    
     if (userError || !user) {
+      console.error('User authentication failed:', userError);
       throw new Error('Invalid authentication')
     }
 
@@ -66,30 +74,40 @@ serve(async (req) => {
       throw new Error('Failed to verify user role')
     }
 
-    if (profile.role !== 'admin') {
+    console.log('User role:', profile?.role);
+    
+    if (profile?.role !== 'admin') {
+      console.error('Access denied. User role:', profile?.role);
       throw new Error('Insufficient privileges. Admin access required.')
     }
 
     // Parse the request body
     const { userId, newPassword } = await req.json()
+    console.log('Request data:', { userId: !!userId, passwordLength: newPassword?.length });
 
     if (!userId || !newPassword) {
+      console.error('Missing required fields:', { userId: !!userId, newPassword: !!newPassword });
       throw new Error('Missing userId or newPassword')
     }
 
     if (newPassword.length < 6) {
+      console.error('Password too short:', newPassword.length);
       throw new Error('Password must be at least 6 characters long')
     }
 
     // Update the user's password using admin privileges
+    console.log('Attempting to update password for user:', userId);
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       { password: newPassword }
     )
 
     if (error) {
+      console.error('Password update failed:', error);
       throw error
     }
+    
+    console.log('Password updated successfully for user:', userId);
 
     return new Response(
       JSON.stringify({ success: true, message: 'Password updated successfully' }),
