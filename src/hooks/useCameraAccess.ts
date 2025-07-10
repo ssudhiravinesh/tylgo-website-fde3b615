@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 
 export const useCameraAccess = () => {
@@ -31,6 +30,26 @@ export const useCameraAccess = () => {
       console.error('Error enumerating devices:', error);
       return [];
     }
+  };
+
+  const waitForVideoReady = (video: HTMLVideoElement): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Video ready timeout'));
+      }, 10000); // 10 second timeout
+
+      const checkReady = () => {
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+          clearTimeout(timeout);
+          console.log('Video is ready:', video.videoWidth, 'x', video.videoHeight);
+          resolve();
+        } else {
+          setTimeout(checkReady, 100);
+        }
+      };
+
+      checkReady();
+    });
   };
 
   const startCamera = useCallback(async (onCameraReady?: () => void) => {
@@ -81,16 +100,7 @@ export const useCameraAccess = () => {
           audio: false 
         },
         // Basic fallback
-        { video: true, audio: false },
-        // Specific device fallback
-        ...(devices.length > 0 ? [{ 
-          video: { 
-            deviceId: { exact: devices[0].deviceId },
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          }, 
-          audio: false 
-        }] : [])
+        { video: true, audio: false }
       ];
 
       let mediaStream = null;
@@ -144,50 +154,51 @@ export const useCameraAccess = () => {
       }
       
       setStream(mediaStream);
-      setHasCamera(true);
       
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+        const video = videoRef.current;
+        video.srcObject = mediaStream;
         
         // Mobile-optimized video settings
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.setAttribute('webkit-playsinline', 'true');
-        videoRef.current.muted = true;
-        videoRef.current.autoplay = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.muted = true;
+        video.autoplay = true;
         
-        videoRef.current.onloadedmetadata = () => {
-          console.log('Video metadata loaded');
-          if (videoRef.current) {
-            console.log('Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
-            setDebugInfo(prev => prev + `Video: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}\n`);
+        try {
+          // Wait for video to load and start playing
+          await video.play();
+          console.log('Video started playing');
+          setDebugInfo(prev => prev + 'Video playing...\n');
+          
+          // Wait for video to be fully ready with actual dimensions
+          await waitForVideoReady(video);
+          console.log('Video fully ready with dimensions:', video.videoWidth, 'x', video.videoHeight);
+          setDebugInfo(prev => prev + `Video ready: ${video.videoWidth}x${video.videoHeight}\n`);
+          
+          setHasCamera(true);
+          
+          // Now it's safe to start QR scanning
+          if (onCameraReady) {
+            onCameraReady();
           }
-        };
-
-        videoRef.current.oncanplay = () => {
-          console.log('Video can play, starting playback...');
-          if (videoRef.current) {
-            videoRef.current.play().then(() => {
-              console.log('Video playing');
-              if (onCameraReady) {
-                // Longer delay for mobile to ensure camera is fully ready
-                setTimeout(() => onCameraReady(), 1000);
-              }
-            }).catch(error => {
-              console.error('Error playing video:', error);
-              setCameraError('Error starting video playback: ' + error.message);
-            });
-          }
-        };
-
-        videoRef.current.onerror = (error) => {
-          console.error('Video error:', error);
-          setCameraError('Video playback error');
-        };
+          
+        } catch (error) {
+          console.error('Error starting video playback:', error);
+          throw new Error('Failed to start video playback: ' + (error as Error).message);
+        }
+      } else {
+        throw new Error('Video element not available');
       }
       
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCamera(false);
+      
+      // Clean up stream if it was created
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
       
       if (error instanceof Error) {
         let errorMessage = '';
