@@ -204,19 +204,109 @@ export const WallTileSelectionPage = ({
     if (!ctx) return;
 
     const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
-    const tileSize = 60; // Size of each tile in pixels
+    const tileSize = 80; // Increased size for better visibility
     const canvasWidth = tilesPerLayer * tileSize;
     const canvasHeight = wallSelection.layers.length * tileSize;
     
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    // Clear canvas
-    ctx.fillStyle = '#f3f4f6';
+    // Clear canvas with better background
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     const sortedLayers = [...wallSelection.layers].sort((a, b) => a.layerNumber - b.layerNumber);
+    let loadedImages = 0;
+    const totalImages = sortedLayers.length * tilesPerLayer;
     
+    const drawTile = (x: number, y: number, tile: any, layer: any) => {
+      if (tile.image_url) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          try {
+            ctx.drawImage(img, x, y, tileSize, tileSize);
+            // Add subtle border
+            ctx.strokeStyle = '#d1d5db';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, tileSize, tileSize);
+            
+            loadedImages++;
+            if (loadedImages === totalImages) {
+              // All images loaded, add layer labels
+              addLayerLabels();
+            }
+          } catch (error) {
+            console.error('Error drawing image:', error);
+            drawFallbackTile(x, y, tile, layer);
+          }
+        };
+        
+        img.onerror = () => {
+          drawFallbackTile(x, y, tile, layer);
+        };
+        
+        // Add timeout to prevent hanging
+        setTimeout(() => {
+          if (!img.complete) {
+            drawFallbackTile(x, y, tile, layer);
+          }
+        }, 3000);
+        
+        img.src = tile.image_url;
+      } else {
+        drawFallbackTile(x, y, tile, layer);
+      }
+    };
+
+    const drawFallbackTile = (x: number, y: number, tile: any, layer: any) => {
+      // Draw colored rectangle with better styling
+      const hue = (layer.layerNumber * 60) % 360;
+      ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
+      ctx.fillRect(x, y, tileSize, tileSize);
+      
+      // Add border
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, tileSize, tileSize);
+      
+      // Add tile code text with better styling
+      ctx.fillStyle = '#374151';
+      ctx.font = 'bold 10px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Break long tile codes into multiple lines
+      const code = tile.code.substring(0, 12);
+      const words = code.split(' ');
+      if (words.length > 1) {
+        ctx.fillText(words[0], x + tileSize/2, y + tileSize/2 - 6);
+        ctx.fillText(words.slice(1).join(' '), x + tileSize/2, y + tileSize/2 + 6);
+      } else {
+        ctx.fillText(code, x + tileSize/2, y + tileSize/2);
+      }
+      
+      loadedImages++;
+      if (loadedImages === totalImages) {
+        addLayerLabels();
+      }
+    };
+
+    const addLayerLabels = () => {
+      // Add layer numbers on the left side
+      ctx.fillStyle = '#374151';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      
+      sortedLayers.forEach((layer, layerIndex) => {
+        const y = layerIndex * tileSize;
+        ctx.fillText(`L${layer.layerNumber}`, -5, y + tileSize/2);
+      });
+    };
+    
+    // Draw all tiles
     sortedLayers.forEach((layer, layerIndex) => {
       const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) return;
@@ -225,46 +315,7 @@ export const WallTileSelectionPage = ({
       
       for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
         const x = tileIndex * tileSize;
-        
-        if (tile.image_url) {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => {
-            ctx.drawImage(img, x, y, tileSize, tileSize);
-            // Add subtle border
-            ctx.strokeStyle = '#e5e7eb';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x, y, tileSize, tileSize);
-          };
-          img.onerror = () => {
-            // Fallback: draw a colored rectangle with tile name
-            ctx.fillStyle = `hsl(${(layer.layerNumber * 60) % 360}, 50%, 70%)`;
-            ctx.fillRect(x, y, tileSize, tileSize);
-            ctx.strokeStyle = '#e5e7eb';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x, y, tileSize, tileSize);
-            
-            // Add tile code text
-            ctx.fillStyle = '#374151';
-            ctx.font = '8px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(tile.code.substring(0, 8), x + tileSize/2, y + tileSize/2);
-          };
-          img.src = tile.image_url;
-        } else {
-          // No image: draw a colored rectangle with tile info
-          ctx.fillStyle = `hsl(${(layer.layerNumber * 60) % 360}, 50%, 70%)`;
-          ctx.fillRect(x, y, tileSize, tileSize);
-          ctx.strokeStyle = '#e5e7eb';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, tileSize, tileSize);
-          
-          // Add tile code text
-          ctx.fillStyle = '#374151';
-          ctx.font = '8px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText(tile.code.substring(0, 8), x + tileSize/2, y + tileSize/2);
-        }
+        drawTile(x, y, tile, layer);
       }
     });
   };
