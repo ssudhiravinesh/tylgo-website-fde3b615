@@ -133,6 +133,37 @@ serve(async (req) => {
       });
     }
     
+    // Check if user with this email already exists
+    console.log('Checking if user already exists:', email);
+    const { data: existingUser, error: existingUserError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (existingUserError) {
+      console.error('Error checking existing users:', existingUserError);
+      return new Response(JSON.stringify({
+        error: 'Failed to check existing users'
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    
+    const userExists = existingUser.users.some(u => u.email === email);
+    if (userExists) {
+      console.log('User already exists:', email);
+      return new Response(JSON.stringify({
+        error: 'User with this email already exists'
+      }), {
+        status: 409,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    
     // Create the worker account using admin privileges
     console.log('Creating worker account for:', email);
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -172,25 +203,34 @@ serve(async (req) => {
     
     console.log('User created successfully:', authData.user.id);
     
-    // Create profile record using admin client
+    // Create profile record using UPSERT to handle duplicates gracefully
     console.log('Creating profile for user:', authData.user.id);
     const { error: profileInsertError } = await supabaseAdmin
       .from('profiles')
-      .insert({
+      .upsert({
         id: authData.user.id,
         name,
         email,
         role: 'worker'
+      }, {
+        onConflict: 'id',
+        ignoreDuplicates: false
       });
     
     if (profileInsertError) {
       console.error('Profile creation failed:', profileInsertError);
       // If profile creation fails, delete the auth user
       console.log('Cleaning up auth user due to profile creation failure');
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        console.log('Auth user cleaned up successfully');
+      } catch (cleanupError) {
+        console.error('Failed to cleanup auth user:', cleanupError);
+      }
       
       return new Response(JSON.stringify({
-        error: profileInsertError.message
+        error: `Profile creation failed: ${profileInsertError.message}`
       }), {
         status: 400,
         headers: {
