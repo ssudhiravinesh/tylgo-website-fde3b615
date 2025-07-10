@@ -154,7 +154,7 @@ export type Database = {
           total_cost: number | null
           updated_at: string | null
           wastage_percentage: number | null
-          worker_id: string
+          worker_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -166,7 +166,7 @@ export type Database = {
           total_cost?: number | null
           updated_at?: string | null
           wastage_percentage?: number | null
-          worker_id: string
+          worker_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -178,7 +178,7 @@ export type Database = {
           total_cost?: number | null
           updated_at?: string | null
           wastage_percentage?: number | null
-          worker_id?: string
+          worker_id?: string | null
         }
         Relationships: [
           {
