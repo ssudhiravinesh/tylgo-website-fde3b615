@@ -23,7 +23,8 @@ export const usePDFGeneration = () => {
           tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
         `)
         .eq('quotation_id', quotation.id);
-
+//to debug
+console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item => item.tile?.code === '24027'));
       if (error) {
         console.error('Error fetching quotation items:', error);
         throw new Error(`Failed to fetch quotation items: ${error.message}`);
