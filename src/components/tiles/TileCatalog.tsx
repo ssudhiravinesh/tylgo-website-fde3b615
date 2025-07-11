@@ -24,6 +24,7 @@ import { useTiles } from "@/hooks/useTiles";
 import { TileCard } from "./TileCard";
 import { TileDetailsDialog } from "./TileDetailsDialog";
 import { EmptyTileState } from "./EmptyTileState";
+import { Html5QRScanner } from "@/components/qr/Html5QRScanner";
 import { toast } from "sonner";
 import type { Tile } from "@/hooks/useTiles";
 // import { Html5QRScanner } from "@/components/qr/Html5QRScanner"; // Alternative option
@@ -44,7 +45,7 @@ export const TileCatalog = () => {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<Set<string>>(new Set());
 
-  // Enhanced QR scan handler with better error handling and user feedback
+  // Enhanced QR scan handler that populates search box
   const handleQRScanned = (tileCode: string) => {
     console.log('QR Code scanned:', tileCode);
     
@@ -53,15 +54,15 @@ export const TileCatalog = () => {
       return;
     }
 
-    const normalizedCode = tileCode.trim().toUpperCase();
+    const normalizedCode = tileCode.trim();
     
-    // Update search term
+    // Auto-populate the search box with the scanned code
     setSearchTerm(normalizedCode);
     
-    // Find exact matches
+    // Find matching tiles
     const exactMatches = tiles.filter(tile => 
-      tile.code?.toUpperCase() === normalizedCode ||
-      tile.name?.toUpperCase().includes(normalizedCode)
+      tile.code?.toLowerCase() === normalizedCode.toLowerCase() ||
+      tile.name?.toLowerCase().includes(normalizedCode.toLowerCase())
     );
     
     if (exactMatches.length > 0) {
@@ -76,19 +77,16 @@ export const TileCatalog = () => {
     } else {
       // Try partial matches
       const partialMatches = tiles.filter(tile =>
-        tile.code?.toUpperCase().includes(normalizedCode) ||
-        tile.name?.toUpperCase().includes(normalizedCode)
+        tile.code?.toLowerCase().includes(normalizedCode.toLowerCase()) ||
+        tile.name?.toLowerCase().includes(normalizedCode.toLowerCase())
       );
       
       if (partialMatches.length > 0) {
         toast.success(`Found ${partialMatches.length} similar tiles`);
       } else {
-        toast.error(`No tiles found matching "${tileCode}". Please check the code and try again.`);
+        toast.info(`No tiles found matching "${tileCode}". The search term has been added to help you search manually.`);
       }
     }
-    
-    // Close QR scanner
-    setIsQRScannerOpen(false);
   };
 
   // Filter and sort tiles
@@ -246,14 +244,11 @@ export const TileCatalog = () => {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => {
-                  const input = prompt('Enter tile code:');
-                  if (input) handleQRScanned(input);
-                }}
+                onClick={() => setIsQRScannerOpen(true)}
                 className="flex items-center gap-2"
               >
                 <QrCode className="h-4 w-4" />
-                Enter Code
+                Scan QR
               </Button>
               <Button
                 variant="outline"
@@ -321,6 +316,13 @@ export const TileCatalog = () => {
           ))}
         </div>
       )}
+
+      {/* QR Scanner Dialog */}
+      <Html5QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={handleQRScanned}
+      />
 
       {/* Tile Details Dialog */}
       {selectedTile && (
