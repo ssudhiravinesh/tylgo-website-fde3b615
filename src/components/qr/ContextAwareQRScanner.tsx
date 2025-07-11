@@ -1,14 +1,9 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Camera, X, Users, Home, Check, AlertCircle } from 'lucide-react';
-import { useCameraAccess } from '@/hooks/useCameraAccess';
-import { useQRScanning } from '@/hooks/useQRScanning';
-import { CameraControls } from './CameraControls';
-import { ScanningOverlay } from './ScanningOverlay';
-import { CameraErrorCard } from './CameraErrorCard';
+import { Camera, X, Users, Home, Check, AlertCircle, Type } from 'lucide-react';
 import { useQRScanningContext } from '@/contexts/QRScanningContext';
 import { useTiles } from '@/hooks/useTiles';
 import { useRoomsByCustomer } from '@/hooks/useRooms';
@@ -24,8 +19,6 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
   isOpen, 
   onClose 
 }) => {
-  const [isScanning, setIsScanning] = useState(false);
-  const [torchEnabled, setTorchEnabled] = useState(false);
   const [lastScannedTile, setLastScannedTile] = useState<string | null>(null);
   const [processingAssignment, setProcessingAssignment] = useState(false);
   
@@ -39,19 +32,15 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
   const { data: tiles = [] } = useTiles();
   const { data: rooms = [] } = useRoomsByCustomer(currentCustomerId || '');
   const saveSelectionsMutation = useSaveRoomTileSelections();
-  
-  const {
-    hasCamera,
-    stream,
-    cameraError,
-    debugInfo,
-    videoRef,
-    startCamera,
-    stopCamera,
-    retryCamera
-  } = useCameraAccess();
 
-  const { canvasRef, startScanning, stopScanning } = useQRScanning(async (tileCode) => {
+  const handleManualInput = () => {
+    const input = prompt('Enter the tile code:');
+    if (input && input.trim()) {
+      handleTileScan(input.trim());
+    }
+  };
+
+  const handleTileScan = async (tileCode: string) => {
     if (!isContextActive) {
       toast.error("Please select a customer and rooms first");
       return;
@@ -100,35 +89,9 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
       // Clear the last scanned tile after 3 seconds to allow re-scanning
       setTimeout(() => setLastScannedTile(null), 3000);
     }
-  });
-
-  useEffect(() => {
-    if (isOpen) {
-      startCamera(() => {
-        if (videoRef.current) {
-          startScanning(videoRef.current);
-          setIsScanning(true);
-        }
-      });
-    } else {
-      stopScanning();
-      stopCamera();
-      setIsScanning(false);
-      setTorchEnabled(false);
-      setLastScannedTile(null);
-    }
-
-    return () => {
-      stopScanning();
-      stopCamera();
-    };
-  }, [isOpen, startCamera, stopCamera, startScanning, stopScanning]);
+  };
 
   const handleClose = () => {
-    stopScanning();
-    stopCamera();
-    setIsScanning(false);
-    setTorchEnabled(false);
     setLastScannedTile(null);
     onClose();
   };
@@ -176,43 +139,28 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
             )}
           </div>
 
-          {/* Scanner */}
+          {/* Manual Input */}
           {isContextActive ? (
-            hasCamera ? (
-              <div className="relative">
-                <video
-                  ref={videoRef}
-                  className="w-full h-80 object-cover rounded-lg bg-gray-900"
-                  playsInline
-                  muted
-                  autoPlay
-                />
-                <canvas ref={canvasRef} className="hidden" />
-                
-                <ScanningOverlay isScanning={isScanning && !processingAssignment} />
-                
-                {processingAssignment && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                    <div className="bg-white p-4 rounded-lg flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                      <span className="text-sm font-medium">Assigning tile...</span>
-                    </div>
-                  </div>
-                )}
-                
-                <CameraControls 
-                  stream={stream}
-                  torchEnabled={torchEnabled}
-                  setTorchEnabled={setTorchEnabled}
-                />
-              </div>
-            ) : (
-              <CameraErrorCard 
-                cameraError={cameraError}
-                debugInfo={debugInfo}
-                onRetryCamera={retryCamera}
-              />
-            )
+            <div className="text-center py-8">
+              <Type className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-700 mb-2">
+                Manual Tile Input
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Enter the tile code manually to assign to selected rooms.
+              </p>
+              <Button onClick={handleManualInput} disabled={processingAssignment}>
+                <Type className="h-4 w-4 mr-2" />
+                Enter Tile Code
+              </Button>
+              
+              {processingAssignment && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm">Assigning tile...</span>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="text-center py-8">
               <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
@@ -220,7 +168,7 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
                 Context Required
               </h3>
               <p className="text-gray-600 text-sm">
-                Go to Room Management, select a customer and rooms before scanning tiles.
+                Go to Room Management, select a customer and rooms before entering tile codes.
               </p>
             </div>
           )}
@@ -234,8 +182,8 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
 
           <p className="text-xs text-gray-500 text-center">
             {isContextActive 
-              ? "Scan QR codes to automatically assign tiles to selected rooms"
-              : "Set up customer context first, then scan tiles for instant assignment"
+              ? "Enter tile codes to automatically assign tiles to selected rooms"
+              : "Set up customer context first, then enter tile codes for instant assignment"
             }
           </p>
         </div>
