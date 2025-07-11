@@ -507,15 +507,14 @@ export const WallTileSelectionPage = ({
         </Card>
       </div>
 
-      <TileCatalog
-        isOpen={showTileCatalog}
-        onClose={() => {
-          setShowTileCatalog(false);
-          setCatalogContext(null);
-        }}
-        onTileSelect={handleTileSelected}
-        selectedTileIds={[]}
-      />
+      <Dialog open={showTileCatalog} onOpenChange={setShowTileCatalog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Select Tiles</DialogTitle>
+          </DialogHeader>
+          <TileCatalog />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-4xl">

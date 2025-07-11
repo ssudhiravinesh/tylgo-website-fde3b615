@@ -24,18 +24,12 @@ import { useTiles } from "@/hooks/useTiles";
 import { TileCard } from "./TileCard";
 import { TileDetailsDialog } from "./TileDetailsDialog";
 import { EmptyTileState } from "./EmptyTileState";
-import { FilterPanel } from "./FilterPanel";
-import { SortingOptions } from "./SortingOptions";
-import { ViewToggle } from "./ViewToggle";
-import { Tile } from "@/types/tile";
 import { toast } from "sonner";
-
-// Import the new QR scanner components
-import { ModernQRScanner } from "@/components/qr/ModernQRScanner";
+import type { Tile } from "@/hooks/useTiles";
 // import { Html5QRScanner } from "@/components/qr/Html5QRScanner"; // Alternative option
 
 export const TileCatalog = () => {
-  const { tiles, loading, error } = useTiles();
+  const { data: tiles = [], isLoading: loading, error } = useTiles();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -67,8 +61,7 @@ export const TileCatalog = () => {
     // Find exact matches
     const exactMatches = tiles.filter(tile => 
       tile.code?.toUpperCase() === normalizedCode ||
-      tile.name?.toUpperCase().includes(normalizedCode) ||
-      tile.sku?.toUpperCase() === normalizedCode
+      tile.name?.toUpperCase().includes(normalizedCode)
     );
     
     if (exactMatches.length > 0) {
@@ -84,9 +77,7 @@ export const TileCatalog = () => {
       // Try partial matches
       const partialMatches = tiles.filter(tile =>
         tile.code?.toUpperCase().includes(normalizedCode) ||
-        tile.name?.toUpperCase().includes(normalizedCode) ||
-        tile.sku?.toUpperCase().includes(normalizedCode) ||
-        tile.description?.toUpperCase().includes(normalizedCode)
+        tile.name?.toUpperCase().includes(normalizedCode)
       );
       
       if (partialMatches.length > 0) {
@@ -105,15 +96,11 @@ export const TileCatalog = () => {
     let filtered = tiles.filter(tile => {
       const matchesSearch = 
         tile.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tile.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tile.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tile.description?.toLowerCase().includes(searchTerm.toLowerCase());
+        tile.code?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesCategory = selectedCategory === "all" || tile.category === selectedCategory;
-      const matchesBrand = selectedBrand === "all" || tile.brand === selectedBrand;
-      const matchesPrice = tile.price >= priceRange[0] && tile.price <= priceRange[1];
+      const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
       
-      return matchesSearch && matchesCategory && matchesBrand && matchesPrice;
+      return matchesSearch && matchesPrice;
     });
 
     // Sort tiles
@@ -134,15 +121,24 @@ export const TileCatalog = () => {
     return filtered;
   }, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder]);
 
-  // Get unique categories and brands for filtering
-  const categories = useMemo(() => 
-    Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean))), 
-    [tiles]
-  );
-  
-  const brands = useMemo(() => 
-    Array.from(new Set(tiles.map(tile => tile.brand).filter(Boolean))), 
-    [tiles]
+  // Simple view toggle component
+  const ViewToggle = ({ viewMode, setViewMode }: { viewMode: "grid" | "list", setViewMode: (mode: "grid" | "list") => void }) => (
+    <div className="flex border rounded-lg">
+      <Button
+        variant={viewMode === "grid" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => setViewMode("grid")}
+      >
+        <Grid className="h-4 w-4" />
+      </Button>
+      <Button
+        variant={viewMode === "list" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => setViewMode("list")}
+      >
+        <List className="h-4 w-4" />
+      </Button>
+    </div>
   );
 
   const handleTileClick = (tile: Tile) => {
@@ -196,7 +192,7 @@ export const TileCatalog = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-red-600 mb-2">Error loading tiles: {error}</p>
+          <p className="text-red-600 mb-2">Error loading tiles: {error.message}</p>
           <Button onClick={() => window.location.reload()}>
             Try Again
           </Button>
@@ -250,11 +246,14 @@ export const TileCatalog = () => {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => setIsQRScannerOpen(true)}
+                onClick={() => {
+                  const input = prompt('Enter tile code:');
+                  if (input) handleQRScanned(input);
+                }}
                 className="flex items-center gap-2"
               >
                 <QrCode className="h-4 w-4" />
-                Scan QR
+                Enter Code
               </Button>
               <Button
                 variant="outline"
@@ -271,48 +270,20 @@ export const TileCatalog = () => {
       </Card>
 
       {/* Active Filters */}
-      {(searchTerm || selectedCategory !== "all" || selectedBrand !== "all") && (
+      {searchTerm && (
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-sm text-gray-500">Active filters:</span>
-          {searchTerm && (
-            <Badge variant="secondary">
-              Search: {searchTerm}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-4 w-4 p-0 ml-1"
-                onClick={() => setSearchTerm("")}
-              >
-                ×
-              </Button>
-            </Badge>
-          )}
-          {selectedCategory !== "all" && (
-            <Badge variant="secondary">
-              Category: {selectedCategory}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-4 w-4 p-0 ml-1"
-                onClick={() => setSelectedCategory("all")}
-              >
-                ×
-              </Button>
-            </Badge>
-          )}
-          {selectedBrand !== "all" && (
-            <Badge variant="secondary">
-              Brand: {selectedBrand}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-4 w-4 p-0 ml-1"
-                onClick={() => setSelectedBrand("all")}
-              >
-                ×
-              </Button>
-            </Badge>
-          )}
+          <Badge variant="secondary">
+            Search: {searchTerm}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-4 w-4 p-0 ml-1"
+              onClick={() => setSearchTerm("")}
+            >
+              ×
+            </Button>
+          </Badge>
           <Button
             variant="ghost"
             size="sm"
@@ -326,11 +297,7 @@ export const TileCatalog = () => {
 
       {/* Tiles Grid/List */}
       {filteredAndSortedTiles.length === 0 ? (
-        <EmptyTileState 
-          searchTerm={searchTerm}
-          onClearSearch={() => setSearchTerm("")}
-          onScanQR={() => setIsQRScannerOpen(true)}
-        />
+        <EmptyTileState />
       ) : (
         <div className={
           viewMode === "grid" 
@@ -341,56 +308,29 @@ export const TileCatalog = () => {
             <TileCard
               key={tile.id}
               tile={tile}
-              onClick={() => handleTileClick(tile)}
-              onToggleFavorite={() => toggleFavorite(tile.id)}
-              onToggleCart={() => toggleCart(tile.id)}
-              isFavorite={favorites.has(tile.id)}
-              isInCart={cart.has(tile.id)}
-              viewMode={viewMode}
+              isSelected={false}
+              isAdmin={false}
+              showAssignButton={false}
+              onTileSelect={() => handleTileClick(tile)}
+              onGenerateQR={() => {}}
+              onDownloadQR={() => {}}
+              onViewDetails={() => handleTileClick(tile)}
+              onAssignClick={() => {}}
+              isGeneratingQR={false}
             />
           ))}
         </div>
       )}
 
-      {/* QR Scanner Dialog */}
-      <ModernQRScanner
-        isOpen={isQRScannerOpen}
-        onClose={() => setIsQRScannerOpen(false)}
-        onScan={handleQRScanned}
-      />
-
-      {/* Alternative QR Scanner - uncomment to use html5-qrcode instead */}
-      {/* <Html5QRScanner
-        isOpen={isQRScannerOpen}
-        onClose={() => setIsQRScannerOpen(false)}
-        onScan={handleQRScanned}
-      /> */}
-
       {/* Tile Details Dialog */}
-      <TileDetailsDialog
-        tile={selectedTile}
-        isOpen={isDetailsOpen}
-        onClose={() => setIsDetailsOpen(false)}
-      />
-
-      {/* Filter Panel */}
-      <FilterPanel
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        categories={categories}
-        brands={brands}
-        selectedCategory={selectedCategory}
-        selectedBrand={selectedBrand}
-        priceRange={priceRange}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        onCategoryChange={setSelectedCategory}
-        onBrandChange={setSelectedBrand}
-        onPriceRangeChange={setPriceRange}
-        onSortChange={setSortBy}
-        onSortOrderChange={setSortOrder}
-        onClearFilters={clearFilters}
-      />
+      {selectedTile && (
+        <TileDetailsDialog
+          tile={selectedTile}
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          userRole="worker"
+        />
+      )}
     </div>
   );
 };

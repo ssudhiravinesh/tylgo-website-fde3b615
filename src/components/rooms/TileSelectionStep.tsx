@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
@@ -693,15 +694,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
         </Card>
       </div>
 
-      <TileCatalog
-        isOpen={showTileCatalog}
-        onClose={() => {
-          setShowTileCatalog(false);
-          setCatalogContext(null);
-        }}
-        onTileSelect={handleTileSelected}
-        selectedTileIds={[]}
-      />
+      <Dialog open={showTileCatalog} onOpenChange={setShowTileCatalog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Select Tiles</DialogTitle>
+          </DialogHeader>
+          <TileCatalog />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
