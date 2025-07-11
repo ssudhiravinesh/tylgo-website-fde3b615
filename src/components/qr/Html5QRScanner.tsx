@@ -1,8 +1,9 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Camera, X, Flashlight, FlashlightOff } from 'lucide-react';
+import { Camera, X, Flashlight, FlashlightOff, SwitchCamera } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Html5QRScannerProps {
@@ -20,6 +21,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [cameras, setCameras] = useState<any[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>('');
+  const [currentCameraType, setCurrentCameraType] = useState<'front' | 'back'>('back');
   const [hasScanned, setHasScanned] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -44,10 +46,9 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
 
   const initializeScanner = async () => {
     try {
-      // Request camera permissions first (especially important for mobile)
+      // Request camera permissions first
       await navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
-          // Stop the test stream immediately
           stream.getTracks().forEach(track => track.stop());
         });
 
@@ -56,34 +57,13 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
       setCameras(devices);
       
       if (devices && devices.length > 0) {
-        // Prefer back camera (environment facing) for mobile devices
-        // Try multiple patterns to find back camera
-        const backCamera = devices.find(device => {
-          const label = device.label.toLowerCase();
-          return (
-            label.includes('back') || 
-            label.includes('environment') ||
-            label.includes('rear') ||
-            label.includes('facing back') ||
-            label.includes('camera2') ||
-            label.includes('0, facing back') ||
-            (label.includes('camera') && !label.includes('front') && !label.includes('user'))
-          );
-        });
+        // Start with back camera by default
+        const backCamera = findCameraByType(devices, 'back');
+        const cameraToUse = backCamera || devices[0];
         
-        // If no back camera found by label, try to use environment constraint
-        let cameraId: string;
-        if (backCamera) {
-          cameraId = backCamera.id;
-          console.log('Selected back camera:', backCamera.label);
-        } else {
-          // Try using environment constraint for mobile devices
-          cameraId = 'environment';
-          console.log('Using environment constraint for back camera');
-        }
-        
-        setSelectedCamera(cameraId);
-        startScanning(cameraId);
+        setSelectedCamera(cameraToUse.id);
+        setCurrentCameraType(backCamera ? 'back' : 'front');
+        startScanning(cameraToUse.id);
       } else {
         toast.error('No cameras found on this device');
       }
@@ -99,21 +79,47 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
     }
   };
 
+  const findCameraByType = (devices: any[], type: 'front' | 'back') => {
+    return devices.find(device => {
+      const label = device.label.toLowerCase();
+      if (type === 'back') {
+        return (
+          label.includes('back') || 
+          label.includes('environment') ||
+          label.includes('rear') ||
+          label.includes('facing back') ||
+          label.includes('camera2') ||
+          label.includes('0, facing back') ||
+          (label.includes('camera') && !label.includes('front') && !label.includes('user'))
+        );
+      } else {
+        return (
+          label.includes('front') ||
+          label.includes('user') ||
+          label.includes('facing front') ||
+          label.includes('selfie') ||
+          label.includes('camera1')
+        );
+      }
+    });
+  };
+
   const startScanning = async (cameraId: string) => {
     try {
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode(elementId);
       }
 
-      // Mobile-optimized configuration
+      // Determine facing mode based on camera type
+      const facingMode = currentCameraType === 'back' ? 'environment' : 'user';
+
       const config = {
-        fps: 8, // Lower FPS for better mobile performance
+        fps: 8,
         qrbox: { width: Math.min(250, window.innerWidth - 80), height: Math.min(250, window.innerWidth - 80) },
         aspectRatio: 1.0,
         disableFlip: false,
-        // Mobile-specific video constraints with better camera selection
         videoConstraints: {
-          facingMode: cameraId === 'environment' || cameras.find(c => c.id === cameraId)?.label.toLowerCase().includes('back') ? 'environment' : undefined,
+          facingMode: facingMode,
           width: { ideal: 640 },
           height: { ideal: 480 }
         }
@@ -127,13 +133,12 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           handleScanSuccess(decodedText);
         },
         (errorMessage) => {
-          // Ignore frequent scan errors, they're normal
-          // console.log('Scan error:', errorMessage);
+          // Ignore frequent scan errors
         }
       );
 
       setIsScanning(true);
-      toast.success('Scanner ready! Point your camera at a QR code.');
+      toast.success(`Scanner ready! Using ${currentCameraType} camera.`);
     } catch (error) {
       console.error('Error starting scanner:', error);
       toast.error('Failed to start camera. Please check permissions and try again.');
@@ -141,7 +146,6 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   };
 
   const handleScanSuccess = async (decodedText: string) => {
-    // Prevent multiple scans with multiple checks
     if (hasScanned || isProcessing || !decodedText || !decodedText.trim()) {
       console.log('Scan prevented - already processed or invalid data');
       return;
@@ -149,17 +153,15 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
     
     console.log('Processing QR scan:', decodedText);
     
-    // Set both flags immediately to prevent any other calls
     setHasScanned(true);
     setIsProcessing(true);
     
-    // Clear any existing timeout
     if (scanTimeoutRef.current) {
       clearTimeout(scanTimeoutRef.current);
     }
     
     try {
-      // Mobile-specific: Stop all video tracks first
+      // Stop all video tracks aggressively
       const videoElement = document.getElementById(elementId)?.querySelector('video');
       if (videoElement && videoElement.srcObject) {
         const stream = videoElement.srcObject as MediaStream;
@@ -169,33 +171,26 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
         });
       }
       
-      // Stop scanner immediately and aggressively
+      // Stop scanner
       if (scannerRef.current) {
         try {
           if (isScanning) {
             await scannerRef.current.stop();
           }
-          // Clear the scanner element completely
           scannerRef.current.clear();
         } catch (stopError) {
           console.log('Error stopping scanner, but continuing...', stopError);
         }
-        // Nullify the scanner reference to prevent any further operations
         scannerRef.current = null;
       }
       setIsScanning(false);
       
       toast.success('QR Code scanned successfully!');
-      
-      // Process the scan result immediately
       onScan(decodedText.trim());
-      
-      // Close immediately without delay for mobile compatibility
       handleClose();
       
     } catch (error) {
       console.error('Error stopping scanner after scan:', error);
-      // Still proceed with the scan result even if stopping fails
       onScan(decodedText.trim());
       handleClose();
     }
@@ -203,13 +198,12 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
 
   const cleanup = async () => {
     try {
-      // Clear any pending timeout
       if (scanTimeoutRef.current) {
         clearTimeout(scanTimeoutRef.current);
         scanTimeoutRef.current = null;
       }
       
-      // Mobile-specific: Stop all video tracks aggressively
+      // Stop all video tracks
       const videoElement = document.getElementById(elementId)?.querySelector('video');
       if (videoElement && videoElement.srcObject) {
         const stream = videoElement.srcObject as MediaStream;
@@ -245,7 +239,6 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   };
 
   const toggleTorch = async () => {
-    // Don't allow torch toggle if processing a scan
     if (isProcessing || hasScanned) {
       return;
     }
@@ -271,26 +264,36 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
     }
   };
 
-  const switchCamera = async () => {
-    // Don't allow camera switch if processing a scan
-    if (isProcessing || hasScanned) {
+  const toggleCamera = async () => {
+    if (isProcessing || hasScanned || cameras.length <= 1) {
       return;
     }
     
-    if (cameras.length > 1) {
-      const currentIndex = cameras.findIndex(cam => cam.id === selectedCamera);
-      const nextIndex = (currentIndex + 1) % cameras.length;
-      const nextCamera = cameras[nextIndex];
+    try {
+      const newCameraType = currentCameraType === 'back' ? 'front' : 'back';
+      const targetCamera = findCameraByType(cameras, newCameraType);
       
-      try {
+      if (targetCamera) {
+        // Stop current scanner
         await cleanup();
-        setSelectedCamera(nextCamera.id);
-        await startScanning(nextCamera.id);
-        toast.success(`Switched to ${nextCamera.label}`);
-      } catch (error) {
-        console.error('Error switching camera:', error);
-        toast.error('Failed to switch camera');
+        
+        // Update camera type and start new scanner
+        setCurrentCameraType(newCameraType);
+        setSelectedCamera(targetCamera.id);
+        setTorchEnabled(false); // Reset torch when switching cameras
+        
+        // Start new scanner with the target camera
+        setTimeout(() => {
+          startScanning(targetCamera.id);
+        }, 100);
+        
+        toast.success(`Switched to ${newCameraType} camera`);
+      } else {
+        toast.error(`No ${newCameraType} camera found`);
       }
+    } catch (error) {
+      console.error('Error switching camera:', error);
+      toast.error('Failed to switch camera');
     }
   };
 
@@ -309,6 +312,9 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Camera className="h-5 w-5" />
             Scan Tile QR Code
+            <span className="text-sm text-gray-500 ml-auto">
+              ({currentCameraType} camera)
+            </span>
           </DialogTitle>
         </DialogHeader>
         
@@ -332,7 +338,8 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
                   size="sm"
                   onClick={toggleTorch}
                   className="bg-white/90 hover:bg-white text-black border-white/50 h-8 w-8 p-0"
-                  disabled={isProcessing}
+                  disabled={isProcessing || currentCameraType === 'front'}
+                  title={currentCameraType === 'front' ? 'Flashlight not available on front camera' : 'Toggle flashlight'}
                 >
                   {torchEnabled ? (
                     <FlashlightOff className="h-3 w-3" />
@@ -345,11 +352,12 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={switchCamera}
+                    onClick={toggleCamera}
                     className="bg-white/90 hover:bg-white text-black border-white/50 h-8 w-8 p-0"
                     disabled={isProcessing}
+                    title="Switch camera"
                   >
-                    <Camera className="h-3 w-3" />
+                    <SwitchCamera className="h-3 w-3" />
                   </Button>
                 )}
               </div>
@@ -391,17 +399,22 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           {/* Instructions */}
           <div className="text-center px-2">
             <p className="text-xs sm:text-sm text-gray-500">
-              {isProcessing ? 'Processing your scan...' : 'Point your camera at a QR code to scan'}
+              {isProcessing ? 'Processing your scan...' : `Point your ${currentCameraType} camera at a QR code to scan`}
             </p>
             <p className="text-xs text-gray-400 mt-1">
               {isProcessing ? 'Please wait...' : 'Ensure good lighting and hold steady'}
             </p>
+            {cameras.length > 1 && !isProcessing && (
+              <p className="text-xs text-gray-400 mt-1">
+                Tap the camera icon to switch between front and back camera
+              </p>
+            )}
           </div>
           
           {/* Camera Info */}
           {isScanning && selectedCamera && !isProcessing && (
             <div className="text-xs text-gray-400 text-center">
-              Using: {cameras.find(cam => cam.id === selectedCamera)?.label || 'Camera'}
+              Using: {cameras.find(cam => cam.id === selectedCamera)?.label || `${currentCameraType} camera`}
             </div>
           )}
         </div>
