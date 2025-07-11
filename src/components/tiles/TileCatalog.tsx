@@ -34,54 +34,54 @@ export const TileCatalog = ({ isOpen, onClose, onTileSelect, selectedTileIds = [
   };
 
   const handleQRScanned = (tileCode: string) => {
-  console.log('QR scanned in TileCatalog:', tileCode);
-  
-  // First, set the search term to filter tiles
-  setSearchTerm(tileCode);
-  
-  // Check if there's an exact match by code
-  const exactMatch = tiles.find(t => 
-    t.code.toLowerCase() === tileCode.toLowerCase()
-  );
-  
-  if (exactMatch) {
-    console.log('Exact match found:', exactMatch.name);
-    // Auto-select the exact match
-    handleTileSelect(exactMatch.id);
-    toast.success(`Tile "${exactMatch.name}" (${exactMatch.code}) selected automatically`, {
-      duration: 3000
-    });
-  } else {
-    // Check for partial matches
-    const partialMatches = tiles.filter(t => 
-      t.code.toLowerCase().includes(tileCode.toLowerCase()) ||
-      t.name.toLowerCase().includes(tileCode.toLowerCase())
+    console.log('QR scanned in TileCatalog:', tileCode);
+    
+    // First, set the search term to filter tiles
+    setSearchTerm(tileCode);
+    
+    // Check if there's an exact match by code
+    const exactMatch = tiles.find(t => 
+      t.code.toLowerCase() === tileCode.toLowerCase()
     );
     
-    if (partialMatches.length === 1) {
-      // If only one partial match, auto-select it
-      console.log('Single partial match found:', partialMatches[0].name);
-      handleTileSelect(partialMatches[0].id);
-      toast.success(`Tile "${partialMatches[0].name}" (${partialMatches[0].code}) selected automatically`, {
-        duration: 3000
-      });
-    } else if (partialMatches.length > 1) {
-      // Show filtered results
-      console.log('Multiple partial matches found:', partialMatches.length);
-      toast.success(`Found ${partialMatches.length} matching tiles for "${tileCode}". Please select one.`, {
+    if (exactMatch) {
+      console.log('Exact match found:', exactMatch.name);
+      // Auto-select the exact match
+      handleTileSelect(exactMatch.id);
+      toast.success(`Tile "${exactMatch.name}" (${exactMatch.code}) selected automatically`, {
         duration: 3000
       });
     } else {
-      // No matches found
-      console.log('No matches found for:', tileCode);
-      toast.error(`No tiles found matching "${tileCode}". Please check the code and try again.`, {
-        duration: 4000
-      });
+      // Check for partial matches
+      const partialMatches = tiles.filter(t => 
+        t.code.toLowerCase().includes(tileCode.toLowerCase()) ||
+        t.name.toLowerCase().includes(tileCode.toLowerCase())
+      );
+      
+      if (partialMatches.length === 1) {
+        // If only one partial match, auto-select it
+        console.log('Single partial match found:', partialMatches[0].name);
+        handleTileSelect(partialMatches[0].id);
+        toast.success(`Tile "${partialMatches[0].name}" (${partialMatches[0].code}) selected automatically`, {
+          duration: 3000
+        });
+      } else if (partialMatches.length > 1) {
+        // Show filtered results
+        console.log('Multiple partial matches found:', partialMatches.length);
+        toast.success(`Found ${partialMatches.length} matching tiles for "${tileCode}". Please select one.`, {
+          duration: 3000
+        });
+      } else {
+        // No matches found
+        console.log('No matches found for:', tileCode);
+        toast.error(`No tiles found matching "${tileCode}". Please check the code and try again.`, {
+          duration: 4000
+        });
+      }
     }
-  }
-  
-  setIsQRScannerOpen(false);
-};
+    
+    setIsQRScannerOpen(false);
+  };
 
   const calculatePricePerSqFt = (tile: Tile) => {
     if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
