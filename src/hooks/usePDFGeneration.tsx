@@ -150,7 +150,7 @@ export const usePDFGeneration = () => {
         
         // FIXED: Calculate total price based on boxes needed and price per box
         // Instead of summing stored total_price (which can be duplicated for layers)
-        calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box);
+        calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
       }
     }
   });

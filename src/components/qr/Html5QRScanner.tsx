@@ -104,8 +104,11 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   const handleScanSuccess = async (decodedText: string) => {
     // Prevent multiple scans with multiple checks
     if (hasScanned || isProcessing || !decodedText || !decodedText.trim()) {
+      console.log('Scan prevented - already processed or invalid data');
       return;
     }
+    
+    console.log('Processing QR scan:', decodedText);
     
     // Set both flags immediately to prevent any other calls
     setHasScanned(true);
@@ -117,35 +120,35 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
     }
     
     try {
-      // Stop scanner immediately to prevent further scans
-      if (scannerRef.current && isScanning) {
-        await scannerRef.current.stop();
-        setIsScanning(false);
-      }
-      
-      // Clear the scanner element to prevent any residual scanning
+      // Stop scanner immediately and aggressively
       if (scannerRef.current) {
+        if (isScanning) {
+          await scannerRef.current.stop();
+        }
+        // Clear the scanner element completely
         scannerRef.current.clear();
+        // Nullify the scanner reference to prevent any further operations
+        scannerRef.current = null;
       }
+      setIsScanning(false);
       
       toast.success('QR Code scanned successfully!');
       
-      // Add a small delay before processing to ensure scanner is fully stopped
-      scanTimeoutRef.current = setTimeout(() => {
-        // Call the onScan callback with the scanned text
-        onScan(decodedText.trim());
-        
-        // Close the scanner dialog
+      // Immediate callback without delay to prevent any further processing
+      onScan(decodedText.trim());
+      
+      // Close the scanner dialog immediately
+      setTimeout(() => {
         handleClose();
-      }, 100);
+      }, 50);
       
     } catch (error) {
       console.error('Error stopping scanner after scan:', error);
       // Still proceed with the scan result even if stopping fails
-      scanTimeoutRef.current = setTimeout(() => {
-        onScan(decodedText.trim());
+      onScan(decodedText.trim());
+      setTimeout(() => {
         handleClose();
-      }, 100);
+      }, 50);
     }
   };
 

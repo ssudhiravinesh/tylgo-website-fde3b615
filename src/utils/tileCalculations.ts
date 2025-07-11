@@ -11,6 +11,7 @@ export interface TileCalculationResult {
   totalPrice: number;
   isWallTile?: boolean;
   wallLayers?: number[];
+  quotationItems?: any[]; // Add this to track individual items
 }
 
 export interface FloorTileSelection {
