@@ -47,7 +47,7 @@ export const TileCard = ({
       alt={tile.name}
       className="max-w-full max-h-full object-contain rounded-lg"
       style={{
-        aspectRatio: tile.width && tile.height ? `${tile.width}/${tile.height}` : '1/1'
+        aspectRatio: tile.size_length && tile.size_breadth ? `${tile.size_length}/${tile.size_breadth}` : '1/1'
       }}
     />
   ) : (
