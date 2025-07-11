@@ -44,26 +44,40 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
 
   const initializeScanner = async () => {
     try {
+      // Request camera permissions first (especially important for mobile)
+      await navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          // Stop the test stream immediately
+          stream.getTracks().forEach(track => track.stop());
+        });
+
       // Get available cameras
       const devices = await Html5Qrcode.getCameras();
       setCameras(devices);
       
       if (devices && devices.length > 0) {
-        // Prefer back camera (environment facing)
+        // Prefer back camera (environment facing) for mobile devices
         const backCamera = devices.find(device => 
           device.label.toLowerCase().includes('back') || 
-          device.label.toLowerCase().includes('environment')
+          device.label.toLowerCase().includes('environment') ||
+          device.label.toLowerCase().includes('rear')
         );
         const cameraId = backCamera ? backCamera.id : devices[0].id;
         setSelectedCamera(cameraId);
         
         startScanning(cameraId);
       } else {
-        toast.error('No cameras found');
+        toast.error('No cameras found on this device');
       }
     } catch (error) {
       console.error('Error getting cameras:', error);
-      toast.error('Unable to access cameras. Please check permissions.');
+      if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+        toast.error('Camera permission denied. Please allow camera access and refresh the page.');
+      } else if (error.name === 'NotFoundError') {
+        toast.error('No camera found on this device.');
+      } else {
+        toast.error('Unable to access camera. Please check your device settings.');
+      }
     }
   };
 
@@ -73,11 +87,18 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
         scannerRef.current = new Html5Qrcode(elementId);
       }
 
+      // Mobile-optimized configuration
       const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
+        fps: 8, // Lower FPS for better mobile performance
+        qrbox: { width: Math.min(250, window.innerWidth - 80), height: Math.min(250, window.innerWidth - 80) },
         aspectRatio: 1.0,
         disableFlip: false,
+        // Mobile-specific video constraints
+        videoConstraints: {
+          facingMode: cameraId === 'environment' ? 'environment' : undefined,
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        }
       };
 
       await scannerRef.current.start(
@@ -94,10 +115,10 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
       );
 
       setIsScanning(true);
-      toast.success('Scanner started! Point your camera at a QR code.');
+      toast.success('Scanner ready! Point your camera at a QR code.');
     } catch (error) {
       console.error('Error starting scanner:', error);
-      toast.error('Failed to start camera. Please check permissions.');
+      toast.error('Failed to start camera. Please check permissions and try again.');
     }
   };
 
@@ -170,9 +191,25 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
         scanTimeoutRef.current = null;
       }
       
-      if (scannerRef.current && isScanning) {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
+      // Mobile-specific: Stop all video tracks aggressively
+      const videoElement = document.getElementById(elementId)?.querySelector('video');
+      if (videoElement && videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach(track => {
+          track.stop();
+          console.log('Cleanup: Stopped video track:', track.kind);
+        });
+      }
+      
+      if (scannerRef.current) {
+        try {
+          if (isScanning) {
+            await scannerRef.current.stop();
+          }
+          scannerRef.current.clear();
+        } catch (error) {
+          console.log('Error during cleanup, but continuing...', error);
+        }
       }
     } catch (error) {
       console.error('Error stopping scanner:', error);
@@ -249,9 +286,9 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-lg">
             <Camera className="h-5 w-5" />
             Scan Tile QR Code
           </DialogTitle>
@@ -263,23 +300,26 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
             <div 
               id={elementId}
               className="w-full rounded-lg overflow-hidden bg-gray-900"
-              style={{ minHeight: '300px' }}
+              style={{ 
+                minHeight: Math.min(300, window.innerHeight * 0.4),
+                maxHeight: Math.min(400, window.innerHeight * 0.5)
+              }}
             />
             
             {/* Controls Overlay */}
             {isScanning && !isProcessing && (
-              <div className="absolute top-4 right-4 flex gap-2">
+              <div className="absolute top-2 right-2 flex gap-1">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={toggleTorch}
-                  className="bg-white/80 hover:bg-white"
+                  className="bg-white/90 hover:bg-white text-black border-white/50 h-8 w-8 p-0"
                   disabled={isProcessing}
                 >
                   {torchEnabled ? (
-                    <FlashlightOff className="h-4 w-4" />
+                    <FlashlightOff className="h-3 w-3" />
                   ) : (
-                    <Flashlight className="h-4 w-4" />
+                    <Flashlight className="h-3 w-3" />
                   )}
                 </Button>
                 
@@ -288,10 +328,10 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={switchCamera}
-                    className="bg-white/80 hover:bg-white"
+                    className="bg-white/90 hover:bg-white text-black border-white/50 h-8 w-8 p-0"
                     disabled={isProcessing}
                   >
-                    <Camera className="h-4 w-4" />
+                    <Camera className="h-3 w-3" />
                   </Button>
                 )}
               </div>
@@ -300,9 +340,9 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
             {/* Status Overlay */}
             {(!isScanning || isProcessing) && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 rounded-lg">
-                <div className="text-center text-white">
-                  <Camera className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm">
+                <div className="text-center text-white px-4">
+                  <Camera className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 opacity-50" />
+                  <p className="text-xs sm:text-sm">
                     {isProcessing ? 'Processing scan...' : 'Initializing camera...'}
                   </p>
                 </div>
@@ -315,7 +355,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
             <Button 
               variant="outline" 
               onClick={handleClose} 
-              className="flex-1"
+              className="flex-1 h-11"
               disabled={isProcessing}
             >
               <X className="h-4 w-4 mr-2" />
@@ -323,7 +363,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
             </Button>
             <Button 
               onClick={handleManualInput} 
-              className="flex-1"
+              className="flex-1 h-11"
               disabled={isProcessing}
             >
               Manual Input
@@ -331,12 +371,12 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           </div>
           
           {/* Instructions */}
-          <div className="text-center">
-            <p className="text-sm text-gray-500">
-              {isProcessing ? 'Processing your scan...' : 'Point your camera at a QR code to scan automatically'}
+          <div className="text-center px-2">
+            <p className="text-xs sm:text-sm text-gray-500">
+              {isProcessing ? 'Processing your scan...' : 'Point your camera at a QR code to scan'}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              {isProcessing ? 'Please wait...' : 'Make sure there\'s good lighting and hold steady'}
+              {isProcessing ? 'Please wait...' : 'Ensure good lighting and hold steady'}
             </p>
           </div>
           
