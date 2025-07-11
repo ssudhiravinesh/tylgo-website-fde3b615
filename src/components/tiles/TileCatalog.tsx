@@ -1,252 +1,396 @@
-
-import { useState } from "react";
+// src/components/tiles/TileCatalog.tsx
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Package, IndianRupee, X, QrCode } from "lucide-react";
+import { 
+  Search, 
+  QrCode, 
+  Filter, 
+  SortAsc, 
+  SortDesc, 
+  Grid, 
+  List, 
+  Download,
+  Eye,
+  ShoppingCart,
+  Heart,
+  Star,
+  Zap
+} from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
-import { QRScanner } from "@/components/qr/QRScanner";
+import { TileCard } from "./TileCard";
+import { TileDetailsDialog } from "./TileDetailsDialog";
+import { EmptyTileState } from "./EmptyTileState";
+import { FilterPanel } from "./FilterPanel";
+import { SortingOptions } from "./SortingOptions";
+import { ViewToggle } from "./ViewToggle";
+import { Tile } from "@/types/tile";
 import { toast } from "sonner";
-import type { Tile } from "@/hooks/useTiles";
 
-interface TileCatalogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onTileSelect: (tileId: string) => void;
-  selectedTileIds?: string[];
-}
+// Import the new QR scanner components
+import { ModernQRScanner } from "@/components/qr/ModernQRScanner";
+// import { Html5QRScanner } from "@/components/qr/Html5QRScanner"; // Alternative option
 
-export const TileCatalog = ({ isOpen, onClose, onTileSelect, selectedTileIds = [] }: TileCatalogProps) => {
+export const TileCatalog = () => {
+  const { tiles, loading, error } = useTiles();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
-  const { data: tiles = [], isLoading } = useTiles();
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedBrand, setSelectedBrand] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [cart, setCart] = useState<Set<string>>(new Set());
 
-  const filteredTiles = tiles.filter(tile =>
-    tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tile.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleTileSelect = (tileId: string) => {
-    onTileSelect(tileId);
-    onClose();
-  };
-
+  // Enhanced QR scan handler with better error handling and user feedback
   const handleQRScanned = (tileCode: string) => {
-    console.log('QR scanned in TileCatalog:', tileCode);
+    console.log('QR Code scanned:', tileCode);
     
-    // First, set the search term to filter tiles
-    setSearchTerm(tileCode);
+    if (!tileCode || tileCode.trim() === '') {
+      toast.error('Invalid QR code. Please try again.');
+      return;
+    }
+
+    const normalizedCode = tileCode.trim().toUpperCase();
     
-    // Check if there's an exact match by code
-    const exactMatch = tiles.find(t => 
-      t.code.toLowerCase() === tileCode.toLowerCase()
+    // Update search term
+    setSearchTerm(normalizedCode);
+    
+    // Find exact matches
+    const exactMatches = tiles.filter(tile => 
+      tile.code?.toUpperCase() === normalizedCode ||
+      tile.name?.toUpperCase().includes(normalizedCode) ||
+      tile.sku?.toUpperCase() === normalizedCode
     );
     
-    if (exactMatch) {
-      console.log('Exact match found:', exactMatch.name);
-      // Auto-select the exact match
-      handleTileSelect(exactMatch.id);
-      toast.success(`Tile "${exactMatch.name}" (${exactMatch.code}) selected automatically`, {
-        duration: 3000
-      });
+    if (exactMatches.length > 0) {
+      // If exactly one match, show details
+      if (exactMatches.length === 1) {
+        setSelectedTile(exactMatches[0]);
+        setIsDetailsOpen(true);
+        toast.success(`Found tile: ${exactMatches[0].name}`);
+      } else {
+        toast.success(`Found ${exactMatches.length} matching tiles`);
+      }
     } else {
-      // Check for partial matches
-      const partialMatches = tiles.filter(t => 
-        t.code.toLowerCase().includes(tileCode.toLowerCase()) ||
-        t.name.toLowerCase().includes(tileCode.toLowerCase())
+      // Try partial matches
+      const partialMatches = tiles.filter(tile =>
+        tile.code?.toUpperCase().includes(normalizedCode) ||
+        tile.name?.toUpperCase().includes(normalizedCode) ||
+        tile.sku?.toUpperCase().includes(normalizedCode) ||
+        tile.description?.toUpperCase().includes(normalizedCode)
       );
       
-      if (partialMatches.length === 1) {
-        // If only one partial match, auto-select it
-        console.log('Single partial match found:', partialMatches[0].name);
-        handleTileSelect(partialMatches[0].id);
-        toast.success(`Tile "${partialMatches[0].name}" (${partialMatches[0].code}) selected automatically`, {
-          duration: 3000
-        });
-      } else if (partialMatches.length > 1) {
-        // Show filtered results
-        console.log('Multiple partial matches found:', partialMatches.length);
-        toast.success(`Found ${partialMatches.length} matching tiles for "${tileCode}". Please select one.`, {
-          duration: 3000
-        });
+      if (partialMatches.length > 0) {
+        toast.success(`Found ${partialMatches.length} similar tiles`);
       } else {
-        // No matches found
-        console.log('No matches found for:', tileCode);
-        toast.error(`No tiles found matching "${tileCode}". Please check the code and try again.`, {
-          duration: 4000
-        });
+        toast.error(`No tiles found matching "${tileCode}". Please check the code and try again.`);
       }
     }
     
+    // Close QR scanner
     setIsQRScannerOpen(false);
   };
 
-  const calculatePricePerSqFt = (tile: Tile) => {
-    if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
-      return 0;
-    }
-    
-    const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
-    const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
-    return tile.price_per_box / areaPerBoxSqFt;
+  // Filter and sort tiles
+  const filteredAndSortedTiles = useMemo(() => {
+    let filtered = tiles.filter(tile => {
+      const matchesSearch = 
+        tile.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tile.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tile.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tile.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = selectedCategory === "all" || tile.category === selectedCategory;
+      const matchesBrand = selectedBrand === "all" || tile.brand === selectedBrand;
+      const matchesPrice = tile.price >= priceRange[0] && tile.price <= priceRange[1];
+      
+      return matchesSearch && matchesCategory && matchesBrand && matchesPrice;
+    });
+
+    // Sort tiles
+    filtered.sort((a, b) => {
+      let aValue: any = a[sortBy as keyof Tile];
+      let bValue: any = b[sortBy as keyof Tile];
+      
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+      
+      if (sortOrder === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    return filtered;
+  }, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder]);
+
+  // Get unique categories and brands for filtering
+  const categories = useMemo(() => 
+    Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean))), 
+    [tiles]
+  );
+  
+  const brands = useMemo(() => 
+    Array.from(new Set(tiles.map(tile => tile.brand).filter(Boolean))), 
+    [tiles]
+  );
+
+  const handleTileClick = (tile: Tile) => {
+    setSelectedTile(tile);
+    setIsDetailsOpen(true);
   };
 
-  const formatTileSize = (tile: Tile) => {
-    if (!tile.size_length || !tile.size_breadth) return 'N/A';
-    
-    const lengthInMm = tile.size_length;
-    const widthInMm = tile.size_breadth;
-    
-    if (lengthInMm >= 1000 || widthInMm >= 1000) {
-      const lengthInM = (lengthInMm / 1000).toFixed(2);
-      const widthInM = (widthInMm / 1000).toFixed(2);
-      return `${lengthInM} × ${widthInM} m`;
-    } else if (lengthInMm >= 100 || widthInMm >= 100) {
-      const lengthInCm = (lengthInMm / 10).toFixed(1);
-      const widthInCm = (widthInMm / 10).toFixed(1);
-      return `${lengthInCm} × ${widthInCm} cm`;
+  const toggleFavorite = (tileId: string) => {
+    const newFavorites = new Set(favorites);
+    if (newFavorites.has(tileId)) {
+      newFavorites.delete(tileId);
+      toast.success('Removed from favorites');
     } else {
-      return `${lengthInMm} × ${widthInMm} mm`;
+      newFavorites.add(tileId);
+      toast.success('Added to favorites');
     }
+    setFavorites(newFavorites);
   };
+
+  const toggleCart = (tileId: string) => {
+    const newCart = new Set(cart);
+    if (newCart.has(tileId)) {
+      newCart.delete(tileId);
+      toast.success('Removed from cart');
+    } else {
+      newCart.add(tileId);
+      toast.success('Added to cart');
+    }
+    setCart(newCart);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedCategory("all");
+    setSelectedBrand("all");
+    setPriceRange([0, 1000]);
+    setSortBy("name");
+    setSortOrder("asc");
+    toast.success('Filters cleared');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">Error loading tiles: {error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Select Tile</span>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-4">
-          {/* Search and QR Section */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search tiles by name or code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button
-              onClick={() => setIsQRScannerOpen(true)}
-              variant="outline"
-              className="gap-2 px-4"
-            >
-              <QrCode className="h-4 w-4" />
-              Scan QR
-            </Button>
-          </div>
-
-          <div className="overflow-y-auto max-h-[60vh] pr-2">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              </div>
-            ) : filteredTiles.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
-                <p className="text-gray-500">
-                  {searchTerm ? "Try adjusting your search terms or scan a QR code" : "No tiles are available"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredTiles.map((tile) => {
-                  const pricePerSqFt = calculatePricePerSqFt(tile);
-                  const isSelected = selectedTileIds.includes(tile.id);
-                  
-                  return (
-                    <Card 
-                      key={tile.id} 
-                      className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
-                      onClick={() => handleTileSelect(tile.id)}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                            <Package className="h-5 w-5 text-blue-600" />
-                            {tile.name}
-                          </CardTitle>
-                          <Badge variant="secondary" className="text-xs font-mono">
-                            {tile.code}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      
-                      <CardContent className="space-y-3">
-                        {tile.image_url && (
-                          <div className="w-full h-32 bg-gray-100 rounded-md overflow-hidden">
-                            <img 
-                              src={tile.image_url} 
-                              alt={tile.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Size:</span>
-                            <span className="text-sm font-medium">{formatTileSize(tile)}</span>
-                          </div>
-                          
-                          {tile.pieces_per_box && (
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">Pieces/Box:</span>
-                              <span className="text-sm font-medium">{tile.pieces_per_box}</span>
-                            </div>
-                          )}
-                          
-                          {tile.price_per_box && (
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">Price/Box:</span>
-                              <div className="text-right">
-                                <div className="flex items-center gap-1 text-sm font-bold text-green-600">
-                                  <IndianRupee className="h-4 w-4" />
-                                  {tile.price_per_box.toLocaleString()}
-                                </div>
-                                {pricePerSqFt > 0 && (
-                                  <div className="text-xs text-gray-500">
-                                    ₹{pricePerSqFt.toFixed(2)}/sq ft
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <Button 
-                          className="w-full mt-3"
-                          variant={isSelected ? "secondary" : "default"}
-                        >
-                          {isSelected ? "Selected" : "Select Tile"}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Tile Catalog</h1>
+          <p className="text-gray-600">Browse and search through our tile collection</p>
         </div>
-      </DialogContent>
-      
-      {/* QR Scanner */}
-      <QRScanner
+        <div className="flex gap-2">
+          <Badge variant="outline">
+            {filteredAndSortedTiles.length} tiles
+          </Badge>
+          {cart.size > 0 && (
+            <Badge variant="default">
+              <ShoppingCart className="h-3 w-3 mr-1" />
+              {cart.size}
+            </Badge>
+          )}
+          {favorites.size > 0 && (
+            <Badge variant="secondary">
+              <Heart className="h-3 w-3 mr-1" />
+              {favorites.size}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Search and Controls */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search tiles by name, code, or SKU..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsQRScannerOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <QrCode className="h-4 w-4" />
+                Scan QR
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Active Filters */}
+      {(searchTerm || selectedCategory !== "all" || selectedBrand !== "all") && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-sm text-gray-500">Active filters:</span>
+          {searchTerm && (
+            <Badge variant="secondary">
+              Search: {searchTerm}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setSearchTerm("")}
+              >
+                ×
+              </Button>
+            </Badge>
+          )}
+          {selectedCategory !== "all" && (
+            <Badge variant="secondary">
+              Category: {selectedCategory}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setSelectedCategory("all")}
+              >
+                ×
+              </Button>
+            </Badge>
+          )}
+          {selectedBrand !== "all" && (
+            <Badge variant="secondary">
+              Brand: {selectedBrand}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setSelectedBrand("all")}
+              >
+                ×
+              </Button>
+            </Badge>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="text-red-600 hover:text-red-700"
+          >
+            Clear All
+          </Button>
+        </div>
+      )}
+
+      {/* Tiles Grid/List */}
+      {filteredAndSortedTiles.length === 0 ? (
+        <EmptyTileState 
+          searchTerm={searchTerm}
+          onClearSearch={() => setSearchTerm("")}
+          onScanQR={() => setIsQRScannerOpen(true)}
+        />
+      ) : (
+        <div className={
+          viewMode === "grid" 
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            : "space-y-4"
+        }>
+          {filteredAndSortedTiles.map((tile) => (
+            <TileCard
+              key={tile.id}
+              tile={tile}
+              onClick={() => handleTileClick(tile)}
+              onToggleFavorite={() => toggleFavorite(tile.id)}
+              onToggleCart={() => toggleCart(tile.id)}
+              isFavorite={favorites.has(tile.id)}
+              isInCart={cart.has(tile.id)}
+              viewMode={viewMode}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* QR Scanner Dialog */}
+      <ModernQRScanner
         isOpen={isQRScannerOpen}
         onClose={() => setIsQRScannerOpen(false)}
         onScan={handleQRScanned}
       />
-    </Dialog>
+
+      {/* Alternative QR Scanner - uncomment to use html5-qrcode instead */}
+      {/* <Html5QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={handleQRScanned}
+      /> */}
+
+      {/* Tile Details Dialog */}
+      <TileDetailsDialog
+        tile={selectedTile}
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+      />
+
+      {/* Filter Panel */}
+      <FilterPanel
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        categories={categories}
+        brands={brands}
+        selectedCategory={selectedCategory}
+        selectedBrand={selectedBrand}
+        priceRange={priceRange}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onCategoryChange={setSelectedCategory}
+        onBrandChange={setSelectedBrand}
+        onPriceRangeChange={setPriceRange}
+        onSortChange={setSortBy}
+        onSortOrderChange={setSortOrder}
+        onClearFilters={clearFilters}
+      />
+    </div>
   );
 };
