@@ -125,8 +125,6 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
           const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
           tileCalculations[tileId].rooms.push(room);
           tileCalculations[tileId].totalArea += roomAreaInSqFt;
-          // Sum up the stored total_price from all quotation_items for this tile
-          tileCalculations[tileId].totalPrice += parseFloat(item.total_price?.toString()) || 0;
         }
       });
 
@@ -155,8 +153,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
               // Update tiles needed based on actual boxes (for display purposes)
               calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
               
-              // Note: totalPrice is already set from stored values, don't recalculate
-              // This ensures consistency with PDF generation
+              // Recalculate total price based on current box count
+              calc.totalPrice = calc.boxesNeeded * pricePerBox;
             }
           }
         }
