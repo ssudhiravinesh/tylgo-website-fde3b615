@@ -60,6 +60,7 @@ export const usePDFGeneration = () => {
           const roomAreaInSqFt = parseFloat(item.area) || 0;
           tileCalculations[tileId].rooms.push(room);
           tileCalculations[tileId].totalArea += roomAreaInSqFt;
+          // Use the stored total_price directly - this already includes all adjustments
           tileCalculations[tileId].totalPrice += parseFloat(item.total_price) || 0;
         });
 
@@ -71,7 +72,6 @@ export const usePDFGeneration = () => {
             const tileLengthFt = (tile.size_length || 0) / 304.8;
             const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-            const pricePerBox = parseFloat(tile.price_per_box.toString());
             const piecesPerBox = parseInt(tile.pieces_per_box.toString());
             
             if (tileAreaSqFt > 0) {
@@ -89,8 +89,8 @@ export const usePDFGeneration = () => {
               // Update tiles needed to reflect the actual boxes being purchased
               calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
               
-              // Use the stored total price which reflects the manual adjustments
-              calc.totalPrice = calc.totalPrice; // This is already calculated correctly from stored data
+              // Keep the stored total price - it's already correct and includes all adjustments
+              // No need to recalculate as calc.totalPrice already has the right value from stored data
             }
           }
         });
