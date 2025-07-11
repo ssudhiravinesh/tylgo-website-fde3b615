@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw, Eye } from "lucide-react";
+import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw, Eye, QrCode } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
+import { Html5QRScanner } from "@/components/qr/Html5QRScanner";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
@@ -27,6 +28,7 @@ export const WallTileSelectionPage = ({
   onUpdateSelection 
 }: WallTileSelectionPageProps) => {
   const [showTileCatalog, setShowTileCatalog] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
   const [catalogContext, setCatalogContext] = useState<{
     layerNumber?: number;
     isBaseSelection?: boolean;
@@ -178,6 +180,65 @@ export const WallTileSelectionPage = ({
   const handleSelectBaseTile = () => {
     setCatalogContext({ isBaseSelection: true });
     setShowTileCatalog(true);
+  };
+
+  const handleQRScan = (tileCode: string) => {
+    console.log('QR Code scanned in wall selection:', tileCode);
+    
+    if (!tileCode || tileCode.trim() === '') {
+      toast.error('Invalid QR code. Please try again.');
+      return;
+    }
+
+    const normalizedCode = tileCode.trim();
+    
+    // Find matching tile
+    const matchingTile = tiles.find(tile => 
+      tile.code?.toLowerCase() === normalizedCode.toLowerCase()
+    );
+    
+    if (matchingTile) {
+      if (catalogContext?.isBaseSelection) {
+        // Setting base tile via QR
+        calculateWallLayers(matchingTile.id);
+        toast.success(`Base wall tile selected: ${matchingTile.name}`);
+      } else if (catalogContext?.layerNumber !== undefined) {
+        // Changing tile for specific layer via QR
+        const updatedLayers = wallSelection.layers.map(layer =>
+          layer.layerNumber === catalogContext.layerNumber
+            ? { ...layer, tileId: matchingTile.id }
+            : layer
+        );
+        
+        const updatedSelection = {
+          ...wallSelection,
+          layers: updatedLayers
+        };
+        
+        onUpdateSelection(updatedSelection);
+        toast.success(`Tile updated for layer ${catalogContext.layerNumber}: ${matchingTile.name}`);
+      } else {
+        // No specific context, treat as base tile selection
+        calculateWallLayers(matchingTile.id);
+        toast.success(`Base wall tile selected: ${matchingTile.name}`);
+      }
+      
+      // Close scanner and clear context
+      setShowQRScanner(false);
+      setCatalogContext(null);
+    } else {
+      toast.error(`No tile found with code "${tileCode}". Please try manual selection.`);
+    }
+  };
+
+  const handleScanQRForBaseTile = () => {
+    setCatalogContext({ isBaseSelection: true });
+    setShowQRScanner(true);
+  };
+
+  const handleScanQRForLayer = (layerNumber: number) => {
+    setCatalogContext({ layerNumber });
+    setShowQRScanner(true);
   };
 
   const handleResetLayers = () => {
@@ -379,14 +440,25 @@ export const WallTileSelectionPage = ({
             </div>
 
             {!wallSelection.baseTileId ? (
-              <Button 
-                onClick={handleSelectBaseTile}
-                className="w-full"
-                size="lg"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Select Base Tile
-              </Button>
+              <div className="space-y-2">
+                <Button 
+                  onClick={handleSelectBaseTile}
+                  className="w-full"
+                  size="lg"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Select Base Tile
+                </Button>
+                <Button 
+                  onClick={handleScanQRForBaseTile}
+                  variant="outline"
+                  className="w-full"
+                  size="lg"
+                >
+                  <QrCode className="h-4 w-4 mr-2" />
+                  Scan QR Code
+                </Button>
+              </div>
             ) : (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -474,6 +546,15 @@ export const WallTileSelectionPage = ({
                           <Button
                             size="sm"
                             variant="ghost"
+                            onClick={() => handleScanQRForLayer(layer.layerNumber)}
+                            className="h-8 w-8 p-0"
+                            title="Scan QR for this layer"
+                          >
+                            <QrCode className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={() => handleCopyTileToAllLayers(layer.tileId)}
                             className="h-8 w-8 p-0"
                             title="Copy to all layers"
@@ -507,14 +588,33 @@ export const WallTileSelectionPage = ({
         </Card>
       </div>
 
+      {/* Tile Catalog Dialog */}
       <Dialog open={showTileCatalog} onOpenChange={setShowTileCatalog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Select Tiles</DialogTitle>
+            <DialogTitle>
+              {catalogContext?.isBaseSelection 
+                ? "Select Base Tile for Wall" 
+                : `Select Tile for Layer ${catalogContext?.layerNumber}`
+              }
+            </DialogTitle>
           </DialogHeader>
-          <TileCatalog />
+          <TileCatalog 
+            isSelectionMode={true}
+            onTileSelect={handleTileSelected}
+          />
         </DialogContent>
       </Dialog>
+
+      {/* QR Scanner Dialog */}
+      <Html5QRScanner
+        isOpen={showQRScanner}
+        onClose={() => {
+          setShowQRScanner(false);
+          setCatalogContext(null);
+        }}
+        onScan={handleQRScan}
+      />
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-4xl">

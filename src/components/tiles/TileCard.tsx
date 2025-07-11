@@ -32,12 +32,22 @@ export const TileCard = ({
   isGeneratingQR,
   children
 }: TileCardProps) => {
+  
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Only trigger card click if the click is not on a button
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'BUTTON' || target.closest('button')) {
+      return; // Don't trigger card click if clicking on a button
+    }
+    onTileSelect(tile.id);
+  };
+
   return (
     <Card 
       className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-gray-200 ${
         isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''
       }`}
-      onClick={() => onTileSelect(tile.id)}
+      onClick={handleCardClick}
     >
       <CardContent className="p-4">
         <div className="bg-gray-100 rounded-lg mb-3 flex items-center justify-center p-4" style={{ minHeight: '200px' }}>

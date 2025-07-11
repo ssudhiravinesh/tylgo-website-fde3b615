@@ -57,14 +57,32 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
       
       if (devices && devices.length > 0) {
         // Prefer back camera (environment facing) for mobile devices
-        const backCamera = devices.find(device => 
-          device.label.toLowerCase().includes('back') || 
-          device.label.toLowerCase().includes('environment') ||
-          device.label.toLowerCase().includes('rear')
-        );
-        const cameraId = backCamera ? backCamera.id : devices[0].id;
-        setSelectedCamera(cameraId);
+        // Try multiple patterns to find back camera
+        const backCamera = devices.find(device => {
+          const label = device.label.toLowerCase();
+          return (
+            label.includes('back') || 
+            label.includes('environment') ||
+            label.includes('rear') ||
+            label.includes('facing back') ||
+            label.includes('camera2') ||
+            label.includes('0, facing back') ||
+            (label.includes('camera') && !label.includes('front') && !label.includes('user'))
+          );
+        });
         
+        // If no back camera found by label, try to use environment constraint
+        let cameraId: string;
+        if (backCamera) {
+          cameraId = backCamera.id;
+          console.log('Selected back camera:', backCamera.label);
+        } else {
+          // Try using environment constraint for mobile devices
+          cameraId = 'environment';
+          console.log('Using environment constraint for back camera');
+        }
+        
+        setSelectedCamera(cameraId);
         startScanning(cameraId);
       } else {
         toast.error('No cameras found on this device');
@@ -93,9 +111,9 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
         qrbox: { width: Math.min(250, window.innerWidth - 80), height: Math.min(250, window.innerWidth - 80) },
         aspectRatio: 1.0,
         disableFlip: false,
-        // Mobile-specific video constraints
+        // Mobile-specific video constraints with better camera selection
         videoConstraints: {
-          facingMode: cameraId === 'environment' ? 'environment' : undefined,
+          facingMode: cameraId === 'environment' || cameras.find(c => c.id === cameraId)?.label.toLowerCase().includes('back') ? 'environment' : undefined,
           width: { ideal: 640 },
           height: { ideal: 480 }
         }
