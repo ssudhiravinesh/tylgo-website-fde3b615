@@ -39,7 +39,7 @@ export const usePDFGeneration = () => {
 
       // Group items by tile using unified calculation system
       const tileCalculations: { [tileId: string]: TileCalculationResult } = {};
-
+/*
       if (quotationItems && quotationItems.length > 0) {
         quotationItems.forEach((item: any) => {
           const tileId = item.tile_id;
@@ -95,7 +95,66 @@ export const usePDFGeneration = () => {
           }
         });
       }
+*/
+      if (quotationItems && quotationItems.length > 0) {
+  quotationItems.forEach((item: any) => {
+    const tileId = item.tile_id;
+    const room = item.room;
+    const tile = item.tile;
+    
+    if (!tileCalculations[tileId]) {
+      tileCalculations[tileId] = {
+        tile,
+        rooms: [],
+        totalArea: 0,
+        tilesNeeded: 0,
+        boxesNeeded: 0,
+        totalPrice: 0,
+        quotationItems: [] // Add this to track individual items
+      };
+    }
 
+    const roomAreaInSqFt = parseFloat(item.area) || 0;
+    tileCalculations[tileId].rooms.push(room);
+    tileCalculations[tileId].totalArea += roomAreaInSqFt;
+    
+    // Store the quotation item for later processing
+    tileCalculations[tileId].quotationItems.push(item);
+  });
+
+  // Calculate tiles, boxes, and CORRECT total price
+  Object.values(tileCalculations).forEach(calc => {
+    const tile = calc.tile;
+    
+    if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
+      const tileLengthFt = (tile.size_length || 0) / 304.8;
+      const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+      const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+      const piecesPerBox = parseInt(tile.pieces_per_box.toString());
+      
+      if (tileAreaSqFt > 0) {
+        const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+        const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        
+        // Get custom box adjustment - sum from all items for this tile
+        const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
+          return sum + (item.custom_boxes || 0);
+        }, 0);
+        
+        // Calculate base boxes needed and apply custom adjustment
+        const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
+        calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
+        
+        // Update tiles needed to reflect the actual boxes being purchased
+        calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+        
+        // FIXED: Calculate total price based on boxes needed and price per box
+        // Instead of summing stored total_price (which can be duplicated for layers)
+        calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box);
+      }
+    }
+  });
+}
       // generate items rows, PDF content with updated wastage percentage display
       let itemsRows = '';
       let totalBoxes = 0;
