@@ -7,7 +7,7 @@ import { Search, FileText, Calendar, IndianRupee, User, Plus } from "lucide-reac
 import { useQuotations } from "@/hooks/useQuotations";
 import { QuotationDetails } from "./QuotationDetails";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
-import { EditQuotationDialog } from "./EditQuotationDialog";
+import { EditQuotationPage } from "./EditQuotationPage";
 import { QuotationActionButtons } from "./QuotationActionButtons";
 import { QuotationFilters } from "./QuotationFilters";
 
@@ -15,14 +15,13 @@ interface QuotationListProps {
   userRole: "admin" | "worker";
 }
 
-type ViewMode = "list" | "create" | "details";
+type ViewMode = "list" | "create" | "details" | "edit";
 
 export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedQuotationForAction, setSelectedQuotationForAction] = useState<string | null>(null);
   
   // Date filter states
@@ -102,19 +101,18 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   };
 
   const handleEdit = (quotationId: string) => {
-    setSelectedQuotationForAction(quotationId);
-    setEditDialogOpen(true);
+    setSelectedQuotationId(quotationId);
+    setViewMode("edit");
   };
 
   const handleEditSuccess = () => {
-    setEditDialogOpen(false);
-    setSelectedQuotationForAction(null);
+    setViewMode("list");
+    setSelectedQuotationId(null);
     refetch();
   };
 
   const closeDialogs = () => {
     setDeleteDialogOpen(false);
-    setEditDialogOpen(false);
     setSelectedQuotationForAction(null);
   };
 
@@ -156,6 +154,16 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
       <QuotationDetails
         quotation={selectedQuotation}
         onBack={handleBackToList}
+      />
+    );
+  }
+
+  if (viewMode === "edit" && selectedQuotation) {
+    return (
+      <EditQuotationPage
+        quotation={selectedQuotation}
+        onBack={handleBackToList}
+        onSuccess={handleEditSuccess}
       />
     );
   }
@@ -342,13 +350,6 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
         isDeleting={isDeleting}
       />
 
-      {/* Edit Dialog */}
-      <EditQuotationDialog
-        isOpen={editDialogOpen}
-        onClose={closeDialogs}
-        quotation={selectedQuotationForActionObj}
-        onSuccess={handleEditSuccess}
-      />
     </>
   );
 };

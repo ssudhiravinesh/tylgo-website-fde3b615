@@ -63,7 +63,7 @@ export const usePDFGeneration = () => {
           tileCalculations[tileId].totalPrice += parseFloat(item.total_price) || 0;
         });
 
-        // Calculate tiles and boxes for display
+        // Calculate tiles and boxes for display, using actual stored total_price
         Object.values(tileCalculations).forEach(calc => {
           const tile = calc.tile;
           
@@ -71,11 +71,18 @@ export const usePDFGeneration = () => {
             const tileLengthFt = (tile.size_length || 0) / 304.8;
             const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+            const pricePerBox = parseFloat(tile.price_per_box.toString());
             
             if (tileAreaSqFt > 0) {
               const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
               calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-              calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
+              
+              // Calculate boxes from total price to reflect manual adjustments
+              if (pricePerBox > 0) {
+                calc.boxesNeeded = Math.ceil(calc.totalPrice / pricePerBox);
+              } else {
+                calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
+              }
             }
           }
         });
