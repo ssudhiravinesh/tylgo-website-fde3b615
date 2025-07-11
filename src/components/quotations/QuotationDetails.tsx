@@ -133,8 +133,8 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                  calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
                }
                
-               // Step 4: Use stored total price which reflects manual adjustments
-               calc.totalPrice = parseFloat(tileItem?.total_price?.toString() || '0') || (calc.boxesNeeded * pricePerBox);
+              // Step 4: Calculate total price based on current box count (same as edit page)
+              calc.totalPrice = calc.boxesNeeded * pricePerBox;
             }
           }
         }

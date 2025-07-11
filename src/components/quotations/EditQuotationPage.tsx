@@ -213,7 +213,6 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       if (onSuccess) {
         onSuccess();
       }
-      onBack();
     } catch (error) {
       console.error('Error updating quotation:', error);
       toast.error('Failed to update quotation');

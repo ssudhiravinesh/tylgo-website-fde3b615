@@ -106,9 +106,8 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   };
 
   const handleEditSuccess = () => {
-    setViewMode("list");
-    setSelectedQuotationId(null);
-    refetch();
+    refetch(); // Refetch to get updated data
+    setViewMode("details"); // Go back to view mode instead of list
   };
 
   const closeDialogs = () => {
