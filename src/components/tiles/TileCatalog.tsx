@@ -29,7 +29,12 @@ import { toast } from "sonner";
 import type { Tile } from "@/hooks/useTiles";
 // import { Html5QRScanner } from "@/components/qr/Html5QRScanner"; // Alternative option
 
-export const TileCatalog = () => {
+interface TileCatalogProps {
+  isSelectionMode?: boolean;
+  onTileSelect?: (tileId: string) => void;
+}
+
+export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatalogProps) => {
   const { data: tiles = [], isLoading: loading, error } = useTiles();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
@@ -139,9 +144,14 @@ export const TileCatalog = () => {
     </div>
   );
 
+  // Handle tile click
   const handleTileClick = (tile: Tile) => {
-    setSelectedTile(tile);
-    setIsDetailsOpen(true);
+    if (isSelectionMode && onTileSelect) {
+      onTileSelect(tile.id);
+    } else {
+      setSelectedTile(tile);
+      setIsDetailsOpen(true);
+    }
   };
 
   const toggleFavorite = (tileId: string) => {

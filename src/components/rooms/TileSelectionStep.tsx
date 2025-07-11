@@ -699,7 +699,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           <DialogHeader>
             <DialogTitle>Select Tiles</DialogTitle>
           </DialogHeader>
-          <TileCatalog />
+          <TileCatalog 
+            isSelectionMode={true}
+            onTileSelect={handleTileSelected}
+          />
         </DialogContent>
       </Dialog>
     </div>
