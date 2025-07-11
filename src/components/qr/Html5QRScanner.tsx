@@ -30,6 +30,8 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
       initializeScanner();
     } else {
       cleanup();
+      // Reset hasScanned when dialog closes to allow future scans
+      setHasScanned(false);
     }
 
     return () => {
@@ -97,11 +99,12 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   };
 
   const handleScanSuccess = async (decodedText: string) => {
-    // Prevent multiple scans
+    // Prevent multiple scans - use a more immediate check
     if (hasScanned || !decodedText || !decodedText.trim()) {
       return;
     }
     
+    // Set hasScanned immediately to prevent any other calls
     setHasScanned(true);
     
     try {
@@ -111,12 +114,21 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
         setIsScanning(false);
       }
       
+      // Clear the scanner element to prevent any residual scanning
+      if (scannerRef.current) {
+        scannerRef.current.clear();
+      }
+      
       toast.success('QR Code scanned successfully!');
+      
+      // Call the onScan callback with the scanned text
       onScan(decodedText.trim());
+      
+      // Close the scanner dialog
       handleClose();
     } catch (error) {
       console.error('Error stopping scanner after scan:', error);
-      // Still proceed with the scan result
+      // Still proceed with the scan result even if stopping fails
       onScan(decodedText.trim());
       handleClose();
     }
