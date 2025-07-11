@@ -125,6 +125,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
           const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
           tileCalculations[tileId].rooms.push(room);
           tileCalculations[tileId].totalArea += roomAreaInSqFt;
+          // Sum up the stored total_price from all quotation_items for this tile
+          tileCalculations[tileId].totalPrice += parseFloat(item.total_price?.toString()) || 0;
         }
       });
 
@@ -153,7 +155,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
               // Update tiles needed based on actual boxes (for display purposes)
               calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
               
-              calc.totalPrice = calc.boxesNeeded * pricePerBox;
+              // Note: totalPrice is already set from stored values, don't recalculate
+              // This ensures consistency with PDF generation
             }
           }
         }
@@ -190,23 +193,21 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       // Update quotation items with new prices and custom box adjustments
       for (const calc of calculations) {
         const quotationItemsForTile = quotation.quotation_items?.filter(item => item.tile_id === calc.tile.id) || [];
+        const pricePerBox = parseFloat(calc.tile.price_per_box?.toString() || '0');
+        const customBoxAdjustment = customBoxAdjustments[calc.tile.id] || 0;
         
-        for (const item of quotationItemsForTile) {
-          const pricePerBox = parseFloat(calc.tile.price_per_box?.toString() || '0');
-          const piecesPerBox = parseInt(calc.tile.pieces_per_box?.toString() || '0');
-          const customBoxAdjustment = customBoxAdjustments[calc.tile.id] || 0;
+        if (quotationItemsForTile.length > 0) {
+          // Distribute the total price proportionally across all items for this tile
+          const totalBoxesForTile = calc.boxesNeeded;
+          const pricePerItem = (totalBoxesForTile * pricePerBox) / quotationItemsForTile.length;
           
-          // Calculate new total price based on custom box count
-          const newTotalPrice = calc.boxesNeeded * pricePerBox;
-          
-          // Calculate new tiles needed based on adjusted boxes
-          const newTilesNeeded = calc.boxesNeeded * piecesPerBox;
-          
-          await updateQuotationItem({
-            id: item.id,
-            total_price: newTotalPrice,
-            custom_boxes: customBoxAdjustment
-          });
+          for (const item of quotationItemsForTile) {
+            await updateQuotationItem({
+              id: item.id,
+              total_price: pricePerItem,
+              custom_boxes: customBoxAdjustment
+            });
+          }
         }
       }
 
