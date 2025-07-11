@@ -12,6 +12,7 @@ export interface QuotationItem {
   price_per_box: number;
   total_price: number;
   layer_number?: number;
+  custom_boxes?: number;
   created_at: string;
   // Joined data
   room?: {

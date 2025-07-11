@@ -119,11 +119,22 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
               // Step 2: Add wastage percentage to tiles
               calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
               
-              // Step 3: Calculate boxes needed from total tiles
-              calc.boxesNeeded = Math.ceil(calc.tilesNeeded / piecesPerBox);
-              
-              // Step 4: Calculate total price
-              calc.totalPrice = calc.boxesNeeded * pricePerBox;
+               // Step 3: Calculate boxes needed from total tiles with custom adjustments
+               const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
+               
+               // Get custom box adjustment from the first item for this tile
+               const tileItem = quotation.quotation_items?.find(item => item.tile_id === tile.id);
+               const customBoxAdjustment = tileItem?.custom_boxes || 0;
+               
+               calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
+               
+               // Update tiles needed to reflect actual boxes being purchased
+               if (customBoxAdjustment !== 0) {
+                 calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+               }
+               
+               // Step 4: Use stored total price which reflects manual adjustments
+               calc.totalPrice = parseFloat(tileItem?.total_price?.toString() || '0') || (calc.boxesNeeded * pricePerBox);
             }
           }
         }
@@ -320,6 +331,18 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                       <div>
                         <p className="text-gray-600">Boxes Needed</p>
                         <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
+                        {(() => {
+                          const tileItem = quotation.quotation_items?.find(item => item.tile_id === calc.tile.id);
+                          const customBoxAdjustment = tileItem?.custom_boxes || 0;
+                          if (customBoxAdjustment !== 0) {
+                            return (
+                              <p className="text-xs text-orange-600">
+                                {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                     

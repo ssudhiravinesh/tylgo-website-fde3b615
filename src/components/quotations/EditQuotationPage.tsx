@@ -58,6 +58,15 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       setStatus(quotation.status || "draft");
       setNotes(quotation.notes || "");
       setWastagePercentage(quotation.wastage_percentage || 0);
+      
+      // Initialize custom box adjustments from stored data
+      const storedAdjustments: { [tileId: string]: number } = {};
+      quotation.quotation_items?.forEach(item => {
+        if (item.custom_boxes && item.custom_boxes !== 0) {
+          storedAdjustments[item.tile_id] = item.custom_boxes;
+        }
+      });
+      setCustomBoxAdjustments(storedAdjustments);
     }
   }, [quotation]);
 
@@ -141,6 +150,9 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
               calc.boxesNeeded = Math.max(0, baseBoxes + adjustment);
               calc.customBoxes = adjustment;
               
+              // Update tiles needed based on actual boxes (for display purposes)
+              calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+              
               calc.totalPrice = calc.boxesNeeded * pricePerBox;
             }
           }
@@ -175,20 +187,26 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         total_cost: grandTotal,
       });
 
-      // Update quotation items with new prices based on box adjustments
+      // Update quotation items with new prices and custom box adjustments
       for (const calc of calculations) {
-        if (calc.customBoxes !== undefined && calc.customBoxes !== 0) {
-          const quotationItemsForTile = quotation.quotation_items?.filter(item => item.tile_id === calc.tile.id) || [];
+        const quotationItemsForTile = quotation.quotation_items?.filter(item => item.tile_id === calc.tile.id) || [];
+        
+        for (const item of quotationItemsForTile) {
+          const pricePerBox = parseFloat(calc.tile.price_per_box?.toString() || '0');
+          const piecesPerBox = parseInt(calc.tile.pieces_per_box?.toString() || '0');
+          const customBoxAdjustment = customBoxAdjustments[calc.tile.id] || 0;
           
-          for (const item of quotationItemsForTile) {
-            const pricePerBox = parseFloat(calc.tile.price_per_box?.toString() || '0');
-            const newTotalPrice = calc.boxesNeeded * pricePerBox;
-            
-            await updateQuotationItem({
-              id: item.id,
-              total_price: newTotalPrice
-            });
-          }
+          // Calculate new total price based on custom box count
+          const newTotalPrice = calc.boxesNeeded * pricePerBox;
+          
+          // Calculate new tiles needed based on adjusted boxes
+          const newTilesNeeded = calc.boxesNeeded * piecesPerBox;
+          
+          await updateQuotationItem({
+            id: item.id,
+            total_price: newTotalPrice,
+            custom_boxes: customBoxAdjustment
+          });
         }
       }
 

@@ -89,6 +89,7 @@ export type Database = {
         Row: {
           area: number
           created_at: string | null
+          custom_boxes: number | null
           id: string
           layer_number: number | null
           price_per_box: number
@@ -100,6 +101,7 @@ export type Database = {
         Insert: {
           area: number
           created_at?: string | null
+          custom_boxes?: number | null
           id?: string
           layer_number?: number | null
           price_per_box: number
@@ -111,6 +113,7 @@ export type Database = {
         Update: {
           area?: number
           created_at?: string | null
+          custom_boxes?: number | null
           id?: string
           layer_number?: number | null
           price_per_box?: number

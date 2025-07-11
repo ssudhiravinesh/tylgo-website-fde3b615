@@ -63,7 +63,7 @@ export const usePDFGeneration = () => {
           tileCalculations[tileId].totalPrice += parseFloat(item.total_price) || 0;
         });
 
-        // Calculate tiles and boxes for display, using actual stored total_price
+        // Calculate tiles and boxes for display, using stored custom adjustments
         Object.values(tileCalculations).forEach(calc => {
           const tile = calc.tile;
           
@@ -72,17 +72,25 @@ export const usePDFGeneration = () => {
             const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
             const pricePerBox = parseFloat(tile.price_per_box.toString());
+            const piecesPerBox = parseInt(tile.pieces_per_box.toString());
             
             if (tileAreaSqFt > 0) {
               const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-              calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+              const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
               
-              // Calculate boxes from total price to reflect manual adjustments
-              if (pricePerBox > 0) {
-                calc.boxesNeeded = Math.ceil(calc.totalPrice / pricePerBox);
-              } else {
-                calc.boxesNeeded = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
-              }
+              // Get custom box adjustment from the first item for this tile
+              const tileItem = quotationItems?.find((item: any) => item.tile_id === tile.id);
+              const customBoxAdjustment = tileItem?.custom_boxes || 0;
+              
+              // Calculate base boxes needed and apply custom adjustment
+              const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
+              calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
+              
+              // Update tiles needed to reflect the actual boxes being purchased
+              calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+              
+              // Use the stored total price which reflects the manual adjustments
+              calc.totalPrice = calc.totalPrice; // This is already calculated correctly from stored data
             }
           }
         });
