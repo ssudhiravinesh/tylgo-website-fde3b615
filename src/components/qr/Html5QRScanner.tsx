@@ -21,17 +21,20 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   const [cameras, setCameras] = useState<any[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>('');
   const [hasScanned, setHasScanned] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const elementId = 'qr-reader';
+  const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setHasScanned(false); // Reset scan state when dialog opens
+      setHasScanned(false);
+      setIsProcessing(false);
       initializeScanner();
     } else {
       cleanup();
-      // Reset hasScanned when dialog closes to allow future scans
       setHasScanned(false);
+      setIsProcessing(false);
     }
 
     return () => {
@@ -99,13 +102,19 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   };
 
   const handleScanSuccess = async (decodedText: string) => {
-    // Prevent multiple scans - use a more immediate check
-    if (hasScanned || !decodedText || !decodedText.trim()) {
+    // Prevent multiple scans with multiple checks
+    if (hasScanned || isProcessing || !decodedText || !decodedText.trim()) {
       return;
     }
     
-    // Set hasScanned immediately to prevent any other calls
+    // Set both flags immediately to prevent any other calls
     setHasScanned(true);
+    setIsProcessing(true);
+    
+    // Clear any existing timeout
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+    }
     
     try {
       // Stop scanner immediately to prevent further scans
@@ -121,21 +130,33 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
       
       toast.success('QR Code scanned successfully!');
       
-      // Call the onScan callback with the scanned text
-      onScan(decodedText.trim());
+      // Add a small delay before processing to ensure scanner is fully stopped
+      scanTimeoutRef.current = setTimeout(() => {
+        // Call the onScan callback with the scanned text
+        onScan(decodedText.trim());
+        
+        // Close the scanner dialog
+        handleClose();
+      }, 100);
       
-      // Close the scanner dialog
-      handleClose();
     } catch (error) {
       console.error('Error stopping scanner after scan:', error);
       // Still proceed with the scan result even if stopping fails
-      onScan(decodedText.trim());
-      handleClose();
+      scanTimeoutRef.current = setTimeout(() => {
+        onScan(decodedText.trim());
+        handleClose();
+      }, 100);
     }
   };
 
   const cleanup = async () => {
     try {
+      // Clear any pending timeout
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = null;
+      }
+      
       if (scannerRef.current && isScanning) {
         await scannerRef.current.stop();
         scannerRef.current.clear();
@@ -145,6 +166,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
     } finally {
       setIsScanning(false);
       setTorchEnabled(false);
+      setIsProcessing(false);
       scannerRef.current = null;
     }
   };
@@ -155,6 +177,11 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   };
 
   const toggleTorch = async () => {
+    // Don't allow torch toggle if processing a scan
+    if (isProcessing || hasScanned) {
+      return;
+    }
+    
     try {
       if (scannerRef.current && isScanning) {
         const capabilities = await scannerRef.current.getRunningTrackCapabilities();
@@ -177,6 +204,11 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   };
 
   const switchCamera = async () => {
+    // Don't allow camera switch if processing a scan
+    if (isProcessing || hasScanned) {
+      return;
+    }
+    
     if (cameras.length > 1) {
       const currentIndex = cameras.findIndex(cam => cam.id === selectedCamera);
       const nextIndex = (currentIndex + 1) % cameras.length;
@@ -222,13 +254,14 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
             />
             
             {/* Controls Overlay */}
-            {isScanning && (
+            {isScanning && !isProcessing && (
               <div className="absolute top-4 right-4 flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={toggleTorch}
                   className="bg-white/80 hover:bg-white"
+                  disabled={isProcessing}
                 >
                   {torchEnabled ? (
                     <FlashlightOff className="h-4 w-4" />
@@ -243,6 +276,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
                     size="sm"
                     onClick={switchCamera}
                     className="bg-white/80 hover:bg-white"
+                    disabled={isProcessing}
                   >
                     <Camera className="h-4 w-4" />
                   </Button>
@@ -251,11 +285,13 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
             )}
             
             {/* Status Overlay */}
-            {!isScanning && (
+            {(!isScanning || isProcessing) && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 rounded-lg">
                 <div className="text-center text-white">
                   <Camera className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm">Initializing camera...</p>
+                  <p className="text-sm">
+                    {isProcessing ? 'Processing scan...' : 'Initializing camera...'}
+                  </p>
                 </div>
               </div>
             )}
@@ -263,11 +299,20 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleClose} className="flex-1">
+            <Button 
+              variant="outline" 
+              onClick={handleClose} 
+              className="flex-1"
+              disabled={isProcessing}
+            >
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button onClick={handleManualInput} className="flex-1">
+            <Button 
+              onClick={handleManualInput} 
+              className="flex-1"
+              disabled={isProcessing}
+            >
               Manual Input
             </Button>
           </div>
@@ -275,15 +320,15 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           {/* Instructions */}
           <div className="text-center">
             <p className="text-sm text-gray-500">
-              Point your camera at a QR code to scan automatically
+              {isProcessing ? 'Processing your scan...' : 'Point your camera at a QR code to scan automatically'}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              Make sure there's good lighting and hold steady
+              {isProcessing ? 'Please wait...' : 'Make sure there\'s good lighting and hold steady'}
             </p>
           </div>
           
           {/* Camera Info */}
-          {isScanning && selectedCamera && (
+          {isScanning && selectedCamera && !isProcessing && (
             <div className="text-xs text-gray-400 text-center">
               Using: {cameras.find(cam => cam.id === selectedCamera)?.label || 'Camera'}
             </div>
