@@ -120,13 +120,27 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
     }
     
     try {
+      // Mobile-specific: Stop all video tracks first
+      const videoElement = document.getElementById(elementId)?.querySelector('video');
+      if (videoElement && videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach(track => {
+          track.stop();
+          console.log('Stopped video track:', track.kind);
+        });
+      }
+      
       // Stop scanner immediately and aggressively
       if (scannerRef.current) {
-        if (isScanning) {
-          await scannerRef.current.stop();
+        try {
+          if (isScanning) {
+            await scannerRef.current.stop();
+          }
+          // Clear the scanner element completely
+          scannerRef.current.clear();
+        } catch (stopError) {
+          console.log('Error stopping scanner, but continuing...', stopError);
         }
-        // Clear the scanner element completely
-        scannerRef.current.clear();
         // Nullify the scanner reference to prevent any further operations
         scannerRef.current = null;
       }
@@ -134,21 +148,17 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
       
       toast.success('QR Code scanned successfully!');
       
-      // Immediate callback without delay to prevent any further processing
+      // Process the scan result immediately
       onScan(decodedText.trim());
       
-      // Close the scanner dialog immediately
-      setTimeout(() => {
-        handleClose();
-      }, 50);
+      // Close immediately without delay for mobile compatibility
+      handleClose();
       
     } catch (error) {
       console.error('Error stopping scanner after scan:', error);
       // Still proceed with the scan result even if stopping fails
       onScan(decodedText.trim());
-      setTimeout(() => {
-        handleClose();
-      }, 50);
+      handleClose();
     }
   };
 
