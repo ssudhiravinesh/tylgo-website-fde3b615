@@ -97,33 +97,127 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
         });
       }
 */
-      if (quotationItems && quotationItems.length > 0) {
+//       if (quotationItems && quotationItems.length > 0) {
+//   quotationItems.forEach((item: any) => {
+//     const tileId = item.tile_id;
+//     const room = item.room;
+//     const tile = item.tile;
+    
+//     if (!tileCalculations[tileId]) {
+//       tileCalculations[tileId] = {
+//         tile,
+//         rooms: [],
+//         totalArea: 0,
+//         tilesNeeded: 0,
+//         boxesNeeded: 0,
+//         totalPrice: 0,
+//         quotationItems: [] // Add this to track individual items
+//       };
+//     }
+
+//     const roomAreaInSqFt = parseFloat(item.area) || 0;
+//     tileCalculations[tileId].rooms.push(room);
+//     tileCalculations[tileId].totalArea += roomAreaInSqFt;
+    
+//     // Store the quotation item for later processing
+//     tileCalculations[tileId].quotationItems.push(item);
+//   });
+
+//   // Calculate tiles, boxes, and CORRECT total price
+//   Object.values(tileCalculations).forEach(calc => {
+//     const tile = calc.tile;
+    
+//     if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
+//       const tileLengthFt = (tile.size_length || 0) / 304.8;
+//       const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+//       const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+//       const piecesPerBox = parseInt(tile.pieces_per_box.toString());
+      
+//       if (tileAreaSqFt > 0) {
+//         const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+//         const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        
+//         // Get custom box adjustment - sum from all items for this tile
+//         const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
+//           return sum + (item.custom_boxes || 0);
+//         }, 0);
+        
+//         // Calculate base boxes needed and apply custom adjustment
+//         const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
+//         calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
+        
+//         // Update tiles needed to reflect the actual boxes being purchased
+//         calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+        
+//         // FIXED: Calculate total price based on boxes needed and price per box
+//         // Instead of summing stored total_price (which can be duplicated for layers)
+//         calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
+//       }
+//     }
+//   });
+// }
+      // version 2.0
+
+if (quotationItems && quotationItems.length > 0) {
+  // Group items by tile_id and room_id to handle layers correctly
+  const tileRoomGroups = new Map();
+  
   quotationItems.forEach((item: any) => {
     const tileId = item.tile_id;
-    const room = item.room;
-    const tile = item.tile;
+    const roomId = item.room_id;
+    const groupKey = `${tileId}-${roomId}`;
+    
+    if (!tileRoomGroups.has(groupKey)) {
+      tileRoomGroups.set(groupKey, {
+        tile: item.tile,
+        room: item.room,
+        layers: [],
+        totalArea: 0,
+        // Take custom_boxes and total_price from first item only (to avoid duplication)
+        customBoxes: item.custom_boxes || 0,
+        totalPrice: item.total_price || 0,
+        pricePerBox: item.price_per_box || 0
+      });
+    }
+    
+    const group = tileRoomGroups.get(groupKey);
+    group.layers.push(item.layer_number);
+    group.totalArea += parseFloat(item.area) || 0;
+  });
+
+  // Now process unique tile-room combinations
+  tileRoomGroups.forEach((group, groupKey) => {
+    const tileId = groupKey.split('-')[0];
     
     if (!tileCalculations[tileId]) {
       tileCalculations[tileId] = {
-        tile,
+        tile: group.tile,
         rooms: [],
         totalArea: 0,
         tilesNeeded: 0,
         boxesNeeded: 0,
         totalPrice: 0,
-        quotationItems: [] // Add this to track individual items
+        quotationItems: []
       };
     }
 
-    const roomAreaInSqFt = parseFloat(item.area) || 0;
-    tileCalculations[tileId].rooms.push(room);
-    tileCalculations[tileId].totalArea += roomAreaInSqFt;
+    // Add room with layer information
+    tileCalculations[tileId].rooms.push({
+      ...group.room,
+      layers: group.layers.sort((a, b) => a - b)
+    });
     
-    // Store the quotation item for later processing
-    tileCalculations[tileId].quotationItems.push(item);
+    tileCalculations[tileId].totalArea += group.totalArea;
+    tileCalculations[tileId].totalPrice += group.totalPrice;
+    
+    // Store the group for custom boxes calculation
+    tileCalculations[tileId].quotationItems.push({
+      custom_boxes: group.customBoxes,
+      total_price: group.totalPrice
+    });
   });
 
-  // Calculate tiles, boxes, and CORRECT total price
+  // Calculate tiles and boxes for display
   Object.values(tileCalculations).forEach(calc => {
     const tile = calc.tile;
     
@@ -137,7 +231,7 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
         const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
         const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
         
-        // Get custom box adjustment - sum from all items for this tile
+        // Get custom box adjustment - sum from all UNIQUE tile-room combinations
         const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
           return sum + (item.custom_boxes || 0);
         }, 0);
@@ -149,9 +243,8 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
         // Update tiles needed to reflect the actual boxes being purchased
         calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
         
-        // FIXED: Calculate total price based on boxes needed and price per box
-        // Instead of summing stored total_price (which can be duplicated for layers)
-        calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
+        // Use the already calculated totalPrice (no duplication)
+        // calc.totalPrice is already set correctly from the grouping logic above
       }
     }
   });
@@ -208,16 +301,30 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
             }
           });
 
-          const roomNamesWithLayers = Array.from(roomLayerMap.entries()).map(([roomName, layers]) => {
-            const sortedLayers = layers.sort((a, b) => a - b);
-            if (sortedLayers.length > 1) {
-              return `${roomName} (Layers: ${sortedLayers.join(', ')})`;
-            } else if (sortedLayers[0] > 1) {
-              return `${roomName} (Layer ${sortedLayers[0]})`;
-            } else {
-              return roomName;
-            }
-          }).join(', ');
+          // const roomNamesWithLayers = Array.from(roomLayerMap.entries()).map(([roomName, layers]) => {
+          //   const sortedLayers = layers.sort((a, b) => a - b);
+          //   if (sortedLayers.length > 1) {
+          //     return `${roomName} (Layers: ${sortedLayers.join(', ')})`;
+          //   } else if (sortedLayers[0] > 1) {
+          //     return `${roomName} (Layer ${sortedLayers[0]})`;
+          //   } else {
+          //     return roomName;
+          //   }
+          // }).join(', ');
+
+          // version 2.0 rems 
+// nive-sudhir-karthi-varuna
+          const roomNamesWithLayers = tileCalculations[tileId].rooms.map(room => {
+  const layers = room.layers || [];
+  if (layers.length > 1) {
+    return `${room.name} (Layers: ${layers.join(', ')})`;
+  } else if (layers[0] > 1) {
+    return `${room.name} (Layer ${layers[0]})`;
+  } else {
+    return room.name;
+  }
+}).join(', ');
+
 
           // Generate image cell content
           const imageCell = tile?.image_url ? 
