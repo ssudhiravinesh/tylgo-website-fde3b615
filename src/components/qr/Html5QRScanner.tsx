@@ -20,11 +20,13 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [cameras, setCameras] = useState<any[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>('');
+  const [hasScanned, setHasScanned] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const elementId = 'qr-reader';
 
   useEffect(() => {
     if (isOpen) {
+      setHasScanned(false); // Reset scan state when dialog opens
       initializeScanner();
     } else {
       cleanup();
@@ -94,9 +96,27 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
     }
   };
 
-  const handleScanSuccess = (decodedText: string) => {
-    if (decodedText && decodedText.trim()) {
+  const handleScanSuccess = async (decodedText: string) => {
+    // Prevent multiple scans
+    if (hasScanned || !decodedText || !decodedText.trim()) {
+      return;
+    }
+    
+    setHasScanned(true);
+    
+    try {
+      // Stop scanner immediately to prevent further scans
+      if (scannerRef.current && isScanning) {
+        await scannerRef.current.stop();
+        setIsScanning(false);
+      }
+      
       toast.success('QR Code scanned successfully!');
+      onScan(decodedText.trim());
+      handleClose();
+    } catch (error) {
+      console.error('Error stopping scanner after scan:', error);
+      // Still proceed with the scan result
       onScan(decodedText.trim());
       handleClose();
     }
