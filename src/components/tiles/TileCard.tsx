@@ -40,15 +40,17 @@ export const TileCard = ({
       onClick={() => onTileSelect(tile.id)}
     >
       <CardContent className="p-4">
-        <div className="bg-gray-100 rounded-lg mb-3 flex items-center justify-center p-4" style={{ minHeight: '200px' }}>
+        <div 
+  className="bg-gray-100 rounded-lg mb-3 flex items-center justify-center"
+  style={{
+    aspectRatio: tile.width && tile.height ? `${tile.width}/${tile.height}` : '1/1'
+  }}
+>
   {tile.image_url ? (
     <img 
       src={tile.image_url} 
       alt={tile.name}
-      className="max-w-full max-h-full object-contain rounded-lg"
-      style={{
-        aspectRatio: tile.width && tile.height ? `${tile.width}/${tile.height}` : '1/1'
-      }}
+      className="w-full h-full object-cover rounded-lg"
     />
   ) : (
     <Grid3X3 className="h-12 w-12 text-gray-400" />
