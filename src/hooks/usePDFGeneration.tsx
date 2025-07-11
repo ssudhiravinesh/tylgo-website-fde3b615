@@ -172,22 +172,32 @@ if (quotationItems && quotationItems.length > 0) {
         tile: item.tile,
         room: item.room,
         layers: [],
-        totalArea: 0,
-        // Take custom_boxes and total_price from first item only (to avoid duplication)
-        customBoxes: item.custom_boxes || 0,
-        totalPrice: item.total_price || 0,
-        pricePerBox: item.price_per_box || 0
+        baseArea: parseFloat(item.area) || 0, // Area per layer
+        totalArea: 0, // Will be calculated based on layers
+        customBoxes: 0,
+        totalPrice: 0,
+        pricePerBox: parseFloat(item.price_per_box) || 0
       });
     }
     
     const group = tileRoomGroups.get(groupKey);
-    group.layers.push(item.layer_number);
-    group.totalArea += parseFloat(item.area) || 0;
+    
+    // Add layer if not already present
+    if (!group.layers.includes(item.layer_number)) {
+      group.layers.push(item.layer_number);
+    }
+    
+    // Accumulate custom boxes and total price from each quotation item
+    group.customBoxes += item.custom_boxes || 0;
+    group.totalPrice += parseFloat(item.total_price) || 0;
   });
 
-  // Now process unique tile-room combinations
+  // Calculate total area considering layers and process tiles
   tileRoomGroups.forEach((group, groupKey) => {
     const tileId = groupKey.split('-')[0];
+    
+    // Calculate total area: base area × number of layers
+    group.totalArea = group.baseArea * group.layers.length;
     
     if (!tileCalculations[tileId]) {
       tileCalculations[tileId] = {
@@ -204,9 +214,11 @@ if (quotationItems && quotationItems.length > 0) {
     // Add room with layer information
     tileCalculations[tileId].rooms.push({
       ...group.room,
-      layers: group.layers.sort((a, b) => a - b)
+      layers: group.layers.sort((a, b) => a - b),
+      totalArea: group.totalArea // Area including all layers
     });
     
+    // Sum up total area and price for this tile across all rooms
     tileCalculations[tileId].totalArea += group.totalArea;
     tileCalculations[tileId].totalPrice += group.totalPrice;
     
@@ -243,7 +255,7 @@ if (quotationItems && quotationItems.length > 0) {
         // Update tiles needed to reflect the actual boxes being purchased
         calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
         
-        // Use the already calculated totalPrice (no duplication)
+        // Use the already calculated totalPrice (includes layer adjustments)
         // calc.totalPrice is already set correctly from the grouping logic above
       }
     }
@@ -314,15 +326,18 @@ if (quotationItems && quotationItems.length > 0) {
 
           // version 2.0 rems 
 // nive-sudhir-karthi-varuna
-          const roomNamesWithLayers = tileCalculations[tileId].rooms.map(room => {
+const roomNamesWithLayers = tileCalculations[tileId].rooms.map(room => {
   const layers = room.layers || [];
+  const totalArea = room.totalArea || 0;
+  
+  let roomDisplay = room.name;
   if (layers.length > 1) {
-    return `${room.name} (Layers: ${layers.join(', ')})`;
+    roomDisplay += ` (Layers: ${layers.join(', ')})`;
   } else if (layers[0] > 1) {
-    return `${room.name} (Layer ${layers[0]})`;
-  } else {
-    return room.name;
+    roomDisplay += ` (Layer ${layers[0]})`;
   }
+  
+  return roomDisplay;
 }).join(', ');
 
 
@@ -330,12 +345,15 @@ if (quotationItems && quotationItems.length > 0) {
           const imageCell = tile?.image_url ? 
             `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none';" />` :
             '<small style="color: #999; font-style: italic;">No image</small>';
-
+          const hasMultipleLayers = tileCalculations[tileId].rooms.some(room => room.layers && room.layers.length > 1);
+          const areaDisplay = hasMultipleLayers ? 
+            `Total Area: ${formatArea(calc.totalArea)} (includes ${calc.totalArea / calc.totalArea * calc.rooms.length} layers)` : 
+            `Total Area: ${formatArea(calc.totalArea)}`;
           return `
             <tr>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>${roomNamesWithLayers}</strong><br/>
-                <small style="color: #666; font-size: 9px;">Total Area: ${formatArea(calc.totalArea)}</small>
+                <small style="color: #666; font-size: 9px;">${areaDisplay}</small>
               </td>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
                 <strong>Code: ${tile?.code || 'N/A'}</strong><br/>
