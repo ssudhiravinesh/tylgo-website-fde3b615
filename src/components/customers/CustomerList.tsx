@@ -65,17 +65,35 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
           <p className="text-gray-600">Manage your customer database and quotations</p>
         </div>
         <div className="flex items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                {viewMode === 'list' ? 'List View' : 'Card View'}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setViewMode('list')}>List View</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setViewMode('card')}>Card View</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center space-x-4">
+  {/* List view icon */}
+  <button
+    onClick={() => setViewMode('list')}
+    className={
+      `flex items-center gap-1 px-3 py-2 rounded-md transition-colors ` +
+      (viewMode === 'list'
+        ? 'bg-blue-600 text-white'
+        : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+    }
+  >
+    <LayoutList className="h-5 w-5" />
+    <span className="text-sm">List</span>
+  </button>
+
+  {/* Card view icon */}
+  <button
+    onClick={() => setViewMode('card')}
+    className={
+      `flex items-center gap-1 px-3 py-2 rounded-md transition-colors ` +
+      (viewMode === 'card'
+        ? 'bg-blue-600 text-white'
+        : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+    }
+  >
+    <LayoutGrid className="h-5 w-5" />
+    <span className="text-sm">Card</span>
+  </button>
+</div>
 
           {userRole === 'worker' && (
             <Button onClick={onAddCustomer} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
