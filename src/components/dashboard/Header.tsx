@@ -52,7 +52,7 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
                 size="sm"
                 onClick={() => setShowLogoutDialog(true)}
                 className="p-2 text-gray-600 hover:text-red-600"
-              >
+              > Logout
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
