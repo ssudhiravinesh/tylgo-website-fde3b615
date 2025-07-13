@@ -33,9 +33,10 @@ export const Sidebar = ({ isOpen, activeView, onViewChange, userRole }: SidebarP
   return (
     <aside className={cn(
       "bg-white border-r border-gray-200 transition-all duration-300 flex flex-col",
-      isOpen ? "w-64" : "w-0 lg:w-16"
+      isOpen ? "w-64" : "w-0 lg:w-16",
+      isOpen && "shadow-lg lg:shadow-none"
     )}>
-      <div className="p-4 flex-1">
+      <div className={cn("p-4 flex-1", isOpen && "overflow-visible")}>
         <nav className="space-y-2">
           {filteredItems.map((item) => {
             const Icon = item.icon;

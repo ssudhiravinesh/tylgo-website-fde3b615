@@ -8,6 +8,7 @@ import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { TileSelectionStep } from "./TileSelectionStep";
 import { DirectCustomerSearch } from "./DirectCustomerSearch";
+import { DeleteRoomDialog } from "./DeleteRoomDialog";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 
@@ -25,6 +26,10 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [showTileSelection, setShowTileSelection] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; room: Room | null }>({
+    isOpen: false,
+    room: null
+  });
 
   useEffect(() => {
     if (preSelectedCustomerId) {
@@ -39,15 +44,20 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (roomId: string, roomName: string) => {
-    if (window.confirm(`Are you sure you want to delete "${roomName}"? This action cannot be undone.`)) {
-      try {
-        await deleteRoomMutation.mutateAsync(roomId);
-        toast.success("Room deleted successfully!");
-      } catch (error) {
-        console.error("Error deleting room:", error);
-        toast.error("Failed to delete room");
-      }
+  const handleDeleteClick = (room: Room) => {
+    setDeleteDialog({ isOpen: true, room });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteDialog.room) return;
+    
+    try {
+      await deleteRoomMutation.mutateAsync(deleteDialog.room.id);
+      toast.success("Room deleted successfully!");
+      setDeleteDialog({ isOpen: false, room: null });
+    } catch (error) {
+      console.error("Error deleting room:", error);
+      toast.error("Failed to delete room");
     }
   };
 
@@ -202,7 +212,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(room)}
-                          className="h-8 w-8 p-0 hover:bg-blue-100"
+                          className="flex items-center gap-1 px-2 py-1 h-auto hover:bg-blue-100"
                         >
                           <Edit className="h-4 w-4 text-blue-600" />
                           <span className="text-blue-600 text-sm">Edit</span>
@@ -210,7 +220,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(room.id, room.name)}
+                          onClick={() => handleDeleteClick(room)}
                           className="h-8 w-8 p-0 hover:bg-red-100"
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
@@ -275,6 +285,13 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         onClose={handleCloseForm}
         room={editingRoom}
         customerId={selectedCustomerId}
+      />
+
+      <DeleteRoomDialog
+        isOpen={deleteDialog.isOpen}
+        onOpenChange={(open) => setDeleteDialog({ isOpen: open, room: null })}
+        onConfirm={handleConfirmDelete}
+        roomName={deleteDialog.room?.name || ""}
       />
     </div>
   );
