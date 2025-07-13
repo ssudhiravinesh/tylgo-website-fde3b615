@@ -123,11 +123,19 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                     {new Date(customer.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleViewDetails(customer)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleViewDetails(customer)}
+                    >
                       <Eye className="h-4 w-4 mr-1" /> View
                     </Button>
                     {userRole === 'worker' && (
-                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <Button
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => onNewQuote(customer.id)}
+                      >
                         <FileText className="h-4 w-4 mr-1" /> Quote
                       </Button>
                     )}
