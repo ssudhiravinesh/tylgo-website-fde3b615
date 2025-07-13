@@ -319,8 +319,8 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="floor">Floor Room</SelectItem>
-                <SelectItem value="wall">Wall Room</SelectItem>
+                <SelectItem value="floor">FLOOR ROOM</SelectItem>
+                <SelectItem value="wall">WALL ROOM</SelectItem>
               </SelectContent>
             </Select>
           </div>
