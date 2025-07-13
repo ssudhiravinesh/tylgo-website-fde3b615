@@ -162,43 +162,43 @@ export const useDashboardData = () => {
     return `₹${amount.toLocaleString()}`;
   };
 
-  const statsData = [
-    { 
-      label: "Total Customers", 
-      value: stats.totalCustomers.toString(), 
-      icon: Users, 
-      change: "+12%", 
-      color: "text-blue-600" 
-    },
-    { 
-      label: "Active Quotations", 
-      value: stats.activeQuotations.toString(), 
-      icon: FileText, 
-      change: "+8%", 
-      color: "text-green-600" 
-    },
-    { 
-      label: "Tiles in Catalog", 
-      value: stats.tilesInCatalog.toString(), 
-      icon: Grid3X3, 
-      change: "+15%", 
-      color: "text-purple-600" 
-    },
-    { 
-      label: "Monthly Revenue", 
-      value: formatCurrency(stats.monthlyRevenue), 
-      icon: TrendingUp, 
-      change: "+18%", 
-      color: "text-orange-600" 
-    }
-  ];
+//   const statsData = [
+//     { 
+//       label: "Total Customers", 
+//       value: stats.totalCustomers.toString(), 
+//       icon: Users, 
+//       change: "+12%", 
+//       color: "text-blue-600" 
+//     },
+//     { 
+//       label: "Active Quotations", 
+//       value: stats.activeQuotations.toString(), 
+//       icon: FileText, 
+//       change: "+8%", 
+//       color: "text-green-600" 
+//     },
+//     { 
+//       label: "Tiles in Catalog", 
+//       value: stats.tilesInCatalog.toString(), 
+//       icon: Grid3X3, 
+//       change: "+15%", 
+//       color: "text-purple-600" 
+//     },
+//     { 
+//       label: "Monthly Revenue", 
+//       value: formatCurrency(stats.monthlyRevenue), 
+//       icon: TrendingUp, 
+//       change: "+18%", 
+//       color: "text-orange-600" 
+//     }
+//   ];
 
-  return {
-    stats: statsData,
-    recentActivity,
-    loading
-  };
-};
+//   return {
+//     stats: statsData,
+//     recentActivity,
+//     loading
+//   };
+// };
 
 export const AdminDashboard = () => {
   const { stats, loading } = useDashboardData();
