@@ -34,10 +34,21 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
   const createCustomer = useCreateCustomer();
 
+  const capitalizeWords = (value: string) => {
+    return value
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
+  
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Clear error when user starts typing
+    // Realtime formatting only for names
+    const formattedValue = ["name", "reference_name"].includes(field)
+      ? capitalizeWords(value)
+      : value;
+  
+    setFormData(prev => ({ ...prev, [field]: formattedValue }));
+  
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
