@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,29 @@ import { FeetInchInput } from "@/components/ui/feet-inch-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
+
+const DEFAULT_ROOM_OPTIONS = [
+  "HALL FLOOR",
+  "HALL WALL", 
+  "BATHROOM FLOOR",
+  "BATHROOM WALL",
+  "KITCHEN WALL",
+  "KITCHEN FLOOR",
+  "BEDROOM WALL",
+  "BEDROOM FLOOR",
+  "STORE WALL",
+  "STORE FLOOR",
+  "GARAGE WALL", 
+  "GARAGE FLOOR",
+  "LIVING ROOM WALL",
+  "LIVING ROOM FLOOR",
+  "DINING ROOM FLOOR",
+  "DINING ROOM WALL",
+  "TOILET FLOOR",
+  "TOILET WALL",
+  "BALCONY FLOOR",
+  "BALCONY WALL"
+];
 
 interface RoomFormDialogProps {
   isOpen: boolean;
@@ -28,6 +51,11 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     wall_length: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
+  
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const createRoomMutation = useCreateRoom();
   const updateRoomMutation = useUpdateRoom();
@@ -151,7 +179,56 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Handle room name autocomplete
+    if (field === "name") {
+      const filtered = DEFAULT_ROOM_OPTIONS.filter(option =>
+        option.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredOptions(filtered);
+      setShowSuggestions(value.length > 0 && filtered.length > 0);
+    }
   };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setFormData(prev => ({ ...prev, name: suggestion }));
+    setShowSuggestions(false);
+    inputRef.current?.focus();
+  };
+
+  const handleInputFocus = () => {
+    if (formData.name.length > 0) {
+      const filtered = DEFAULT_ROOM_OPTIONS.filter(option =>
+        option.toLowerCase().includes(formData.name.toLowerCase())
+      );
+      setFilteredOptions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    }
+  };
+
+  const handleInputBlur = (e: React.FocusEvent) => {
+    // Delay hiding suggestions to allow for suggestion clicks
+    setTimeout(() => {
+      if (!suggestionsRef.current?.contains(document.activeElement)) {
+        setShowSuggestions(false);
+      }
+    }, 150);
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        inputRef.current && !inputRef.current.contains(event.target as Node) &&
+        suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const renderDimensionInput = (field: "length" | "width" | "wall_height" | "wall_length", label: string) => {
     if (formData.unit === "feet") {
@@ -189,17 +266,42 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <Label htmlFor="name">Room Name *</Label>
-            <Input
-              id="name"
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="e.g., Living Room, Bedroom"
-              disabled={isLoading}
-              required
-            />
+            <div className="relative">
+              <Input
+                ref={inputRef}
+                id="name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+                placeholder="e.g., Living Room, Bedroom"
+                disabled={isLoading}
+                required
+                autoComplete="off"
+              />
+              
+              {showSuggestions && filteredOptions.length > 0 && (
+                <div 
+                  ref={suggestionsRef}
+                  className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto bg-background border border-border rounded-md shadow-lg"
+                >
+                  {filteredOptions.map((option, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors focus:bg-accent focus:text-accent-foreground focus:outline-none"
+                      onClick={() => handleSuggestionClick(option)}
+                      onMouseDown={(e) => e.preventDefault()} // Prevent input blur
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">

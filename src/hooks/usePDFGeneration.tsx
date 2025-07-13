@@ -326,7 +326,7 @@ if (quotationItems && quotationItems.length > 0) {
 
           // version 2.0 rems 
 // nive-sudhir-karthi-varuna
-const roomNamesWithLayers = tileCalculations[tileId].rooms.map(room => {
+const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
   const layers = room.layers || [];
   const totalArea = room.totalArea || 0;
   
@@ -345,7 +345,7 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map(room => {
           const imageCell = tile?.image_url ? 
             `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none';" />` :
             '<small style="color: #999; font-style: italic;">No image</small>';
-          const hasMultipleLayers = tileCalculations[tileId].rooms.some(room => room.layers && room.layers.length > 1);
+          const hasMultipleLayers = tileCalculations[tileId].rooms.some((room: any) => room.layers && room.layers.length > 1);
           const areaDisplay = hasMultipleLayers ? 
             `Total Area: ${formatArea(calc.totalArea)} (includes ${calc.totalArea / calc.totalArea * calc.rooms.length} layers)` : 
             `Total Area: ${formatArea(calc.totalArea)}`;
