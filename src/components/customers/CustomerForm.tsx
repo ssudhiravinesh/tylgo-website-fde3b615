@@ -123,7 +123,14 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const formattedData = {
+      ...formData,
+      name: capitalizeWords(formData.name),
+      reference_name: capitalizeWords(formData.reference_name)
+    };
     
+    await createCustomer.mutateAsync(formattedData);
+
     if (!validateForm()) {
       toast.error("Please fill in all required fields correctly");
       return;
@@ -139,7 +146,14 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
   const handleSaveAndQuote = async (e: React.FormEvent) => {
     e.preventDefault();
+    const formattedData = {
+      ...formData,
+      name: capitalizeWords(formData.name),
+      reference_name: capitalizeWords(formData.reference_name)
+    };
     
+    await createCustomer.mutateAsync(formattedData);
+
     if (!validateForm()) {
       toast.error("Please fill in all required fields correctly");
       return;
