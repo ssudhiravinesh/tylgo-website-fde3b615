@@ -9,7 +9,6 @@ import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Lay
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
-import { FloorTilePreview } from "@/components/tiles/FloorTilePreview";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { WallTileSelectionPage } from "./WallTileSelectionPage";
 import { toast } from "sonner";
@@ -475,8 +474,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
               <CardContent className="space-y-3">
                 {floorRooms.map(room => {
                   const roomSelections = floorTileSelections.filter(fs => fs.roomId === room.id);
-                  const selectedFloorTile = tiles.find(t => t.id === floorTileSelections.tileId); // adjust based on your state
-                                    
                   return (
                     <div key={room.id} className="border rounded-lg p-4 bg-green-50/50">
                       <div className="flex items-center justify-between mb-3">
@@ -486,31 +483,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                             {calculateAreaInSquareFeet(room.length, room.width, room.unit).toFixed(2)} sq ft
                           </p>
                         </div>
-
-                                    <Card className="mb-6">
-                                      <CardHeader>
-                                        <CardTitle className="text-lg flex items-center justify-between">
-                                          Hall Floor
-                                        </CardTitle>
-                                      </CardHeader>
-                                      <CardContent className="flex gap-4 items-start">
-                                        {/* Left side preview */}
-                                        <div>
-                                          <FloorTilePreview tile={selectedFloorTile || null} />
-                                        </div>
-                                    
-                                        {/* Right side actions */}
-                                        <div className="flex-1 flex flex-col items-end">
-                                          <Button
-                                            onClick={() => handleAddFloorTile(room.id)}
-                                            size="lg"
-                                            className="ml-auto"
-                                          >
-                                            + Add Tile
-                                          </Button>
-                                        </div>
-                                      </CardContent>
-                                    </Card>
                         <Button
                           onClick={() => handleAddFloorTile(room.id)}
                           className="gap-2"
