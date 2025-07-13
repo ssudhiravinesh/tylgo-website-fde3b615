@@ -363,17 +363,17 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="wall_height">
-                  Wall Height * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
-                </Label>
-                {renderDimensionInput("wall_height", "Height")}
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="wall_length">
                   Wall Length * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
                 </Label>
                 {renderDimensionInput("wall_length", "Length")}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="wall_height">
+                  Wall Height * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
+                </Label>
+                {renderDimensionInput("wall_height", "Height")}
               </div>
             </div>
           )}
