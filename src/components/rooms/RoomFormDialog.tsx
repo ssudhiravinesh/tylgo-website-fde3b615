@@ -336,8 +336,8 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="metre">Metres</SelectItem>
                 <SelectItem value="feet">Feet</SelectItem>
+                <SelectItem value="metre">Metres</SelectItem>
                 <SelectItem value="inches">Inches</SelectItem>
                 <SelectItem value="mm">Millimeters</SelectItem>
               </SelectContent>
