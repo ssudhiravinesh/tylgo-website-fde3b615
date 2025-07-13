@@ -191,7 +191,11 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    setFormData(prev => ({ ...prev, name: suggestion }));
+    const roomType = suggestion.toLowerCase().includes('wall') ? 'wall' : 
+                    suggestion.toLowerCase().includes('floor') ? 'floor' : 
+                    formData.room_type;
+    
+    setFormData(prev => ({ ...prev, name: suggestion, room_type: roomType }));
     setShowSuggestions(false);
     inputRef.current?.focus();
   };
