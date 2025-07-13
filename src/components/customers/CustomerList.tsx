@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +17,8 @@ import {
   User,
   Eye,
   FileText,
+  LayoutList,
+  LayoutGrid,
 } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { CustomerDetails } from "./CustomerDetails";
@@ -58,7 +59,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
 
   return (
     <div className="space-y-6">
-      {/* Header with styled dropdown and Add button */}
+      {/* Header with view toggle and Add button */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Customer Management</h1>
@@ -66,34 +67,34 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center space-x-4">
-  {/* List view icon */}
-  <button
-    onClick={() => setViewMode('list')}
-    className={
-      `flex items-center gap-1 px-3 py-2 rounded-md transition-colors ` +
-      (viewMode === 'list'
-        ? 'bg-blue-600 text-white'
-        : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
-    }
-  >
-    <LayoutList className="h-5 w-5" />
-    <span className="text-sm">List</span>
-  </button>
+            {/* List view icon */}
+            <button
+              onClick={() => setViewMode('list')}
+              className={
+                `flex items-center gap-1 px-3 py-2 rounded-md transition-colors ` +
+                (viewMode === 'list'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+              }
+            >
+              <LayoutList className="h-5 w-5" />
+              <span className="text-sm">List</span>
+            </button>
 
-  {/* Card view icon */}
-  <button
-    onClick={() => setViewMode('card')}
-    className={
-      `flex items-center gap-1 px-3 py-2 rounded-md transition-colors ` +
-      (viewMode === 'card'
-        ? 'bg-blue-600 text-white'
-        : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
-    }
-  >
-    <LayoutGrid className="h-5 w-5" />
-    <span className="text-sm">Card</span>
-  </button>
-</div>
+            {/* Card view icon */}
+            <button
+              onClick={() => setViewMode('card')}
+              className={
+                `flex items-center gap-1 px-3 py-2 rounded-md transition-colors ` +
+                (viewMode === 'card'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+              }
+            >
+              <LayoutGrid className="h-5 w-5" />
+              <span className="text-sm">Card</span>
+            </button>
+          </div>
 
           {userRole === 'worker' && (
             <Button onClick={onAddCustomer} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
@@ -141,19 +142,11 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                     {new Date(customer.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleViewDetails(customer)}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => handleViewDetails(customer)}>
                       <Eye className="h-4 w-4 mr-1" /> View
                     </Button>
                     {userRole === 'worker' && (
-                      <Button
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={() => onNewQuote(customer.id)}
-                      >
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => onNewQuote(customer.id)}>
                         <FileText className="h-4 w-4 mr-1" /> Quote
                       </Button>
                     )}
