@@ -45,7 +45,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     name: "",
     length: "",
     width: "",
-    unit: "metre" as "metre" | "inches" | "mm" | "feet",
+    unit: "feet" as "metre" | "inches" | "mm" | "feet",
     room_type: "floor" as "floor" | "wall",
     wall_height: "",
     wall_length: ""
@@ -76,7 +76,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         name: "",
         length: "",
         width: "",
-        unit: "metre",
+        unit: "feet",
         room_type: "floor",
         wall_height: "",
         wall_length: ""
