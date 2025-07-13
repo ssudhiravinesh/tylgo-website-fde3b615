@@ -50,20 +50,23 @@ export const TileCard = ({
       onClick={handleCardClick}
     >
       <CardContent className="p-4">
-        <div className="bg-gray-100 rounded-lg mb-3 flex items-center justify-center p-4" style={{ minHeight: '200px' }}>
-  {tile.image_url ? (
-    <img 
-      src={tile.image_url} 
-      alt={tile.name}
-      className="max-w-full max-h-full object-contain rounded-lg"
-      style={{
-        aspectRatio: tile.size_length && tile.size_breadth ? `${tile.size_length}/${tile.size_breadth}` : '1/1'
-      }}
-    />
-  ) : (
-    <Grid3X3 className="h-12 w-12 text-gray-400" />
-  )}
-</div>
+          <div 
+            className="bg-gray-100 rounded-lg mb-3 flex items-center justify-center p-4 overflow-hidden"
+            style={{ 
+              aspectRatio: '2/1',
+              minHeight: '200px'
+            }}
+          >
+            {tile.image_url ? (
+              <img 
+                src={tile.image_url} 
+                alt={tile.name}
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+            ) : (
+              <div className="text-gray-500">No image available</div>
+            )}
+          </div>
         
         <div className="space-y-2">
           <div className="flex items-center justify-between">
