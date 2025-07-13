@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { 
@@ -29,14 +28,19 @@ const sidebarItems = [
 
 export const Sidebar = ({ isOpen, activeView, onViewChange, userRole }: SidebarProps) => {
   const filteredItems = sidebarItems.filter(item => item.roles.includes(userRole));
-
+  
   return (
     <aside className={cn(
       "bg-white border-r border-gray-200 transition-all duration-300 flex flex-col",
       isOpen ? "w-64" : "w-0 lg:w-16",
       isOpen && "shadow-lg lg:shadow-none"
     )}>
-      <div className={cn("p-4 flex-1", isOpen && "overflow-visible")}>
+      <div className={cn(
+        "p-4 flex-1", 
+        isOpen && "overflow-visible",
+        // Hide content completely on small screens when sidebar is closed
+        !isOpen && "hidden lg:block"
+      )}>
         <nav className="space-y-2">
           {filteredItems.map((item) => {
             const Icon = item.icon;
