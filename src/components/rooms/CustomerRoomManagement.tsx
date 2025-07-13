@@ -205,6 +205,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                           className="h-8 w-8 p-0 hover:bg-blue-100"
                         >
                           <Edit className="h-4 w-4 text-blue-600" />
+                          <span className="text-blue-600 text-sm">Edit</span>
                         </Button>
                         <Button
                           variant="ghost"
