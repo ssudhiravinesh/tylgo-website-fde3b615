@@ -273,27 +273,24 @@ export const WallTileSelectionPage = ({
     const tileLength = firstTile.size_length || 600; // Default to 600mm if not specified
     const tileBreadth = firstTile.size_breadth || 600; // Default to 600mm if not specified
     
-    // Calculate aspect ratio - NOW FLIPPED FOR HORIZONTAL LAYOUT
-    const aspectRatio = tileBreadth / tileLength; // breadth/length for horizontal orientation
+    // Calculate aspect ratio
+    const aspectRatio = tileLength / tileBreadth;
     
     // Base size for display (we'll scale from this)
     const baseSize = 100;
     
-    // Calculate actual display dimensions maintaining aspect ratio - HORIZONTAL LAYOUT
+    // Calculate actual display dimensions maintaining aspect ratio
     let tileWidth, tileHeight;
     if (aspectRatio > 1) {
-      // Breadth is greater than length (wider than tall)
-      tileWidth = baseSize;
-      tileHeight = baseSize / aspectRatio;
-    } else {
-      // Length is greater than or equal to breadth (taller than wide or square)
       tileHeight = baseSize;
-      tileWidth = baseSize * aspectRatio;
+      tileWidth = baseSize / aspectRatio;
+    } else {
+      tileWidth = baseSize;
+      tileHeight = baseSize * aspectRatio;
     }
     
-    // CHANGED: Canvas dimensions swapped for horizontal layout
-    const canvasWidth = wallSelection.layers.length * tileWidth; // layers horizontally
-    const canvasHeight = tilesPerLayer * tileHeight; // tiles vertically
+    const canvasWidth = tilesPerLayer * tileWidth;
+    const canvasHeight = wallSelection.layers.length * tileHeight;
     
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
@@ -399,19 +396,19 @@ export const WallTileSelectionPage = ({
     };
 
     const addLayerLabels = () => {
-      // CHANGED: Add layer numbers at the top of each column (horizontal layout)
+      // Add layer numbers on the left side
       ctx.fillStyle = '#374151';
       ctx.font = 'bold 14px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
       
       sortedLayers.forEach((layer, layerIndex) => {
-        const x = layerIndex * tileWidth;
-        ctx.fillText(`L${layer.layerNumber}`, x + tileWidth/2, -8);
+        const y = layerIndex * tileHeight;
+        ctx.fillText(`L${layer.layerNumber}`, -8, y + tileHeight/2);
       });
     };
     
-    // CHANGED: Draw all tiles in horizontal layout (layers as columns, tiles as rows)
+    // Draw all tiles with actual dimensions
     sortedLayers.forEach((layer, layerIndex) => {
       const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) {
@@ -419,10 +416,10 @@ export const WallTileSelectionPage = ({
         return;
       }
 
-      const x = layerIndex * tileWidth; // Each layer is a column
+      const y = layerIndex * tileHeight;
       
       for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
-        const y = tileIndex * tileHeight; // Each tile is a row
+        const x = tileIndex * tileWidth;
         drawTile(x, y, tile, layer);
       }
     });
@@ -659,7 +656,7 @@ export const WallTileSelectionPage = ({
           </div>
           <div className="text-sm text-gray-600 text-center">
             <p>Preview shows 6 tiles per layer with actual tile proportions</p>
-            <p>Layers are arranged horizontally (left to right)</p>
+            <p>Layers are stacked from bottom (Layer 1) to top</p>
           </div>
         </DialogContent>
       </Dialog>
