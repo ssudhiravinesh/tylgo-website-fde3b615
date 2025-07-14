@@ -3,12 +3,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save, User, MapPin, FileText } from "lucide-react";
 import { useCreateCustomer, useCustomers, Customer } from "@/hooks/useCustomers";
 import { MobileNumberSearch } from "./MobileNumberSearch";
 import { toast } from "sonner";
+import { getAllStates, getCitiesByState, getStateByPincode } from "@/utils/indianStatesAndCities";
 
 interface CustomerFormProps {
   onBack: () => void;
@@ -37,6 +38,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   });
 
   const createCustomer = useCreateCustomer();
+  const allStates = getAllStates();
 
   const capitalizeWords = (value: string) => {
     return value
@@ -53,6 +55,17 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   
     setFormData(prev => ({ ...prev, [field]: formattedValue }));
   
+    // Handle pincode-based state autopopulation
+    if (field === "pincode" && value.length === 6) {
+      const detectedState = getStateByPincode(value);
+      if (detectedState) {
+        setFormData(prev => ({ ...prev, state: detectedState }));
+        if (errors.state) {
+          setErrors(prev => ({ ...prev, state: "" }));
+        }
+      }
+    }
+
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
@@ -143,21 +156,20 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields correctly");
+      return;
+    }
+
     const formattedData = {
       ...formData,
       name: capitalizeWords(formData.name),
       reference_name: capitalizeWords(formData.reference_name)
     };
     
-    await createCustomer.mutateAsync(formattedData);
-
-    if (!validateForm()) {
-      toast.error("Please fill in all required fields correctly");
-      return;
-    }
-    
     try {
-      await createCustomer.mutateAsync(formData);
+      await createCustomer.mutateAsync(formattedData);
       onBack();
     } catch (error) {
       console.error("Error creating customer:", error);
@@ -166,21 +178,20 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
   const handleSaveAndQuote = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields correctly");
+      return;
+    }
+
     const formattedData = {
       ...formData,
       name: capitalizeWords(formData.name),
       reference_name: capitalizeWords(formData.reference_name)
     };
     
-    await createCustomer.mutateAsync(formattedData);
-
-    if (!validateForm()) {
-      toast.error("Please fill in all required fields correctly");
-      return;
-    }
-    
     try {
-      const newCustomer = await createCustomer.mutateAsync(formData);
+      const newCustomer = await createCustomer.mutateAsync(formattedData);
       if (onNewQuote && newCustomer?.id) {
         onNewQuote(newCustomer.id);
       }
@@ -224,19 +235,19 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               </Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="name"
-                    type="text"
-                    inputMode="text"
-                    placeholder="Enter customer's full name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                      errors.name ? "border-red-500" : ""
-                    }`}
-                    required
-                    autoComplete="name"
-                  />
+                <Input
+                  id="name"
+                  type="text"
+                  inputMode="text"
+                  autoComplete="name"
+                  placeholder="Enter customer's full name"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                    errors.name ? "border-red-500" : ""
+                  }`}
+                  required
+                />
               </div>
               {errors.name && (
                 <p className="text-sm text-red-600">{errors.name}</p>
@@ -271,6 +282,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     id="area"
                     type="text"
                     inputMode="text"
+                    autoComplete="address-level2"
                     placeholder="e.g., Andheri, Koramangala, CP"
                     value={formData.area}
                     onChange={(e) => handleInputChange("area", e.target.value)}
@@ -290,18 +302,23 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   <Label htmlFor="state" className="text-sm font-medium text-gray-700">
                     State *
                   </Label>
-                  <Input
-                    id="state"
-                    type="text"
-                    inputMode="text"
-                    placeholder="e.g., Maharashtra, Karnataka"
-                    value={formData.state}
-                    onChange={(e) => handleInputChange("state", e.target.value)}
-                    className={`h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                  <Select 
+                    value={formData.state} 
+                    onValueChange={(value) => handleInputChange("state", value)}
+                  >
+                    <SelectTrigger className={`h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
                       errors.state ? "border-red-500" : ""
-                    }`}
-                    required
-                  />
+                    }`}>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {allStates.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {errors.state && (
                     <p className="text-sm text-red-600">{errors.state}</p>
                   )}
@@ -317,6 +334,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={6}
+                    autoComplete="postal-code"
                     placeholder="400001"
                     value={formData.pincode}
                     onChange={(e) => handleInputChange("pincode", e.target.value.replace(/\D/g, ''))}
@@ -347,13 +365,13 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                       id="reference_name"
                       type="text"
                       inputMode="text"
+                      autoComplete="name"
                       placeholder="Enter reference person's name"
                       value={formData.reference_name}
                       onChange={(e) => handleInputChange("reference_name", e.target.value)}
                       className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
                         errors.reference_name ? "border-red-500" : ""
                       }`}
-                      autoComplete="name"
                     />
                   </div>
                   {errors.reference_name && (

@@ -220,15 +220,27 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
-          prev < filteredOptions.length - 1 ? prev + 1 : 0
-        );
+        setSelectedSuggestionIndex(prev => {
+          const nextIndex = prev < filteredOptions.length - 1 ? prev + 1 : 0;
+          // Scroll to selected item
+          setTimeout(() => {
+            const selectedElement = suggestionsRef.current?.children[nextIndex] as HTMLElement;
+            selectedElement?.scrollIntoView({ block: 'nearest' });
+          }, 0);
+          return nextIndex;
+        });
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
-          prev > 0 ? prev - 1 : filteredOptions.length - 1
-        );
+        setSelectedSuggestionIndex(prev => {
+          const nextIndex = prev > 0 ? prev - 1 : filteredOptions.length - 1;
+          // Scroll to selected item
+          setTimeout(() => {
+            const selectedElement = suggestionsRef.current?.children[nextIndex] as HTMLElement;
+            selectedElement?.scrollIntoView({ block: 'nearest' });
+          }, 0);
+          return nextIndex;
+        });
         break;
       case 'Enter':
         e.preventDefault();
@@ -311,6 +323,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 id="name"
                 type="text"
                 inputMode="text"
+                autoComplete="off"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -319,7 +332,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 placeholder="e.g., Living Room, Bedroom"
                 disabled={isLoading}
                 required
-                autoComplete="off"
               />
               
               {showSuggestions && filteredOptions.length > 0 && (
@@ -396,7 +408,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
               <div className="space-y-2">
                 <Label htmlFor="width">
                   Width * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
-                </Label>
+                </Label>  
                 {renderDimensionInput("width", "Width")}
               </div>
             </div>

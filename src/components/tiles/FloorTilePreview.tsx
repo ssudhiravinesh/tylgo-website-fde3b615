@@ -1,3 +1,4 @@
+
 import { useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -28,18 +29,21 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const tilesPerRow = 8; // Show 8 tiles per row
-    const tilesPerColumn = 6; // Show 6 rows
-    const tileSize = 80; // Size of each tile in pixels
+    const tilesPerRow = 6; // 6 tiles per row
+    const tilesPerColumn = 4; // 4 rows (layers)
+    const tileSize = 100; // Size of each tile in pixels
     const canvasWidth = tilesPerRow * tileSize;
     const canvasHeight = tilesPerColumn * tileSize;
     
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    // Clear canvas with white background
+    // Clear canvas with white background  
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    let loadedImages = 0;
+    const totalTiles = tilesPerRow * tilesPerColumn;
 
     const drawTile = (x: number, y: number) => {
       if (tile.image_url && tile.image_url.trim() !== '') {
@@ -49,7 +53,9 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
         img.onload = () => {
           try {
             if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              // Draw the tile image
               ctx.drawImage(img, x, y, tileSize, tileSize);
+              
               // Add subtle border
               ctx.strokeStyle = '#e5e7eb';
               ctx.lineWidth = 1;
@@ -61,11 +67,17 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
             console.error('Error drawing floor tile image:', error);
             drawFallbackTile(x, y);
           }
+          
+          loadedImages++;
+          if (loadedImages === totalTiles) {
+            console.log('All floor tiles loaded successfully');
+          }
         };
         
         img.onerror = () => {
           console.error('Failed to load floor tile image:', tile.image_url);
           drawFallbackTile(x, y);
+          loadedImages++;
         };
         
         // Add timeout to prevent hanging
@@ -79,14 +91,26 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
         img.src = tile.image_url;
       } else {
         drawFallbackTile(x, y);
+        loadedImages++;
       }
     };
 
     const drawFallbackTile = (x: number, y: number) => {
-      // Draw colored rectangle with pattern
-      const baseHue = 200; // Blue-ish base color for floors
-      ctx.fillStyle = `hsl(${baseHue}, 45%, 80%)`;
+      // Draw colored rectangle with floor-specific pattern
+      const baseHue = 35; // Brown-ish base color for floors
+      ctx.fillStyle = `hsl(${baseHue}, 60%, 75%)`;
       ctx.fillRect(x, y, tileSize, tileSize);
+      
+      // Add wood grain pattern effect
+      ctx.strokeStyle = `hsl(${baseHue}, 50%, 65%)`;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
+        const lineY = y + (i * tileSize / 5) + 10;
+        ctx.beginPath();
+        ctx.moveTo(x + 5, lineY);
+        ctx.lineTo(x + tileSize - 5, lineY);
+        ctx.stroke();
+      }
       
       // Add border
       ctx.strokeStyle = '#9ca3af';
@@ -95,7 +119,7 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
       
       // Add tile code text
       ctx.fillStyle = '#374151';
-      ctx.font = 'bold 10px Arial';
+      ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
@@ -105,16 +129,16 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
       if (code.length > maxLength) {
         const firstLine = code.substring(0, maxLength);
         const secondLine = code.substring(maxLength, maxLength * 2);
-        ctx.fillText(firstLine, x + tileSize/2, y + tileSize/2 - 6);
+        ctx.fillText(firstLine, x + tileSize/2, y + tileSize/2 - 8);
         if (secondLine) {
-          ctx.fillText(secondLine, x + tileSize/2, y + tileSize/2 + 6);
+          ctx.fillText(secondLine, x + tileSize/2, y + tileSize/2 + 8);
         }
       } else {
         ctx.fillText(code, x + tileSize/2, y + tileSize/2);
       }
     };
     
-    // Draw all tiles in a grid pattern
+    // Draw all tiles in a 4x6 grid pattern
     for (let row = 0; row < tilesPerColumn; row++) {
       for (let col = 0; col < tilesPerRow; col++) {
         const x = col * tileSize;
@@ -139,29 +163,29 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <span className="font-medium text-blue-800">Tile Code:</span>
-                <p className="text-blue-700">{tile.code}</p>
+                <span className="font-medium text-amber-800">Tile Code:</span>
+                <p className="text-amber-700">{tile.code}</p>
               </div>
               <div>
-                <span className="font-medium text-blue-800">Size:</span>
-                <p className="text-blue-700">{tile.size_length}×{tile.size_breadth} mm</p>
+                <span className="font-medium text-amber-800">Size:</span>
+                <p className="text-amber-700">{tile.size_length}×{tile.size_breadth} mm</p>
               </div>
               <div>
-                <span className="font-medium text-blue-800">Floor Area:</span>
-                <p className="text-blue-700">{area.toFixed(2)} {unit}²</p>
+                <span className="font-medium text-amber-800">Floor Area:</span>
+                <p className="text-amber-700">{area.toFixed(2)} {unit}²</p>
               </div>
               <div>
-                <span className="font-medium text-blue-800">Price/Box:</span>
-                <p className="text-blue-700">₹{tile.price_per_box || 'N/A'}</p>
+                <span className="font-medium text-amber-800">Price/Box:</span>
+                <p className="text-amber-700">₹{tile.price_per_box || 'N/A'}</p>
               </div>
             </div>
           </div>
           
           <div className="flex flex-col items-center space-y-4">
-            <h3 className="text-lg font-medium text-gray-800">Floor Layout Preview</h3>
+            <h3 className="text-lg font-medium text-gray-800">Floor Layout Preview (4 Layers × 6 Tiles)</h3>
             <div className="border border-gray-300 rounded-lg overflow-hidden shadow-lg bg-white p-4">
               <canvas
                 ref={canvasRef}
@@ -170,8 +194,8 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
               />
             </div>
             <p className="text-sm text-gray-600 text-center max-w-md">
-              This preview shows how your selected tile will look when laid on the floor. 
-              The pattern represents the actual tile arrangement.
+              This preview shows how your selected tile will look when laid on the floor in a 4×6 pattern. 
+              Each tile represents the actual tile that will be installed.
             </p>
           </div>
         </div>
