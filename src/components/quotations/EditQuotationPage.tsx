@@ -178,7 +178,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       [tileId]: (prev[tileId] || 0) + delta
     }));
   };
-
+  const isClosed = quotation.status === 'closed';
   const handleSave = async () => {
     try {
       await updateQuotation({
@@ -242,16 +242,21 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             <p className="text-gray-600">Modify quotation details and tile quantities</p>
           </div>
         </div>
-
+    
         <Button
           onClick={handleSave}
-          disabled={isUpdating}
+          disabled={isUpdating || isClosed}
           className="gap-2 bg-blue-600 hover:bg-blue-700"
         >
           <Save className="h-4 w-4" />
           {isUpdating ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
+      {isClosed && (
+        <div className="bg-red-50 text-red-800 p-2 rounded-md border border-red-200">
+          This quotation is marked as <strong>closed</strong> and cannot be edited.
+        </div>
+      )}
 
       {/* Quotation Header with Edit Fields */}
       <Card className="border-gray-200 shadow-sm">
