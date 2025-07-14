@@ -265,9 +265,34 @@ export const WallTileSelectionPage = ({
     if (!ctx) return;
 
     const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
-    const tileSize = 100; // Larger size for better visibility in bigger dialog
-    const canvasWidth = tilesPerLayer * tileSize;
-    const canvasHeight = wallSelection.layers.length * tileSize;
+    
+    // Calculate tile dimensions based on the first tile's actual size
+    const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
+    if (!firstTile) return;
+    
+    const tileLength = firstTile.size_length || 600; // Default to 600mm if not specified
+    const tileBreadth = firstTile.size_breadth || 600; // Default to 600mm if not specified
+    
+    // Calculate aspect ratio
+    const aspectRatio = tileLength / tileBreadth;
+    
+    // Base size for display (we'll scale from this)
+    const baseSize = 100;
+    
+    // Calculate actual display dimensions maintaining aspect ratio
+    let tileWidth, tileHeight;
+    if (aspectRatio > 1) {
+      // Length is greater than breadth (rectangular, longer horizontally)
+      tileWidth = baseSize;
+      tileHeight = baseSize / aspectRatio;
+    } else {
+      // Breadth is greater than or equal to length (square or rectangular, longer vertically)
+      tileHeight = baseSize;
+      tileWidth = baseSize * aspectRatio;
+    }
+    
+    const canvasWidth = tilesPerLayer * tileWidth;
+    const canvasHeight = wallSelection.layers.length * tileHeight;
     
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
@@ -289,11 +314,11 @@ export const WallTileSelectionPage = ({
           try {
             // Ensure image is fully loaded before drawing
             if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-              ctx.drawImage(img, x, y, tileSize, tileSize);
+              ctx.drawImage(img, x, y, tileWidth, tileHeight);
               // Add subtle border
               ctx.strokeStyle = '#d1d5db';
               ctx.lineWidth = 1;
-              ctx.strokeRect(x, y, tileSize, tileSize);
+              ctx.strokeRect(x, y, tileWidth, tileHeight);
             } else {
               drawFallbackTile(x, y, tile, layer);
             }
@@ -334,35 +359,36 @@ export const WallTileSelectionPage = ({
     };
 
     const drawFallbackTile = (x: number, y: number, tile: any, layer: any) => {
-      // Draw colored rectangle with better styling
+      // Draw colored rectangle with better styling using actual dimensions
       const hue = (layer.layerNumber * 60) % 360;
       ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
-      ctx.fillRect(x, y, tileSize, tileSize);
+      ctx.fillRect(x, y, tileWidth, tileHeight);
       
       // Add border
       ctx.strokeStyle = '#9ca3af';
       ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, tileSize, tileSize);
+      ctx.strokeRect(x, y, tileWidth, tileHeight);
       
-      // Add tile code text with better styling
+      // Add tile code text with better styling - adjust font size based on tile dimensions
       ctx.fillStyle = '#374151';
-      ctx.font = 'bold 12px Arial';
+      const fontSize = Math.min(tileWidth, tileHeight) * 0.12; // Scale font size with tile size
+      ctx.font = `bold ${fontSize}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
       // Break long tile codes into multiple lines for better readability
       const code = tile.code || tile.name || 'Unknown';
-      const maxLength = 10;
+      const maxLength = Math.floor(tileWidth / 8); // Adjust max length based on tile width
       
       if (code.length > maxLength) {
         const firstLine = code.substring(0, maxLength);
         const secondLine = code.substring(maxLength, maxLength * 2);
-        ctx.fillText(firstLine, x + tileSize/2, y + tileSize/2 - 8);
+        ctx.fillText(firstLine, x + tileWidth/2, y + tileHeight/2 - fontSize/2);
         if (secondLine) {
-          ctx.fillText(secondLine, x + tileSize/2, y + tileSize/2 + 8);
+          ctx.fillText(secondLine, x + tileWidth/2, y + tileHeight/2 + fontSize/2);
         }
       } else {
-        ctx.fillText(code, x + tileSize/2, y + tileSize/2);
+        ctx.fillText(code, x + tileWidth/2, y + tileHeight/2);
       }
       
       loadedImages++;
@@ -379,12 +405,12 @@ export const WallTileSelectionPage = ({
       ctx.textBaseline = 'middle';
       
       sortedLayers.forEach((layer, layerIndex) => {
-        const y = layerIndex * tileSize;
-        ctx.fillText(`L${layer.layerNumber}`, -8, y + tileSize/2);
+        const y = layerIndex * tileHeight;
+        ctx.fillText(`L${layer.layerNumber}`, -8, y + tileHeight/2);
       });
     };
     
-    // Draw all tiles
+    // Draw all tiles with actual dimensions
     sortedLayers.forEach((layer, layerIndex) => {
       const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) {
@@ -392,10 +418,10 @@ export const WallTileSelectionPage = ({
         return;
       }
 
-      const y = layerIndex * tileSize;
+      const y = layerIndex * tileHeight;
       
       for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
-        const x = tileIndex * tileSize;
+        const x = tileIndex * tileWidth;
         drawTile(x, y, tile, layer);
       }
     });
@@ -631,7 +657,7 @@ export const WallTileSelectionPage = ({
             </div>
           </div>
           <div className="text-sm text-gray-600 text-center">
-            <p>Preview shows 6 tiles per layer</p>
+            <p>Preview shows 6 tiles per layer with actual tile proportions</p>
             <p>Layers are stacked from bottom (Layer 1) to top</p>
           </div>
         </DialogContent>
