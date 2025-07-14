@@ -64,7 +64,7 @@ export const calculateTileRequirements = (
         boxesNeeded: 0,
         totalPrice: 0,
         isWallTile: false,
-        piecesperBox: 0,
+        piecesPerBox: 0,
       };
     }
 
