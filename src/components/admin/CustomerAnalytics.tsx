@@ -45,7 +45,7 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
       setTopCustomers(sortedCustomers);
       
       // Calculate conversion rate
-      const approvedQuotations = quotations.filter(q => q.status === 'approved').length;
+      const approvedQuotations = quotations.filter(q => q.status === 'approved' || q.status === 'closed').length;
       const totalQuotations = quotations.length;
       const rate = totalQuotations > 0 ? (approvedQuotations / totalQuotations) * 100 : 0;
       setConversionRate(rate);
