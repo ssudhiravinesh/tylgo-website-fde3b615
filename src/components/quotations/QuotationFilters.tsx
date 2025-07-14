@@ -62,6 +62,7 @@ export const QuotationFilters = ({
     { value: "all", label: "All Statuses" },
     { value: "draft", label: "Draft" },
     { value: "approved", label: "Approved" },
+    { value: "closed", label: "Closed" },  
   ];
 
   const hasActiveFilters = currentQuickSort !== "all" || 
