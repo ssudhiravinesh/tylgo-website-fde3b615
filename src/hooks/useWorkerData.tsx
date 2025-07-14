@@ -8,6 +8,8 @@ export interface Worker {
   role: 'admin' | 'worker';
   created_at: string;
   quotation_count?: number;
+  approved_quotations?: number;
+  pending_quotations?: number;
 }
 
 export interface QuotationStats {
@@ -34,27 +36,46 @@ const fetchWorkers = async (): Promise<Worker[]> => {
     throw profilesError;
   }
 
-  // Get quotation counts for each worker
-  const { data: quotationCounts, error: quotationError } = await supabase
+  // Get quotations with status for each worker
+  const { data: quotations, error: quotationError } = await supabase
     .from('quotations')
-    .select('worker_id')
+    .select('worker_id, status')
     .in('worker_id', profiles?.map(p => p.id) || []);
 
   if (quotationError) {
-    console.error('Error fetching quotation counts:', quotationError);
+    console.error('Error fetching quotations:', quotationError);
     // Don't throw here, just log the error
   }
 
-  // Count quotations per worker
-  const quotationCountMap = quotationCounts?.reduce((acc, quotation) => {
-    acc[quotation.worker_id] = (acc[quotation.worker_id] || 0) + 1;
+  // Count quotations per worker by status
+  const quotationStatsMap = quotations?.reduce((acc, quotation) => {
+    const workerId = quotation.worker_id;
+    
+    if (!acc[workerId]) {
+      acc[workerId] = {
+        total: 0,
+        approved: 0,
+        pending: 0,
+      };
+    }
+    
+    acc[workerId].total += 1;
+    
+    if (quotation.status === 'approved') {
+      acc[workerId].approved += 1;
+    } else if (quotation.status === 'pending') {
+      acc[workerId].pending += 1;
+    }
+    
     return acc;
-  }, {} as Record<string, number>) || {};
+  }, {} as Record<string, { total: number; approved: number; pending: number }>) || {};
 
   // Combine profiles with quotation counts
   const workersWithCounts = profiles?.map(profile => ({
     ...profile,
-    quotation_count: quotationCountMap[profile.id] || 0,
+    quotation_count: quotationStatsMap[profile.id]?.total || 0,
+    approved_quotations: quotationStatsMap[profile.id]?.approved || 0,
+    pending_quotations: quotationStatsMap[profile.id]?.pending || 0,
   })) || [];
 
   console.log('Workers fetched:', workersWithCounts);
