@@ -319,10 +319,18 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                         <p className="text-gray-600">Tiles Required</p>
                         <p className="font-medium text-green-600">
                           {calc.tilesNeeded} tiles
-                          <span className="text-xs text-gray-500 block">
-                            (+{wastagePercentage}% wastage)
-                          </span>
+                          {(() => {
+                            const leftoverTiles = calc.tilesNeeded % (calc.tile.pieces_per_box || 1);
+                            const fullBoxes = Math.floor(calc.tilesNeeded / (calc.tile.pieces_per_box || 1));
+                            return (
+                              <span className="text-xs text-gray-500 block">
+                                ({fullBoxes} box{fullBoxes !== 1 ? 'es' : ''}{leftoverTiles > 0 ? ` and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}` : ''})
+                                <br />(+{wastagePercentage}% wastage)
+                              </span>
+                            );
+                          })()}
                         </p>
+
                       </div>
                     </div>
                     
