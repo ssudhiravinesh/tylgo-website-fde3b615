@@ -121,14 +121,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         {/* Tiles Column with breakdown */}
-                        <div className="text-center">
+                         <div className="text-center">
                           <p className="text-gray-500">Tiles</p>
                           <p className="font-medium">
-                            {calc.tilesNeeded}
+                            {calc.rawTilesNeeded}
                             <br />
                             <span className="text-xs text-gray-500">
-                              ({Math.floor(calc.tilesNeeded / calc.piecesPerBox)} box{Math.floor(calc.tilesNeeded / calc.piecesPerBox) !== 1 ? 'es' : ''}
-                              {(calc.tilesNeeded % calc.piecesPerBox) > 0 ? ` and ${calc.tilesNeeded % calc.piecesPerBox} tile${(calc.tilesNeeded % calc.piecesPerBox) > 1 ? 's' : ''}` : ''})
+                              ({calc.fullBoxes} box{calc.fullBoxes !== 1 ? 'es' : ''}
+                              {calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} tile${calc.leftoverTiles !== 1 ? 's' : ''}` : ''})
                             </span>
                           </p>
                         </div>
