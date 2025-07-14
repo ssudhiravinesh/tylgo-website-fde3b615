@@ -210,10 +210,40 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
                     <span className="text-gray-600">Items:</span>
                     <span className="font-medium">{quotation.quotation_items?.length || 0}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Total Boxes:</span>
-                    <span className="font-medium">{totalBoxes}</span>
-                  </div>
+                  <div className="flex justify-between items-start text-sm">
+  <span className="text-gray-600">Total Boxes:</span>
+  <div className="text-right">
+    <p className="font-medium">{totalBoxes}</p>
+    <p className="text-xs text-gray-500 mt-1">
+      {(() => {
+        const totalTiles = quotation.quotation_items?.reduce((sum, item) => {
+          const tile = item.tile;
+          const area = parseFloat(item.area?.toString()) || 0;
+
+          if (!tile || !tile.size_length || !tile.size_breadth || !tile.pieces_per_box) return sum;
+
+          const tileLengthFt = tile.size_length / 304.8;
+          const tileBreadthFt = tile.size_breadth / 304.8;
+          const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+
+          if (tileAreaSqFt <= 0) return sum;
+
+          const basicTiles = Math.ceil(area / tileAreaSqFt);
+          const withWastage = Math.ceil(basicTiles * (1 + (wastagePercentage / 100)));
+
+          return sum + withWastage;
+        }, 0) || 0;
+
+        const piecesPerBox = quotation.quotation_items?.[0]?.tile?.pieces_per_box || 1;
+        const fullBoxes = Math.floor(totalTiles / piecesPerBox);
+        const leftoverTiles = totalTiles % piecesPerBox;
+
+        return `${totalTiles} tiles (${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}${leftoverTiles > 0 ? ` and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}` : ''})`;
+      })()}
+    </p>
+  </div>
+</div>
+
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Grand Total:</span>
                     <span className="font-bold text-lg text-green-600">₹{grandTotal.toLocaleString()}</span>
