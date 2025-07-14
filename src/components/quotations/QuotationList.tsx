@@ -29,17 +29,30 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [filterYear, setFilterYear] = useState<number | null>(null);
   const [filterMonth, setFilterMonth] = useState<number | null>(null);
   
+  // New filter states
+  const [selectedWorker, setSelectedWorker] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  
   const { data: quotations = [], isLoading, refetch, deleteQuotation, isDeleting } = useQuotations({
     quickSort,
     year: filterYear,
     month: filterMonth
   });
   
-  const filteredQuotations = quotations.filter(quotation =>
-    quotation.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    quotation.quotation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    quotation.customer?.mobile.includes(searchTerm)
-  );
+  const filteredQuotations = quotations.filter(quotation => {
+    // Text search filter
+    const matchesSearch = quotation.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      quotation.quotation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      quotation.customer?.mobile.includes(searchTerm);
+    
+    // Worker filter
+    const matchesWorker = selectedWorker === "all" || quotation.worker_id === selectedWorker;
+    
+    // Status filter
+    const matchesStatus = selectedStatus === "all" || quotation.status === selectedStatus;
+    
+    return matchesSearch && matchesWorker && matchesStatus;
+  });
 
   const selectedQuotation = selectedQuotationId 
     ? quotations.find(q => q.id === selectedQuotationId)
@@ -48,6 +61,17 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const selectedQuotationForActionObj = selectedQuotationForAction
     ? quotations.find(q => q.id === selectedQuotationForAction)
     : null;
+
+  // Get unique workers from quotations for filter dropdown
+  const uniqueWorkers = quotations.reduce((workers, quotation) => {
+    if (quotation.worker && !workers.find(w => w.id === quotation.worker.id)) {
+      workers.push({
+        id: quotation.worker.id,
+        name: quotation.worker.name
+      });
+    }
+    return workers;
+  }, [] as Array<{ id: string; name: string }>);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -124,29 +148,22 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setFilterMonth(month);
   };
 
-  // if (viewMode === "create") {
-  //   // Show a message that creation needs to be done from the rooms page
-  //   return (
-  //     <div className="container max-w-4xl mx-auto py-10">
-  //       <Card>
-  //         <CardHeader>
-  //           <CardTitle>Create Quotation</CardTitle>
-  //         </CardHeader>
-  //         <CardContent>
-  //           <div className="text-center py-8">
-  //             <p className="text-gray-600 mb-4">
-  //               To create a quotation, please go to the Rooms page, select a customer, 
-  //               add rooms, select tiles, and then generate the quotation from there.
-  //             </p>
-  //             <Button onClick={handleBackToList} variant="outline">
-  //               Back to Quotations
-  //             </Button>
-  //           </div>
-  //         </CardContent>
-  //       </Card>
-  //     </div>
-  //   );
-  // }
+  const handleWorkerFilterChange = (workerId: string) => {
+    setSelectedWorker(workerId);
+  };
+
+  const handleStatusFilterChange = (status: string) => {
+    setSelectedStatus(status);
+  };
+
+  const clearAllFilters = () => {
+    setQuickSort("all");
+    setFilterYear(null);
+    setFilterMonth(null);
+    setSelectedWorker("all");
+    setSelectedStatus("all");
+    setSearchTerm("");
+  };
 
   if (viewMode === "details" && selectedQuotation) {
     return (
@@ -203,13 +220,19 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
           />
         </div>
 
-        {/* New Filtering Controls */}
+        {/* Enhanced Filtering Controls */}
         <QuotationFilters
           onQuickSortChange={handleQuickSortChange}
           onPreciseFilterChange={handlePreciseFilterChange}
+          onWorkerFilterChange={handleWorkerFilterChange}
+          onStatusFilterChange={handleStatusFilterChange}
+          onClearFilters={clearAllFilters}
           currentQuickSort={quickSort}
           currentYear={filterYear}
           currentMonth={filterMonth}
+          currentWorker={selectedWorker}
+          currentStatus={selectedStatus}
+          availableWorkers={uniqueWorkers}
         />
 
         {/* Summary Cards */}
@@ -220,7 +243,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                 <FileText className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Quotations</p>
-                  <p className="text-2xl font-bold">{quotations.length}</p>
+                  <p className="text-2xl font-bold">{filteredQuotations.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -233,7 +256,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Approved</p>
                   <p className="text-2xl font-bold">
-                    {quotations.filter(q => q.status === 'approved').length}
+                    {filteredQuotations.filter(q => q.status === 'approved').length}
                   </p>
                 </div>
               </div>
@@ -247,7 +270,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Pending</p>
                   <p className="text-2xl font-bold">
-                    {quotations.filter(q => q.status === 'draft').length}
+                    {filteredQuotations.filter(q => q.status === 'draft').length}
                   </p>
                 </div>
               </div>
@@ -261,7 +284,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Value</p>
                   <p className="text-2xl font-bold">
-                    ₹{quotations.reduce((sum, q) => sum + (q.total_cost || 0), 0).toLocaleString()}
+                    ₹{filteredQuotations.reduce((sum, q) => sum + (q.total_cost || 0), 0).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -325,15 +348,26 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-600 mb-2">No quotations found</h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm ? "Try adjusting your search terms" : "No quotations have been created yet"}
+              {searchTerm || selectedWorker !== "all" || selectedStatus !== "all" ? 
+                "Try adjusting your search terms or filters" : 
+                "No quotations have been created yet"
+              }
             </p>
-            {!searchTerm && (
+            {(!searchTerm && selectedWorker === "all" && selectedStatus === "all") ? (
               <Button 
                 onClick={() => setViewMode("create")}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Quotation
+              </Button>
+            ) : (
+              <Button 
+                onClick={clearAllFilters}
+                variant="outline"
+                className="mr-2"
+              >
+                Clear All Filters
               </Button>
             )}
           </div>
