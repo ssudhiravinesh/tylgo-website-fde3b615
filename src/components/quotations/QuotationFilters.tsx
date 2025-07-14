@@ -1,25 +1,20 @@
-
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Filter, X } from "lucide-react";
+import { Calendar, Users, FileText, X } from "lucide-react";
 
 interface QuotationFiltersProps {
   onQuickSortChange: (range: string) => void;
   onPreciseFilterChange: (year: number | null, month: number | null) => void;
+  onWorkerFilterChange: (workerId: string) => void;
+  onStatusFilterChange: (status: string) => void;
+  onClearFilters: () => void;
   currentQuickSort: string;
   currentYear: number | null;
   currentMonth: number | null;
+  currentWorker: string;
+  currentStatus: string;
+  availableWorkers: Array<{ id: string; name: string }>;
 }
-
-const quickSortOptions = [
-  { value: "all", label: "All" },
-  { value: "current-month", label: "Current Month" },
-  { value: "last-month", label: "Last Month" },
-  { value: "last-2-months", label: "Last 2 Months" },
-  { value: "last-year", label: "Last Year" }
-];
 
 const months = [
   { value: 1, label: "January" },
@@ -33,170 +28,158 @@ const months = [
   { value: 9, label: "September" },
   { value: 10, label: "October" },
   { value: 11, label: "November" },
-  { value: 12, label: "December" }
+  { value: 12, label: "December" },
 ];
 
-// Generate years from 2025 to 2035
-const years = Array.from({ length: 11 }, (_, i) => 2025 + i);
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
 export const QuotationFilters = ({
   onQuickSortChange,
   onPreciseFilterChange,
+  onWorkerFilterChange,
+  onStatusFilterChange,
+  onClearFilters,
   currentQuickSort,
   currentYear,
-  currentMonth
+  currentMonth,
+  currentWorker,
+  currentStatus,
+  availableWorkers,
 }: QuotationFiltersProps) => {
-  const [selectedYear, setSelectedYear] = useState<number | null>(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(currentMonth);
+  const quickSortOptions = [
+    { value: "all", label: "All Time" },
+    { value: "today", label: "Today" },
+    { value: "yesterday", label: "Yesterday" },
+    { value: "this_week", label: "This Week" },
+    { value: "last_week", label: "Last Week" },
+    { value: "this_month", label: "This Month" },
+    { value: "last_month", label: "Last Month" },
+    { value: "this_year", label: "This Year" },
+  ];
 
-  const handleQuickSortClick = (range: string) => {
-    onQuickSortChange(range);
-    // Clear precise filters when quick sort is used
-    if (range !== "all") {
-      setSelectedYear(null);
-      setSelectedMonth(null);
-      onPreciseFilterChange(null, null);
-    }
-  };
+  const statusOptions = [
+    { value: "all", label: "All Statuses" },
+    { value: "draft", label: "Draft" },
+    { value: "approved", label: "Approved" },
+  ];
 
-  const handlePreciseFilter = () => {
-    onPreciseFilterChange(selectedYear, selectedMonth);
-    // Clear quick sort when precise filter is used
-    if (selectedYear || selectedMonth) {
-      onQuickSortChange("all");
-    }
-  };
-
-  const clearPreciseFilter = () => {
-    setSelectedYear(null);
-    setSelectedMonth(null);
-    onPreciseFilterChange(null, null);
-  };
-
-  const handleYearChange = (value: string) => {
-    if (value === "all-years") {
-      setSelectedYear(null);
-    } else {
-      setSelectedYear(parseInt(value));
-    }
-  };
-
-  const handleMonthChange = (value: string) => {
-    if (value === "all-months") {
-      setSelectedMonth(null);
-    } else {
-      setSelectedMonth(parseInt(value));
-    }
-  };
-
-  const hasActiveFilters = currentQuickSort !== "all" || currentYear || currentMonth;
+  const hasActiveFilters = currentQuickSort !== "all" || 
+                          currentYear !== null || 
+                          currentMonth !== null || 
+                          currentWorker !== "all" || 
+                          currentStatus !== "all";
 
   return (
-    <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
-      {/* Row 1: Quick Sort by Date Range */}
-      <div className="flex items-center gap-3 flex-wrap">
+    <div className="bg-white p-4 rounded-lg border border-gray-200">
+      <div className="flex flex-wrap gap-4 items-center">
+        {/* Quick Date Range Filter */}
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">Sort by:</span>
+          <Select value={currentQuickSort} onValueChange={onQuickSortChange}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Date Range" />
+            </SelectTrigger>
+            <SelectContent>
+              {quickSortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {quickSortOptions.map((option) => (
-            <Button
-              key={option.value}
-              variant={currentQuickSort === option.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleQuickSortClick(option.value)}
-              className={`text-xs ${
-                currentQuickSort === option.value 
-                  ? "bg-blue-600 hover:bg-blue-700" 
-                  : "hover:bg-gray-100"
-              }`}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
-      </div>
 
-      {/* Row 2: Precise Filter by Year and Month */}
-      <div className="flex items-center gap-3 flex-wrap">
+        {/* Year Filter */}
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">Precise Filter:</span>
+          <span className="text-sm text-gray-500">Year:</span>
+          <Select 
+            value={currentYear?.toString() || "all"} 
+            onValueChange={(value) => onPreciseFilterChange(value === "all" ? null : parseInt(value), currentMonth)}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {years.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        
-        <Select value={selectedYear?.toString() || "all-years"} onValueChange={handleYearChange}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all-years">All Years</SelectItem>
-            {years.map((year) => (
-              <SelectItem key={year} value={year.toString()}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
 
-        <Select value={selectedMonth?.toString() || "all-months"} onValueChange={handleMonthChange}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Month" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all-months">All Months</SelectItem>
-            {months.map((month) => (
-              <SelectItem key={month.value} value={month.value.toString()}>
-                {month.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Month Filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Month:</span>
+          <Select 
+            value={currentMonth?.toString() || "all"} 
+            onValueChange={(value) => onPreciseFilterChange(currentYear, value === "all" ? null : parseInt(value))}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              {months.map((month) => (
+                <SelectItem key={month.value} value={month.value.toString()}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Button
-          onClick={handlePreciseFilter}
-          disabled={!selectedYear && !selectedMonth}
-          size="sm"
-          className="bg-green-600 hover:bg-green-700"
-        >
-          <Filter className="h-4 w-4 mr-2" />
-          Filter
-        </Button>
+        {/* Worker Filter */}
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-gray-500" />
+          <Select value={currentWorker} onValueChange={onWorkerFilterChange}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Select Worker" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Workers</SelectItem>
+              {availableWorkers.map((worker) => (
+                <SelectItem key={worker.id} value={worker.id}>
+                  {worker.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        {(currentYear || currentMonth) && (
-          <Button
-            onClick={clearPreciseFilter}
-            variant="outline"
-            size="sm"
+        {/* Status Filter */}
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-gray-500" />
+          <Select value={currentStatus} onValueChange={onStatusFilterChange}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Select Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Clear Filters Button */}
+        {hasActiveFilters && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onClearFilters}
             className="text-red-600 hover:text-red-700 hover:bg-red-50"
           >
             <X className="h-4 w-4 mr-1" />
-            Clear
+            Clear Filters
           </Button>
         )}
       </div>
-
-      {/* Active Filters Display */}
-      {hasActiveFilters && (
-        <div className="flex items-center gap-2 pt-2 border-t">
-          <span className="text-xs text-gray-500">Active filters:</span>
-          {currentQuickSort !== "all" && (
-            <Badge variant="secondary" className="text-xs">
-              {quickSortOptions.find(opt => opt.value === currentQuickSort)?.label}
-            </Badge>
-          )}
-          {currentYear && (
-            <Badge variant="secondary" className="text-xs">
-              Year: {currentYear}
-            </Badge>
-          )}
-          {currentMonth && (
-            <Badge variant="secondary" className="text-xs">
-              Month: {months.find(m => m.value === currentMonth)?.label}
-            </Badge>
-          )}
-        </div>
-      )}
     </div>
   );
 };
