@@ -124,7 +124,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setFilterMonth(month);
   };
 
-  if (viewMode === "create") {
+ /* if (viewMode === "create") {
     // Show a message that creation needs to be done from the rooms page
     return (
       <div className="container max-w-4xl mx-auto py-10">
@@ -147,7 +147,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
       </div>
     );
   }
-
+*/
   if (viewMode === "details" && selectedQuotation) {
     return (
       <QuotationDetails
