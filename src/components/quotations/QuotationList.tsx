@@ -124,6 +124,8 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setFilterMonth(month);
   };
 
+
+
   if (viewMode === "details" && selectedQuotation) {
     return (
       <QuotationDetails
