@@ -53,6 +53,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -187,6 +188,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       );
       setFilteredOptions(filtered);
       setShowSuggestions(value.length > 0 && filtered.length > 0);
+      setSelectedSuggestionIndex(-1);
     }
   };
 
@@ -197,6 +199,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     
     setFormData(prev => ({ ...prev, name: suggestion, room_type: roomType }));
     setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
     inputRef.current?.focus();
   };
 
@@ -207,6 +210,36 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       );
       setFilteredOptions(filtered);
       setShowSuggestions(filtered.length > 0);
+      setSelectedSuggestionIndex(-1);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || filteredOptions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < filteredOptions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : filteredOptions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < filteredOptions.length) {
+          handleSuggestionClick(filteredOptions[selectedSuggestionIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        break;
     }
   };
 
@@ -248,9 +281,9 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
     return (
       <Input
-        type="number"
-        step="0.01"
-        min="0"
+        type="text"
+        inputMode="decimal"
+        pattern="[0-9]*\.?[0-9]*"
         value={formData[field]}
         onChange={(e) => handleInputChange(field, e.target.value)}
         placeholder="0.00"
@@ -277,8 +310,10 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 ref={inputRef}
                 id="name"
                 type="text"
+                inputMode="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
+                onKeyDown={handleKeyDown}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
                 placeholder="e.g., Living Room, Bedroom"
@@ -296,9 +331,14 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                     <button
                       key={index}
                       type="button"
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors focus:bg-accent focus:text-accent-foreground focus:outline-none"
+                      className={`w-full px-3 py-2 text-left text-sm transition-colors focus:outline-none ${
+                        index === selectedSuggestionIndex
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-accent hover:text-accent-foreground'
+                      }`}
                       onClick={() => handleSuggestionClick(option)}
                       onMouseDown={(e) => e.preventDefault()} // Prevent input blur
+                      onMouseEnter={() => setSelectedSuggestionIndex(index)}
                     >
                       {option}
                     </button>

@@ -19,7 +19,9 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const [formData, setFormData] = useState({
     name: "",
     mobile: "",
-    address: "",
+    area: "",
+    state: "",
+    pincode: "",
     reference_name: "",
     reference_mobile_no: ""
   });
@@ -27,7 +29,9 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const [errors, setErrors] = useState({
     name: "",
     mobile: "",
-    address: "",
+    area: "",
+    state: "",
+    pincode: "",
     reference_name: "",
     reference_mobile_no: ""
   });
@@ -59,7 +63,9 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
       setFormData(prev => ({
         ...prev,
         name: customer.name,
-        address: customer.address || "",
+        area: (customer as any).area || "",
+        state: (customer as any).state || "",
+        pincode: (customer as any).pincode || "",
         reference_name: customer.reference_name || "",
         reference_mobile_no: customer.reference_mobile_no ? customer.reference_mobile_no.replace(/\D/g, '').slice(-10) : ""
       }));
@@ -79,7 +85,9 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     const newErrors = {
       name: "",
       mobile: "",
-      address: "",
+      area: "",
+      state: "",
+      pincode: "",
       reference_name: "",
       reference_mobile_no: ""
     };
@@ -99,9 +107,21 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
       }
     }
 
-    // Validate address
-    if (!formData.address.trim()) {
-      newErrors.address = "Address is required";
+    // Validate area
+    if (!formData.area.trim()) {
+      newErrors.area = "Residing area is required";
+    }
+
+    // Validate state
+    if (!formData.state.trim()) {
+      newErrors.state = "State is required";
+    }
+
+    // Validate pincode
+    if (!formData.pincode.trim()) {
+      newErrors.pincode = "Pincode is required";
+    } else if (!/^\d{6}$/.test(formData.pincode.trim())) {
+      newErrors.pincode = "Pincode must be exactly 6 digits";
     }
 
     // Validate reference mobile if reference name is provided
@@ -204,16 +224,19 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               </Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="name"
-                  placeholder="Enter customer's full name"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                    errors.name ? "border-red-500" : ""
-                  }`}
-                  required
-                />
+                  <Input
+                    id="name"
+                    type="text"
+                    inputMode="text"
+                    placeholder="Enter customer's full name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                      errors.name ? "border-red-500" : ""
+                    }`}
+                    required
+                    autoComplete="name"
+                  />
               </div>
               {errors.name && (
                 <p className="text-sm text-red-600">{errors.name}</p>
@@ -237,26 +260,76 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="address" className="text-sm font-medium text-gray-700">
-                Address *
-              </Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Textarea
-                  id="address"
-                  placeholder="Enter complete address with pincode"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                  className={`pl-10 pt-3 min-h-[100px] border-gray-200 focus:border-blue-500 focus:ring-blue-500 resize-none ${
-                    errors.address ? "border-red-500" : ""
-                  }`}
-                  required
-                />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="area" className="text-sm font-medium text-gray-700">
+                  Residing Area *
+                </Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="area"
+                    type="text"
+                    inputMode="text"
+                    placeholder="e.g., Andheri, Koramangala, CP"
+                    value={formData.area}
+                    onChange={(e) => handleInputChange("area", e.target.value)}
+                    className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                      errors.area ? "border-red-500" : ""
+                    }`}
+                    required
+                  />
+                </div>
+                {errors.area && (
+                  <p className="text-sm text-red-600">{errors.area}</p>
+                )}
               </div>
-              {errors.address && (
-                <p className="text-sm text-red-600">{errors.address}</p>
-              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="state" className="text-sm font-medium text-gray-700">
+                    State *
+                  </Label>
+                  <Input
+                    id="state"
+                    type="text"
+                    inputMode="text"
+                    placeholder="e.g., Maharashtra, Karnataka"
+                    value={formData.state}
+                    onChange={(e) => handleInputChange("state", e.target.value)}
+                    className={`h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                      errors.state ? "border-red-500" : ""
+                    }`}
+                    required
+                  />
+                  {errors.state && (
+                    <p className="text-sm text-red-600">{errors.state}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pincode" className="text-sm font-medium text-gray-700">
+                    Pincode *
+                  </Label>
+                  <Input
+                    id="pincode"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    placeholder="400001"
+                    value={formData.pincode}
+                    onChange={(e) => handleInputChange("pincode", e.target.value.replace(/\D/g, ''))}
+                    className={`h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                      errors.pincode ? "border-red-500" : ""
+                    }`}
+                    required
+                  />
+                  {errors.pincode && (
+                    <p className="text-sm text-red-600">{errors.pincode}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Reference Information Section */}
@@ -272,12 +345,15 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="reference_name"
+                      type="text"
+                      inputMode="text"
                       placeholder="Enter reference person's name"
                       value={formData.reference_name}
                       onChange={(e) => handleInputChange("reference_name", e.target.value)}
                       className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
                         errors.reference_name ? "border-red-500" : ""
                       }`}
+                      autoComplete="name"
                     />
                   </div>
                   {errors.reference_name && (

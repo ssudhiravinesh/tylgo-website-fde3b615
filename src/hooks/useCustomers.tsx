@@ -8,6 +8,9 @@ export interface Customer {
   name: string;
   mobile: string;
   address?: string;
+  area?: string;
+  state?: string;
+  pincode?: string;
   reference_name?: string;
   reference_mobile_no?: string;
   attended_by?: string;
@@ -19,6 +22,9 @@ export interface CreateCustomerData {
   name: string;
   mobile: string;
   address?: string;
+  area?: string;
+  state?: string;
+  pincode?: string;
   reference_name?: string;
   reference_mobile_no?: string;
   attended_by?: string;

@@ -17,35 +17,44 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          area: string | null
           attended_by: string | null
           created_at: string | null
           id: string
           mobile: string
           name: string
+          pincode: string | null
           reference_mobile_no: string | null
           reference_name: string | null
+          state: string | null
           updated_at: string | null
         }
         Insert: {
           address?: string | null
+          area?: string | null
           attended_by?: string | null
           created_at?: string | null
           id?: string
           mobile: string
           name: string
+          pincode?: string | null
           reference_mobile_no?: string | null
           reference_name?: string | null
+          state?: string | null
           updated_at?: string | null
         }
         Update: {
           address?: string | null
+          area?: string | null
           attended_by?: string | null
           created_at?: string | null
           id?: string
           mobile?: string
           name?: string
+          pincode?: string | null
           reference_mobile_no?: string | null
           reference_name?: string | null
+          state?: string | null
           updated_at?: string | null
         }
         Relationships: [

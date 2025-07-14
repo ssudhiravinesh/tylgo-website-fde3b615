@@ -5,12 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus } from "lucide-react";
+import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus, Eye } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { WallTileSelectionPage } from "./WallTileSelectionPage";
+import { FloorTilePreview } from "@/components/tiles/FloorTilePreview";
 import { toast } from "sonner";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 import { 
@@ -50,6 +51,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const [showWallTileSelection, setShowWallTileSelection] = useState<{
     roomId: string;
     room: Room;
+  } | null>(null);
+  const [showFloorPreview, setShowFloorPreview] = useState<{
+    room: Room;
+    tile: Tile | null;
   } | null>(null);
 
   const floorRooms = rooms.filter(room => room.room_type === "floor");
@@ -483,13 +488,25 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                             {calculateAreaInSquareFeet(room.length, room.width, room.unit).toFixed(2)} sq ft
                           </p>
                         </div>
-                        <Button
-                          onClick={() => handleAddFloorTile(room.id)}
-                          className="gap-2"
-                        >
-                          <Plus className="h-4 w-4" />
-                          Add Tile
-                        </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleAddFloorTile(room.id)}
+                              className="gap-2"
+                            >
+                              <Plus className="h-4 w-4" />
+                              Add Tile
+                            </Button>
+                            {roomSelections.length > 0 && (
+                              <Button
+                                variant="outline"
+                                onClick={() => setShowFloorPreview({ room, tile: tiles.find(t => t.id === roomSelections[0].tileId) })}
+                                className="gap-2"
+                              >
+                                <Eye className="h-4 w-4" />
+                                Preview
+                              </Button>
+                            )}
+                          </div>
                       </div>
                       
                       {roomSelections.length > 0 ? (
@@ -705,6 +722,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           />
         </DialogContent>
       </Dialog>
+
+      <FloorTilePreview
+        isOpen={!!showFloorPreview}
+        onClose={() => setShowFloorPreview(null)}
+        tile={showFloorPreview?.tile || null}
+        area={showFloorPreview ? calculateAreaInSquareFeet(showFloorPreview.room.length, showFloorPreview.room.width, showFloorPreview.room.unit) : 0}
+        unit="ft"
+      />
     </div>
   );
 };
