@@ -291,8 +291,9 @@ export const WallTileSelectionPage = ({
       tileWidth = baseSize * aspectRatio;
     }
     
-    const canvasWidth = tilesPerLayer * tileWidth;
-    const canvasHeight = wallSelection.layers.length * tileHeight;
+    // HORIZONTAL LAYOUT: Width = layers * tileWidth, Height = tilesPerLayer * tileHeight
+    const canvasWidth = wallSelection.layers.length * tileWidth;
+    const canvasHeight = tilesPerLayer * tileHeight;
     
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
@@ -398,19 +399,19 @@ export const WallTileSelectionPage = ({
     };
 
     const addLayerLabels = () => {
-      // Add layer numbers on the left side
+      // Add layer numbers at the bottom of each column
       ctx.fillStyle = '#374151';
       ctx.font = 'bold 14px Arial';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
       
       sortedLayers.forEach((layer, layerIndex) => {
-        const y = layerIndex * tileHeight;
-        ctx.fillText(`L${layer.layerNumber}`, -8, y + tileHeight/2);
+        const x = layerIndex * tileWidth;
+        ctx.fillText(`L${layer.layerNumber}`, x + tileWidth/2, canvasHeight + 8);
       });
     };
     
-    // Draw all tiles with actual dimensions
+    // Draw all tiles with horizontal layout
     sortedLayers.forEach((layer, layerIndex) => {
       const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) {
@@ -418,10 +419,10 @@ export const WallTileSelectionPage = ({
         return;
       }
 
-      const y = layerIndex * tileHeight;
+      const x = layerIndex * tileWidth; // Each layer gets its own column
       
       for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
-        const x = tileIndex * tileWidth;
+        const y = tileIndex * tileHeight; // Stack tiles vertically within each layer
         drawTile(x, y, tile, layer);
       }
     });
@@ -658,7 +659,7 @@ export const WallTileSelectionPage = ({
           </div>
           <div className="text-sm text-gray-600 text-center">
             <p>Preview shows 6 tiles per layer with actual tile proportions</p>
-            <p>Layers are stacked from bottom (Layer 1) to top</p>
+            <p>Each layer is displayed as a vertical column from left to right</p>
           </div>
         </DialogContent>
       </Dialog>
