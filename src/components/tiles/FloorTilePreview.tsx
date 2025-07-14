@@ -41,9 +41,31 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
 
     const tilesPerRow = 6; // 6 tiles per row
     const tilesPerColumn = 4; // 4 rows (layers) - fixed as requested
-    const tileSize = 100; // Size of each tile in pixels
-    const canvasWidth = tilesPerRow * tileSize;
-    const canvasHeight = tilesPerColumn * tileSize;
+    
+    // Calculate tile dimensions based on actual size
+    const tileLength = tile.size_length || 600; // Default to 600mm if not specified
+    const tileBreadth = tile.size_breadth || 600; // Default to 600mm if not specified
+    
+    // Calculate aspect ratio
+    const aspectRatio = tileLength / tileBreadth;
+    
+    // Base size for display (we'll scale from this)
+    const baseSize = 100;
+    
+    // Calculate actual display dimensions maintaining aspect ratio
+    let tileWidth, tileHeight;
+    if (aspectRatio > 1) {
+      // Length is greater than breadth (rectangular, longer horizontally)
+      tileWidth = baseSize;
+      tileHeight = baseSize / aspectRatio;
+    } else {
+      // Breadth is greater than or equal to length (square or rectangular, longer vertically)
+      tileHeight = baseSize;
+      tileWidth = baseSize * aspectRatio;
+    }
+    
+    const canvasWidth = tilesPerRow * tileWidth;
+    const canvasHeight = tilesPerColumn * tileHeight;
     
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
@@ -63,13 +85,13 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
         img.onload = () => {
           try {
             if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-              // Draw the tile image
-              ctx.drawImage(img, x, y, tileSize, tileSize);
+              // Draw the tile image with actual aspect ratio
+              ctx.drawImage(img, x, y, tileWidth, tileHeight);
               
               // Add subtle border
               ctx.strokeStyle = '#e5e7eb';
               ctx.lineWidth = 1;
-              ctx.strokeRect(x, y, tileSize, tileSize);
+              ctx.strokeRect(x, y, tileWidth, tileHeight);
             } else {
               drawFallbackTile(x, y);
             }
@@ -111,53 +133,55 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
     };
 
     const drawFallbackTile = (x: number, y: number) => {
-      // Draw colored rectangle with floor-specific pattern
+      // Draw colored rectangle with floor-specific pattern using actual dimensions
       const baseHue = 35; // Brown-ish base color for floors
       ctx.fillStyle = `hsl(${baseHue}, 60%, 75%)`;
-      ctx.fillRect(x, y, tileSize, tileSize);
+      ctx.fillRect(x, y, tileWidth, tileHeight);
       
-      // Add wood grain pattern effect
+      // Add wood grain pattern effect adjusted for tile dimensions
       ctx.strokeStyle = `hsl(${baseHue}, 50%, 65%)`;
       ctx.lineWidth = 1;
-      for (let i = 0; i < 5; i++) {
-        const lineY = y + (i * tileSize / 5) + 10;
+      const grainLines = Math.max(3, Math.floor(tileHeight / 20)); // Adjust grain lines based on height
+      for (let i = 0; i < grainLines; i++) {
+        const lineY = y + (i * tileHeight / grainLines) + (tileHeight / grainLines / 2);
         ctx.beginPath();
         ctx.moveTo(x + 5, lineY);
-        ctx.lineTo(x + tileSize - 5, lineY);
+        ctx.lineTo(x + tileWidth - 5, lineY);
         ctx.stroke();
       }
       
       // Add border
       ctx.strokeStyle = '#9ca3af';
       ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, tileSize, tileSize);
+      ctx.strokeRect(x, y, tileWidth, tileHeight);
       
-      // Add tile code text
+      // Add tile code text - adjust font size based on tile dimensions
       ctx.fillStyle = '#374151';
-      ctx.font = 'bold 12px Arial';
+      const fontSize = Math.min(tileWidth, tileHeight) * 0.12; // Scale font size with tile size
+      ctx.font = `bold ${fontSize}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
       const code = tile.code || tile.name || 'Floor';
-      const maxLength = 8;
+      const maxLength = Math.floor(tileWidth / 8); // Adjust max length based on tile width
       
       if (code.length > maxLength) {
         const firstLine = code.substring(0, maxLength);
         const secondLine = code.substring(maxLength, maxLength * 2);
-        ctx.fillText(firstLine, x + tileSize/2, y + tileSize/2 - 8);
+        ctx.fillText(firstLine, x + tileWidth/2, y + tileHeight/2 - fontSize/2);
         if (secondLine) {
-          ctx.fillText(secondLine, x + tileSize/2, y + tileSize/2 + 8);
+          ctx.fillText(secondLine, x + tileWidth/2, y + tileHeight/2 + fontSize/2);
         }
       } else {
-        ctx.fillText(code, x + tileSize/2, y + tileSize/2);
+        ctx.fillText(code, x + tileWidth/2, y + tileHeight/2);
       }
     };
     
-    // Draw all tiles in a 4x6 grid pattern
+    // Draw all tiles in a 4x6 grid pattern with actual dimensions
     for (let row = 0; row < tilesPerColumn; row++) {
       for (let col = 0; col < tilesPerRow; col++) {
-        const x = col * tileSize;
-        const y = row * tileSize;
+        const x = col * tileWidth;
+        const y = row * tileHeight;
         drawTile(x, y);
       }
     }
@@ -214,7 +238,7 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
             </div>
             <p className="text-sm text-gray-600 text-center max-w-md">
               This preview shows how your selected tile will look when laid on the floor in a 4×6 pattern. 
-              Each tile represents the actual tile that will be installed.
+              Each tile is displayed with its actual aspect ratio based on the tile dimensions.
             </p>
           </div>
         </div>
