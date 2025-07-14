@@ -52,22 +52,19 @@ export const WallTileSelectionPage = ({
     const wallHeight = room.wall_height || 0;
     const wallLength = room.wall_length || room.length || 0;
     
-    // Convert tile dimensions from mm to the room's unit - FOR HORIZONTAL PLACEMENT
+    // Convert tile dimensions from mm to the room's unit
     let tileHeightInRoomUnit: number;
     let tileLengthInRoomUnit: number;
     
     if (room.unit === "feet") {
-      // For horizontal placement: breadth becomes width, length becomes height
-      tileHeightInRoomUnit = (baseTile.size_breadth || 0) / 304.8; // mm to feet
-      tileLengthInRoomUnit = (baseTile.size_length || 0) / 304.8;
+      tileHeightInRoomUnit = (baseTile.size_length || 0) / 304.8; // mm to feet
+      tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
     } else if (room.unit === "metre") {
-      // For horizontal placement: breadth becomes width, length becomes height
-      tileHeightInRoomUnit = (baseTile.size_breadth || 0) / 1000; // mm to metres
-      tileLengthInRoomUnit = (baseTile.size_length || 0) / 1000;
+      tileHeightInRoomUnit = (baseTile.size_length || 0) / 1000; // mm to metres
+      tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 1000;
     } else {
-      // For horizontal placement: breadth becomes width, length becomes height
-      tileHeightInRoomUnit = baseTile.size_breadth || 0; // mm
-      tileLengthInRoomUnit = baseTile.size_length || 0;
+      tileHeightInRoomUnit = baseTile.size_length || 0; // mm
+      tileLengthInRoomUnit = baseTile.size_breadth || 0;
     }
 
     const layerCount = Math.ceil(wallHeight / tileHeightInRoomUnit);
@@ -269,33 +266,34 @@ export const WallTileSelectionPage = ({
 
     const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
     
-    // Calculate tile dimensions based on the first tile's actual size - HORIZONTAL PLACEMENT
+    // Calculate tile dimensions based on the first tile's actual size
     const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
     if (!firstTile) return;
     
     const tileLength = firstTile.size_length || 600; // Default to 600mm if not specified
     const tileBreadth = firstTile.size_breadth || 600; // Default to 600mm if not specified
     
-    // Calculate aspect ratio for HORIZONTAL placement (breadth becomes width, length becomes height)
-    const aspectRatio = tileBreadth / tileLength; // Same as floor preview logic
+    // Calculate aspect ratio - NOW FLIPPED FOR HORIZONTAL LAYOUT
+    const aspectRatio = tileBreadth / tileLength; // breadth/length for horizontal orientation
     
     // Base size for display (we'll scale from this)
     const baseSize = 100;
     
-    // Calculate actual display dimensions maintaining aspect ratio - HORIZONTAL ORIENTATION
+    // Calculate actual display dimensions maintaining aspect ratio - HORIZONTAL LAYOUT
     let tileWidth, tileHeight;
     if (aspectRatio > 1) {
-      // Breadth is greater than length (rectangular, longer horizontally)
+      // Breadth is greater than length (wider than tall)
       tileWidth = baseSize;
       tileHeight = baseSize / aspectRatio;
     } else {
-      // Length is greater than or equal to breadth (square or rectangular, longer vertically)
+      // Length is greater than or equal to breadth (taller than wide or square)
       tileHeight = baseSize;
       tileWidth = baseSize * aspectRatio;
     }
     
-    const canvasWidth = tilesPerLayer * tileWidth;
-    const canvasHeight = wallSelection.layers.length * tileHeight;
+    // CHANGED: Canvas dimensions swapped for horizontal layout
+    const canvasWidth = wallSelection.layers.length * tileWidth; // layers horizontally
+    const canvasHeight = tilesPerLayer * tileHeight; // tiles vertically
     
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
@@ -362,29 +360,17 @@ export const WallTileSelectionPage = ({
     };
 
     const drawFallbackTile = (x: number, y: number, tile: any, layer: any) => {
-      // Draw colored rectangle with better styling using horizontal dimensions
+      // Draw colored rectangle with better styling using actual dimensions
       const hue = (layer.layerNumber * 60) % 360;
       ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
       ctx.fillRect(x, y, tileWidth, tileHeight);
-      
-      // Add horizontal grain pattern effect adjusted for horizontal tile dimensions
-      ctx.strokeStyle = `hsl(${hue}, 50%, 65%)`;
-      ctx.lineWidth = 1;
-      const grainLines = Math.max(2, Math.floor(tileHeight / 25)); // Adjust grain lines for horizontal layout
-      for (let i = 0; i < grainLines; i++) {
-        const lineY = y + (i * tileHeight / grainLines) + (tileHeight / grainLines / 2);
-        ctx.beginPath();
-        ctx.moveTo(x + 5, lineY);
-        ctx.lineTo(x + tileWidth - 5, lineY);
-        ctx.stroke();
-      }
       
       // Add border
       ctx.strokeStyle = '#9ca3af';
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, tileWidth, tileHeight);
       
-      // Add tile code text with better styling - adjust font size based on horizontal tile dimensions
+      // Add tile code text with better styling - adjust font size based on tile dimensions
       ctx.fillStyle = '#374151';
       const fontSize = Math.min(tileWidth, tileHeight) * 0.12; // Scale font size with tile size
       ctx.font = `bold ${fontSize}px Arial`;
@@ -413,19 +399,19 @@ export const WallTileSelectionPage = ({
     };
 
     const addLayerLabels = () => {
-      // Add layer numbers on the left side
+      // CHANGED: Add layer numbers at the top of each column (horizontal layout)
       ctx.fillStyle = '#374151';
       ctx.font = 'bold 14px Arial';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
       
       sortedLayers.forEach((layer, layerIndex) => {
-        const y = layerIndex * tileHeight;
-        ctx.fillText(`L${layer.layerNumber}`, -8, y + tileHeight/2);
+        const x = layerIndex * tileWidth;
+        ctx.fillText(`L${layer.layerNumber}`, x + tileWidth/2, -8);
       });
     };
     
-    // Draw all tiles with horizontal dimensions
+    // CHANGED: Draw all tiles in horizontal layout (layers as columns, tiles as rows)
     sortedLayers.forEach((layer, layerIndex) => {
       const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) {
@@ -433,10 +419,10 @@ export const WallTileSelectionPage = ({
         return;
       }
 
-      const y = layerIndex * tileHeight;
+      const x = layerIndex * tileWidth; // Each layer is a column
       
       for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
-        const x = tileIndex * tileWidth;
+        const y = tileIndex * tileHeight; // Each tile is a row
         drawTile(x, y, tile, layer);
       }
     });
@@ -502,26 +488,16 @@ export const WallTileSelectionPage = ({
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Total Layers:</span>
-                  <Badge variant="secondary">{wallSelection.totalLayers}</Badge>
-                </div>
-                
-                <div className="flex gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Layers: {wallSelection.layers.length}</span>
                   <Button 
-                    onClick={handlePreview}
-                    className="flex-1"
-                    variant="outline"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Preview Wall
-                  </Button>
-                  <Button 
-                    onClick={handleResetLayers}
-                    variant="outline"
+                    onClick={handleAddLayer}
                     size="sm"
+                    variant="outline"
+                    className="gap-1"
                   >
-                    <RotateCcw className="h-4 w-4" />
+                    <Plus className="h-3 w-3" />
+                    Add Layer
                   </Button>
                 </div>
               </div>
@@ -533,161 +509,158 @@ export const WallTileSelectionPage = ({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <Layers className="h-5 w-5 text-green-600" />
                 Layer Configuration
-              </span>
-              {wallSelection.layers.length > 0 && (
-                <Button 
-                  onClick={handleAddLayer}
-                  size="sm"
+              </div>
+              {wallSelection.layers.length > 0 && originalLayers.length > 0 && (
+                <Button
                   variant="outline"
+                  size="sm"
+                  onClick={handleResetLayers}
+                  className="gap-1"
                 >
-                  <Plus className="h-4 w-4" />
+                  <RotateCcw className="h-3 w-3" />
+                  Reset
                 </Button>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {wallSelection.layers.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Layers className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>Select a base tile to start configuring layers</p>
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {wallSelection.layers
-                  .sort((a, b) => a.layerNumber - b.layerNumber)
-                  .map((layer) => {
+          <CardContent>
+            {wallSelection.layers.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex justify-center mb-3">
+                  <Button
+                    variant="outline"
+                    onClick={handlePreview}
+                    className="gap-2"
+                    size="sm"
+                  >
+                    <Eye className="h-4 w-4" />
+                    Preview Wall
+                  </Button>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {wallSelection.layers
+                    .sort((a, b) => a.layerNumber - b.layerNumber)
+                    .map(layer => {
                     const tile = tiles.find(t => t.id === layer.tileId);
-                    return (
-                      <div key={layer.layerNumber} className="border rounded-lg p-4 bg-gray-50">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">Layer {layer.layerNumber}</Badge>
-                            <span className="text-sm text-gray-600">
-                              {layer.tilesNeeded} tiles needed
-                            </span>
+                    return tile ? (
+                      <div key={layer.layerNumber} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs">
+                              Layer {layer.layerNumber}
+                            </Badge>
                           </div>
-                          <div className="flex gap-1">
+                          <p className="font-medium truncate">{tile.name}</p>
+                          <p className="text-sm text-gray-500">{tile.code}</p>
+                          <p className="text-xs text-gray-400">
+                            {layer.tilesNeeded} tiles needed
+                          </p>
+                        </div>
+                        
+                        <div className="flex gap-1 ml-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleChangeLayerTile(layer.layerNumber)}
+                            className="h-8 w-8 p-0"
+                            title="Change tile"
+                          >
+                            <Layers className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleScanQRForLayer(layer.layerNumber)}
+                            className="h-8 w-8 p-0"
+                            title="Scan QR for this layer"
+                          >
+                            <QrCode className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleCopyTileToAllLayers(layer.tileId)}
+                            className="h-8 w-8 p-0"
+                            title="Copy to all layers"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          {wallSelection.layers.length > 1 && (
                             <Button
-                              onClick={() => handleScanQRForLayer(layer.layerNumber)}
                               size="sm"
                               variant="ghost"
-                              className="h-8 w-8 p-0"
-                            >
-                              <QrCode className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              onClick={() => handleChangeLayerTile(layer.layerNumber)}
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Layers className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              onClick={() => handleCopyTileToAllLayers(layer.tileId)}
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button
                               onClick={() => handleDeleteLayer(layer.layerNumber)}
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-red-500"
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                              title="Delete layer"
                             >
                               <Minus className="h-4 w-4" />
                             </Button>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-white p-3 rounded border">
-                          <div className="flex items-center gap-3">
-                            {tile?.image_url && (
-                              <img 
-                                src={tile.image_url} 
-                                alt={tile.name}
-                                className="w-12 h-12 object-cover rounded"
-                              />
-                            )}
-                            <div className="flex-1">
-                              <h4 className="font-medium">{tile?.name || 'Unknown Tile'}</h4>
-                              <p className="text-sm text-gray-600">{tile?.code || 'No Code'}</p>
-                              <p className="text-xs text-gray-500">
-                                {tile?.size_length}mm × {tile?.size_breadth}mm
-                              </p>
-                            </div>
-                          </div>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
+                    ) : null;
+                   })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <Layers className="h-12 w-12 mx-auto mb-4" />
+                <p>Select a base tile to start configuring layers</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Preview Dialog */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Wall Preview - {room.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">
-                Preview shows 6 tiles per layer in horizontal orientation
-              </p>
-              <div className="border-2 border-dashed border-gray-300 p-4 bg-white rounded">
-                <canvas 
-                  ref={canvasRef}
-                  className="max-w-full h-auto border"
-                  style={{ imageRendering: 'pixelated' }}
-                />
-              </div>
-            </div>
-            
-            <div className="text-sm text-gray-600">
-              <p>Total Layers: {wallSelection.layers.length}</p>
-              <p>Tiles per Layer: 6 (horizontal placement)</p>
-              <p>Total Tiles: {wallSelection.layers.reduce((sum, layer) => sum + layer.tilesNeeded, 0)}</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Tile Catalog Dialog */}
       <Dialog open={showTileCatalog} onOpenChange={setShowTileCatalog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Select Tile</DialogTitle>
+            <DialogTitle>
+              {catalogContext?.isBaseSelection 
+                ? "Select Base Tile for Wall" 
+                : `Select Tile for Layer ${catalogContext?.layerNumber}`
+              }
+            </DialogTitle>
           </DialogHeader>
           <TileCatalog 
-            tiles={tiles}
+            isSelectionMode={true}
             onTileSelect={handleTileSelected}
-            selectedTileId={null}
           />
         </DialogContent>
       </Dialog>
 
       {/* QR Scanner Dialog */}
-      <Dialog open={showQRScanner} onOpenChange={setShowQRScanner}>
-        <DialogContent className="max-w-md">
+      <Html5QRScanner
+        isOpen={showQRScanner}
+        onClose={() => {
+          setShowQRScanner(false);
+          setCatalogContext(null);
+        }}
+        onScan={handleQRScan}
+      />
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Scan Tile QR Code</DialogTitle>
+            <DialogTitle>Wall Preview</DialogTitle>
           </DialogHeader>
-          <Html5QRScanner
-            onScan={handleQRScan}
-            onError={(error) => {
-              console.error('QR Scanner error:', error);
-              toast.error('QR Scanner error. Please try again.');
-            }}
-          />
+          <div className="flex justify-center p-6">
+            <div className="border rounded-lg overflow-hidden shadow-sm bg-white">
+              <canvas
+                ref={canvasRef}
+                className="block"
+                style={{ maxWidth: '100%', height: 'auto' }}
+              />
+            </div>
+          </div>
+          <div className="text-sm text-gray-600 text-center">
+            <p>Preview shows 6 tiles per layer with actual tile proportions</p>
+            <p>Layers are arranged horizontally (left to right)</p>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
