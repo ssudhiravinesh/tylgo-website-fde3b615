@@ -665,8 +665,19 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                         <div className="grid grid-cols-3 gap-2 text-xs">
                           <div className="text-center">
                             <p className="text-gray-500">Tiles</p>
-                            <p className="font-medium">{calc.tilesNeeded}</p>
+                            <p className="font-medium">
+                              {calc.tilesNeeded}
+                              <br />
+                              <span className="text-xs text-gray-500">
+                                ({(() => {
+                                  const fullBoxes = Math.floor(calc.tilesNeeded / calc.piecesPerBox);
+                                  const leftover = calc.tilesNeeded % calc.piecesPerBox;
+                                  return `${fullBoxes} box${fullBoxes !== 1 ? "es" : ""}${leftover ? ` and ${leftover} tile${leftover > 1 ? "s" : ""}` : ""}`;
+                                })()})
+                              </span>
+                            </p>
                           </div>
+
                           <div className="text-center">
                             <p className="text-gray-500">Boxes</p>
                             <p className="font-medium">{calc.boxesNeeded}</p>
