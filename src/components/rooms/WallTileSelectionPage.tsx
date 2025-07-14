@@ -276,8 +276,8 @@ export const WallTileSelectionPage = ({
     const tileLength = firstTile.size_length || 600; // Default to 600mm if not specified
     const tileBreadth = firstTile.size_breadth || 600; // Default to 600mm if not specified
     
-    // For HORIZONTAL placement: length becomes width, breadth becomes height
-    const aspectRatio = tileLength / tileBreadth; // Corrected for horizontal placement
+    // Calculate aspect ratio for HORIZONTAL placement (breadth becomes width, length becomes height)
+    const aspectRatio = tileBreadth / tileLength; // Same as floor preview logic
     
     // Base size for display (we'll scale from this)
     const baseSize = 100;
@@ -285,11 +285,11 @@ export const WallTileSelectionPage = ({
     // Calculate actual display dimensions maintaining aspect ratio - HORIZONTAL ORIENTATION
     let tileWidth, tileHeight;
     if (aspectRatio > 1) {
-      // Length is greater than breadth (rectangular, longer horizontally)
+      // Breadth is greater than length (rectangular, longer horizontally)
       tileWidth = baseSize;
       tileHeight = baseSize / aspectRatio;
     } else {
-      // Breadth is greater than or equal to length (square or rectangular, longer vertically)
+      // Length is greater than or equal to breadth (square or rectangular, longer vertically)
       tileHeight = baseSize;
       tileWidth = baseSize * aspectRatio;
     }
@@ -366,6 +366,18 @@ export const WallTileSelectionPage = ({
       const hue = (layer.layerNumber * 60) % 360;
       ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
       ctx.fillRect(x, y, tileWidth, tileHeight);
+      
+      // Add horizontal grain pattern effect adjusted for horizontal tile dimensions
+      ctx.strokeStyle = `hsl(${hue}, 50%, 65%)`;
+      ctx.lineWidth = 1;
+      const grainLines = Math.max(2, Math.floor(tileHeight / 25)); // Adjust grain lines for horizontal layout
+      for (let i = 0; i < grainLines; i++) {
+        const lineY = y + (i * tileHeight / grainLines) + (tileHeight / grainLines / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + 5, lineY);
+        ctx.lineTo(x + tileWidth - 5, lineY);
+        ctx.stroke();
+      }
       
       // Add border
       ctx.strokeStyle = '#9ca3af';
