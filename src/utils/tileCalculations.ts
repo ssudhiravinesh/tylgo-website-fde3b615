@@ -12,7 +12,7 @@ export interface TileCalculationResult {
   isWallTile?: boolean;
   wallLayers?: number[];
   quotationItems?: any[];
-  piecesPerBox: number;
+  piecesPerBox: number; // Added piecesPerBox to interface
 }
 
 export interface FloorTileSelection {
@@ -64,7 +64,8 @@ export const calculateTileRequirements = (
         tilesNeeded: 0,
         boxesNeeded: 0,
         totalPrice: 0,
-        isWallTile: false
+        isWallTile: false,
+        piecesPerBox: 0 // Initialize piecesPerBox
       };
     }
 
@@ -111,7 +112,8 @@ export const calculateTileRequirements = (
           boxesNeeded: 0,
           totalPrice: 0,
           isWallTile: true,
-          wallLayers: []
+          wallLayers: [],
+          piecesPerBox: 0 // Initialize piecesPerBox
         };
       }
 
@@ -163,6 +165,9 @@ export const calculateTileRequirements = (
     
     // Step 4: Calculate total price
     calc.totalPrice = calc.boxesNeeded * pricePerBox;
+
+    // Assign piecesPerBox for downstream usage
+    calc.piecesPerBox = piecesPerBox;
   });
 
   return Object.values(tileCalculations);
@@ -244,15 +249,6 @@ export const prepareQuotationItems = (
       room.unit
     );
     const areaPerLayer = ws.totalLayers > 0 ? wallAreaSqFt / ws.totalLayers : 0;
-
-    // Group layers by tile ID to match calculation structure
-    const layersByTile: { [tileId: string]: number[] } = {};
-    ws.layers.forEach(layer => {
-      if (!layersByTile[layer.tileId]) {
-        layersByTile[layer.tileId] = [];
-      }
-      layersByTile[layer.tileId].push(layer.layerNumber);
-    });
 
     // Create items for each layer individually
     ws.layers.forEach(layer => {
