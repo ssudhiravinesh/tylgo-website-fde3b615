@@ -60,7 +60,7 @@ export const useDashboardData = () => {
         const monthlyRevenue = monthlyQuotations.reduce((sum, q) => sum + (q.total_cost || 0), 0);
 
         // Count active quotations (not rejected)
-        const activeQuotations = quotations.filter(q => q.status !== 'rejected').length;
+        const activeQuotations = quotations.filter(q => q.status !== 'rejected' && q.status !== 'closed').length;
 
         setStats({
           totalCustomers: customers.length,
