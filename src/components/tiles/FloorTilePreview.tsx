@@ -42,24 +42,24 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
     const tilesPerRow = 6; // 6 tiles per row
     const tilesPerColumn = 4; // 4 rows (layers) - fixed as requested
     
-    // Calculate tile dimensions based on actual size
+    // Calculate tile dimensions based on actual size - HORIZONTAL PLACEMENT
     const tileLength = tile.size_length || 600; // Default to 600mm if not specified
     const tileBreadth = tile.size_breadth || 600; // Default to 600mm if not specified
     
-    // Calculate aspect ratio
-    const aspectRatio = tileLength / tileBreadth;
+    // Calculate aspect ratio for HORIZONTAL placement (breadth becomes width, length becomes height)
+    const aspectRatio = tileBreadth / tileLength; // Swapped for horizontal placement
     
     // Base size for display (we'll scale from this)
     const baseSize = 100;
     
-    // Calculate actual display dimensions maintaining aspect ratio
+    // Calculate actual display dimensions maintaining aspect ratio - HORIZONTAL ORIENTATION
     let tileWidth, tileHeight;
     if (aspectRatio > 1) {
-      // Length is greater than breadth (rectangular, longer horizontally)
+      // Breadth is greater than length (rectangular, longer horizontally)
       tileWidth = baseSize;
       tileHeight = baseSize / aspectRatio;
     } else {
-      // Breadth is greater than or equal to length (square or rectangular, longer vertically)
+      // Length is greater than or equal to breadth (square or rectangular, longer vertically)
       tileHeight = baseSize;
       tileWidth = baseSize * aspectRatio;
     }
@@ -85,7 +85,7 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
         img.onload = () => {
           try {
             if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-              // Draw the tile image with actual aspect ratio
+              // Draw the tile image with horizontal aspect ratio
               ctx.drawImage(img, x, y, tileWidth, tileHeight);
               
               // Add subtle border
@@ -133,15 +133,15 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
     };
 
     const drawFallbackTile = (x: number, y: number) => {
-      // Draw colored rectangle with floor-specific pattern using actual dimensions
+      // Draw colored rectangle with floor-specific pattern using horizontal dimensions
       const baseHue = 35; // Brown-ish base color for floors
       ctx.fillStyle = `hsl(${baseHue}, 60%, 75%)`;
       ctx.fillRect(x, y, tileWidth, tileHeight);
       
-      // Add wood grain pattern effect adjusted for tile dimensions
+      // Add horizontal wood grain pattern effect adjusted for horizontal tile dimensions
       ctx.strokeStyle = `hsl(${baseHue}, 50%, 65%)`;
       ctx.lineWidth = 1;
-      const grainLines = Math.max(3, Math.floor(tileHeight / 20)); // Adjust grain lines based on height
+      const grainLines = Math.max(2, Math.floor(tileHeight / 25)); // Adjust grain lines for horizontal layout
       for (let i = 0; i < grainLines; i++) {
         const lineY = y + (i * tileHeight / grainLines) + (tileHeight / grainLines / 2);
         ctx.beginPath();
@@ -155,7 +155,7 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, tileWidth, tileHeight);
       
-      // Add tile code text - adjust font size based on tile dimensions
+      // Add tile code text - adjust font size based on horizontal tile dimensions
       ctx.fillStyle = '#374151';
       const fontSize = Math.min(tileWidth, tileHeight) * 0.12; // Scale font size with tile size
       ctx.font = `bold ${fontSize}px Arial`;
@@ -177,7 +177,7 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
       }
     };
     
-    // Draw all tiles in a 4x6 grid pattern with actual dimensions
+    // Draw all tiles in a 4x6 grid pattern with horizontal dimensions
     for (let row = 0; row < tilesPerColumn; row++) {
       for (let col = 0; col < tilesPerRow; col++) {
         const x = col * tileWidth;
@@ -238,7 +238,7 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
             </div>
             <p className="text-sm text-gray-600 text-center max-w-md">
               This preview shows how your selected tile will look when laid on the floor in a 4×6 pattern. 
-              Each tile is displayed with its actual aspect ratio based on the tile dimensions.
+              Each tile is displayed horizontally with its actual aspect ratio based on the tile dimensions.
             </p>
           </div>
         </div>
