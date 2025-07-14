@@ -6,13 +6,16 @@ export interface TileCalculationResult {
   tile: Tile;
   rooms: Room[];
   totalArea: number;
-  tilesNeeded: number;
+  rawTilesNeeded: number;     // NEW
   boxesNeeded: number;
+  orderedTiles: number;       // NEW
+  fullBoxes: number;          // NEW: conceptual full boxes (floor division)
+  leftoverTiles: number;      // NEW: conceptual leftover
   totalPrice: number;
   isWallTile?: boolean;
   wallLayers?: number[];
   quotationItems?: any[];
-  piecesPerBox: number; // Added piecesPerBox to interface
+  piecesPerBox: number;
 }
 
 export interface FloorTileSelection {
@@ -33,10 +36,6 @@ export interface WallTileSelection {
   totalLayers: number;
 }
 
-/**
- * Unified tile calculation function
- * Handles both floor and wall tiles with proper wastage calculation
- */
 export const calculateTileRequirements = (
   floorSelections: FloorTileSelection[],
   wallSelections: WallTileSelection[],
@@ -45,8 +44,6 @@ export const calculateTileRequirements = (
   wastagePercentage: number
 ): TileCalculationResult[] => {
   const tileCalculations: { [key: string]: TileCalculationResult } = {};
-
-  // Validate wastage percentage
   const validWastage = Math.max(0, Math.min(15, wastagePercentage));
 
   // Process floor tiles
@@ -127,58 +124,43 @@ export const calculateTileRequirements = (
   });
 
   // Calculate tiles, boxes, and pricing for each tile
-  Object.values(tileCalculations).forEach(calc => {
+ Object.values(tileCalculations).forEach(calc => {
     const tile = calc.tile;
-    
-    // Validate tile data
-    if (!tile || !tile.size_length || !tile.size_breadth || !tile.pieces_per_box || !tile.price_per_box) {
-      console.warn('Invalid tile data:', tile);
-      return;
-    }
-
     const pricePerBox = parseFloat(tile.price_per_box.toString());
     const piecesPerBox = parseInt(tile.pieces_per_box.toString());
-    
-    if (isNaN(pricePerBox) || isNaN(piecesPerBox) || piecesPerBox <= 0) {
-      console.warn('Invalid tile pricing data:', tile);
-      return;
-    }
-
-    // Convert tile dimensions from mm to feet
     const tileLengthFt = (parseFloat(tile.size_length.toString()) || 0) / 304.8;
     const tileBreadthFt = (parseFloat(tile.size_breadth.toString()) || 0) / 304.8;
     const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-    
-    if (tileAreaSqFt <= 0) {
-      console.warn('Invalid tile area:', tile);
-      return;
-    }
 
-    // Step 1: Calculate basic tiles needed for the area
-    const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-    
-    // Step 2: Add wastage percentage to tiles
-    calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (validWastage / 100)));
-    
-    // Step 3: Calculate boxes needed from total tiles
-    calc.boxesNeeded = Math.ceil(calc.tilesNeeded / piecesPerBox);
-    
-    // Step 4: Calculate total price
-    calc.totalPrice = calc.boxesNeeded * pricePerBox;
+    // Step 1: raw tiles needed (area + wastage)
+    const basicTiles = calc.totalArea / tileAreaSqFt;
+    const rawTilesNeeded = Math.ceil(basicTiles * (1 + validWastage / 100));
 
-    // Assign piecesPerBox for downstream usage
-    calc.piecesPerBox = piecesPerBox;
+    // Step 2: boxes to order
+    const boxesNeeded = Math.ceil(rawTilesNeeded / piecesPerBox);
+
+    // Step 3: ordered tiles physical
+    const orderedTiles = boxesNeeded * piecesPerBox;
+
+    // Step 4: conceptual breakdown
+    const fullBoxes = Math.floor(rawTilesNeeded / piecesPerBox);
+    const leftoverTiles = rawTilesNeeded % piecesPerBox;
+
+    // Assign
+    calc.rawTilesNeeded = rawTilesNeeded;
+    calc.boxesNeeded = boxesNeeded;
+    calc.orderedTiles   = orderedTiles;
+    calc.fullBoxes      = fullBoxes;
+    calc.leftoverTiles  = leftoverTiles;
+    calc.totalPrice     = boxesNeeded * pricePerBox;
+    calc.piecesPerBox   = piecesPerBox;
   });
 
   return Object.values(tileCalculations);
 };
 
-/**
- * Calculate total cost from tile calculations
- */
-export const calculateGrandTotal = (calculations: TileCalculationResult[]): number => {
-  return calculations.reduce((sum, calc) => sum + (calc.totalPrice || 0), 0);
-};
+export const calculateGrandTotal = (calculations: TileCalculationResult[]): number =>
+  calculations.reduce((sum, calc) => sum + (calc.totalPrice || 0), 0);
 
 /**
  * Prepare quotation items from room selections
