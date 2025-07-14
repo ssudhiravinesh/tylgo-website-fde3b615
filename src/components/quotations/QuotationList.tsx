@@ -270,6 +270,21 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
               </div>
             </CardContent>
           </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <FileText className="h-8 w-8 text-red-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Closed</p>
+                <p className="text-2xl font-bold">
+                  {filteredQuotations.filter(q => q.status === 'closed').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
           
           <Card>
             <CardContent className="pt-6">
