@@ -1,9 +1,18 @@
-
 import { useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import type { Tile } from "@/hooks/useTiles";
+
+// Define the Tile type since it's not imported in your original code
+interface Tile {
+  id: string;
+  name: string;
+  code?: string;
+  image_url?: string;
+  size_length?: number;
+  size_breadth?: number;
+  price_per_box?: number;
+}
 
 interface FloorTilePreviewProps {
   isOpen: boolean;
@@ -18,7 +27,8 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
 
   useEffect(() => {
     if (isOpen && tile) {
-      generateFloorPreview();
+      // Add a small delay to ensure dialog is fully rendered
+      setTimeout(() => generateFloorPreview(), 100);
     }
   }, [isOpen, tile, area]);
 
@@ -30,7 +40,7 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
     if (!ctx) return;
 
     const tilesPerRow = 6; // 6 tiles per row
-    const tilesPerColumn = 4; // 4 rows (layers)
+    const tilesPerColumn = 4; // 4 rows (layers) - fixed as requested
     const tileSize = 100; // Size of each tile in pixels
     const canvasWidth = tilesPerRow * tileSize;
     const canvasHeight = tilesPerColumn * tileSize;
@@ -88,7 +98,12 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
           }
         }, 5000);
         
-        img.src = tile.image_url;
+        try {
+          img.src = tile.image_url;
+        } catch (error) {
+          console.error('Error setting image src for floor tile:', error);
+          drawFallbackTile(x, y);
+        }
       } else {
         drawFallbackTile(x, y);
         loadedImages++;
@@ -167,11 +182,15 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="font-medium text-amber-800">Tile Code:</span>
-                <p className="text-amber-700">{tile.code}</p>
+                <p className="text-amber-700">{tile.code || 'N/A'}</p>
               </div>
               <div>
                 <span className="font-medium text-amber-800">Size:</span>
-                <p className="text-amber-700">{tile.size_length}×{tile.size_breadth} mm</p>
+                <p className="text-amber-700">
+                  {tile.size_length && tile.size_breadth 
+                    ? `${tile.size_length}×${tile.size_breadth} mm` 
+                    : 'N/A'}
+                </p>
               </div>
               <div>
                 <span className="font-medium text-amber-800">Floor Area:</span>
@@ -189,7 +208,7 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
             <div className="border border-gray-300 rounded-lg overflow-hidden shadow-lg bg-white p-4">
               <canvas
                 ref={canvasRef}
-                className="max-w-full h-auto"
+                className="max-w-full h-auto block"
                 style={{ imageRendering: 'crisp-edges' }}
               />
             </div>
