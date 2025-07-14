@@ -11,7 +11,8 @@ export interface TileCalculationResult {
   totalPrice: number;
   isWallTile?: boolean;
   wallLayers?: number[];
-  quotationItems?: any[]; // Add this to track individual items
+  quotationItems?: any[];
+  piecesPerBox : number;
 }
 
 export interface FloorTileSelection {
@@ -162,6 +163,7 @@ export const calculateTileRequirements = (
     
     // Step 4: Calculate total price
     calc.totalPrice = calc.boxesNeeded * pricePerBox;
+    calc.piecesPerBox = piecesPerBox;
   });
 
   return Object.values(tileCalculations);
