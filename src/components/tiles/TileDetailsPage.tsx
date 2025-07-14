@@ -255,17 +255,25 @@ export const TileDetailsPage: React.FC = () => {
                       const length = parseFloat((document.getElementById('length-input') as HTMLInputElement)?.value || '0');
                       const width = parseFloat((document.getElementById('width-input') as HTMLInputElement)?.value || '0');
                       const area = length * width;
-                      const tilesNeeded = Math.ceil(area / tileAreaSqFt);
-                      
+                  
+                      const rawTilesNeeded = Math.ceil(area / tileAreaSqFt);
+                      const piecesPerBox = tile.pieces_per_box || 1;
+                      const boxesNeeded = Math.ceil(rawTilesNeeded / piecesPerBox);
+                      const fullBoxes = Math.floor(rawTilesNeeded / piecesPerBox);
+                      const leftoverTiles = rawTilesNeeded % piecesPerBox;
+                      const totalCost = area * pricePerSqFt;
+                  
+                      const breakdown = `(${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}` +
+                        (leftoverTiles > 0 ? ` and ${leftoverTiles} tile${leftoverTiles !== 1 ? 's' : ''}` : '') + `)`;
+                  
                       if (area > 0 && pricePerSqFt > 0) {
-                        const totalCost = area * pricePerSqFt;
                         toast.success(
-                          `For ${formatArea(area)}: ${tilesNeeded} tiles needed, Total cost: ₹${totalCost.toFixed(2)}`,
+                          `For ${formatArea(area)}: ${rawTilesNeeded} tiles ${breakdown}, order ${boxesNeeded} box${boxesNeeded !== 1 ? 'es' : ''}, Total cost: ₹${totalCost.toFixed(2)}`,
                           { duration: 5000 }
                         );
                       } else if (area > 0) {
                         toast.success(
-                          `For ${formatArea(area)}: ${tilesNeeded} tiles needed`,
+                          `For ${formatArea(area)}: ${rawTilesNeeded} tiles ${breakdown}`,
                           { duration: 5000 }
                         );
                       } else {
