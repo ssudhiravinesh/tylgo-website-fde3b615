@@ -41,8 +41,12 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
   const capitalizeWords = (value: string) => {
     return value
-      .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .trim()
+      .split(/\s+/) // Split by one or more spaces
+      .map(word => {
+        if (word.length === 0) return word;
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
       .join(" ");
   };
   
@@ -75,7 +79,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
       setFormData(prev => ({
         ...prev,
         name: customer.name,
-        area: (customer as any).area || "",
+        area: capitalizeWords((customer as any).area || ""),
         state: (customer as any).state || "",
         pincode: (customer as any).pincode || "",
         reference_name: customer.reference_name || "",
@@ -88,7 +92,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     if (customer) {
       setFormData(prev => ({
         ...prev,
-        reference_name: customer.name
+        reference_name: capitalizeWords(customer.name)
       }));
     }
   };
