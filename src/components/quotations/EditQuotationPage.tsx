@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ArrowLeft } from 'lucide-react';
@@ -11,14 +12,10 @@ import { Label } from "@/components/ui/label";
 
 import { useCustomers } from '@/hooks/useCustomers';
 import { useTiles } from '@/hooks/useTiles';
-import { useRooms } from '@/hooks/useRooms';
 import { useQuotations, type Quotation, type QuotationItem } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet } from '@/utils/unitConversions';
-import { TileSelector } from './TileSelector';
-import { RoomSelector } from './RoomSelector';
-import { QuotationItemsTable } from './QuotationItemsTable';
-import { useCreateQuotationItem, useUpdateQuotationItem, useDeleteQuotationItem } from '@/hooks/useQuotationItems';
 import type { TileCalculationResult } from '@/utils/tileCalculations';
+import { formatTileBreakdown } from '@/utils/tileCalculations';
 
 interface EditQuotationPageProps {
   quotationId: string;
@@ -33,23 +30,9 @@ export const EditQuotationPage = ({ quotationId, onBack }: EditQuotationPageProp
   const [currentWastagePercentage, setCurrentWastagePercentage] = useState<number>(0);
   const [calculations, setCalculations] = useState<TileCalculationResult[]>([]);
 
-  const { customers, isLoading: isCustomersLoading } = useCustomers();
-  const { tiles, isLoading: isTilesLoading } = useTiles();
-  const { rooms, isLoading: isRoomsLoading } = useRooms();
-  const { quotations, isLoading: isQuotationsLoading, updateQuotation } = useQuotations();
-
-  const [selectedTile, setSelectedTile] = useState<string | null>(null);
-  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
-  const [itemArea, setItemArea] = useState<number>(0);
-
-  const {
-    data: quotationItems,
-    isLoading: isQuotationItemsLoading,
-  } = useQuotations({}).data.find(q => q.id === quotationId)?.quotation_items || [];
-
-  const createQuotationItem = useCreateQuotationItem();
-  const updateQuotationItem = useUpdateQuotationItem();
-  const deleteQuotationItem = useDeleteQuotationItem();
+  const { data: customers = [], isLoading: isCustomersLoading } = useCustomers();
+  const { data: tiles = [], isLoading: isTilesLoading } = useTiles();
+  const { data: quotations = [], isLoading: isQuotationsLoading, updateQuotation } = useQuotations();
 
   useEffect(() => {
     if (quotationId && quotations) {
@@ -142,6 +125,14 @@ export const EditQuotationPage = ({ quotationId, onBack }: EditQuotationPageProp
     }
   };
 
+  if (isCustomersLoading || isTilesLoading || isQuotationsLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -174,7 +165,7 @@ export const EditQuotationPage = ({ quotationId, onBack }: EditQuotationPageProp
                 <Label htmlFor="customer-name">Customer Name</Label>
                 <Input
                   id="customer-name"
-                  value={quotationData.customer?.name}
+                  value={quotationData.customer?.name || ''}
                   readOnly
                 />
               </div>
@@ -232,10 +223,7 @@ export const EditQuotationPage = ({ quotationId, onBack }: EditQuotationPageProp
                       <p className="font-medium text-green-600">
                         {calc.rawTilesNeeded} tiles
                         <span className="text-xs text-gray-500 block">
-                          ({calc.fullBoxes} box{calc.fullBoxes !== 1 ? 'es' : ''}
-                          {calc.leftoverTiles > 0
-                            ? ` and ${calc.leftoverTiles} tile${calc.leftoverTiles !== 1 ? 's' : ''}`
-                            : ''})
+                          {formatTileBreakdown(calc.fullBoxes, calc.leftoverTiles)}
                           <br />
                           (+{currentWastagePercentage}% wastage)
                         </span>

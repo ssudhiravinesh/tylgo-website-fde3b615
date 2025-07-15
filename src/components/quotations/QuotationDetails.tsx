@@ -5,7 +5,7 @@ import { Edit, Mail, Trash2 } from "lucide-react";
 import { Quotation } from "@/hooks/useQuotations";
 import { format } from 'date-fns';
 import { useState } from "react";
-import { DeleteConfirmation } from "../common/DeleteConfirmation";
+import { formatTileBreakdown } from '@/utils/tileCalculations';
 
 interface QuotationDetailsProps {
   quotation: Quotation;
@@ -20,6 +20,11 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onEmail }: Quota
   const formattedDate = quotation.created_at
     ? format(new Date(quotation.created_at), 'PPP')
     : 'N/A';
+
+  const handleDeleteConfirm = () => {
+    onDelete(quotation.id);
+    setIsDeleteOpen(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -40,7 +45,7 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onEmail }: Quota
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
-          <Dialog>
+          <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
             <DialogTrigger asChild>
               <Button variant="destructive" size="sm">
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -54,10 +59,14 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onEmail }: Quota
                   This action cannot be undone. This will permanently delete this quotation and all of its data.
                 </DialogDescription>
               </DialogHeader>
-              <DeleteConfirmation
-                onConfirm={() => onDelete(quotation.id)}
-                onCancel={() => setIsDeleteOpen(false)}
-              />
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleDeleteConfirm}>
+                  Delete
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
@@ -149,10 +158,7 @@ export const QuotationDetails = ({ quotation, onEdit, onDelete, onEmail }: Quota
                         <p className="font-medium text-green-600">
                           {rawTilesNeeded} tiles
                           <span className="text-xs text-gray-500 block">
-                            ({fullBoxes} box{fullBoxes !== 1 ? 'es' : ''}
-                            {leftoverTiles > 0
-                              ? ` and ${leftoverTiles} tile${leftoverTiles !== 1 ? 's' : ''}`
-                              : ''})
+                            {formatTileBreakdown(fullBoxes, leftoverTiles)}
                             {wastagePercentage > 0 && (
                               <>
                                 <br />
