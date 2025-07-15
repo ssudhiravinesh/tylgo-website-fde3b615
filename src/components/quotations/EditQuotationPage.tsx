@@ -36,12 +36,8 @@ interface TileCalculation {
     unit: string;
   }>;
   totalArea: number;
-  rawTilesNeeded: number;
   tilesNeeded: number;
   boxesNeeded: number;
-  orderedTiles: number;
-  fullBoxes: number;
-  leftoverTiles: number;
   totalPrice: number;
   customBoxes?: number; // For manual adjustment
 }
@@ -121,12 +117,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             tile,
             rooms: [],
             totalArea: 0,
-            rawTilesNeeded: 0,
             tilesNeeded: 0,
             boxesNeeded: 0,
-            orderedTiles: 0,
-            fullBoxes: 0,
-            leftoverTiles: 0,
             totalPrice: 0
           };
         }
@@ -151,24 +143,20 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
             
             if (tileAreaSqFt > 0) {
-              // 1. Compute raw tiles needed (area + wastage)
-              const basicTiles = calc.totalArea / tileAreaSqFt;
-              const rawTilesNeeded = Math.ceil(basicTiles * (1 + currentWastagePercentage / 100));
+              const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+              calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (currentWastagePercentage / 100)));
               
-              // 2. Compute boxes you’ll actually order
-              const boxesNeeded = Math.ceil(rawTilesNeeded / piecesPerBox);
+              // Apply custom box adjustments
+              const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
+              const adjustment = customBoxAdjustments[tile.id] || 0;
+              calc.boxesNeeded = Math.max(0, baseBoxes + adjustment);
+              calc.customBoxes = adjustment;
               
-              // 3. Compute conceptual breakdown
-              const fullBoxes = Math.floor(rawTilesNeeded / piecesPerBox);
-              const leftoverTiles = rawTilesNeeded % piecesPerBox;
+              // Update tiles needed based on actual boxes (for display purposes)
+              calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
               
-              // 4. Assign into your calc object
-              calc.tilesNeeded   = rawTilesNeeded;    // raw count (7)
-              calc.boxesNeeded   = boxesNeeded;       // ordered boxes (3)
-              calc.customBoxes   = customBoxAdjustments[tile.id] || 0;
-              calc.totalPrice    = boxesNeeded * pricePerBox;
-              calc.fullBoxes     = fullBoxes;         // for UI breakdown
-              calc.leftoverTiles = leftoverTiles;     // for UI breakdown
+              // Recalculate total price based on current box count
+              calc.totalPrice = calc.boxesNeeded * pricePerBox;
             }
           }
         }
@@ -428,17 +416,9 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                         <p className="font-medium text-green-600">
                           {calc.tilesNeeded} tiles
                           <span className="text-xs text-gray-500 block">
-                            ({calc.fullBoxes} box{calc.fullBoxes !== 1 ? 'es' : ''}
-                            {calc.leftoverTiles > 0
-                              ? ` and ${calc.leftoverTiles} tile${calc.leftoverTiles !== 1 ? 's' : ''}`
-                              : ''})
-                            <br />
                             (+{wastagePercentage}% wastage)
-                            <br />
-                            Order {calc.boxesNeeded} box{calc.boxesNeeded !== 1 ? 'es' : ''} (for {calc.boxesNeeded * calc.tile.pieces_per_box} tiles)
                           </span>
                         </p>
-
                       </div>
                     </div>
                     
