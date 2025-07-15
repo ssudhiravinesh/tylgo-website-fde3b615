@@ -32,18 +32,33 @@ interface CustomerListProps {
 
 export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [areaFilter, setAreaFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
   const { data: customers = [], isLoading } = useCustomers();
-
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.mobile.includes(searchTerm) ||
-    customer.address?.toLowerCase().includes(searchTerm.toLowerCase())
+  
+  const uniqueAreas  = useMemo(
+    () => Array.from(new Set(customers.map(c => c.area).filter(Boolean))),
+    [customers]
   );
+  const uniqueStates = useMemo(
+    () => Array.from(new Set(customers.map(c => c.state).filter(Boolean))),
+    [customers]
+  );
+  const filteredCustomers = useMemo(() => {
+    return customers
+      .filter(c =>
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.mobile.includes(searchTerm) ||
+        c.address?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .filter(c => !areaFilter  || c.area?.toLowerCase().includes(areaFilter.toLowerCase()))
+      .filter(c => !stateFilter || c.state === stateFilter);
+  }, [customers, searchTerm, areaFilter, stateFilter]);
 
   const handleViewDetails = (customer: Customer) => setSelectedCustomer(customer);
-  const handleBackToList = () => setSelectedCustomer(null);
+  const handleBackToList  = () => setSelectedCustomer(null);
 
   if (selectedCustomer) {
     return <CustomerDetails customer={selectedCustomer} onBack={handleBackToList} />;
@@ -66,6 +81,43 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
           <p className="text-gray-600">Manage your customer database and quotations</p>
         </div>
         <div className="flex items-center gap-3">
+
+        <div className="flex items-center space-x-2">
+            {/* Area autocomplete via datalist */}
+            <div className="relative">
+              <Input
+                placeholder="Filter by area…"
+                list="area-list"
+                value={areaFilter}
+                onChange={(e) => setAreaFilter(e.target.value)}
+                className="h-10 w-36 text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+              <datalist id="area-list">
+                {uniqueAreas.map(a => (
+                  <option key={a} value={a} />
+                ))}
+              </datalist>
+            </div>
+
+            {/* State select */}
+            <Select
+              value={stateFilter}
+              onValueChange={(v) => setStateFilter(v)}
+            >
+              <SelectTrigger className="h-10 w-32 text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                <SelectValue placeholder="Filter by state" />
+              </SelectTrigger>
+              <SelectContent className="max-h-48 overflow-auto">
+                <SelectItem value="">All</SelectItem>
+                {uniqueStates.map(s => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
           <div className="flex items-center space-x-4">
             {/* List view icon */}
             <button
