@@ -204,7 +204,10 @@ if (quotationItems && quotationItems.length > 0) {
         tile: group.tile,
         rooms: [],
         totalArea: 0,
+        rawTilesNeeded: 0,
         tilesNeeded: 0,
+        fullBoxes: 0,
+        leftoverTiles: 0,
         boxesNeeded: 0,
         totalPrice: 0,
         quotationItems: []
@@ -241,7 +244,13 @@ if (quotationItems && quotationItems.length > 0) {
       
       if (tileAreaSqFt > 0) {
         const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+        calc.rawTilesNeeded = basicTilesNeeded;
         const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        calc.tilesNeeded = tilesWithWastage;
+        
+        // Calculate box breakdown
+        calc.fullBoxes = Math.floor(basicTilesNeeded / piecesPerBox);
+        calc.leftoverTiles = basicTilesNeeded % piecesPerBox;
         
         // Get custom box adjustment - sum from all UNIQUE tile-room combinations
         const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
@@ -251,9 +260,6 @@ if (quotationItems && quotationItems.length > 0) {
         // Calculate base boxes needed and apply custom adjustment
         const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
         calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
-        
-        // Update tiles needed to reflect the actual boxes being purchased
-        calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
         
         // Use the already calculated totalPrice (includes layer adjustments)
         // calc.totalPrice is already set correctly from the grouping logic above
@@ -365,7 +371,11 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
                 ${imageCell}
               </td>
               <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
-                ${calc.tilesNeeded || 'N/A'}<br/>
+                ${calc.rawTilesNeeded || 'N/A'}<br/>
+                ${calc.fullBoxes >= 0 && calc.leftoverTiles >= 0 ? 
+                  `<small style="color: #666; font-size: 9px;">(${calc.fullBoxes} ${calc.fullBoxes === 1 ? 'box' : 'boxes'}${calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})</small><br/>` : 
+                  ''
+                }
                 <small style="color: #666; font-size: 9px;">+${wastagePercentage}% wastage</small>
               </td>
               <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${calc.boxesNeeded || 'N/A'}</td>

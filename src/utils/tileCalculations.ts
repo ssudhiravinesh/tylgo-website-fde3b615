@@ -6,7 +6,10 @@ export interface TileCalculationResult {
   tile: Tile;
   rooms: Room[];
   totalArea: number;
-  tilesNeeded: number;
+  rawTilesNeeded: number; // Exact tiles needed based on area calculation
+  tilesNeeded: number; // After wastage
+  fullBoxes: number; // Complete boxes needed
+  leftoverTiles: number; // Extra tiles from partial box
   boxesNeeded: number;
   totalPrice: number;
   isWallTile?: boolean;
@@ -31,6 +34,32 @@ export interface WallTileSelection {
   layers: WallTileLayer[];
   totalLayers: number;
 }
+
+/**
+ * Format tile breakdown for display
+ */
+export const formatTileBreakdown = (
+  rawTilesNeeded: number,
+  fullBoxes: number,
+  leftoverTiles: number,
+  piecesPerBox: number,
+  wastagePercentage: number
+): string => {
+  const parts: string[] = [];
+  
+  if (fullBoxes > 0) {
+    parts.push(`${fullBoxes} ${fullBoxes === 1 ? 'box' : 'boxes'}`);
+  }
+  
+  if (leftoverTiles > 0) {
+    parts.push(`${leftoverTiles} ${leftoverTiles === 1 ? 'tile' : 'tiles'}`);
+  }
+  
+  const breakdown = parts.length > 0 ? `(${parts.join(' and ')})` : '';
+  const wastageText = wastagePercentage > 0 ? ` (+${wastagePercentage}% wastage)` : '';
+  
+  return `${rawTilesNeeded} ${rawTilesNeeded === 1 ? 'tile' : 'tiles'} ${breakdown}${wastageText}`;
+};
 
 /**
  * Unified tile calculation function
@@ -60,7 +89,10 @@ export const calculateTileRequirements = (
         tile,
         rooms: [],
         totalArea: 0,
+        rawTilesNeeded: 0,
         tilesNeeded: 0,
+        fullBoxes: 0,
+        leftoverTiles: 0,
         boxesNeeded: 0,
         totalPrice: 0,
         isWallTile: false
@@ -106,7 +138,10 @@ export const calculateTileRequirements = (
           tile,
           rooms: [],
           totalArea: 0,
+          rawTilesNeeded: 0,
           tilesNeeded: 0,
+          fullBoxes: 0,
+          leftoverTiles: 0,
           boxesNeeded: 0,
           totalPrice: 0,
           isWallTile: true,
@@ -151,13 +186,15 @@ export const calculateTileRequirements = (
       return;
     }
 
-    // Step 1: Calculate basic tiles needed for the area
-    const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+    // Step 1: Calculate exact tiles needed (total area ÷ single tile area)
+    calc.rawTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
     
-    // Step 2: Add wastage percentage to tiles
-    calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (validWastage / 100)));
+    // Step 2: Add wastage percentage to get final tiles needed
+    calc.tilesNeeded = Math.ceil(calc.rawTilesNeeded * (1 + (validWastage / 100)));
     
-    // Step 3: Calculate boxes needed from total tiles
+    // Step 3: Calculate box breakdown
+    calc.fullBoxes = Math.floor(calc.rawTilesNeeded / piecesPerBox);
+    calc.leftoverTiles = calc.rawTilesNeeded % piecesPerBox;
     calc.boxesNeeded = Math.ceil(calc.tilesNeeded / piecesPerBox);
     
     // Step 4: Calculate total price

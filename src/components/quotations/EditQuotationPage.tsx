@@ -36,7 +36,10 @@ interface TileCalculation {
     unit: string;
   }>;
   totalArea: number;
+  rawTilesNeeded: number;
   tilesNeeded: number;
+  fullBoxes: number;
+  leftoverTiles: number;
   boxesNeeded: number;
   totalPrice: number;
   customBoxes?: number; // For manual adjustment
@@ -117,7 +120,10 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             tile,
             rooms: [],
             totalArea: 0,
+            rawTilesNeeded: 0,
             tilesNeeded: 0,
+            fullBoxes: 0,
+            leftoverTiles: 0,
             boxesNeeded: 0,
             totalPrice: 0
           };
@@ -144,7 +150,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             
             if (tileAreaSqFt > 0) {
               const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+              calc.rawTilesNeeded = basicTilesNeeded;
               calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (currentWastagePercentage / 100)));
+              
+              // Calculate box breakdown
+              calc.fullBoxes = Math.floor(basicTilesNeeded / piecesPerBox);
+              calc.leftoverTiles = basicTilesNeeded % piecesPerBox;
               
               // Apply custom box adjustments
               const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
@@ -412,13 +423,16 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     <div className="flex items-center gap-2">
                       <Calculator className="h-4 w-4 text-green-600" />
                       <div>
-                        <p className="text-gray-600">Tiles Required</p>
-                        <p className="font-medium text-green-600">
-                          {calc.tilesNeeded} tiles
-                          <span className="text-xs text-gray-500 block">
-                            (+{wastagePercentage}% wastage)
-                          </span>
-                        </p>
+                         <p className="text-gray-600">Tiles Required</p>
+                         <p className="font-medium text-green-600">
+                           {calc.rawTilesNeeded || calc.tilesNeeded} tiles
+                           {calc.fullBoxes !== undefined && calc.leftoverTiles !== undefined && (
+                             <span className="text-xs text-gray-500 block">
+                               ({calc.fullBoxes} {calc.fullBoxes === 1 ? 'box' : 'boxes'}{calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})
+                               {wastagePercentage > 0 && ` (+${wastagePercentage}% wastage)`}
+                             </span>
+                           )}
+                         </p>
                       </div>
                     </div>
                     
