@@ -41,7 +41,7 @@ interface CustomerListProps {
 export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
-  const [stateFilter, setStateFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
   const { data: customers = [], isLoading } = useCustomers();
@@ -62,7 +62,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
         c.address?.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .filter(c => !areaFilter  || c.area?.toLowerCase().includes(areaFilter.toLowerCase()))
-      .filter(c => !stateFilter || c.state === stateFilter);
+      .filter(c => stateFilter === "all" || c.state === stateFilter);
   }, [customers, searchTerm, areaFilter, stateFilter]);
 
   const handleViewDetails = (customer: Customer) => setSelectedCustomer(customer);
@@ -116,7 +116,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                 <SelectValue placeholder="Filter by state" />
               </SelectTrigger>
               <SelectContent className="max-h-48 overflow-auto">
-                <SelectItem value="">All</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 {uniqueStates.map(s => (
                   <SelectItem key={s} value={s}>
                     {s}
