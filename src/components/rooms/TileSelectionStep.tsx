@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +20,7 @@ import {
   prepareQuotationItems,
   type FloorTileSelection,
   type WallTileSelection,
-  type WallTileLayer,
-  formatTileBreakdown
+  type WallTileLayer 
 } from "@/utils/tileCalculations";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
@@ -60,23 +58,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
 
   const floorRooms = rooms.filter(room => room.room_type === "floor");
   const wallRooms = rooms.filter(room => room.room_type === "wall");
-
-  const getWastagePercentage = () => {
-    return parseFloat(wastagePercentage) || 0;
-  };
-
-  const handleSaveSelections = async () => {
-    try {
-      // Save logic here
-      toast.success("Selections saved successfully!");
-    } catch (error) {
-      toast.error("Failed to save selections");
-    }
-  };
-
-  const handleGenerateQuotation = () => {
-    setShowQuotationForm(true);
-  };
 
   useEffect(() => {
     // existing initialization logic...
@@ -146,7 +127,8 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                             {calc.rawTilesNeeded}
                             <br />
                             <span className="text-xs text-gray-500">
-                              {formatTileBreakdown(calc.fullBoxes, calc.leftoverTiles)}
+                              ({calc.fullBoxes} box{calc.fullBoxes !== 1 ? 'es' : ''}
+                              {calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} tile${calc.leftoverTiles !== 1 ? 's' : ''}` : ''})
                             </span>
                           </p>
                         </div>

@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,13 +16,13 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 
 import { useCustomers } from "@/hooks/useCustomers";
 import { useWorkers } from "@/hooks/useWorkers";
+import { useRooms } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
 import { useQuotations } from "@/hooks/useQuotations";
 import { calculateTileRequirements, calculateGrandTotal } from "@/utils/tileCalculations";
 import type { TileCalculationResult } from "@/utils/tileCalculations";
 import { FloorTileSelection, WallTileSelection } from "@/utils/tileCalculations";
 import { prepareQuotationItems } from "@/utils/tileCalculations";
-import { formatTileBreakdown } from "@/utils/tileCalculations";
 
 const quotationFormSchema = z.object({
   quotation_number: z.string().min(3, {
@@ -56,15 +56,16 @@ export const QuotationForm = ({ customerId, initialData, onBack, onSuccess }: Qu
   const [grandTotal, setGrandTotal] = useState<number>(0);
   const [wastagePercentage, setWastagePercentage] = useState<number>(5);
 
-  const { data: customers = [], isLoading: isCustomersLoading } = useCustomers();
-  const { data: workers = [], isLoading: isWorkersLoading } = useWorkers();
-  const { data: tiles = [], isLoading: isTilesLoading } = useTiles();
+  const { customers, isLoading: isCustomersLoading } = useCustomers();
+  const { workers, isLoading: isWorkersLoading } = useWorkers();
+  const { rooms, isLoading: isRoomsLoading } = useRooms(customerId);
+  const { tiles, isLoading: isTilesLoading } = useTiles();
   const { createQuotation, isCreating } = useQuotations();
 
   const form = useForm<QuotationFormValues>({
     resolver: zodResolver(quotationFormSchema),
     defaultValues: {
-      quotation_number: initialData?.quotation_number || `Q-${Date.now()}`,
+      quotation_number: initialData?.quotation_number || `Q-${new Date().toISOString()}`,
       customer_id: customerId || initialData?.customer_id || '',
       worker_id: initialData?.worker_id || '',
       status: initialData?.status || 'draft',
@@ -75,10 +76,54 @@ export const QuotationForm = ({ customerId, initialData, onBack, onSuccess }: Qu
   });
 
   useEffect(() => {
-    if (calculations.length > 0) {
-      setGrandTotal(calculateGrandTotal(calculations));
+    if (rooms && tiles) {
+      const newFloorSelections: FloorTileSelection[] = [];
+      const newWallSelections: WallTileSelection[] = [];
+
+      rooms.forEach(room => {
+        if (room.floor_tile_id) {
+          newFloorSelections.push({
+            roomId: room.id,
+            tileId: room.floor_tile_id,
+          });
+        }
+
+        // Handle wall selections
+        if (room.wall_tile_selection) {
+          try {
+            const parsedSelection = JSON.parse(room.wall_tile_selection);
+            if (parsedSelection && parsedSelection.layers) {
+              newWallSelections.push({
+                roomId: room.id,
+                baseTileId: parsedSelection.baseTileId,
+                layers: parsedSelection.layers,
+                totalLayers: parsedSelection.totalLayers,
+              });
+            }
+          } catch (error) {
+            console.error("Error parsing wall tile selection:", error);
+          }
+        }
+      });
+
+      setFloorSelections(newFloorSelections);
+      setWallSelections(newWallSelections);
     }
-  }, [calculations, wastagePercentage]);
+  }, [rooms, tiles]);
+
+  useEffect(() => {
+    if (rooms && tiles) {
+      const newCalculations = calculateTileRequirements(
+        floorSelections,
+        wallSelections,
+        rooms,
+        tiles,
+        wastagePercentage
+      );
+      setCalculations(newCalculations);
+      setGrandTotal(calculateGrandTotal(newCalculations));
+    }
+  }, [floorSelections, wallSelections, rooms, tiles, wastagePercentage]);
 
   const onSubmit = async (data: QuotationFormValues) => {
     if (calculations.length === 0) {
@@ -89,19 +134,14 @@ export const QuotationForm = ({ customerId, initialData, onBack, onSuccess }: Qu
     const quotationItems = prepareQuotationItems(
       floorSelections,
       wallSelections,
-      [],
-      tiles,
+      rooms || [],
+      tiles || [],
       wastagePercentage
     );
 
     try {
       await createQuotation({
-        quotation_number: data.quotation_number,
-        customer_id: data.customer_id,
-        worker_id: data.worker_id,
-        status: data.status,
-        notes: data.notes,
-        wastage_percentage: data.wastage_percentage,
+        ...data,
         total_cost: grandTotal,
         items: quotationItems,
       });
@@ -115,7 +155,7 @@ export const QuotationForm = ({ customerId, initialData, onBack, onSuccess }: Qu
     }
   };
 
-  if (isCustomersLoading || isWorkersLoading || isTilesLoading) {
+  if (isCustomersLoading || isWorkersLoading || isRoomsLoading || isTilesLoading) {
     return <div className="text-center p-4">Loading...</div>;
   }
 
@@ -290,7 +330,10 @@ export const QuotationForm = ({ customerId, initialData, onBack, onSuccess }: Qu
                       <p className="font-medium text-green-600">
                         {calc.rawTilesNeeded} tiles
                         <span className="text-xs text-gray-500 block">
-                          {formatTileBreakdown(calc.fullBoxes, calc.leftoverTiles)}
+                          ({calc.fullBoxes} box{calc.fullBoxes !== 1 ? 'es' : ''}
+                          {calc.leftoverTiles > 0
+                            ? ` and ${calc.leftoverTiles} tile${calc.leftoverTiles !== 1 ? 's' : ''}`
+                            : ''})
                           <br />
                           (+{wastagePercentage}% wastage)
                         </span>

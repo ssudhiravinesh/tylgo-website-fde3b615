@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -172,18 +171,17 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     return (
       <QuotationDetails
         quotation={selectedQuotation}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onEmail={() => {}} // Add email functionality as needed
+        onBack={handleBackToList}
       />
     );
   }
 
-  if (viewMode === "edit" && selectedQuotationId) {
+  if (viewMode === "edit" && selectedQuotation) {
     return (
       <EditQuotationPage
-        quotationId={selectedQuotationId}
+        quotation={selectedQuotation}
         onBack={handleBackToList}
+        onSuccess={handleEditSuccess}
       />
     );
   }
@@ -273,14 +271,29 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
             </CardContent>
           </Card>
 
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center">
+              <FileText className="h-8 w-8 text-red-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Closed</p>
+                <p className="text-2xl font-bold">
+                  {filteredQuotations.filter(q => q.status === 'closed').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+          
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center">
-                <FileText className="h-8 w-8 text-red-600" />
+                <IndianRupee className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Closed</p>
+                  <p className="text-sm font-medium text-gray-600">Total Value</p>
                   <p className="text-2xl font-bold">
-                    {filteredQuotations.filter(q => q.status === 'closed').length}
+                    ₹{filteredQuotations.reduce((sum, q) => sum + (q.total_cost || 0), 0).toLocaleString()}
                   </p>
                 </div>
               </div>
