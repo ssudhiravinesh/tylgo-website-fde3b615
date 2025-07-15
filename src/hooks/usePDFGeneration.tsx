@@ -204,9 +204,13 @@ if (quotationItems && quotationItems.length > 0) {
         tile: group.tile,
         rooms: [],
         totalArea: 0,
-        tilesNeeded: 0,
+        rawTilesNeeded: 0,
         boxesNeeded: 0,
+        orderedTiles: 0,
+        fullBoxes: 0,
+        leftoverTiles: 0,
         totalPrice: 0,
+        piecesPerBox: 0,
         quotationItems: []
       };
     }
@@ -253,7 +257,7 @@ if (quotationItems && quotationItems.length > 0) {
         calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
         
         // Update tiles needed to reflect the actual boxes being purchased
-        calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+        calc.rawTilesNeeded = calc.boxesNeeded * piecesPerBox;
         
         // Use the already calculated totalPrice (includes layer adjustments)
         // calc.totalPrice is already set correctly from the grouping logic above

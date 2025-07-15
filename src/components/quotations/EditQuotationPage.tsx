@@ -36,8 +36,12 @@ interface TileCalculation {
     unit: string;
   }>;
   totalArea: number;
+  rawTilesNeeded: number;
   tilesNeeded: number;
   boxesNeeded: number;
+  orderedTiles: number;
+  fullBoxes: number;
+  leftoverTiles: number;
   totalPrice: number;
   customBoxes?: number; // For manual adjustment
 }
@@ -117,8 +121,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             tile,
             rooms: [],
             totalArea: 0,
+            rawTilesNeeded: 0,
             tilesNeeded: 0,
             boxesNeeded: 0,
+            orderedTiles: 0,
+            fullBoxes: 0,
+            leftoverTiles: 0,
             totalPrice: 0
           };
         }
@@ -419,18 +427,16 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                         <p className="text-gray-600">Tiles Required</p>
                         <p className="font-medium text-green-600">
                           {calc.tilesNeeded} tiles
-                            <span className="text-xs text-gray-500 block">
-                              ({calc.fullBoxes} box{calc.fullBoxes !== 1 ? 'es' : ''}
-                              {calc.leftoverTiles > 0
-                                ? ` and ${calc.leftoverTiles} tile${calc.leftoverTiles !== 1 ? 's' : ''}`
-                                : ''})
-                              <br />
-                              (+{wastagePercentage}% wastage)
-                              <br />
-                              Order {calc.boxesNeeded} box{calc.boxesNeeded !== 1 ? 'es' : ''} (for {calc.boxesNeeded * calc.tile.pieces_per_box} tiles)
-                            </span>
-                            );
-                          })()}
+                          <span className="text-xs text-gray-500 block">
+                            ({calc.fullBoxes} box{calc.fullBoxes !== 1 ? 'es' : ''}
+                            {calc.leftoverTiles > 0
+                              ? ` and ${calc.leftoverTiles} tile${calc.leftoverTiles !== 1 ? 's' : ''}`
+                              : ''})
+                            <br />
+                            (+{wastagePercentage}% wastage)
+                            <br />
+                            Order {calc.boxesNeeded} box{calc.boxesNeeded !== 1 ? 'es' : ''} (for {calc.boxesNeeded * calc.tile.pieces_per_box} tiles)
+                          </span>
                         </p>
 
                       </div>

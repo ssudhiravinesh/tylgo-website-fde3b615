@@ -59,11 +59,96 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const floorRooms = rooms.filter(room => room.room_type === "floor");
   const wallRooms = rooms.filter(room => room.room_type === "wall");
 
+  const getWastagePercentage = () => {
+    const percentage = parseFloat(wastagePercentage) || 0;
+    return Math.max(0, Math.min(100, percentage));
+  };
+
   useEffect(() => {
-    // existing initialization logic...
+    if (selections.length > 0) {
+      const floorSelections: FloorTileSelection[] = [];
+      const wallSelections: WallTileSelection[] = [];
+
+      selections.forEach(selection => {
+        const room = rooms.find(r => r.id === selection.room_id);
+        if (!room) return;
+
+        if (room.room_type === "floor") {
+          floorSelections.push({
+            roomId: selection.room_id,
+            tileId: selection.tile_id
+          });
+        } else if (room.room_type === "wall") {
+          const existingWallSelection = wallSelections.find(w => w.roomId === selection.room_id);
+          if (existingWallSelection) {
+            existingWallSelection.layers.push({
+              layerNumber: selection.layer_number || 1,
+              tileId: selection.tile_id,
+              tilesNeeded: 0
+            });
+          } else {
+            wallSelections.push({
+              roomId: selection.room_id,
+              baseTileId: null,
+              totalLayers: 1,
+              layers: [{
+                layerNumber: selection.layer_number || 1,
+                tileId: selection.tile_id,
+                tilesNeeded: 0
+              }]
+            });
+          }
+        }
+      });
+
+      setFloorTileSelections(floorSelections);
+      setWallTileSelections(wallSelections);
+    }
   }, [selections, rooms]);
 
-  // existing handlers omitted for brevity...
+  const handleSaveSelections = async () => {
+    try {
+      const selectionsToSave = [
+        ...floorTileSelections.map(fs => ({
+          customer_id: customerId,
+          room_id: fs.roomId,
+          tile_id: fs.tileId,
+          layer_number: null
+        })),
+        ...wallTileSelections.flatMap(ws => 
+          ws.layers.map(layer => ({
+            customer_id: customerId,
+            room_id: ws.roomId,
+            tile_id: layer.tileId,
+            layer_number: layer.layerNumber
+          }))
+        )
+      ];
+
+      await saveSelectionsMutation.mutateAsync(selectionsToSave);
+      toast.success("Tile selections saved successfully!");
+    } catch (error) {
+      console.error("Error saving selections:", error);
+      toast.error("Failed to save selections");
+    }
+  };
+
+  const handleGenerateQuotation = () => {
+    const quotationItems = prepareQuotationItems(
+      floorTileSelections,
+      wallTileSelections,
+      rooms,
+      tiles,
+      getWastagePercentage()
+    );
+    
+    if (quotationItems.length === 0) {
+      toast.error("No valid tile selections found");
+      return;
+    }
+    
+    setShowQuotationForm(true);
+  };
 
   const calculations = calculateTileRequirements(
     floorTileSelections,
