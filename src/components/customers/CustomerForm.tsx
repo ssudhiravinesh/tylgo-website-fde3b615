@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,8 +47,8 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   };
   
   const handleInputChange = (field: string, value: string) => {
-    // Realtime formatting only for names
-    const formattedValue = ["name", "reference_name"].includes(field)
+    // Realtime formatting for names and area
+    const formattedValue = ["name", "reference_name", "area"].includes(field)
       ? capitalizeWords(value)
       : value;
   
@@ -165,6 +164,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     const formattedData = {
       ...formData,
       name: capitalizeWords(formData.name),
+      area: capitalizeWords(formData.area),
       reference_name: capitalizeWords(formData.reference_name)
     };
     
@@ -187,6 +187,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     const formattedData = {
       ...formData,
       name: capitalizeWords(formData.name),
+      area: capitalizeWords(formData.area),
       reference_name: capitalizeWords(formData.reference_name)
     };
     
