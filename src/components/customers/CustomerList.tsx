@@ -65,6 +65,18 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
       .filter(c => stateFilter === "all" || c.state === stateFilter);
   }, [customers, searchTerm, areaFilter, stateFilter]);
 
+  // Helper function to format address
+  const formatAddress = (customer: Customer) => {
+    const addressParts = [
+      customer.address,
+      customer.area,
+      customer.state,
+      customer.pincode
+    ].filter(Boolean);
+    
+    return addressParts.length > 0 ? addressParts.join(", ") : "-";
+  };
+
   const handleViewDetails = (customer: Customer) => setSelectedCustomer(customer);
   const handleBackToList  = () => setSelectedCustomer(null);
 
@@ -195,8 +207,10 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                     <User className="h-5 w-5 text-blue-600" /> {customer.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.mobile}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 line-clamp-1">
-                    {customer.address || '-'}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <div className="max-w-xs truncate" title={formatAddress(customer)}>
+                      {formatAddress(customer)}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(customer.created_at).toLocaleDateString()}
@@ -233,22 +247,12 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Phone className="h-4 w-4 text-green-600" /> {customer.mobile}
                 </div>
-              {(customer.address || customer.area || customer.state || customer.pincode) && (
                 <div className="flex items-start gap-2 text-sm text-gray-600">
                   <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
                   <span className="line-clamp-2">
-                    {[
-                      customer.address,
-                      customer.area,
-                      customer.state,
-                      customer.pincode
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || '-'}
+                    {formatAddress(customer)}
                   </span>
                 </div>
-              )}
-
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Calendar className="h-4 w-4" /> {new Date(customer.created_at).toLocaleDateString()}
                 </div>
