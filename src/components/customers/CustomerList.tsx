@@ -244,7 +244,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                       customer.pincode
                     ]
                       .filter(Boolean)
-                      .join(", ")}
+                      .join(", ") || '-'}
                   </span>
                 </div>
               )}
