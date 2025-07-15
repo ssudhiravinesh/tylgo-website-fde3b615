@@ -1,4 +1,3 @@
-
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 import { calculateAreaInSquareFeet } from "./unitConversions";
@@ -7,11 +6,11 @@ export interface TileCalculationResult {
   tile: Tile;
   rooms: Room[];
   totalArea: number;
-  rawTilesNeeded: number;     
+  rawTilesNeeded: number;     // NEW
   boxesNeeded: number;
-  orderedTiles: number;       
-  fullBoxes: number;          
-  leftoverTiles: number;      
+  orderedTiles: number;       // NEW
+  fullBoxes: number;          // NEW: conceptual full boxes (floor division)
+  leftoverTiles: number;      // NEW: conceptual leftover
   totalPrice: number;
   isWallTile?: boolean;
   wallLayers?: number[];
@@ -59,14 +58,11 @@ export const calculateTileRequirements = (
         tile,
         rooms: [],
         totalArea: 0,
-        rawTilesNeeded: 0,
+        tilesNeeded: 0,
         boxesNeeded: 0,
-        orderedTiles: 0,
-        fullBoxes: 0,
-        leftoverTiles: 0,
         totalPrice: 0,
         isWallTile: false,
-        piecesPerBox: 0
+        piecesPerBox: 0 // Initialize piecesPerBox
       };
     }
 
@@ -109,15 +105,12 @@ export const calculateTileRequirements = (
           tile,
           rooms: [],
           totalArea: 0,
-          rawTilesNeeded: 0,
+          tilesNeeded: 0,
           boxesNeeded: 0,
-          orderedTiles: 0,
-          fullBoxes: 0,
-          leftoverTiles: 0,
           totalPrice: 0,
           isWallTile: true,
           wallLayers: [],
-          piecesPerBox: 0
+          piecesPerBox: 0 // Initialize piecesPerBox
         };
       }
 
@@ -168,18 +161,6 @@ export const calculateTileRequirements = (
 
 export const calculateGrandTotal = (calculations: TileCalculationResult[]): number =>
   calculations.reduce((sum, calc) => sum + (calc.totalPrice || 0), 0);
-
-// Helper function to format exact tile breakdown
-export const formatTileBreakdown = (fullBoxes: number, leftoverTiles: number): string => {
-  if (fullBoxes === 0 && leftoverTiles > 0) {
-    return `${leftoverTiles} tile${leftoverTiles !== 1 ? 's' : ''}`;
-  } else if (fullBoxes > 0 && leftoverTiles === 0) {
-    return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}`;
-  } else if (fullBoxes > 0 && leftoverTiles > 0) {
-    return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''} and ${leftoverTiles} tile${leftoverTiles !== 1 ? 's' : ''}`;
-  }
-  return '0 tiles';
-};
 
 /**
  * Prepare quotation items from room selections
