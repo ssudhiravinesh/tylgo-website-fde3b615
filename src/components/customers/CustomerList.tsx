@@ -39,8 +39,8 @@ interface CustomerListProps {
 }
 
 export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerListProps) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [areaFilter, setAreaFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("all");
+  const [areaFilter, setAreaFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
