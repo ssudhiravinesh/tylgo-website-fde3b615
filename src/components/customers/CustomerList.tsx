@@ -233,12 +233,22 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Phone className="h-4 w-4 text-green-600" /> {customer.mobile}
                 </div>
-                {customer.address && (
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
-                    <span className="line-clamp-2">{customer.address}</span>
-                  </div>
-                )}
+              {(customer.address || customer.area || customer.state || customer.pincode) && (
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
+                  <span className="line-clamp-2">
+                    {[
+                      customer.address,
+                      customer.area,
+                      customer.state,
+                      customer.pincode
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                </div>
+              )}
+
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Calendar className="h-4 w-4" /> {new Date(customer.created_at).toLocaleDateString()}
                 </div>
