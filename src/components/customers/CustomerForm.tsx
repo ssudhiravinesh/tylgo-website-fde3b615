@@ -25,7 +25,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     reference_name: "",
     reference_mobile_no: ""
   });
-  
+
   const [errors, setErrors] = useState({
     name: "",
     mobile: "",
@@ -40,31 +40,12 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const allStates = getAllStates();
 
   const capitalizeWords = (value: string) => {
-    // Handle empty string
-    if (!value) return value;
-    
-    // Split by spaces but preserve the spaces
     return value.replace(/\b\w/g, (match) => match.toUpperCase());
   };
-  
-  const handleInputChange = (field: string, value: string) => {
-    // For name and area fields, apply capitalization in real-time
-    const formattedValue = ["name", "reference_name", "area"].includes(field)
-      ? capitalizeWords(value)
-      : value;
-  
-setFormData(prev => ({ ...prev, [field]: value }));
-    const handleInputBlur = (field: string) => {
-  if (["name", "reference_name", "area"].includes(field)) {
-    setFormData(prev => ({
-      ...prev,
-      [field]: capitalizeWords(prev[field]),
-    }));
-  }
-};
 
-  
-    // Handle pincode-based state autopopulation
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+
     if (field === "pincode" && value.length === 6) {
       const detectedState = getStateByPincode(value);
       if (detectedState) {
@@ -77,6 +58,15 @@ setFormData(prev => ({ ...prev, [field]: value }));
 
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleInputBlur = (field: string) => {
+    if (["name", "reference_name", "area"].includes(field)) {
+      setFormData(prev => ({
+        ...prev,
+        [field]: capitalizeWords(prev[field]),
+      }));
     }
   };
 
@@ -114,49 +104,22 @@ setFormData(prev => ({ ...prev, [field]: value }));
       reference_mobile_no: ""
     };
 
-    // Validate name
-    if (!formData.name.trim()) {
-      newErrors.name = "Full name is required";
-    }
+    if (!formData.name.trim()) newErrors.name = "Full name is required";
+    const mobileDigits = formData.mobile.replace(/\D/g, '');
+    if (!formData.mobile.trim()) newErrors.mobile = "Mobile number is required";
+    else if (mobileDigits.length !== 10) newErrors.mobile = "Mobile number must be exactly 10 digits";
+    if (!formData.area.trim()) newErrors.area = "Residing area is required";
+    if (!formData.state.trim()) newErrors.state = "State is required";
+    if (!formData.pincode.trim()) newErrors.pincode = "Pincode is required";
+    else if (!/^\d{6}$/.test(formData.pincode.trim())) newErrors.pincode = "Pincode must be exactly 6 digits";
 
-    // Validate mobile - now expecting exactly 10 digits
-    if (!formData.mobile.trim()) {
-      newErrors.mobile = "Mobile number is required";
-    } else {
-      const mobileDigits = formData.mobile.replace(/\D/g, '');
-      if (mobileDigits.length !== 10) {
-        newErrors.mobile = "Mobile number must be exactly 10 digits";
-      }
-    }
-
-    // Validate area
-    if (!formData.area.trim()) {
-      newErrors.area = "Residing area is required";
-    }
-
-    // Validate state
-    if (!formData.state.trim()) {
-      newErrors.state = "State is required";
-    }
-
-    // Validate pincode
-    if (!formData.pincode.trim()) {
-      newErrors.pincode = "Pincode is required";
-    } else if (!/^\d{6}$/.test(formData.pincode.trim())) {
-      newErrors.pincode = "Pincode must be exactly 6 digits";
-    }
-
-    // Validate reference mobile if reference name is provided
     if (formData.reference_name.trim() && !formData.reference_mobile_no.trim()) {
       newErrors.reference_mobile_no = "Reference mobile number is required when reference name is provided";
     }
 
-    // Validate reference mobile format if provided - now expecting exactly 10 digits
-    if (formData.reference_mobile_no.trim()) {
-      const refMobileDigits = formData.reference_mobile_no.replace(/\D/g, '');
-      if (refMobileDigits.length !== 10) {
-        newErrors.reference_mobile_no = "Reference mobile number must be exactly 10 digits";
-      }
+    const refMobileDigits = formData.reference_mobile_no.replace(/\D/g, '');
+    if (formData.reference_mobile_no.trim() && refMobileDigits.length !== 10) {
+      newErrors.reference_mobile_no = "Reference mobile number must be exactly 10 digits";
     }
 
     setErrors(newErrors);
@@ -165,7 +128,6 @@ setFormData(prev => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       toast.error("Please fill in all required fields correctly");
       return;
@@ -177,7 +139,7 @@ setFormData(prev => ({ ...prev, [field]: value }));
       area: formData.area.trim(),
       reference_name: formData.reference_name.trim()
     };
-    
+
     try {
       await createCustomer.mutateAsync(formattedData);
       onBack();
@@ -188,7 +150,6 @@ setFormData(prev => ({ ...prev, [field]: value }));
 
   const handleSaveAndQuote = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       toast.error("Please fill in all required fields correctly");
       return;
@@ -200,7 +161,7 @@ setFormData(prev => ({ ...prev, [field]: value }));
       area: formData.area.trim(),
       reference_name: formData.reference_name.trim()
     };
-    
+
     try {
       const newCustomer = await createCustomer.mutateAsync(formattedData);
       if (onNewQuote && newCustomer?.id) {
@@ -214,16 +175,10 @@ setFormData(prev => ({ ...prev, [field]: value }));
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onBack}
-          className="gap-2"
-        >
+        <Button variant="outline" size="sm" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Add New Customer</h1>
           <p className="text-gray-600">Enter customer details to create a new record</p>
@@ -237,39 +192,32 @@ setFormData(prev => ({ ...prev, [field]: value }));
             Customer Information
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent>
           <form className="space-y-6">
+            {/* Name */}
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                Full Name *
-              </Label>
+              <Label htmlFor="name">Full Name *</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="name"
                   type="text"
-                  inputMode="text"
-                  autoComplete="name"
                   placeholder="Enter customer's full name"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
-                    onBlur={() => handleInputBlur("name")}
-                  className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                  onBlur={() => handleInputBlur("name")}
+                  className={`pl-10 h-12 border-gray-200 ${
                     errors.name ? "border-red-500" : ""
                   }`}
-                  required
                 />
               </div>
-              {errors.name && (
-                <p className="text-sm text-red-600">{errors.name}</p>
-              )}
+              {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
             </div>
 
+            {/* Mobile */}
             <div className="space-y-2">
-              <Label htmlFor="mobile" className="text-sm font-medium text-gray-700">
-                Mobile Number *
-              </Label>
+              <Label htmlFor="mobile">Mobile Number *</Label>
               <MobileNumberSearch
                 value={formData.mobile}
                 onChange={(value) => handleInputChange("mobile", value)}
@@ -278,50 +226,38 @@ setFormData(prev => ({ ...prev, [field]: value }));
                 searchType="customer"
                 error={errors.mobile}
               />
-              {errors.mobile && (
-                <p className="text-sm text-red-600">{errors.mobile}</p>
-              )}
+              {errors.mobile && <p className="text-sm text-red-600">{errors.mobile}</p>}
             </div>
 
+            {/* Area, State, Pincode */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="area" className="text-sm font-medium text-gray-700">
-                  Residing Area *
-                </Label>
+                <Label htmlFor="area">Residing Area *</Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="area"
                     type="text"
-                    inputMode="text"
-                    autoComplete="address-level2"
                     placeholder="e.g., Andheri, Koramangala, CP"
                     value={formData.area}
                     onChange={(e) => handleInputChange("area", e.target.value)}
-                      onBlur={() => handleInputBlur("name")}
-                    className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
+                    onBlur={() => handleInputBlur("area")}
+                    className={`pl-10 h-12 border-gray-200 ${
                       errors.area ? "border-red-500" : ""
                     }`}
-                    required
                   />
                 </div>
-                {errors.area && (
-                  <p className="text-sm text-red-600">{errors.area}</p>
-                )}
+                {errors.area && <p className="text-sm text-red-600">{errors.area}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="state" className="text-sm font-medium text-gray-700">
-                    State *
-                  </Label>
-                  <Select 
-                    value={formData.state} 
+                  <Label htmlFor="state">State *</Label>
+                  <Select
+                    value={formData.state}
                     onValueChange={(value) => handleInputChange("state", value)}
                   >
-                    <SelectTrigger className={`h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                      errors.state ? "border-red-500" : ""
-                    }`}>
+                    <SelectTrigger className={`h-12 border-gray-200 ${errors.state ? "border-red-500" : ""}`}>
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
@@ -332,71 +268,47 @@ setFormData(prev => ({ ...prev, [field]: value }));
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.state && (
-                    <p className="text-sm text-red-600">{errors.state}</p>
-                  )}
+                  {errors.state && <p className="text-sm text-red-600">{errors.state}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="pincode" className="text-sm font-medium text-gray-700">
-                    Pincode *
-                  </Label>
+                  <Label htmlFor="pincode">Pincode *</Label>
                   <Input
                     id="pincode"
                     type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
                     maxLength={6}
-                    autoComplete="postal-code"
                     placeholder="400001"
                     value={formData.pincode}
-                    onChange={(e) => handleInputChange("pincode", e.target.value.replace(/\D/g, ''))}
-                    className={`h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                      errors.pincode ? "border-red-500" : ""
-                    }`}
-                    required
+                    onChange={(e) => handleInputChange("pincode", e.target.value.replace(/\D/g, ""))}
+                    className={`h-12 border-gray-200 ${errors.pincode ? "border-red-500" : ""}`}
                   />
-                  {errors.pincode && (
-                    <p className="text-sm text-red-600">{errors.pincode}</p>
-                  )}
+                  {errors.pincode && <p className="text-sm text-red-600">{errors.pincode}</p>}
                 </div>
               </div>
             </div>
 
-            {/* Reference Information Section */}
+            {/* Reference Info */}
             <div className="pt-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-800 mb-4">Reference Information (Optional)</h3>
-              
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="reference_name" className="text-sm font-medium text-gray-700">
-                    Reference Name
-                  </Label>
+                  <Label htmlFor="reference_name">Reference Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="reference_name"
                       type="text"
-                      inputMode="text"
-                      autoComplete="name"
                       placeholder="Enter reference person's name"
                       value={formData.reference_name}
                       onChange={(e) => handleInputChange("reference_name", e.target.value)}
-                      onBlur={() => handleInputBlur("name")}
-                      className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
-                        errors.reference_name ? "border-red-500" : ""
-                      }`}
+                      onBlur={() => handleInputBlur("reference_name")}
+                      className={`pl-10 h-12 border-gray-200 ${errors.reference_name ? "border-red-500" : ""}`}
                     />
                   </div>
-                  {errors.reference_name && (
-                    <p className="text-sm text-red-600">{errors.reference_name}</p>
-                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="reference_mobile_no" className="text-sm font-medium text-gray-700">
-                    Reference Mobile Number
-                  </Label>
+                  <Label htmlFor="reference_mobile_no">Reference Mobile Number</Label>
                   <MobileNumberSearch
                     value={formData.reference_mobile_no}
                     onChange={(value) => handleInputChange("reference_mobile_no", value)}
@@ -413,15 +325,9 @@ setFormData(prev => ({ ...prev, [field]: value }));
               </div>
             </div>
 
+            {/* Buttons */}
             <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onBack}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
+              <Button type="button" variant="outline" onClick={onBack} className="flex-1">Cancel</Button>
               <Button
                 type="button"
                 onClick={handleSubmit}
