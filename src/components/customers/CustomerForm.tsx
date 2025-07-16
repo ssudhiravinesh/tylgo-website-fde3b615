@@ -40,18 +40,15 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const allStates = getAllStates();
 
   const capitalizeWords = (value: string) => {
-    return value
-      .trim()
-      .split(/\s+/) // Split by one or more spaces
-      .map(word => {
-        if (word.length === 0) return word;
-        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-      })
-      .join(" ");
+    // Handle empty string
+    if (!value) return value;
+    
+    // Split by spaces but preserve the spaces
+    return value.replace(/\b\w/g, (match) => match.toUpperCase());
   };
   
   const handleInputChange = (field: string, value: string) => {
-    // Realtime formatting for names and area
+    // For name and area fields, apply capitalization in real-time
     const formattedValue = ["name", "reference_name", "area"].includes(field)
       ? capitalizeWords(value)
       : value;
@@ -167,9 +164,9 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
     const formattedData = {
       ...formData,
-      name: capitalizeWords(formData.name),
-      area: capitalizeWords(formData.area),
-      reference_name: capitalizeWords(formData.reference_name)
+      name: formData.name.trim(),
+      area: formData.area.trim(),
+      reference_name: formData.reference_name.trim()
     };
     
     try {
@@ -190,9 +187,9 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
     const formattedData = {
       ...formData,
-      name: capitalizeWords(formData.name),
-      area: capitalizeWords(formData.area),
-      reference_name: capitalizeWords(formData.reference_name)
+      name: formData.name.trim(),
+      area: formData.area.trim(),
+      reference_name: formData.reference_name.trim()
     };
     
     try {
