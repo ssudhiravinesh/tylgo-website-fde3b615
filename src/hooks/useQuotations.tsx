@@ -154,27 +154,49 @@ export const useQuotations = (filters?: QuotationFilters) => {
       if (filters?.quickSort && filters.quickSort !== 'all') {
         const now = new Date();
         let startDate: string;
+        let endDate: string;
         
         switch (filters.quickSort) {
-          case 'current-month':
+          case 'today':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+            query = query.gte('created_at', startDate).lte('created_at', endDate);
+            break;
+          case 'yesterday':
+            const yesterday = new Date(now);
+            yesterday.setDate(now.getDate() - 1);
+            startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()).toISOString();
+            endDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59).toISOString();
+            query = query.gte('created_at', startDate).lte('created_at', endDate);
+            break;
+          case 'this_week':
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - now.getDay());
+            startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
+            query = query.gte('created_at', startDate);
+            break;
+          case 'last_week':
+            const lastWeekStart = new Date(now);
+            lastWeekStart.setDate(now.getDate() - now.getDay() - 7);
+            const lastWeekEnd = new Date(lastWeekStart);
+            lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+            startDate = new Date(lastWeekStart.getFullYear(), lastWeekStart.getMonth(), lastWeekStart.getDate()).toISOString();
+            endDate = new Date(lastWeekEnd.getFullYear(), lastWeekEnd.getMonth(), lastWeekEnd.getDate(), 23, 59, 59).toISOString();
+            query = query.gte('created_at', startDate).lte('created_at', endDate);
+            break;
+          case 'this_month':
             startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
             query = query.gte('created_at', startDate);
             break;
-          case 'last-month':
+          case 'last_month':
             const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
             query = query.gte('created_at', lastMonth.toISOString())
-                        .lte('created_at', lastMonthEnd.toISOString());
+                        .lte('created_at', new Date(lastMonthEnd.getFullYear(), lastMonthEnd.getMonth(), lastMonthEnd.getDate(), 23, 59, 59).toISOString());
             break;
-          case 'last-2-months':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString();
+          case 'this_year':
+            startDate = new Date(now.getFullYear(), 0, 1).toISOString();
             query = query.gte('created_at', startDate);
-            break;
-          case 'last-year':
-            const lastYear = new Date(now.getFullYear() - 1, 0, 1);
-            const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
-            query = query.gte('created_at', lastYear.toISOString())
-                        .lte('created_at', lastYearEnd.toISOString());
             break;
         }
       }
