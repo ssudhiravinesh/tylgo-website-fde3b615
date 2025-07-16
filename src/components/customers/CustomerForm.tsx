@@ -53,7 +53,16 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
       ? capitalizeWords(value)
       : value;
   
-    setFormData(prev => ({ ...prev, [field]: formattedValue }));
+setFormData(prev => ({ ...prev, [field]: value }));
+    const handleInputBlur = (field: string) => {
+  if (["name", "reference_name", "area"].includes(field)) {
+    setFormData(prev => ({
+      ...prev,
+      [field]: capitalizeWords(prev[field]),
+    }));
+  }
+};
+
   
     // Handle pincode-based state autopopulation
     if (field === "pincode" && value.length === 6) {
@@ -245,6 +254,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   placeholder="Enter customer's full name"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
+                    onBlur={() => handleInputBlur("name")}
                   className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
                     errors.name ? "border-red-500" : ""
                   }`}
@@ -288,6 +298,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     placeholder="e.g., Andheri, Koramangala, CP"
                     value={formData.area}
                     onChange={(e) => handleInputChange("area", e.target.value)}
+                      onBlur={() => handleInputBlur("name")}
                     className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
                       errors.area ? "border-red-500" : ""
                     }`}
@@ -371,6 +382,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                       placeholder="Enter reference person's name"
                       value={formData.reference_name}
                       onChange={(e) => handleInputChange("reference_name", e.target.value)}
+                      onBlur={() => handleInputBlur("name")}
                       className={`pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 ${
                         errors.reference_name ? "border-red-500" : ""
                       }`}
