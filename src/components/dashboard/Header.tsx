@@ -34,7 +34,7 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-semibold text-gray-800">Tile Haven</h1>
+            <h1 className="text-xl font-semibold text-gray-800">TYLGO</h1>
           </div>
 
           <div className="flex items-center gap-4">
