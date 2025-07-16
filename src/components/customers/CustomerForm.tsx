@@ -39,27 +39,37 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const createCustomer = useCreateCustomer();
   const allStates = getAllStates();
 
-  const capitalizeWords = (value: string) => {
-    return value.replace(/\b\w/g, (match) => match.toUpperCase());
-  };
+const capitalizeWords = (value: string) => {
+  return value
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
 
-    if (field === "pincode" && value.length === 6) {
-      const detectedState = getStateByPincode(value);
-      if (detectedState) {
-        setFormData(prev => ({ ...prev, state: detectedState }));
-        if (errors.state) {
-          setErrors(prev => ({ ...prev, state: "" }));
-        }
+const handleInputChange = (field: string, value: string) => {
+  const isCapField = ["name", "reference_name", "area"].includes(field);
+
+  setFormData(prev => ({
+    ...prev,
+    [field]: isCapField ? capitalizeWords(value) : value,
+  }));
+
+  if (field === "pincode" && value.length === 6) {
+    const detectedState = getStateByPincode(value);
+    if (detectedState) {
+      setFormData(prev => ({ ...prev, state: detectedState }));
+      if (errors.state) {
+        setErrors(prev => ({ ...prev, state: "" }));
       }
     }
+  }
 
-    if (errors[field as keyof typeof errors]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
-    }
-  };
+  if (errors[field as keyof typeof errors]) {
+    setErrors(prev => ({ ...prev, [field]: "" }));
+  }
+};
+
 
   const handleInputBlur = (field: string) => {
     if (["name", "reference_name", "area"].includes(field)) {
