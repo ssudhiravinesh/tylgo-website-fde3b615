@@ -56,7 +56,7 @@ export const CustomerSearchBar = ({ value, onValueChange, placeholder = "Search 
       <PopoverContent className="w-full min-w-[400px] p-0" align="start">
         <Command>
           <CommandInput 
-            placeholder="Search by name, mobile, or address..." 
+            placeholder="Search by name or mobile number..." 
             value={searchTerm}
             onValueChange={setSearchTerm}
           />
@@ -87,12 +87,6 @@ export const CustomerSearchBar = ({ value, onValueChange, placeholder = "Search 
                       <Phone className="h-3 w-3 text-green-600" />
                       <span>{customer.mobile}</span>
                     </div>
-                    {customer.address && (
-                      <div className="flex items-start gap-2 text-sm text-gray-600">
-                        <MapPin className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
-                        <span className="line-clamp-2">{customer.address}</span>
-                      </div>
-                    )}
                   </div>
                 </CommandItem>
               ))}
