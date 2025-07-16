@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Calendar, IndianRupee, User, Plus } from "lucide-react";
+import { Search, FileText, Calendar, IndianRupee, User, Plus, LayoutList, LayoutGrid, MapPin } from "lucide-react";
 import { useQuotations } from "@/hooks/useQuotations";
 import { QuotationDetails } from "./QuotationDetails";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
@@ -19,7 +19,7 @@ type ViewMode = "list" | "create" | "details" | "edit";
 
 export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [pageViewMode, setPageViewMode] = useState<ViewMode>("list");
   const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedQuotationForAction, setSelectedQuotationForAction] = useState<string | null>(null);
@@ -32,6 +32,9 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   // New filter states
   const [selectedWorker, setSelectedWorker] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<'list' | 'card'>('card');
+  const [areaFilter, setAreaFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("all");
   
   const { data: quotations = [], isLoading, refetch, deleteQuotation, isDeleting } = useQuotations({
     quickSort,
@@ -51,7 +54,13 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     // Status filter
     const matchesStatus = selectedStatus === "all" || quotation.status === selectedStatus;
     
-    return matchesSearch && matchesWorker && matchesStatus;
+    // Area filter
+    const matchesArea = !areaFilter || (quotation.customer as any)?.area?.toLowerCase().includes(areaFilter.toLowerCase());
+    
+    // State filter
+    const matchesState = stateFilter === "all" || (quotation.customer as any)?.state === stateFilter;
+    
+    return matchesSearch && matchesWorker && matchesStatus && matchesArea && matchesState;
   });
 
   const selectedQuotation = selectedQuotationId 
@@ -88,17 +97,17 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
 
   const handleViewDetails = (quotationId: string) => {
     setSelectedQuotationId(quotationId);
-    setViewMode("details");
+    setPageViewMode("details");
   };
 
   const handleBackToList = () => {
-    setViewMode("list");
+    setPageViewMode("list");
     setSelectedQuotationId(null);
     refetch();
   };
 
   const handleCreateSuccess = () => {
-    setViewMode("list");
+    setPageViewMode("list");
     refetch();
   };
 
@@ -128,12 +137,12 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
 
   const handleEdit = (quotationId: string) => {
     setSelectedQuotationId(quotationId);
-    setViewMode("edit");
+    setPageViewMode("edit");
   };
 
   const handleEditSuccess = () => {
     refetch(); // Refetch to get updated data
-    setViewMode("details"); // Go back to view mode instead of list
+    setPageViewMode("details"); // Go back to view mode instead of list
   };
 
   const closeDialogs = () => {
@@ -164,10 +173,16 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setFilterMonth(null);
     setSelectedWorker("all");
     setSelectedStatus("all");
+    setAreaFilter("");
+    setStateFilter("all");
     setSearchTerm("");
   };
 
-  if (viewMode === "details" && selectedQuotation) {
+  // Get unique areas and states from customers
+  const uniqueAreas = Array.from(new Set(quotations.map(q => (q.customer as any)?.area).filter(Boolean)));
+  const uniqueStates = Array.from(new Set(quotations.map(q => (q.customer as any)?.state).filter(Boolean)));
+
+  if (pageViewMode === "details" && selectedQuotation) {
     return (
       <QuotationDetails
         quotation={selectedQuotation}
@@ -176,7 +191,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     );
   }
 
-  if (viewMode === "edit" && selectedQuotation) {
+  if (pageViewMode === "edit" && selectedQuotation) {
     return (
       <EditQuotationPage
         quotation={selectedQuotation}
@@ -201,6 +216,60 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Quotations</h1>
             <p className="text-gray-600">Manage customer quotations and proposals</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <input
+                  placeholder="Filter by area..."
+                  list="area-list"
+                  value={areaFilter}
+                  onChange={(e) => setAreaFilter(e.target.value)}
+                  className="h-10 w-36 px-3 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-blue-500"
+                />
+                <datalist id="area-list">
+                  {uniqueAreas.map(area => (
+                    <option key={area} value={area} />
+                  ))}
+                </datalist>
+              </div>
+              <select
+                value={stateFilter}
+                onChange={(e) => setStateFilter(e.target.value)}
+                className="h-10 w-32 px-3 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="all">All States</option>
+                {uniqueStates.map(state => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${
+                  viewMode === 'list' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <LayoutList className="h-4 w-4" />
+                <span className="text-sm">List</span>
+              </button>
+              <button
+                onClick={() => setViewMode('card')}
+                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${
+                  viewMode === 'card' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span className="text-sm">Card</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -301,70 +370,145 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
           </Card>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          {filteredQuotations.map((quotation) => (
-            <Card key={quotation.id} className="hover:shadow-lg transition-shadow duration-200 border-gray-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                    {quotation.quotation_number}
-                  </CardTitle>
-                  <Badge className={`text-xs capitalize ${getStatusColor(quotation.status)}`}>
-                    {quotation.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <User className="h-4 w-4 text-blue-500" />
-                  <div>
-                    <span className="font-medium text-gray-800">{quotation.customer?.name}</span>
-                    <span className="text-gray-500 ml-2">{quotation.customer?.mobile}</span>
+        {viewMode === 'list' ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quotation</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredQuotations.map((quotation) => (
+                  <tr key={quotation.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium text-gray-800">{quotation.quotation_number}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="font-medium text-gray-800">{quotation.customer?.name}</div>
+                        <div className="text-sm text-gray-500">{quotation.customer?.mobile}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600">
+                        {(quotation.customer as any)?.area && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            <span>{(quotation.customer as any).area}</span>
+                          </div>
+                        )}
+                        {(quotation.customer as any)?.state && (
+                          <div className="text-xs text-gray-500">{(quotation.customer as any).state}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge className={`text-xs capitalize ${getStatusColor(quotation.status)}`}>
+                        {quotation.status}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                      ₹{(quotation.total_cost || 0).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(quotation.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <QuotationActionButtons
+                        onView={() => handleViewDetails(quotation.id)}
+                        onEdit={() => handleEdit(quotation.id)}
+                        onDelete={() => handleDelete(quotation.id)}
+                        userRole={userRole}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {filteredQuotations.map((quotation) => (
+              <Card key={quotation.id} className="hover:shadow-lg transition-shadow duration-200 border-gray-200">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      {quotation.quotation_number}
+                    </CardTitle>
+                    <Badge className={`text-xs capitalize ${getStatusColor(quotation.status)}`}>
+                      {quotation.status}
+                    </Badge>
                   </div>
-                </div>
+                </CardHeader>
                 
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  {new Date(quotation.created_at).toLocaleDateString()}
-                </div>
-                
-                <div className="flex items-center gap-2 text-lg font-bold text-green-600">
-                  <IndianRupee className="h-5 w-5" />
-                  {(quotation.total_cost || 0).toLocaleString()}
-                </div>
-                
-                <div className="pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">
-                    Created by: <span className="font-medium text-gray-700">{quotation.worker?.name}</span>
-                  </p>
-                </div>
-                
-                <QuotationActionButtons
-                  onView={() => handleViewDetails(quotation.id)}
-                  onEdit={() => handleEdit(quotation.id)}
-                  onDelete={() => handleDelete(quotation.id)}
-                  userRole={userRole}
-                />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <User className="h-4 w-4 text-blue-500" />
+                    <div>
+                      <span className="font-medium text-gray-800">{quotation.customer?.name}</span>
+                      <span className="text-gray-500 ml-2">{quotation.customer?.mobile}</span>
+                    </div>
+                  </div>
+                  
+                  {(quotation.customer as any)?.area && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span>{(quotation.customer as any).area}, {(quotation.customer as any).state}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                    {new Date(quotation.created_at).toLocaleDateString()}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-lg font-bold text-green-600">
+                    <IndianRupee className="h-5 w-5" />
+                    {(quotation.total_cost || 0).toLocaleString()}
+                  </div>
+                  
+                  <div className="pt-2 border-t border-gray-100">
+                    <p className="text-xs text-gray-500">
+                      Created by: <span className="font-medium text-gray-700">{quotation.worker?.name}</span>
+                    </p>
+                  </div>
+                  
+                  <QuotationActionButtons
+                    onView={() => handleViewDetails(quotation.id)}
+                    onEdit={() => handleEdit(quotation.id)}
+                    onDelete={() => handleDelete(quotation.id)}
+                    userRole={userRole}
+                  />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {filteredQuotations.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-600 mb-2">No quotations found</h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm || selectedWorker !== "all" || selectedStatus !== "all" ? 
+              {searchTerm || selectedWorker !== "all" || selectedStatus !== "all" || areaFilter || stateFilter !== "all" ? 
                 "Try adjusting your search terms or filters" : 
                 "No quotations have been created yet"
               }
             </p>
-            {(!searchTerm && selectedWorker === "all" && selectedStatus === "all") ? (
+            {(!searchTerm && selectedWorker === "all" && selectedStatus === "all" && !areaFilter && stateFilter === "all") ? (
               <Button 
-                onClick={() => setViewMode("create")}
+                onClick={() => setPageViewMode("create")}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="h-4 w-4 mr-2" />

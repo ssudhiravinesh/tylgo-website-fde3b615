@@ -137,6 +137,53 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         </div>
       )}
 
+      {/* Creative Empty State when no customer is selected */}
+      {!preSelectedCustomerId && !selectedCustomerId && (
+        <div className="text-center py-16">
+          <div className="animate-bounce mb-6">
+            <div className="mx-auto h-24 w-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+              <Home className="h-12 w-12 text-blue-600" />
+            </div>
+          </div>
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">Ready to Design Amazing Spaces?</h3>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            Select a customer above to start managing their rooms and create beautiful tile layouts. 
+            Each room you add brings us closer to their dream space! 🏠✨
+          </p>
+          <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <div className="text-center">
+                <div className="h-12 w-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Home className="h-6 w-6 text-white" />
+                </div>
+                <h4 className="font-semibold text-gray-800 mb-2">Room Management</h4>
+                <p className="text-sm text-gray-600">Add and manage room dimensions with precision</p>
+              </div>
+            </Card>
+            
+            <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <div className="text-center">
+                <div className="h-12 w-12 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Calculator className="h-6 w-6 text-white" />
+                </div>
+                <h4 className="font-semibold text-gray-800 mb-2">Smart Calculations</h4>
+                <p className="text-sm text-gray-600">Automatic tile calculations and cost estimates</p>
+              </div>
+            </Card>
+            
+            <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+              <div className="text-center">
+                <div className="h-12 w-12 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <ArrowRight className="h-6 w-6 text-white" />
+                </div>
+                <h4 className="font-semibold text-gray-800 mb-2">Seamless Flow</h4>
+                <p className="text-sm text-gray-600">From room setup to quotation in minutes</p>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
+
       {/* Selected Customer Info & Action Buttons */}
       {selectedCustomer && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-blue-50 rounded-lg border">
