@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -17,21 +16,20 @@ export const CustomerSearchBar = ({ value, onValueChange, placeholder = "Search 
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { data: customers = [], isLoading } = useCustomers();
-
-  // Fix the filtering logic to properly search across all fields
+  
+  // Updated filtering logic to search only by name and mobile
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.mobile.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.address && customer.address.toLowerCase().includes(searchTerm.toLowerCase()))
+    customer.mobile.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+  
   const selectedCustomer = customers.find(customer => customer.id === value);
-
+  
   const handleSelect = (customerId: string) => {
     onValueChange(customerId);
     setOpen(false);
   };
-
+  
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
