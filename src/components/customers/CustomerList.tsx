@@ -58,8 +58,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
     return customers
       .filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.mobile.includes(searchTerm) ||
-        c.address?.toLowerCase().includes(searchTerm.toLowerCase())
+        c.mobile.includes(searchTerm)
       )
       .filter(c => !areaFilter  || c.area?.toLowerCase().includes(areaFilter.toLowerCase()))
       .filter(c => stateFilter === "all" || c.state === stateFilter);
@@ -180,7 +179,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
       <div className="relative">
         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
         <Input
-          placeholder="Search customers by name, mobile, or address..."
+          placeholder="Search customers by name or mobile..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
