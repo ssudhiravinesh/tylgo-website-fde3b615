@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNotification } from '@/contexts/NotificationContext';
 
 export interface QuotationItem {
   id?: string;
@@ -226,6 +227,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
     },
   });
 
+  const { playNotificationSound, showSuccessAnimation } = useNotification();
+
   const createQuotationMutation = useMutation({
     mutationFn: async (quotationData: CreateQuotationData) => {
       console.log('Creating quotation with items:', quotationData);
@@ -342,6 +345,11 @@ export const useQuotations = (filters?: QuotationFilters) => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      
+      // Play sound and show animation
+      playNotificationSound('quotationCreated');
+      showSuccessAnimation(`Quotation "${data.quotation_number}" created successfully!`, 'quotation');
+      
       toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
     },
     onError: (error: any) => {
@@ -353,6 +361,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
   const updateQuotationMutation = useMutation({
     mutationFn: async ({ id, items, ...quotationData }: Partial<Quotation> & { id: string; items?: Omit<QuotationItem, 'quotation_id'>[] }) => {
       console.log('Updating quotation:', id, quotationData);
+      
+      // Store the previous status to check for changes
+      const { data: previousQuotation } = await supabase
+        .from('quotations')
+        .select('status, quotation_number')
+        .eq('id', id)
+        .single();
       
       // Update the quotation
       const { data: quotation, error: quotationError } = await supabase
@@ -444,11 +459,18 @@ export const useQuotations = (filters?: QuotationFilters) => {
       }
 
       console.log('Quotation updated:', completeQuotation);
-      return completeQuotation as Quotation;
+      return { quotation: completeQuotation as Quotation, previousStatus: previousQuotation?.status };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      toast.success(`Quotation "${data.quotation_number}" updated successfully!`);
+      
+      // Check if status changed to closed
+      if (data.previousStatus !== 'closed' && data.quotation.status === 'closed') {
+        playNotificationSound('quotationClosed');
+        showSuccessAnimation(`Quotation "${data.quotation.quotation_number}" successfully closed!`, 'success');
+      }
+      
+      toast.success(`Quotation "${data.quotation.quotation_number}" updated successfully!`);
     },
     onError: (error: any) => {
       console.error('Quotation update failed:', error);

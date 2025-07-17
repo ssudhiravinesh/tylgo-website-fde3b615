@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNotification } from '@/contexts/NotificationContext';
 
 export interface Customer {
   id: string;
@@ -156,6 +157,7 @@ export const useCustomers = () => {
 // Export individual mutation hooks for better component usage
 export const useCreateCustomer = () => {
   const queryClient = useQueryClient();
+  const { playNotificationSound, showSuccessAnimation } = useNotification();
   
   return useMutation({
     mutationFn: async (customerData: CreateCustomerData) => {
@@ -176,6 +178,11 @@ export const useCreateCustomer = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      
+      // Play sound and show animation
+      playNotificationSound('customerCreated');
+      showSuccessAnimation(`Customer "${data.name}" created successfully!`, 'customer');
+      
       toast.success(`Customer "${data.name}" created successfully!`);
     },
     onError: (error: any) => {

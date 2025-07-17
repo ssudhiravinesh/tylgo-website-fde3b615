@@ -6,89 +6,132 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Enhanced background with subtle gradients */
+    --background: 220 20% 97%;
+    --foreground: 220 25% 15%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Neumorphism card backgrounds */
+    --card: 220 20% 97%;
+    --card-foreground: 220 25% 15%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Glassmorphism popover */
+    --popover: 220 20% 97%;
+    --popover-foreground: 220 25% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Rich primary colors with gradients */
+    --primary: 220 70% 50%;
+    --primary-foreground: 220 20% 97%;
+    --primary-light: 220 70% 65%;
+    --primary-dark: 220 70% 35%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Soft secondary colors for neumorphism */
+    --secondary: 220 15% 92%;
+    --secondary-foreground: 220 25% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted tones for glassmorphism */
+    --muted: 220 15% 94%;
+    --muted-foreground: 220 20% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent colors with vibrancy */
+    --accent: 260 70% 60%;
+    --accent-foreground: 220 20% 97%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive with warmth */
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 220 20% 97%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Soft borders for neumorphism */
+    --border: 220 15% 88%;
+    --input: 220 15% 96%;
+    --ring: 220 70% 50%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Neumorphism shadows */
+    --shadow-light: 220 20% 100%;
+    --shadow-dark: 220 20% 85%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Glassmorphism effects */
+    --glass-bg: 220 20% 97%;
+    --glass-border: 220 20% 90%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Gradient definitions */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--muted)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(260 70% 75%));
+    --gradient-glass: linear-gradient(135deg, 
+      hsla(var(--glass-bg), 0.7), 
+      hsla(var(--glass-bg), 0.3)
+    );
 
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar with neumorphism */
+    --sidebar-background: 220 20% 95%;
+    --sidebar-foreground: 220 25% 20%;
+    --sidebar-primary: 220 70% 50%;
+    --sidebar-primary-foreground: 220 20% 97%;
+    --sidebar-accent: 220 15% 90%;
+    --sidebar-accent-foreground: 220 25% 20%;
+    --sidebar-border: 220 15% 88%;
+    --sidebar-ring: 220 70% 50%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark mode with enhanced glassmorphism */
+    --background: 220 25% 8%;
+    --foreground: 220 20% 92%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 220 25% 12%;
+    --card-foreground: 220 20% 92%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 220 25% 10%;
+    --popover-foreground: 220 20% 92%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 220 70% 60%;
+    --primary-foreground: 220 25% 8%;
+    --primary-light: 220 70% 75%;
+    --primary-dark: 220 70% 45%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 220 20% 85%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 220 20% 15%;
+    --muted-foreground: 220 15% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 260 70% 65%;
+    --accent-foreground: 220 25% 8%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 220 20% 92%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 220 20% 20%;
+    --input: 220 20% 15%;
+    --ring: 220 70% 60%;
+
+    /* Dark neumorphism shadows */
+    --shadow-light: 220 25% 15%;
+    --shadow-dark: 220 25% 5%;
+
+    /* Dark glassmorphism */
+    --glass-bg: 220 25% 8%;
+    --glass-border: 220 20% 25%;
+
+    /* Dark gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--muted)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(260 70% 80%));
+    --gradient-glass: linear-gradient(135deg, 
+      hsla(var(--glass-bg), 0.8), 
+      hsla(var(--glass-bg), 0.4)
+    );
+
+    --sidebar-background: 220 25% 6%;
+    --sidebar-foreground: 220 20% 85%;
+    --sidebar-primary: 220 70% 60%;
+    --sidebar-primary-foreground: 220 25% 8%;
+    --sidebar-accent: 220 20% 15%;
+    --sidebar-accent-foreground: 220 20% 85%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 220 70% 60%;
   }
 }
 
@@ -99,5 +142,242 @@
 
   body {
     @apply bg-background text-foreground;
+    background: linear-gradient(135deg, 
+      hsl(var(--background)) 0%, 
+      hsl(var(--background)) 50%, 
+      hsl(var(--muted)) 100%
+    );
+    min-height: 100vh;
   }
+}
+
+@layer components {
+  /* Neumorphism Effects */
+  .neumorphic {
+    background: hsl(var(--card));
+    box-shadow: 
+      8px 8px 16px hsl(var(--shadow-dark)),
+      -8px -8px 16px hsl(var(--shadow-light));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .neumorphic-inset {
+    background: hsl(var(--card));
+    box-shadow: 
+      inset 4px 4px 8px hsl(var(--shadow-dark)),
+      inset -4px -4px 8px hsl(var(--shadow-light));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .neumorphic-button {
+    background: hsl(var(--card));
+    box-shadow: 
+      4px 4px 8px hsl(var(--shadow-dark)),
+      -4px -4px 8px hsl(var(--shadow-light));
+    border: 1px solid hsl(var(--border));
+    transition: all 0.2s ease;
+  }
+
+  .neumorphic-button:hover {
+    box-shadow: 
+      6px 6px 12px hsl(var(--shadow-dark)),
+      -6px -6px 12px hsl(var(--shadow-light));
+    transform: translateY(-1px);
+  }
+
+  .neumorphic-button:active {
+    box-shadow: 
+      inset 2px 2px 4px hsl(var(--shadow-dark)),
+      inset -2px -2px 4px hsl(var(--shadow-light));
+    transform: translateY(0);
+  }
+
+  /* Glassmorphism Effects */
+  .glassmorphic {
+    background: var(--gradient-glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--glass-border));
+    box-shadow: 
+      0 8px 32px hsla(var(--foreground), 0.1),
+      inset 0 1px 0 hsla(var(--foreground), 0.1);
+  }
+
+  .glassmorphic-card {
+    background: linear-gradient(135deg, 
+      hsla(var(--card), 0.8), 
+      hsla(var(--card), 0.4)
+    );
+    backdrop-filter: blur(16px);
+    border: 1px solid hsla(var(--border), 0.3);
+    box-shadow: 
+      0 4px 24px hsla(var(--foreground), 0.1),
+      inset 0 1px 0 hsla(var(--foreground), 0.1);
+  }
+
+  .glassmorphic-nav {
+    background: linear-gradient(135deg, 
+      hsla(var(--background), 0.9), 
+      hsla(var(--background), 0.7)
+    );
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid hsla(var(--border), 0.3);
+  }
+
+  /* Enhanced Buttons */
+  .btn-primary {
+    background: var(--gradient-primary);
+    box-shadow: 
+      0 4px 12px hsla(var(--primary), 0.3),
+      inset 0 1px 0 hsla(var(--primary-light), 0.5);
+    border: none;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--gradient-primary);
+    filter: brightness(1.1);
+    box-shadow: 
+      0 6px 20px hsla(var(--primary), 0.4),
+      inset 0 1px 0 hsla(var(--primary-light), 0.6);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: var(--gradient-secondary);
+    box-shadow: 
+      0 4px 12px hsla(var(--secondary), 0.3),
+      inset 0 1px 0 hsla(var(--secondary), 0.5);
+    border: none;
+    transition: all 0.2s ease;
+  }
+
+  .btn-accent {
+    background: var(--gradient-accent);
+    box-shadow: 
+      0 4px 12px hsla(var(--accent), 0.3),
+      inset 0 1px 0 hsla(var(--accent), 0.5);
+    border: none;
+    transition: all 0.2s ease;
+  }
+
+  /* Input Fields */
+  .input-neumorphic {
+    background: hsl(var(--input));
+    box-shadow: 
+      inset 3px 3px 6px hsl(var(--shadow-dark)),
+      inset -3px -3px 6px hsl(var(--shadow-light));
+    border: 1px solid hsl(var(--border));
+    transition: all 0.2s ease;
+  }
+
+  .input-neumorphic:focus {
+    box-shadow: 
+      inset 3px 3px 6px hsl(var(--shadow-dark)),
+      inset -3px -3px 6px hsl(var(--shadow-light)),
+      0 0 0 2px hsl(var(--ring));
+  }
+
+  .input-glassmorphic {
+    background: linear-gradient(135deg, 
+      hsla(var(--input), 0.8), 
+      hsla(var(--input), 0.4)
+    );
+    backdrop-filter: blur(8px);
+    border: 1px solid hsla(var(--border), 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .input-glassmorphic:focus {
+    background: linear-gradient(135deg, 
+      hsla(var(--input), 0.9), 
+      hsla(var(--input), 0.5)
+    );
+    border: 1px solid hsl(var(--ring));
+  }
+}
+
+@layer utilities {
+  /* Animation utilities */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .bg-gradient-secondary {
+    background: var(--gradient-secondary);
+  }
+
+  .bg-gradient-accent {
+    background: var(--gradient-accent);
+  }
+
+  .bg-gradient-glass {
+    background: var(--gradient-glass);
+  }
+
+  /* Shadow utilities */
+  .shadow-neumorphic {
+    box-shadow: 
+      8px 8px 16px hsl(var(--shadow-dark)),
+      -8px -8px 16px hsl(var(--shadow-light));
+  }
+
+  .shadow-neumorphic-inset {
+    box-shadow: 
+      inset 4px 4px 8px hsl(var(--shadow-dark)),
+      inset -4px -4px 8px hsl(var(--shadow-light));
+  }
+
+  .shadow-glassmorphic {
+    box-shadow: 
+      0 8px 32px hsla(var(--foreground), 0.1),
+      inset 0 1px 0 hsla(var(--foreground), 0.1);
+  }
+}
+
+/* Keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  from { box-shadow: 0 0 5px hsl(var(--primary)), 0 0 10px hsl(var(--primary)); }
+  to { box-shadow: 0 0 10px hsl(var(--primary)), 0 0 20px hsl(var(--primary)); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, hsl(var(--primary-dark)), hsl(var(--accent)));
 }
