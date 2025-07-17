@@ -54,7 +54,6 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
               <Input
                 id="email"
                 type="email"
-                placeholder="john@tilehaven.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
