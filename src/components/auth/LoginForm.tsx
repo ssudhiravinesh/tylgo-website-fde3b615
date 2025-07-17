@@ -37,7 +37,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
         <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mb-4">
           <Building2 className="w-8 h-8 text-white" />
         </div>
-        <CardTitle className="text-2xl font-bold text-gray-800">Tile Haven</CardTitle>
+        <CardTitle className="text-2xl font-bold text-gray-800">TYLGO</CardTitle>
         <CardDescription className="text-gray-600">
           Sign in to your account to continue
         </CardDescription>
