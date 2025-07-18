@@ -506,15 +506,7 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
                 "No quotations have been created yet"
               }
             </p>
-            {(!searchTerm && selectedWorker === "all" && selectedStatus === "all" && !areaFilter && stateFilter === "all") ? (
-              <Button 
-                onClick={() => setPageViewMode("create")}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Quotation
-              </Button>
-            ) : (
+            {(!searchTerm && selectedWorker === "all" && selectedStatus === "all" && !areaFilter && stateFilter === "all") ? null : (
               <Button 
                 onClick={clearAllFilters}
                 variant="outline"

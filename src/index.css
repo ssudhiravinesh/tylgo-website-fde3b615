@@ -32,9 +32,9 @@
     --muted: 220 15% 94%;
     --muted-foreground: 220 20% 45%;
 
-    /* Accent colors with vibrancy */
-    --accent: 260 70% 60%;
-    --accent-foreground: 220 20% 97%;
+    /* Accent colors changed from violet to light beige */
+    --accent: 45 30% 85%;
+    --accent-foreground: 220 25% 15%;
 
     /* Destructive with warmth */
     --destructive: 0 70% 55%;
@@ -58,7 +58,7 @@
     /* Gradient definitions */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
     --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--muted)));
-    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(260 70% 75%));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(45 30% 90%));
     --gradient-glass: linear-gradient(135deg, 
       hsla(var(--glass-bg), 0.7), 
       hsla(var(--glass-bg), 0.3)
@@ -97,8 +97,8 @@
     --muted: 220 20% 15%;
     --muted-foreground: 220 15% 65%;
 
-    --accent: 260 70% 65%;
-    --accent-foreground: 220 25% 8%;
+    --accent: 45 30% 85%;
+    --accent-foreground: 220 25% 15%;
 
     --destructive: 0 70% 60%;
     --destructive-foreground: 220 20% 92%;
@@ -118,7 +118,7 @@
     /* Dark gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
     --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--muted)));
-    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(260 70% 80%));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(45 30% 90%));
     --gradient-glass: linear-gradient(135deg, 
       hsla(var(--glass-bg), 0.8), 
       hsla(var(--glass-bg), 0.4)

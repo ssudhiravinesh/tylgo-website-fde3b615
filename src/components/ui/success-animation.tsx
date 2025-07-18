@@ -28,13 +28,13 @@ export const SuccessAnimation = ({ isVisible, onComplete, message, type }: Succe
   const getGradientColors = () => {
     switch (type) {
       case 'customer':
-        return 'from-blue-400 via-purple-500 to-pink-500';
+        return 'from-blue-400 via-blue-500 to-blue-600';
       case 'quotation':
-        return 'from-green-400 via-blue-500 to-purple-500';
+        return 'from-blue-400 via-slate-500 to-amber-200';
       case 'success':
-        return 'from-emerald-400 via-teal-500 to-cyan-500';
+        return 'from-blue-500 via-blue-600 to-amber-100';
       default:
-        return 'from-blue-400 via-purple-500 to-pink-500';
+        return 'from-blue-400 via-blue-500 to-blue-600';
     }
   };
 
@@ -46,36 +46,46 @@ export const SuccessAnimation = ({ isVisible, onComplete, message, type }: Succe
       {/* Animated container */}
       <div className="relative z-10 flex flex-col items-center justify-center space-y-6">
         {/* Animated particles */}
-        <div className="absolute inset-0 -m-20">
-          {[...Array(12)].map((_, i) => (
+        <div className="absolute inset-0 -m-32">
+          {[...Array(20)].map((_, i) => (
             <div
               key={i}
-              className={`absolute w-2 h-2 rounded-full bg-gradient-to-r ${getGradientColors()} animate-ping`}
+              className="absolute rounded-full opacity-80 animate-[sparkle_3s_ease-in-out_infinite]"
               style={{
+                width: `${Math.random() * 8 + 4}px`,
+                height: `${Math.random() * 8 + 4}px`,
+                background: i % 3 === 0 ? '#3B82F6' : i % 3 === 1 ? '#60A5FA' : '#FEF3E2',
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
-                animationDelay: `${i * 0.1}s`,
-                animationDuration: `${1 + Math.random()}s`,
+                animationDelay: `${i * 0.15}s`,
+                animationDuration: `${2 + Math.random()}s`,
+                boxShadow: i % 3 === 2 ? '0 0 10px rgba(251, 191, 36, 0.6)' : '0 0 10px rgba(59, 130, 246, 0.5)',
               }}
             />
           ))}
         </div>
 
-        {/* Success check icon with neumorphism */}
+        {/* Success check icon with enhanced neumorphism */}
         <div className="relative">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-white to-gray-100 shadow-[8px_8px_16px_rgba(0,0,0,0.1),-8px_-8px_16px_rgba(255,255,255,0.8)] flex items-center justify-center animate-[bounce_0.6s_ease-in-out_0.2s_both] transform scale-0">
-            <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getGradientColors()} flex items-center justify-center shadow-inner animate-[spin_0.8s_ease-in-out_0.4s_both]`}>
-              <Check className="w-8 h-8 text-white animate-[scale-in_0.3s_ease-in-out_0.8s_both] transform scale-0" />
+          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-50 to-amber-50 shadow-[12px_12px_24px_rgba(0,0,0,0.15),-12px_-12px_24px_rgba(255,255,255,0.9)] flex items-center justify-center animate-[bounce_0.8s_ease-in-out_0.2s_both] transform scale-0">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-amber-100 shadow-[inset_6px_6px_12px_rgba(0,0,0,0.1),inset_-6px_-6px_12px_rgba(255,255,255,0.8)] flex items-center justify-center">
+              <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getGradientColors()} flex items-center justify-center shadow-lg animate-[spin_1s_ease-in-out_0.4s_both]`}>
+                <Check className="w-10 h-10 text-white animate-[scale-in_0.5s_ease-in-out_0.8s_both] transform scale-0 drop-shadow-lg" strokeWidth={4} />
+              </div>
             </div>
           </div>
           
-          {/* Ripple effect */}
-          <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${getGradientColors()} opacity-20 animate-[ripple_1s_ease-out_0.5s_both]`} />
+          {/* Multiple ripple effects */}
+          <div className="absolute inset-0 rounded-full bg-blue-400 opacity-30 animate-[ripple_2s_ease-out_0.5s_both]" />
+          <div className="absolute inset-2 rounded-full bg-amber-200 opacity-25 animate-[ripple_2.5s_ease-out_0.8s_both]" />
         </div>
 
-        {/* Message with glassmorphism */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl px-8 py-4 shadow-xl border border-white/20 animate-[fade-in_0.5s_ease-in-out_1s_both] opacity-0">
-          <p className="text-lg font-semibold text-white text-center drop-shadow-lg">
+        {/* Message with enhanced glassmorphism */}
+        <div className="bg-gradient-to-r from-blue-50/80 to-amber-50/80 backdrop-blur-lg rounded-3xl px-10 py-6 shadow-2xl border-2 border-blue-200/30 animate-[fade-in_0.8s_ease-in-out_1.2s_both] opacity-0">
+          <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent text-center mb-2 drop-shadow-sm">
+            Success!
+          </h3>
+          <p className="text-lg font-medium text-gray-700 text-center leading-relaxed">
             {message}
           </p>
         </div>
@@ -91,31 +101,48 @@ style.textContent = `
   @keyframes ripple {
     0% {
       transform: scale(0);
-      opacity: 0.7;
+      opacity: 0.8;
     }
     100% {
-      transform: scale(3);
+      transform: scale(4);
       opacity: 0;
     }
   }
   
   @keyframes scale-in {
     0% {
-      transform: scale(0);
+      transform: scale(0) rotate(-180deg);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2) rotate(-90deg);
+      opacity: 0.8;
     }
     100% {
-      transform: scale(1);
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
     }
   }
   
   @keyframes fade-in {
     0% {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(30px) scale(0.9);
     }
     100% {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  @keyframes sparkle {
+    0%, 100% {
+      opacity: 0.3;
+      transform: scale(0.8) translateY(0px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.3) translateY(-10px);
     }
   }
 `;
