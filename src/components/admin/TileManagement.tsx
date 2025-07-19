@@ -650,13 +650,13 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               </div>
 
               {/* Size and Pricing Row */}
-
-                <FormField
+              <div className="grid grid-cols-4 gap-3">
+                 <FormField
                    control={form.control}
                    name="size_length"
                    render={({ field }) => (
                      <FormItem>
-                       <FormLabel>Height (mm)</FormLabel>
+                       <FormLabel>Length (mm)</FormLabel>
                        <FormControl>
                           <Input
                             {...field}
@@ -675,15 +675,12 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                      </FormItem>
                    )}
                  />
-
-              
-              <div className="grid grid-cols-4 gap-3">
-                  <FormField
+                 <FormField
                    control={form.control}
                    name="size_breadth"
                    render={({ field }) => (
                      <FormItem>
-                       <FormLabel>Width Length(mm)</FormLabel>
+                       <FormLabel>Breadth (mm)</FormLabel>
                        <FormControl>
                           <Input
                             {...field}
@@ -702,9 +699,6 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                      </FormItem>
                    )}
                  />
-                
-               
-                 
                  <FormField
                    control={form.control}
                    name="price_per_box"
