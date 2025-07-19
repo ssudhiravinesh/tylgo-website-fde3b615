@@ -37,7 +37,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
         <CardTitle className="text-2xl font-bold text-gray-800">TYLGO</CardTitle>
         <CardDescription className="text-gray-600">
           Sign in to your account to continue
-        </CardDescription>
+        </CardDescription>   
       </CardHeader>
       
       <CardContent>
