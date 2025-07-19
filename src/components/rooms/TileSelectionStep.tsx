@@ -499,13 +499,13 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                             </Button>
                             {roomSelections.length > 0 && (
                               <Button
+                                variant="outline"
                                 onClick={() => setShowFloorPreview({ room, tile: tiles.find(t => t.id === roomSelections[0].tileId) })}
-                                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                className="gap-2"
                               >
-                                <Eye className="h-4 w-4 text-white" />
+                                <Eye className="h-4 w-4" />
                                 Preview
                               </Button>
-
                             )}
                           </div>
                       </div>
