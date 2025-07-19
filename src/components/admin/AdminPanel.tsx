@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import { WorkerManagement } from "./WorkerManagement";
 import { ReferencesView } from "./ReferencesView";
 import { AdminDashboard, useDashboardData } from "./AdminDashboard";
 import { CustomerAnalytics } from "./CustomerAnalytics";
-import { CreateAdminUserButton } from "./CreateAdminUserButton";
 
 export const AdminPanel = () => {
   const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management" | "customer-analytics" | "references">("dashboard");
@@ -86,7 +84,6 @@ export const AdminPanel = () => {
               <BarChart3 className="h-4 w-4" />
               Customer Analytics
             </Button>
-            <CreateAdminUserButton />
           </CardContent>
         </Card>
 
