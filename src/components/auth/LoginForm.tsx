@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Lock, Mail, Loader2 } from "lucide-react";
+import { Building2, Lock, Mail, Loader2, UserPlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface LoginFormProps {
@@ -44,7 +43,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
       </CardHeader>
       
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium text-gray-700">
               Email Address
@@ -84,7 +83,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
           </div>
           
           <Button 
-            type="submit" 
+            onClick={handleSubmit}
             className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             disabled={isSubmitting}
           >
@@ -97,9 +96,19 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
               "Sign In"
             )}
           </Button>
-        </form>
+        </div>
         
         <div className="mt-6 text-center space-y-4">
+          <Button 
+            onClick={onShowSignUp}
+            variant="outline"
+            className="w-full h-12 border-gray-200 hover:bg-gray-50"
+            disabled={isSubmitting}
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Create Account
+          </Button>
+          
           <div className="pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-400">
               For admin access, contact your system administrator
