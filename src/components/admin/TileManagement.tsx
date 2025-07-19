@@ -282,6 +282,30 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
                 {/* Size and Pricing Row */}
                 <div className="grid grid-cols-4 gap-3">
+                  <FormField
+                     control={form.control}
+                     name="size_breadth"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>Height (mm)</FormLabel>
+                         <FormControl>
+                            <Input
+                             {...field}
+                             inputMode="numeric"
+                             pattern="[0-9]*"
+                             placeholder="600"
+                             value={field.value || ""}
+                             onChange={(e) => {
+                               const value = e.target.value;
+                               field.onChange(value === "" ? undefined : Number(value));
+                             }}
+                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                           />
+                         </FormControl>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
                    <FormField
                      control={form.control}
                      name="size_length"
@@ -306,30 +330,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                        </FormItem>
                      )}
                    />
-                   <FormField
-                     control={form.control}
-                     name="size_breadth"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Breadth (mm)</FormLabel>
-                         <FormControl>
-                            <Input
-                             {...field}
-                             inputMode="numeric"
-                             pattern="[0-9]*"
-                             placeholder="600"
-                             value={field.value || ""}
-                             onChange={(e) => {
-                               const value = e.target.value;
-                               field.onChange(value === "" ? undefined : Number(value));
-                             }}
-                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                           />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
+                   
                    <FormField
                      control={form.control}
                      name="price_per_box"
