@@ -1,3 +1,4 @@
+
 project_id = "onucizagpgwdpcakskat"
 
 [functions.admin-reset-password]
@@ -5,3 +6,6 @@ verify_jwt = true
 
 [functions.admin-create-worker]
 verify_jwt = true
+
+[functions.create-admin-user]
+verify_jwt = false
