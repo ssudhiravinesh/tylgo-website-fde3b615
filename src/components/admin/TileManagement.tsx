@@ -287,7 +287,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                      name="size_length"
                      render={({ field }) => (
                        <FormItem>
-                         <FormLabel>Length (mm)</FormLabel>
+                         <FormLabel>Height(mm)</FormLabel>
                          <FormControl>
                             <Input
                              {...field}
@@ -311,7 +311,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                      name="size_breadth"
                      render={({ field }) => (
                        <FormItem>
-                         <FormLabel>Breadth (mm)</FormLabel>
+                         <FormLabel>Width Length(mm)</FormLabel>
                          <FormControl>
                             <Input
                              {...field}
