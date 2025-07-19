@@ -33,9 +33,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
   return (
     <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
       <CardHeader className="text-center pb-4">
-        <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mb-4">
           <img src="public/tylgo.png" className="w-8 h-8" />
-        </div>
         <CardTitle className="text-2xl font-bold text-gray-800">TYLGO</CardTitle>
         <CardDescription className="text-gray-600">
           Sign in to your account to continue
@@ -98,17 +96,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
           </Button>
         </div>
         
-        <div className="mt-6 text-center space-y-4">
-          <Button 
-            onClick={onShowSignUp}
-            variant="outline"
-            className="w-full h-12 border-gray-200 hover:bg-gray-50"
-            disabled={isSubmitting}
-          >
-            <UserPlus className="mr-2 h-4 w-4" />
-            Create Account
-          </Button>
-          
+        <div className="mt-6 text-center space-y-4"> 
           <div className="pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-400">
               For admin access, contact your system administrator
