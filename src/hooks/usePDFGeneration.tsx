@@ -7,41 +7,36 @@ import type { Quotation } from '@/hooks/useQuotations';
 import { formatArea } from '@/utils/unitConversions';
 import type { TileCalculationResult } from '@/utils/tileCalculations';
 
-/* -------------------------------------------------------------------------- */
-/*                                   HOOK                                     */
-/* -------------------------------------------------------------------------- */
-
 export const usePDFGeneration = () => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     try {
-      /* ----------------------------- PRE-FLIGHT ---------------------------- */
       const wastagePercentage = quotation.wastage_percentage ?? 0;
 
-      /* --------------------------- FETCH FROM DB --------------------------- */
+      // Fetch quotation items using Supabase client
       const { data: quotationItems, error } = await supabase
         .from('quotation_items')
-        .select(
-          `
-            *,
-            room:rooms(name,length,width,unit),
-            tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
-          `,
-        )
+        .select(`
+          *,
+          room:rooms(name,length,width,unit),
+          tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
+        `)
         .eq('quotation_id', quotation.id);
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        throw new Error(`Failed to fetch quotation items: ${error.message}`);
+      }
 
-      /* ---------------------- BUILD CALCULATION OBJECT -------------------- */
-      const tileCalculations: Record<string, TileCalculationResult & { rooms: any[]; quotationItems: any[] }> = {};
+      // Group items by tile using unified calculation system
+      const tileCalculations: { [tileId: string]: TileCalculationResult & { rooms: any[], quotationItems: any[] } } = {};
 
-      if (quotationItems?.length) {
-        /* group quotationItems by tile-id + room-id */
+      if (quotationItems && quotationItems.length > 0) {
+        // Group items by tile_id and room_id to handle layers correctly
         const tileRoomGroups = new Map<string, any>();
 
         quotationItems.forEach((item: any) => {
-          const key = `${item.tile_id}-${item.room_id}`;
-          if (!tileRoomGroups.has(key)) {
-            tileRoomGroups.set(key, {
+          const groupKey = `${item.tile_id}-${item.room_id}`;
+          if (!tileRoomGroups.has(groupKey)) {
+            tileRoomGroups.set(groupKey, {
               tile: item.tile,
               room: item.room,
               layers: [] as number[],
@@ -50,13 +45,13 @@ export const usePDFGeneration = () => {
               totalPrice: 0,
             });
           }
-          const group = tileRoomGroups.get(key);
+          const group = tileRoomGroups.get(groupKey);
           if (!group.layers.includes(item.layer_number)) group.layers.push(item.layer_number);
           group.customBoxes += item.custom_boxes || 0;
           group.totalPrice += parseFloat(item.total_price) || 0;
         });
 
-        /* aggregate per tile */
+        // Calculate totals per tile
         tileRoomGroups.forEach((group, groupKey) => {
           const tileId = groupKey.split('-')[0];
           group.totalArea = group.baseArea * group.layers.length;
@@ -83,32 +78,29 @@ export const usePDFGeneration = () => {
           calc.quotationItems.push({ custom_boxes: group.customBoxes });
         });
 
-        /* final maths */
+        // Calculate tiles, boxes, and other metrics per tile type
         Object.values(tileCalculations).forEach((calc) => {
-          const t = calc.tile;
-          if (!t?.size_length || !t.size_breadth || !t.pieces_per_box) return;
+          const tile = calc.tile;
+          if (!tile?.size_length || !tile.size_breadth || !tile.pieces_per_box) return;
 
-          const tileAreaSqFt =
-            (t.size_length / 304.8) * // mm → ft
-            (t.size_breadth / 304.8);
-
+          const tileAreaSqFt = (tile.size_length / 304.8) * (tile.size_breadth / 304.8);
           if (!tileAreaSqFt) return;
 
           const basicTiles = Math.ceil(calc.totalArea / tileAreaSqFt);
           calc.rawTilesNeeded = basicTiles;
           calc.tilesNeeded = Math.ceil(basicTiles * (1 + wastagePercentage / 100));
 
-          const piecesPerBox = Number(t.pieces_per_box);
+          const piecesPerBox = Number(tile.pieces_per_box);
           calc.fullBoxes = Math.floor(basicTiles / piecesPerBox);
           calc.leftoverTiles = basicTiles % piecesPerBox;
 
-          const customAdj = calc.quotationItems.reduce((s, q) => s + (q.custom_boxes || 0), 0);
+          const customAdj = calc.quotationItems.reduce((sum, qi) => sum + (qi.custom_boxes || 0), 0);
           const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
           calc.boxesNeeded = Math.max(0, baseBoxes + customAdj);
         });
       }
 
-      /* -------------------------- TABLE GENERATION ------------------------ */
+      // Generate table rows for PDF
       let itemsRows = '';
       let totalBoxes = 0;
       let grandTotal = 0;
@@ -116,56 +108,52 @@ export const usePDFGeneration = () => {
       if (Object.keys(tileCalculations).length) {
         itemsRows = Object.entries(tileCalculations)
           .map(([tileId, calc]) => {
-            const t = calc.tile;
+            const tile = calc.tile;
             totalBoxes += calc.boxesNeeded;
             grandTotal += calc.totalPrice;
 
-            /* tile size string */
             const dims =
-              t.size_length >= 1000 || t.size_breadth >= 1000
-                ? `${(t.size_length / 1000).toFixed(2)} × ${(t.size_breadth / 1000).toFixed(2)} m`
-                : t.size_length >= 100 || t.size_breadth >= 100
-                  ? `${(t.size_length / 10).toFixed(1)} × ${(t.size_breadth / 10).toFixed(1)} cm`
-                  : `${t.size_length} × ${t.size_breadth} mm`;
+              tile.size_length >= 1000 || tile.size_breadth >= 1000
+                ? `${(tile.size_length / 1000).toFixed(2)} × ${(tile.size_breadth / 1000).toFixed(2)} m`
+                : tile.size_length >= 100 || tile.size_breadth >= 100
+                  ? `${(tile.size_length / 10).toFixed(1)} × ${(tile.size_breadth / 10).toFixed(1)} cm`
+                  : `${tile.size_length} × ${tile.size_breadth} mm`;
 
-            const roomStr = calc.rooms
-              .map((r) => {
-                const layerNote =
-                  r.layers.length > 1
-                    ? ` (Layers: ${r.layers.join(', ')})`
-                    : r.layers[0] > 1
-                      ? ` (Layer ${r.layers[0]})`
-                      : '';
-                return `${r.name}${layerNote}`;
-              })
+            const roomDisplay = calc.rooms
+              .map(
+                (room) =>
+                  `${room.name}${
+                    room.layers.length > 1
+                      ? ` (Layers: ${room.layers.join(', ')})`
+                      : room.layers[0] > 1
+                      ? ` (Layer ${room.layers[0]})`
+                      : ''
+                  }`
+              )
               .join(', ');
 
-            const boxPricing = t.price_per_box
-              ? `<small style="color:#666;font-size:10px;">₹${parseFloat(
-                  t.price_per_box,
-                ).toLocaleString('en-IN')} per box (${t.pieces_per_box} pcs)</small><br/>`
+            const boxPricing = tile.price_per_box
+              ? `<small style="color:#666;font-size:10px;">₹${parseFloat(String(tile.price_per_box)).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>`
               : '';
 
-            const areaDisplay = `Total Area: ${formatArea(calc.totalArea)}`;
-
-            const imgCell = t.image_url
-              ? `<img src="${t.image_url}" style="max-width:80px;max-height:60px;object-fit:contain;" onerror="this.style.display='none';" />`
+            const imageCell = tile.image_url
+              ? `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="max-width:80px;max-height:60px;object-fit:contain;" onerror="this.style.display='none';" />`
               : '<small style="color:#999;font-style:italic;">No image</small>';
 
             return `
               <tr>
                 <td style="padding:8px;border:1px solid #ddd;font-size:12px;">
-                  <strong>${roomStr}</strong><br/>
-                  <small style="color:#666;">${areaDisplay}</small>
+                  <strong>${roomDisplay}</strong><br/>
+                  <small style="color:#666;">Total Area: ${formatArea(calc.totalArea)}</small>
                 </td>
                 <td style="padding:8px;border:1px solid #ddd;font-size:12px;">
-                  <strong>Code: ${t.code || 'N/A'}</strong><br/>
-                  <small style="color:#666;">${t.name || 'Unknown Tile'}</small><br/>
+                  <strong>Code: ${tile.code || 'N/A'}</strong><br/>
+                  <small style="color:#666;">${tile.name || 'Unknown Tile'}</small><br/>
                   <small style="color:#666;">Size: ${dims}</small><br/>
                   ${boxPricing}
                 </td>
                 <td style="text-align:center;padding:8px;border:1px solid #ddd;">
-                  ${imgCell}
+                  ${imageCell}
                 </td>
                 <td style="text-align:center;padding:8px;border:1px solid #ddd;font-size:12px;">
                   ${calc.rawTilesNeeded}<br/>
@@ -175,7 +163,7 @@ export const usePDFGeneration = () => {
                   ${calc.boxesNeeded}
                 </td>
                 <td style="text-align:center;padding:8px;border:1px solid #ddd;font-size:12px;">
-                  ₹${t.price_per_box ? parseFloat(t.price_per_box).toLocaleString('en-IN') : 'N/A'}
+                  ₹${tile.price_per_box ? parseFloat(String(tile.price_per_box)).toLocaleString('en-IN') : 'N/A'}
                 </td>
                 <td style="text-align:right;padding:8px;border:1px solid #ddd;font-weight:bold;font-size:12px;">
                   ₹${calc.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -185,10 +173,11 @@ export const usePDFGeneration = () => {
           })
           .join('');
       } else {
-        itemsRows = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;font-style:italic;">No items found in this quotation</td></tr>';
+        itemsRows =
+          '<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;font-style:italic;">No items found in this quotation</td></tr>';
       }
 
-      /* ----------------------------- HTML BODY ---------------------------- */
+      // Final HTML for rendering
       const pdfHTML = `
         <!DOCTYPE html>
         <html>
@@ -218,7 +207,6 @@ export const usePDFGeneration = () => {
             <div class="company-name">TYL<span class="orange-g">G</span>O</div>
             <div class="quotation-title">QUOTATION</div>
           </div>
-
           <div class="details">
             <div class="section">
               <div class="section-title">Customer Details</div>
@@ -232,7 +220,6 @@ export const usePDFGeneration = () => {
                 })()
               }
             </div>
-
             <div class="section">
               <div class="section-title">Quotation Details</div>
               <div class="info"><span class="label">Quotation #:</span> ${quotation.quotation_number}</div>
@@ -242,7 +229,6 @@ export const usePDFGeneration = () => {
               <div class="info"><span class="label">Wastage:</span> ${wastagePercentage}%</div>
             </div>
           </div>
-
           <table>
             <thead>
               <tr>
@@ -257,12 +243,10 @@ export const usePDFGeneration = () => {
             </thead>
             <tbody>${itemsRows}</tbody>
           </table>
-
           <div class="summary">
             <div><strong>Summary:</strong> ${Object.keys(tileCalculations).length} tile type(s) | ${totalBoxes} boxes total</div>
             <div class="total">Total Amount: ₹${grandTotal.toLocaleString('en-IN')}</div>
           </div>
-
           ${
             quotation.notes
               ? `<div style="margin-top:15px;padding:8px;background:#fff9c4;border-left:3px solid #ffc107;">
@@ -271,7 +255,6 @@ export const usePDFGeneration = () => {
                  </div>`
               : ''
           }
-
           <div class="footer">
             <p><strong>Thank you for choosing TYLGO!</strong></p>
             <p>This quotation is valid for 30 days from the date of issue.</p>
@@ -282,7 +265,7 @@ export const usePDFGeneration = () => {
         </html>
       `;
 
-      /* ------------------------- RENDER TO CANVAS ------------------------- */
+      // Render to off-screen container
       const container = document.createElement('div');
       container.innerHTML = pdfHTML;
       container.style.position = 'fixed';
@@ -300,7 +283,7 @@ export const usePDFGeneration = () => {
 
       document.body.removeChild(container);
 
-      /* --------------------------- CREATE PDF ----------------------------- */
+      // Create PDF, split into pages if needed
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pxPerMm = 3.78; // at 96 DPI
       const pageWidth = 210;
@@ -311,7 +294,6 @@ export const usePDFGeneration = () => {
 
       for (let i = 0; i < totalPages; i++) {
         if (i) pdf.addPage();
-
         const slice = document.createElement('canvas');
         slice.width = canvas.width;
         slice.height = Math.min(canvas.height - i * usableHeight * pxPerMm, usableHeight * pxPerMm);
@@ -336,8 +318,8 @@ export const usePDFGeneration = () => {
 
       pdf.save(`Quotation-${quotation.quotation_number}.pdf`);
       toast.success('PDF downloaded successfully');
-    } catch (err: any) {
-      console.error(err);
+    } catch (error: any) {
+      console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
     }
   }, []);
