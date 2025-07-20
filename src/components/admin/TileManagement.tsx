@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image } from "lucide-react";
+import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image, DollarSign } from "lucide-react";
+import { BulkPriceUpdateDialog } from "@/components/tiles/BulkPriceUpdateDialog";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useImageUpload } from "@/hooks/useImageUpload";
@@ -42,6 +43,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const [editingTile, setEditingTile] = useState<any>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isPriceUpdateDialogOpen, setIsPriceUpdateDialogOpen] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
 
@@ -69,6 +71,10 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Check if search term matches any tile names for bulk price update
+  const shouldShowPriceUpdateButton = searchTerm.length > 0 && 
+    tiles.some(tile => tile.name.toLowerCase() === searchTerm.toLowerCase());
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -237,13 +243,24 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
           />
         </div>
         
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-              <Plus className="h-4 w-4" />
-              Add New Tile
+        <div className="flex gap-2">
+          {shouldShowPriceUpdateButton && (
+            <Button 
+              onClick={() => setIsPriceUpdateDialogOpen(true)}
+              className="bg-green-600 hover:bg-green-700 text-white gap-2"
+            >
+              <DollarSign className="h-4 w-4" />
+              Change Price
             </Button>
-          </DialogTrigger>
+          )}
+          
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                <Plus className="h-4 w-4" />
+                Add New Tile
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Tile</DialogTitle>
@@ -461,9 +478,16 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
+      {/* Bulk Price Update Dialog */}
+      <BulkPriceUpdateDialog
+        isOpen={isPriceUpdateDialogOpen}
+        onClose={() => setIsPriceUpdateDialogOpen(false)}
+        tileName={searchTerm}
+      />
       
       <Card>
         <CardHeader>

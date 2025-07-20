@@ -19,6 +19,7 @@ export type Database = {
           address: string | null
           area: string | null
           attended_by: string | null
+          category: string | null
           created_at: string | null
           id: string
           mobile: string
@@ -33,6 +34,7 @@ export type Database = {
           address?: string | null
           area?: string | null
           attended_by?: string | null
+          category?: string | null
           created_at?: string | null
           id?: string
           mobile: string
@@ -47,6 +49,7 @@ export type Database = {
           address?: string | null
           area?: string | null
           attended_by?: string | null
+          category?: string | null
           created_at?: string | null
           id?: string
           mobile?: string

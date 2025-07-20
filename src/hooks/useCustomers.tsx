@@ -12,6 +12,7 @@ export interface Customer {
   area?: string;
   state?: string;
   pincode?: string;
+  category?: string;
   reference_name?: string;
   reference_mobile_no?: string;
   attended_by?: string;
@@ -26,6 +27,7 @@ export interface CreateCustomerData {
   area?: string;
   state?: string;
   pincode?: string;
+  category?: string;
   reference_name?: string;
   reference_mobile_no?: string;
   attended_by?: string;

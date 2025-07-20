@@ -42,6 +42,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
   const [searchTerm, setSearchTerm] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
   const { data: customers = [], isLoading } = useCustomers();
@@ -61,8 +62,9 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
         c.mobile.includes(searchTerm)
       )
       .filter(c => !areaFilter  || c.area?.toLowerCase().includes(areaFilter.toLowerCase()))
-      .filter(c => stateFilter === "all" || c.state === stateFilter);
-  }, [customers, searchTerm, areaFilter, stateFilter]);
+      .filter(c => stateFilter === "all" || c.state === stateFilter)
+      .filter(c => categoryFilter === "all" || c.category === categoryFilter);
+  }, [customers, searchTerm, areaFilter, stateFilter, categoryFilter]);
 
   // Helper function to format address
   const formatAddress = (customer: Customer) => {
@@ -102,6 +104,25 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
         <div className="flex items-center gap-3">
 
         <div className="flex items-center space-x-2">
+            {/* Category select */}
+            <Select
+              value={categoryFilter}
+              onValueChange={(v) => setCategoryFilter(v)}
+            >
+              <SelectTrigger className="h-10 w-32 text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent className="max-h-48 overflow-auto">
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="Customer">Customer</SelectItem>
+                <SelectItem value="Builder">Builder</SelectItem>
+                <SelectItem value="Engineer">Engineer</SelectItem>
+                <SelectItem value="Layer">Layer</SelectItem>
+                <SelectItem value="Architect">Architect</SelectItem>
+                <SelectItem value="Contractor">Contractor</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Area autocomplete via datalist */}
             <div className="relative">
               <Input
@@ -193,6 +214,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Added</th>
@@ -204,6 +226,11 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                 <tr key={customer.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap flex items-center gap-2">
                     <User className="h-5 w-5 text-blue-600" /> {customer.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <Badge variant="outline" className="text-xs">
+                      {customer.category || 'Customer'}
+                    </Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.mobile}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

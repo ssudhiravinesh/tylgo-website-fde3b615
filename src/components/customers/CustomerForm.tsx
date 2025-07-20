@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, User, MapPin, FileText } from "lucide-react";
 import { useCreateCustomer, useCustomers, Customer } from "@/hooks/useCustomers";
 import { MobileNumberSearch } from "./MobileNumberSearch";
+import { DirectCustomerSearch } from "./DirectCustomerSearch";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, getStateByPincode } from "@/utils/indianStatesAndCities";
 
@@ -22,6 +23,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     area: "",
     state: "",
     pincode: "",
+    category: "Customer",
     reference_name: "",
     reference_mobile_no: ""
   });
@@ -147,7 +149,8 @@ const handleInputChange = (field: string, value: string) => {
       ...formData,
       name: formData.name.trim(),
       area: formData.area.trim(),
-      reference_name: formData.reference_name.trim()
+      reference_name: formData.reference_name.trim(),
+      category: formData.category
     };
 
     try {
@@ -169,7 +172,8 @@ const handleInputChange = (field: string, value: string) => {
       ...formData,
       name: formData.name.trim(),
       area: formData.area.trim(),
-      reference_name: formData.reference_name.trim()
+      reference_name: formData.reference_name.trim(),
+      category: formData.category
     };
 
     try {
@@ -197,9 +201,27 @@ const handleInputChange = (field: string, value: string) => {
 
       <Card className="border-gray-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <User className="h-5 w-5 text-blue-600" />
-            Customer Information
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-lg">
+              <User className="h-5 w-5 text-blue-600" />
+              Customer Information
+            </div>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => handleInputChange("category", value)}
+            >
+              <SelectTrigger className="w-40 h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Customer">Customer</SelectItem>
+                <SelectItem value="Builder">Builder</SelectItem>
+                <SelectItem value="Engineer">Engineer</SelectItem>
+                <SelectItem value="Layer">Layer</SelectItem>
+                <SelectItem value="Architect">Architect</SelectItem>
+                <SelectItem value="Contractor">Contractor</SelectItem>
+              </SelectContent>
+            </Select>
           </CardTitle>
         </CardHeader>
 
@@ -301,37 +323,31 @@ const handleInputChange = (field: string, value: string) => {
             <div className="pt-6 border-t border-gray-200">
               <h3 className="text-lg font-medium text-gray-800 mb-4">Reference Information (Optional)</h3>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="reference_name">Reference Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="reference_name"
-                      type="text"
-                      placeholder="Enter reference person's name"
-                      value={formData.reference_name}
-                      onChange={(e) => handleInputChange("reference_name", e.target.value)}
-                      onBlur={() => handleInputBlur("reference_name")}
-                      className={`pl-10 h-12 border-gray-200 ${errors.reference_name ? "border-red-500" : ""}`}
-                    />
-                  </div>
-                </div>
+                 <div className="space-y-2">
+                   <Label htmlFor="reference_name">Reference Name</Label>
+                   <DirectCustomerSearch
+                     value={formData.reference_name}
+                     onValueChange={(customerName) => handleInputChange("reference_name", customerName)}
+                     onMobileChange={(mobile) => handleInputChange("reference_mobile_no", mobile)}
+                     placeholder="Search reference by name or mobile..."
+                   />
+                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="reference_mobile_no">Reference Mobile Number</Label>
-                  <MobileNumberSearch
-                    value={formData.reference_mobile_no}
-                    onChange={(value) => handleInputChange("reference_mobile_no", value)}
-                    onCustomerFound={handleReferenceFound}
-                    placeholder="9876543210"
-                    searchType="reference"
-                    label="references"
-                    error={errors.reference_mobile_no}
-                  />
-                  {errors.reference_mobile_no && (
-                    <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>
-                  )}
-                </div>
+                 <div className="space-y-2">
+                   <Label htmlFor="reference_mobile_no">Reference Mobile Number</Label>
+                   <Input
+                     id="reference_mobile_no"
+                     type="text"
+                     placeholder="9876543210"
+                     value={formData.reference_mobile_no}
+                     onChange={(e) => handleInputChange("reference_mobile_no", e.target.value.replace(/\D/g, ""))}
+                     maxLength={10}
+                     className={`h-12 border-gray-200 ${errors.reference_mobile_no ? "border-red-500" : ""}`}
+                   />
+                   {errors.reference_mobile_no && (
+                     <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>
+                   )}
+                 </div>
               </div>
             </div>
 
