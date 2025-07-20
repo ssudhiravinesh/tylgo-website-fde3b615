@@ -241,6 +241,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) {
+        // Handle specific case where session is already invalid
+        if (error.message?.includes('session') && error.message?.includes('missing')) {
+          console.log('Session already invalidated, clearing local state');
+          setUser(null);
+          setProfile(null);
+          return;
+        }
         throw error;
       }
       setUser(null);
@@ -248,7 +255,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast.success('Signed out successfully!');
     } catch (error: any) {
       console.error('Sign out error:', error);
-      toast.error(error.message || 'Error signing out');
+      // Don't show error toast for already invalidated sessions
+      if (!error.message?.includes('session') || !error.message?.includes('missing')) {
+        toast.error(error.message || 'Error signing out');
+      }
     } finally {
       setLoading(false);
     }
