@@ -114,6 +114,9 @@ export const useStrictSessionManagement = () => {
       // Clear local storage immediately
       await invalidateLocalSession();
       
+      // Set a flag to prevent re-validation loops
+      localStorage.setItem('session_invalidated', 'true');
+      
       // Show user-friendly message
       toast.error('Your session has expired or another device has logged in. Please sign in again.');
       

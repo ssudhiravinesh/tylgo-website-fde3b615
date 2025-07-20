@@ -66,6 +66,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setProfile(null);
         setLoading(false);
       } else if (session?.user) {
+        // Check if session was invalidated to prevent loops
+        const sessionInvalidated = localStorage.getItem('session_invalidated');
+        if (sessionInvalidated) {
+          console.log('Session was invalidated, preventing validation loop');
+          localStorage.removeItem('session_invalidated');
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+        
         setUser(session.user);
         // For existing sessions, validate session
         setTimeout(async () => {
@@ -94,6 +105,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (session?.user) {
+          // Check if session was invalidated to prevent loops
+          const sessionInvalidated = localStorage.getItem('session_invalidated');
+          if (sessionInvalidated) {
+            console.log('Session was invalidated, skipping validation to prevent loop');
+            localStorage.removeItem('session_invalidated');
+            setLoading(false);
+            return;
+          }
+          
           setUser(session.user);
           // Validate existing session
           console.log('Validating existing session for single session enforcement');
