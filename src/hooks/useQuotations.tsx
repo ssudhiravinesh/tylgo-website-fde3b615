@@ -213,6 +213,12 @@ export const useQuotations = (filters?: QuotationFilters) => {
           const monthEnd = new Date(filters.year, filters.month, 0, 23, 59, 59).toISOString();
           query = query.gte('created_at', monthStart).lte('created_at', monthEnd);
         }
+      } else if (filters?.month && filters.month > 0 && filters.month <= 12) {
+        // If only month is selected, use current year
+        const currentYear = new Date().getFullYear();
+        const monthStart = new Date(currentYear, filters.month - 1, 1).toISOString();
+        const monthEnd = new Date(currentYear, filters.month, 0, 23, 59, 59).toISOString();
+        query = query.gte('created_at', monthStart).lte('created_at', monthEnd);
       }
 
       const { data, error } = await query;
