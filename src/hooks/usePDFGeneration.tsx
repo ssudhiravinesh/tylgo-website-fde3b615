@@ -454,19 +454,32 @@ export const usePDFGeneration = () => {
 
       // Create a hidden iframe for automatic PDF download
       // Create a downloadable Blob from the HTML
-      const blob = new Blob([pdfContent], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
+      // Dynamically import html2pdf.js if using modules
+      const html2pdf = (await import('html2pdf.js')).default;
       
-      // Create and trigger download link
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Quotation_${quotation.quotation_number || 'Document'}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Create a temporary container for rendering the HTML
+      const container = document.createElement('div');
+      container.style.display = 'none';
+      container.innerHTML = pdfContent;
+      document.body.appendChild(container);
       
-      // Clean up blob URL
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      // Use html2pdf to generate and download the PDF
+      await html2pdf()
+        .from(container)
+        .set({
+          margin:       [10, 10, 10, 10],   // top, right, bottom, left in mm
+          filename:     `Quotation_${quotation.quotation_number || 'Document'}.pdf`,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true },
+          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        })
+        .save();
+      
+      // Clean up the container after download
+      document.body.removeChild(container);
+
+toast.success('PDF download started');
+
 
 toast.success('PDF download started');
  // Increased delay to allow images to load
