@@ -654,12 +654,16 @@ export const WallTileSelectionPage = ({
             <DialogTitle>Wall Preview</DialogTitle>
           </DialogHeader>
           <div className="flex justify-center items-center w-full h-full">
-            <div className="border rounded-lg overflow-hidden shadow-sm bg-white flex items-center justify-center w-full h-full">
-              <canvas
-                ref={canvasRef}
-                className="block w-full h-full"
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              />
+            <div className="flex-grow w-full flex justify-center items-center px-6 pb-4">
+              <div className="w-full h-full max-w-full max-h-full">
+                <div className="border rounded-lg overflow-hidden shadow-sm bg-white w-full h-full flex items-center justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-full"
+                    style={{ objectFit: 'contain' }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <div className="text-sm text-gray-600 text-center mt-4">
