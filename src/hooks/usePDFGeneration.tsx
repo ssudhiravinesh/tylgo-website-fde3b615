@@ -269,8 +269,8 @@ export const usePDFGeneration = () => {
               }
               body { 
                 margin: 0; 
-                font-size: 12px;
-                line-height: 1.2;
+                font-size: 14px;
+                line-height: 1.3;
               }
               .no-page-break { 
                 page-break-inside: avoid; 
@@ -280,20 +280,23 @@ export const usePDFGeneration = () => {
               font-family: Arial, sans-serif; 
               margin: 15px; 
               color: #333; 
-              font-size: 12px;
-              line-height: 1.3;
+              font-size: 14px;
+              line-height: 1.4;
             }
             .header { 
               text-align: center; 
-              margin-bottom: 20px; 
+              margin-bottom: 25px; 
               border-bottom: 2px solid #007bff; 
-              padding-bottom: 10px; 
+              padding-bottom: 15px; 
             }
             .company-name { 
-              font-size: 24px; 
+              font-size: 32px; 
               font-weight: bold; 
               color: #007bff; 
-              margin-bottom: 5px; 
+              margin-bottom: 8px; 
+            }
+            .orange-g {
+              color: #ff8c00;
             }
             .quotation-title { 
               font-size: 18px; 
@@ -389,7 +392,7 @@ export const usePDFGeneration = () => {
         </head>
         <body>
           <div class="header no-page-break">
-            <div class="company-name">Tile Solutions</div>
+            <div class="company-name">TYL<span class="orange-g">G</span>O</div>
             <div class="quotation-title">QUOTATION</div>
           </div>
           
@@ -456,7 +459,7 @@ export const usePDFGeneration = () => {
           ` : ''}
 
           <div class="footer">
-            <p><strong>Thank you for choosing Tile Solutions!</strong></p>
+            <p><strong>Thank you for choosing TYLGO!</strong></p>
             <p>This quotation is valid for 30 days from the date of issue.</p>
             <p><strong>Note:</strong> All tile quantities include a ${wastagePercentage}% wastage allowance.</p>
             <p>All calculations are based on square feet measurements for accuracy.</p>
