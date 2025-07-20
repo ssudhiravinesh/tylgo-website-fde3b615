@@ -10,7 +10,6 @@ import { calculateTileRequirements, type TileCalculationResult } from '@/utils/t
 export const usePDFGeneration = () => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     try {
-      // Use the quotation's stored wastage percentage, defaulting to 0% if not set
       const wastagePercentage = quotation.wastage_percentage ?? 0;
       
       console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
@@ -25,8 +24,6 @@ export const usePDFGeneration = () => {
         `)
         .eq('quotation_id', quotation.id);
 
-      console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item => item.tile?.code === '24027'));
-      
       if (error) {
         console.error('Error fetching quotation items:', error);
         throw new Error(`Failed to fetch quotation items: ${error.message}`);
@@ -256,98 +253,121 @@ export const usePDFGeneration = () => {
         itemsRows = '<tr><td colspan="7" class="no-items">No items found in this quotation</td></tr>';
       }
 
+      export const usePDFGeneration = () => {
+  const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
+    try {
+      const wastagePercentage = quotation.wastage_percentage ?? 0;
+      
+      console.log('Starting PDF generation for quotation:', quotation.id, 'with wastage:', wastagePercentage);
+      
+      // Fetch quotation items using Supabase client
+      const { data: quotationItems, error } = await supabase
+        .from('quotation_items')
+        .select(`
+          *,
+          room:rooms(name,length,width,unit),
+          tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
+        `)
+        .eq('quotation_id', quotation.id);
+
+      if (error) {
+        console.error('Error fetching quotation items:', error);
+        throw new Error(`Failed to fetch quotation items: ${error.message}`);
+      }
+
+      // Your existing tile calculations logic here (keep as is)
+      const tileCalculations: { [tileId: string]: TileCalculationResult } = {};
+      // ... (keep all your existing tile calculation logic)
+
+      // Generate items rows and totals (keep your existing logic)
+      let itemsRows = '';
+      let totalBoxes = 0;
+      let grandTotal = 0;
+      
+      // ... (keep your existing items rows generation logic)
+
+      // **IMPROVED PDF GENERATION STARTS HERE**
+      
       const pdfContent = `
         <!DOCTYPE html>
         <html>
         <head>
           <title>Quotation ${quotation.quotation_number}</title>
           <style>
-            @media print {
-              @page { 
-                margin: 10mm; 
-                size: A4; 
-              }
-              body { 
-                margin: 0; 
-                font-size: 14px;
-                line-height: 1.3;
-              }
-              .no-page-break { 
-                page-break-inside: avoid; 
-              }
-            }
             body { 
               font-family: Arial, sans-serif; 
-              margin: 15px; 
+              margin: 0;
+              padding: 20px;
               color: #333; 
-              font-size: 16px;
-              line-height: 1.5;
+              font-size: 14px;
+              line-height: 1.4;
+              background: white;
             }
             .header { 
               text-align: center; 
-              margin-bottom: 30px; 
+              margin-bottom: 25px; 
               border-bottom: 2px solid #007bff; 
-              padding-bottom: 20px; 
+              padding-bottom: 15px; 
             }
             .company-name { 
-              font-size: 42px; 
+              font-size: 36px; 
               font-weight: bold; 
               color: #007bff; 
-              margin-bottom: 12px; 
+              margin-bottom: 8px; 
             }
             .orange-g {
               color: #ff8c00;
             }
             .quotation-title { 
-              font-size: 24px; 
+              font-size: 20px; 
               color: #555; 
-              margin-bottom: 15px; 
+              margin-bottom: 10px; 
             }
             .details { 
               display: flex; 
               justify-content: space-between; 
-              margin-bottom: 25px; 
+              margin-bottom: 20px; 
             }
             .customer-info, .quotation-info { 
-              width: 45%; 
+              width: 48%; 
             }
             .section-title { 
-              font-size: 18px; 
+              font-size: 16px; 
               font-weight: bold; 
-              margin-bottom: 12px; 
+              margin-bottom: 10px; 
               color: #007bff; 
               border-bottom: 1px solid #ddd; 
-              padding-bottom: 6px; 
+              padding-bottom: 4px; 
             }
             .info-row { 
-              margin-bottom: 8px; 
-              font-size: 14px; 
+              margin-bottom: 6px; 
+              font-size: 12px; 
             }
             .label { 
               font-weight: bold; 
               color: #555; 
-              width: 100px; 
+              width: 90px; 
               display: inline-block; 
             }
             .items-table { 
               width: 100%; 
               border-collapse: collapse; 
-              margin: 20px 0; 
-              font-size: 13px;
+              margin: 15px 0; 
+              font-size: 11px;
             }
             .items-table th { 
               background-color: #f8f9fa; 
               font-weight: bold; 
-              padding: 10px 8px; 
+              padding: 8px 6px; 
               border: 1px solid #ddd; 
               text-align: left; 
-              font-size: 12px;
+              font-size: 10px;
             }
             .items-table td { 
               border: 1px solid #ddd; 
-              padding: 10px 8px; 
+              padding: 8px 6px; 
               vertical-align: top; 
-              font-size: 12px;
+              font-size: 10px;
             }
             .items-table tr:nth-child(even) { 
               background-color: #f9f9f9; 
@@ -360,27 +380,20 @@ export const usePDFGeneration = () => {
               border-radius: 4px; 
             }
             .total-row { 
-              font-size: 16px; 
+              font-size: 14px; 
               font-weight: bold; 
               color: #007bff; 
-              padding: 8px 0; 
+              padding: 6px 0; 
               border-top: 2px solid #007bff; 
-              margin-top: 5px; 
-            }
-            .notes-section { 
-              margin-top: 15px; 
-              padding: 10px; 
-              background-color: #fff9c4; 
-              border-left: 3px solid #ffc107; 
-              border-radius: 3px; 
+              margin-top: 4px; 
             }
             .footer { 
               margin-top: 20px; 
               text-align: center; 
               color: #666; 
-              font-size: 9px; 
+              font-size: 8px; 
               border-top: 1px solid #ddd; 
-              padding-top: 10px; 
+              padding-top: 8px; 
             }
             .no-items {
               text-align: center; 
@@ -391,12 +404,12 @@ export const usePDFGeneration = () => {
           </style>
         </head>
         <body>
-          <div class="header no-page-break">
+          <div class="header">
             <div class="company-name">TYL<span class="orange-g">G</span>O</div>
             <div class="quotation-title">QUOTATION</div>
           </div>
           
-          <div class="details no-page-break">
+          <div class="details">
             <div class="customer-info">
               <div class="section-title">Customer Details</div>
               <div class="info-row"><span class="label">Name:</span> ${quotation.customer?.name || 'N/A'}</div>
@@ -429,13 +442,13 @@ export const usePDFGeneration = () => {
           <table class="items-table">
             <thead>
               <tr>
-                <th style="width: 20%;">Room(s) & Area</th>
-                <th style="width: 20%;">Tile Details</th>
-                <th style="width: 10%; text-align: center;">Image</th>
-                <th style="width: 15%; text-align: center;">Tiles Required</th>
-                <th style="width: 12%; text-align: center;">Boxes</th>
+                <th style="width: 22%;">Room(s) & Area</th>
+                <th style="width: 22%;">Tile Details</th>
+                <th style="width: 8%; text-align: center;">Image</th>
+                <th style="width: 16%; text-align: center;">Tiles Required</th>
+                <th style="width: 10%; text-align: center;">Boxes</th>
                 <th style="width: 10%; text-align: center;">Price/Box</th>
-                <th style="width: 13%; text-align: right;">Total Amount</th>
+                <th style="width: 12%; text-align: right;">Total Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -443,8 +456,8 @@ export const usePDFGeneration = () => {
             </tbody>
           </table>
 
-          <div class="total-section no-page-break">
-            <div style="font-size: 11px; margin-bottom: 5px;">
+          <div class="total-section">
+            <div style="font-size: 10px; margin-bottom: 4px;">
               <strong>Summary:</strong> ${Object.keys(tileCalculations).length} tile type(s) | ${totalBoxes} boxes total
             </div>
             <div class="total-row">
@@ -453,9 +466,9 @@ export const usePDFGeneration = () => {
           </div>
 
           ${quotation.notes ? `
-            <div class="notes-section no-page-break">
-              <div class="section-title">Additional Notes</div>
-              <p style="margin: 0; font-size: 11px;">${quotation.notes}</p>
+            <div style="margin-top: 15px; padding: 8px; background-color: #fff9c4; border-left: 3px solid #ffc107; border-radius: 3px;">
+              <div style="font-size: 12px; font-weight: bold; margin-bottom: 6px; color: #007bff;">Additional Notes</div>
+              <p style="margin: 0; font-size: 10px;">${quotation.notes}</p>
             </div>
           ` : ''}
 
@@ -469,53 +482,83 @@ export const usePDFGeneration = () => {
         </html>
       `;
 
+      // Create off-screen element with fixed dimensions
       const element = document.createElement('div');
       element.innerHTML = pdfContent;
       element.style.position = 'absolute';
-      element.style.left = '-9999px'; // Off-screen
+      element.style.left = '-9999px';
+      element.style.width = '794px'; // Fixed width for A4 at 96 DPI
+      element.style.backgroundColor = 'white';
       document.body.appendChild(element);
       
-      // Use html2canvas and jsPDF for better Vite compatibility
+      // **IMPROVED HTML2CANVAS CONFIGURATION**
       const canvas = await html2canvas(element, { 
-        scale: 1.5, 
+        scale: 1, // Use scale 1 for consistent rendering
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: element.scrollWidth,
-        height: element.scrollHeight
+        width: 794, // Fixed width
+        height: element.scrollHeight, // Let height adjust to content
+        windowWidth: 794, // Important: set window width
+        windowHeight: element.scrollHeight,
+        onclone: (clonedDoc) => {
+          // Set viewport properties on cloned document
+          const clonedElement = clonedDoc.querySelector('div');
+          if (clonedElement) {
+            clonedElement.style.width = '794px';
+            clonedElement.style.fontSize = '14px';
+          }
+        }
       });
       
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 1.0);
       const pdf = new jsPDF('p', 'mm', 'a4');
       
-      // A4 dimensions with padding
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 10; // 10mm margin on all sides
+      // **IMPROVED MULTI-PAGE HANDLING**
+      const pageWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const margin = 10; // 10mm margin
       const contentWidth = pageWidth - (margin * 2);
       const contentHeight = pageHeight - (margin * 2);
       
-      // Calculate proper scaling to fit content with margins
-      const imgAspectRatio = canvas.width / canvas.height;
-      const contentAspectRatio = contentWidth / contentHeight;
+      // Convert canvas dimensions to mm (96 DPI = 3.78 pixels per mm)
+      const canvasWidthMm = canvas.width / 3.78;
+      const canvasHeightMm = canvas.height / 3.78;
       
-      let finalWidth, finalHeight;
+      // Calculate how many pages we need
+      const totalPages = Math.ceil(canvasHeightMm / contentHeight);
       
-      if (imgAspectRatio > contentAspectRatio) {
-        // Image is wider, fit to width
-        finalWidth = contentWidth;
-        finalHeight = contentWidth / imgAspectRatio;
-      } else {
-        // Image is taller, fit to height
-        finalHeight = contentHeight;
-        finalWidth = contentHeight * imgAspectRatio;
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) {
+          pdf.addPage();
+        }
+        
+        // Calculate the portion of the image for this page
+        const sourceY = i * contentHeight * 3.78; // Convert back to pixels
+        const sourceHeight = Math.min(contentHeight * 3.78, canvas.height - sourceY);
+        
+        // Create a canvas for this page
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sourceHeight;
+        const pageCtx = pageCanvas.getContext('2d');
+        
+        // Draw the portion of the original canvas
+        pageCtx.drawImage(
+          canvas,
+          0, sourceY, canvas.width, sourceHeight, // Source rectangle
+          0, 0, canvas.width, sourceHeight        // Destination rectangle
+        );
+        
+        const pageImgData = pageCanvas.toDataURL('image/png', 1.0);
+        
+        // Add image to PDF page with proper scaling
+        const imgWidth = contentWidth;
+        const imgHeight = (sourceHeight / 3.78);
+        
+        pdf.addImage(pageImgData, 'PNG', margin, margin, imgWidth, imgHeight);
       }
       
-      // Center the content
-      const xOffset = margin + (contentWidth - finalWidth) / 2;
-      const yOffset = margin;
-      
-      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
       pdf.save(`Quotation-${quotation.quotation_number}.pdf`);
       
       document.body.removeChild(element);
