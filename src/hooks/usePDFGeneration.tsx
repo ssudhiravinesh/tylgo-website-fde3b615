@@ -396,18 +396,7 @@ export const usePDFGeneration = () => {
               <div class="section-title">Customer Details</div>
               <div class="info-row"><span class="label">Name:</span> ${quotation.customer?.name || 'N/A'}</div>
               <div class="info-row"><span class="label">Mobile:</span> ${quotation.customer?.mobile || 'N/A'}</div>
-              ${(() => {
-                const customer = quotation.customer as any;
-                const addressParts = [];
-                
-                if (customer?.address) addressParts.push(customer.address);
-                if (customer?.area) addressParts.push(customer.area);
-                if (customer?.state) addressParts.push(customer.state);
-                
-                return addressParts.length > 0 ? 
-                  `<div class="info-row"><span class="label">Address:</span> ${addressParts.join(', ')}</div>` : 
-                  '';
-              })()}
+              ${quotation.customer?.address ? `<div class="info-row"><span class="label">Address:</span> ${quotation.customer.address}</div>` : ''}
             </div>
             
             <div class="quotation-info">
@@ -464,44 +453,23 @@ export const usePDFGeneration = () => {
       `;
 
       // Create a hidden iframe for automatic PDF download
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
+      // Create a downloadable Blob from the HTML
+      const blob = new Blob([pdfContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
       
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc) {
-        throw new Error('Unable to access iframe document');
-      }
+      // Create and trigger download link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Quotation_${quotation.quotation_number || 'Document'}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       
-      iframeDoc.open();
-      iframeDoc.write(pdfContent);
-      iframeDoc.close();
-      
-      // Wait for content and images to load, then trigger print
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-          
-          // Clean up the iframe after a delay
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        } catch (error) {
-          console.error('Error triggering print:', error);
-          // Fallback: open in new window if iframe method fails
-          const printWindow = window.open('', '_blank');
-          if (printWindow) {
-            printWindow.document.write(pdfContent);
-            printWindow.document.close();
-            setTimeout(() => {
-              printWindow.focus();
-              printWindow.print();
-              printWindow.close();
-            }, 1000);
-          }
-        }
-      }, 1500); // Increased delay to allow images to load
+      // Clean up blob URL
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+toast.success('PDF download started');
+ // Increased delay to allow images to load
 
       toast.success('PDF download initiated');
     } catch (error) {
