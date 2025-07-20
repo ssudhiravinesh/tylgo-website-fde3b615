@@ -396,7 +396,18 @@ export const usePDFGeneration = () => {
               <div class="section-title">Customer Details</div>
               <div class="info-row"><span class="label">Name:</span> ${quotation.customer?.name || 'N/A'}</div>
               <div class="info-row"><span class="label">Mobile:</span> ${quotation.customer?.mobile || 'N/A'}</div>
-              ${quotation.customer?.address ? `<div class="info-row"><span class="label">Address:</span> ${quotation.customer.address}</div>` : ''}
+              ${(() => {
+                const customer = quotation.customer as any;
+                const addressParts = [];
+                
+                if (customer?.address) addressParts.push(customer.address);
+                if (customer?.area) addressParts.push(customer.area);
+                if (customer?.state) addressParts.push(customer.state);
+                
+                return addressParts.length > 0 ? 
+                  `<div class="info-row"><span class="label">Address:</span> ${addressParts.join(', ')}</div>` : 
+                  '';
+              })()}
             </div>
             
             <div class="quotation-info">

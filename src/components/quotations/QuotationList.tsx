@@ -493,15 +493,25 @@ document.head.appendChild(styleSheet);
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-600">
-                        {(quotation.customer as any)?.area && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            <span>{(quotation.customer as any).area}</span>
-                          </div>
-                        )}
-                        {(quotation.customer as any)?.state && (
-                          <div className="text-xs text-gray-500">{(quotation.customer as any).state}</div>
-                        )}
+                        {(() => {
+                          const customer = quotation.customer as any;
+                          const addressParts = [];
+                          
+                          if (customer?.address) addressParts.push(customer.address);
+                          if (customer?.area) addressParts.push(customer.area);
+                          if (customer?.state) addressParts.push(customer.state);
+                          
+                          return addressParts.length > 0 ? (
+                            <div className="flex items-start gap-1">
+                              <MapPin className="h-3 w-3 mt-0.5 text-gray-400" />
+                              <div>
+                                <div>{addressParts.join(', ')}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">No address</span>
+                          );
+                        })()}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
