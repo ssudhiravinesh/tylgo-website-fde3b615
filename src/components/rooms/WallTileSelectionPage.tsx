@@ -642,8 +642,8 @@ export const WallTileSelectionPage = ({
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent
-          className="!w-[75vw] !h-[75vh] flex flex-col justify-center items-center p-8"
-          style={{ maxWidth: '75vw', maxHeight: '75vh', minWidth: 300, minHeight: 300 }}
+          className="!w-screen !h-screen p-0 m-0 rounded-none flex flex-col"
+          style={{ maxWidth: '100vw', maxHeight: '100vh' }}
         >
           <DialogHeader>
             <DialogTitle>Wall Preview</DialogTitle>
