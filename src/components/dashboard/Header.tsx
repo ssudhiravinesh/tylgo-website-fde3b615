@@ -34,11 +34,12 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
             >
               <Menu className="h-5 w-5" />
             </Button>
-      <h1 className="text-xl font-semibold text-gray-800">
-        TYL
-        <span style={{ color: "#ffd700", fontWeight: "bold" }}>G</span>
-        O
-      </h1>
+<h1 className="text-xl font-semibold text-gray-800">
+  TYL
+  <span style={{ color: "#003366", fontWeight: "bold" }}>G</span>
+  O
+</h1>
+
 
 
           </div>
