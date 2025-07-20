@@ -166,6 +166,24 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const handleStatusFilterChange = (status: string) => {
     setSelectedStatus(status);
   };
+  const formatAddress = (customer: any) => {
+  const addressParts = [
+    customer?.address,
+    customer?.area,
+    customer?.state,
+    customer?.pincode
+  ].filter(Boolean);
+  return addressParts.length > 0 ? addressParts.join(", ") : "-";
+};
+  const formatAddress = (customer: any) => {
+    const addressParts = [
+      customer?.address,
+      customer?.area,
+      customer?.state,
+      customer?.pincode
+    ].filter(Boolean);
+    return addressParts.length > 0 ? addressParts.join(", ") : "-";
+  };
 
   const clearAllFilters = () => {
     setQuickSort("all");
@@ -502,12 +520,15 @@ document.head.appendChild(styleSheet);
                           if (customer?.state) addressParts.push(customer.state);
                           
                           return addressParts.length > 0 ? (
-                            <div className="flex items-start gap-1">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-600 flex items-start gap-1">
                               <MapPin className="h-3 w-3 mt-0.5 text-gray-400" />
                               <div>
-                                <div>{addressParts.join(', ')}</div>
+                                {formatAddress(quotation.customer)}
                               </div>
                             </div>
+                          </td>
+
                           ) : (
                             <span className="text-gray-400 text-xs">No address</span>
                           );
