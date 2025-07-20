@@ -10,10 +10,13 @@ export const useSecureSupabaseClient = () => {
   const withSessionValidation = useCallback(async (operation: () => Promise<any>): Promise<any> => {
     // Validate session before executing any database operation
     if (user) {
+      console.log('Validating session before database operation for user:', user.id);
       const isValid = await enforceSessionValidation(user.id);
       if (!isValid) {
-        throw new Error('Session invalid or expired');
+        console.log('Session validation failed - rejecting database operation');
+        throw new Error('Session invalid or expired. Please sign in again.');
       }
+      console.log('Session valid - proceeding with database operation');
     }
 
     // Execute the operation

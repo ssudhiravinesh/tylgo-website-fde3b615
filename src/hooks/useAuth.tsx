@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Create new session (this will invalidate any existing sessions)
         setTimeout(async () => {
           try {
+            console.log('Creating session for newly signed in user - this will invalidate any existing sessions');
             await createSession(session.user.id);
             await fetchProfile(session.user.id);
           } catch (error) {
@@ -95,6 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           setUser(session.user);
           // Validate existing session
+          console.log('Validating existing session for single session enforcement');
           const isValid = await enforceSessionValidation(session.user.id);
           if (isValid) {
             await fetchProfile(session.user.id);

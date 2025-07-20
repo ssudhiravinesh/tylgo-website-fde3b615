@@ -72,7 +72,7 @@ export const usePDFGeneration = () => {
           }
 
           const calc = tileCalculations[tileId];
-          calc.rooms.push({ ...group.room, layers: [...group.layers].sort(), totalArea: group.totalArea });
+          calc.rooms.push({ ...group.room, layers: [...group.layers].sort(), totalArea: group.totalArea } as any);
           calc.totalArea += group.totalArea;
           calc.totalPrice += group.totalPrice;
           calc.quotationItems.push({ custom_boxes: group.customBoxes });
@@ -121,11 +121,11 @@ export const usePDFGeneration = () => {
 
             const roomDisplay = calc.rooms
               .map(
-                (room) =>
+                (room: any) =>
                   `${room.name}${
-                    room.layers.length > 1
+                    room.layers?.length > 1
                       ? ` (Layers: ${room.layers.join(', ')})`
-                      : room.layers[0] > 1
+                      : room.layers?.[0] > 1
                       ? ` (Layer ${room.layers[0]})`
                       : ''
                   }`
