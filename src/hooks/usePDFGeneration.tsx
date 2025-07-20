@@ -473,30 +473,45 @@ export const usePDFGeneration = () => {
       
       // Use html2canvas and jsPDF for better Vite compatibility
       const canvas = await html2canvas(element, { 
-        scale: 2, 
+        scale: 1.5, 
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        width: element.scrollWidth,
+        height: element.scrollHeight
       });
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      
+      // A4 dimensions with padding
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 10; // 10mm margin on all sides
+      const contentWidth = pageWidth - (margin * 2);
+      const contentHeight = pageHeight - (margin * 2);
+      
+      // Calculate proper scaling to fit content with margins
+      const imgAspectRatio = canvas.width / canvas.height;
+      const contentAspectRatio = contentWidth / contentHeight;
+      
+      let finalWidth, finalHeight;
+      
+      if (imgAspectRatio > contentAspectRatio) {
+        // Image is wider, fit to width
+        finalWidth = contentWidth;
+        finalHeight = contentWidth / imgAspectRatio;
+      } else {
+        // Image is taller, fit to height
+        finalHeight = contentHeight;
+        finalWidth = contentHeight * imgAspectRatio;
       }
-
+      
+      // Center the content
+      const xOffset = margin + (contentWidth - finalWidth) / 2;
+      const yOffset = margin;
+      
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
       pdf.save(`Quotation-${quotation.quotation_number}.pdf`);
       
       document.body.removeChild(element);
