@@ -34,13 +34,18 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
 
       console.log('Fetched quotation items for PDF:', quotationItems);
 
-      // Create a hidden container for PDF generation
+      // Create a completely hidden container for PDF generation to prevent UI flashing
       const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '0';
+      tempContainer.style.position = 'fixed';
+      tempContainer.style.left = '-99999px';
+      tempContainer.style.top = '-99999px';
       tempContainer.style.width = '210mm'; // A4 width
+      tempContainer.style.height = 'auto';
       tempContainer.style.backgroundColor = 'white';
+      tempContainer.style.visibility = 'hidden';
+      tempContainer.style.opacity = '0';
+      tempContainer.style.pointerEvents = 'none';
+      tempContainer.style.zIndex = '-9999';
       document.body.appendChild(tempContainer);
 
       // Group items by tile using unified calculation system
@@ -352,10 +357,29 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
 }).join(', ');
 
 
-          // Generate image cell content
-          const imageCell = tile?.image_url ? 
-            `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none';" />` :
-            '<small style="color: #999; font-style: italic;">No image</small>';
+          // Generate image cell content with aspect ratio matching tile dimensions
+          let imageCell;
+          if (tile?.image_url && tile.size_length && tile.size_breadth) {
+            const tileAspectRatio = tile.size_length / tile.size_breadth;
+            const maxSize = 50; // Maximum dimension in pixels
+            
+            let imageWidth, imageHeight;
+            if (tileAspectRatio > 1) {
+              // Wider tile
+              imageWidth = maxSize;
+              imageHeight = maxSize / tileAspectRatio;
+            } else {
+              // Taller or square tile
+              imageHeight = maxSize;
+              imageWidth = maxSize * tileAspectRatio;
+            }
+            
+            imageCell = `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: ${imageWidth}px; height: ${imageHeight}px; object-fit: cover; border-radius: 3px; border: 1px solid #ddd;" onerror="this.style.display='none';" />`;
+          } else if (tile?.image_url) {
+            imageCell = `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 3px; border: 1px solid #ddd;" onerror="this.style.display='none';" />`;
+          } else {
+            imageCell = '<small style="color: #999; font-style: italic;">No image</small>';
+          }
           const hasMultipleLayers = tileCalculations[tileId].rooms.some((room: any) => room.layers && room.layers.length > 1);
           const areaDisplay = hasMultipleLayers ? 
             `Total Area: ${formatArea(calc.totalArea)} (includes ${calc.totalArea / calc.totalArea * calc.rooms.length} layers)` : 
@@ -401,105 +425,124 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
           <style>
             @media print {
               @page { 
-                margin: 10mm; 
+                margin: 12mm; 
                 size: A4; 
               }
               body { 
                 margin: 0; 
-                font-size: 12px;
-                line-height: 1.2;
+                font-size: 11px;
+                line-height: 1.4;
               }
               .no-page-break { 
                 page-break-inside: avoid; 
               }
             }
             body { 
-              font-family: Arial, sans-serif; 
-              margin: 15px; 
+              font-family: 'Segoe UI', Arial, sans-serif; 
+              margin: 16px; 
               color: #333; 
-              font-size: 12px;
-              line-height: 1.3;
+              font-size: 11px;
+              line-height: 1.4;
+              background: white;
             }
             .header { 
               text-align: center; 
-              margin-bottom: 20px; 
-              border-bottom: 2px solid #007bff; 
-              padding-bottom: 10px; 
+              margin-bottom: 24px; 
+              border-bottom: 3px solid #2563eb; 
+              padding-bottom: 12px; 
             }
             .company-name { 
-              font-size: 24px; 
-              font-weight: bold; 
-              color: #007bff; 
-              margin-bottom: 5px; 
+              font-size: 22px; 
+              font-weight: 700; 
+              color: #2563eb; 
+              margin-bottom: 6px; 
+              letter-spacing: 0.5px;
             }
             .quotation-title { 
-              font-size: 18px; 
-              color: #555; 
-              margin-bottom: 10px; 
+              font-size: 16px; 
+              color: #64748b; 
+              margin-bottom: 8px; 
+              font-weight: 500;
             }
             .details { 
-              display: flex; 
-              justify-content: space-between; 
-              margin-bottom: 20px; 
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 24px;
+              margin-bottom: 24px; 
+              padding: 16px;
+              background: #f8fafc;
+              border-radius: 8px;
+              border: 1px solid #e2e8f0;
             }
             .customer-info, .quotation-info { 
-              width: 45%; 
+              width: 100%; 
             }
             .section-title { 
-              font-size: 14px; 
-              font-weight: bold; 
-              margin-bottom: 8px; 
-              color: #007bff; 
-              border-bottom: 1px solid #ddd; 
-              padding-bottom: 4px; 
+              font-size: 13px; 
+              font-weight: 600; 
+              margin-bottom: 10px; 
+              color: #2563eb; 
+              border-bottom: 2px solid #e2e8f0; 
+              padding-bottom: 5px; 
             }
             .info-row { 
-              margin-bottom: 6px; 
-              font-size: 11px; 
+              margin-bottom: 7px; 
+              font-size: 10px; 
+              display: flex;
+              align-items: baseline;
             }
             .label { 
-              font-weight: bold; 
-              color: #555; 
-              width: 80px; 
+              font-weight: 600; 
+              color: #475569; 
+              width: 85px; 
               display: inline-block; 
+              flex-shrink: 0;
             }
             .items-table { 
               width: 100%; 
               border-collapse: collapse; 
-              margin: 15px 0; 
-              font-size: 10px;
+              margin: 20px 0; 
+              font-size: 9px;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+              border-radius: 6px;
+              overflow: hidden;
             }
             .items-table th { 
-              background-color: #f8f9fa; 
-              font-weight: bold; 
-              padding: 6px 4px; 
-              border: 1px solid #ddd; 
+              background: linear-gradient(135deg, #2563eb, #3b82f6); 
+              color: white;
+              font-weight: 600; 
+              padding: 10px 8px; 
+              border: none; 
               text-align: left; 
               font-size: 9px;
             }
             .items-table td { 
-              border: 1px solid #ddd; 
-              padding: 6px 4px; 
+              border: 1px solid #e2e8f0; 
+              padding: 8px 6px; 
               vertical-align: top; 
-              font-size: 10px;
+              font-size: 9px;
             }
             .items-table tr:nth-child(even) { 
-              background-color: #f9f9f9; 
+              background-color: #f8fafc; 
+            }
+            .items-table tr:hover {
+              background-color: #f1f5f9;
             }
             .total-section { 
               text-align: right; 
-              margin-top: 15px; 
-              padding: 10px; 
-              background-color: #f8f9fa; 
-              border-radius: 4px; 
+              margin-top: 20px; 
+              padding: 16px; 
+              background: linear-gradient(135deg, #f8fafc, #e2e8f0); 
+              border-radius: 8px; 
+              border: 2px solid #2563eb;
             }
             .total-row { 
-              font-size: 16px; 
-              font-weight: bold; 
-              color: #007bff; 
-              padding: 8px 0; 
-              border-top: 2px solid #007bff; 
-              margin-top: 5px; 
+              font-size: 15px; 
+              font-weight: 700; 
+              color: #2563eb; 
+              padding: 10px 0; 
+              border-top: 2px solid #2563eb; 
+              margin-top: 8px; 
             }
             .notes-section { 
               margin-top: 15px; 
@@ -597,14 +640,17 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
       // Wait for content to load, then generate PDF
       setTimeout(async () => {
         try {
-          // Convert HTML to canvas
+          // Convert HTML to canvas with improved settings
           const canvas = await html2canvas(tempContainer, {
             scale: 2, // Higher resolution
             useCORS: true,
             allowTaint: false,
             backgroundColor: '#ffffff',
             width: tempContainer.scrollWidth,
-            height: tempContainer.scrollHeight
+            height: tempContainer.scrollHeight,
+            logging: false, // Disable logging to prevent console clutter
+            imageTimeout: 15000, // Longer timeout for images
+            removeContainer: true // Clean up immediately
           });
 
           // Create PDF
