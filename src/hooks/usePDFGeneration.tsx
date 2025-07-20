@@ -34,18 +34,16 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
 
       console.log('Fetched quotation items for PDF:', quotationItems);
 
-      // Create a completely hidden container for PDF generation to prevent UI flashing
+      // Create a properly positioned container for PDF generation
       const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'fixed';
-      tempContainer.style.left = '-99999px';
-      tempContainer.style.top = '-99999px';
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0';
       tempContainer.style.width = '210mm'; // A4 width
       tempContainer.style.height = 'auto';
       tempContainer.style.backgroundColor = 'white';
-      tempContainer.style.visibility = 'hidden';
-      tempContainer.style.opacity = '0';
-      tempContainer.style.pointerEvents = 'none';
-      tempContainer.style.zIndex = '-9999';
+      tempContainer.style.zIndex = '-1000';
+      tempContainer.style.overflow = 'visible';
       document.body.appendChild(tempContainer);
 
       // Group items by tile using unified calculation system
@@ -637,21 +635,48 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
       // Set the HTML content to the temp container
       tempContainer.innerHTML = pdfContent;
       
-      // Wait for content to load, then generate PDF
-      setTimeout(async () => {
+      // Wait for images to load and content to render
+      const images = tempContainer.querySelectorAll('img');
+      const imagePromises = Array.from(images).map(img => {
+        return new Promise((resolve) => {
+          if (img.complete) {
+            resolve(true);
+          } else {
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(true); // Still resolve to continue
+            // Fallback timeout
+            setTimeout(() => resolve(true), 3000);
+          }
+        });
+      });
+
+      // Wait for all images to load before generating PDF
+      Promise.all(imagePromises).then(async () => {
         try {
-          // Convert HTML to canvas with improved settings
+          console.log('Starting PDF canvas generation...');
+          
+          // Convert HTML to canvas with optimized settings
           const canvas = await html2canvas(tempContainer, {
-            scale: 2, // Higher resolution
+            scale: 1.5, // Good balance of quality and performance
             useCORS: true,
             allowTaint: false,
             backgroundColor: '#ffffff',
             width: tempContainer.scrollWidth,
             height: tempContainer.scrollHeight,
-            logging: false, // Disable logging to prevent console clutter
-            imageTimeout: 15000, // Longer timeout for images
-            removeContainer: true // Clean up immediately
+            logging: false,
+            imageTimeout: 10000,
+            onclone: (clonedDoc) => {
+              // Ensure styles are applied in cloned document
+              const clonedContainer = clonedDoc.querySelector('div');
+              if (clonedContainer) {
+                clonedContainer.style.position = 'static';
+                clonedContainer.style.left = 'auto';
+                clonedContainer.style.visibility = 'visible';
+              }
+            }
           });
+
+          console.log('Canvas generated, creating PDF...');
 
           // Create PDF
           const pdf = new jsPDF({
@@ -683,16 +708,26 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
           // Download the PDF
           pdf.save(`Quotation_${quotation.quotation_number}.pdf`);
           
-          // Clean up
-          document.body.removeChild(tempContainer);
-          
+          console.log('PDF downloaded successfully');
           toast.success('PDF downloaded successfully');
+          
         } catch (pdfError) {
           console.error('Error converting to PDF:', pdfError);
-          document.body.removeChild(tempContainer);
           toast.error('Failed to generate PDF. Please try again.');
+        } finally {
+          // Clean up
+          if (document.body.contains(tempContainer)) {
+            document.body.removeChild(tempContainer);
+          }
         }
-      }, 1000);
+      }).catch((error) => {
+        console.error('Error loading images:', error);
+        // Clean up
+        if (document.body.contains(tempContainer)) {
+          document.body.removeChild(tempContainer);
+        }
+        toast.error('Failed to load images for PDF generation');
+      });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
