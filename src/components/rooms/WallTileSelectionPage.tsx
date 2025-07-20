@@ -642,15 +642,15 @@ export const WallTileSelectionPage = ({
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent
-          className="max-w-6xl w-[95vw] h-[90vh] p-6 rounded-2xl"
+          className="max-w-[98vw] w-[98vw] h-[92vh] p-8 rounded-2xl"
         >
           <DialogHeader>
             <DialogTitle>Wall Preview</DialogTitle>
           </DialogHeader>
           <div className="flex justify-center items-center w-full h-full">
             <div className="flex flex-col items-center justify-center flex-grow w-full h-full">
-              <div className="w-full h-full max-w-full max-h-full p-4">
-                <div className="border rounded-lg overflow-hidden shadow bg-white w-full h-full flex items-center justify-center">
+              <div className="w-full h-full max-w-full max-h-full p-6">
+                <div className="border rounded-xl overflow-hidden shadow bg-white w-full h-full flex items-center justify-center">
                   <canvas
                     ref={canvasRef}
                     className="w-full h-full"
