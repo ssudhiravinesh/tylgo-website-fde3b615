@@ -396,7 +396,18 @@ export const usePDFGeneration = () => {
               <div class="section-title">Customer Details</div>
               <div class="info-row"><span class="label">Name:</span> ${quotation.customer?.name || 'N/A'}</div>
               <div class="info-row"><span class="label">Mobile:</span> ${quotation.customer?.mobile || 'N/A'}</div>
-              ${quotation.customer?.address ? `<div class="info-row"><span class="label">Address:</span> ${quotation.customer.address}</div>` : ''}
+              ${(() => {
+                const customer = quotation.customer as any;
+                const addressParts = [];
+                
+                if (customer?.address) addressParts.push(customer.address);
+                if (customer?.area) addressParts.push(customer.area);
+                if (customer?.state) addressParts.push(customer.state);
+                
+                return addressParts.length > 0 ? 
+                  `<div class="info-row"><span class="label">Address:</span> ${addressParts.join(', ')}</div>` : 
+                  '';
+              })()}
             </div>
             
             <div class="quotation-info">
@@ -453,36 +464,44 @@ export const usePDFGeneration = () => {
       `;
 
       // Create a hidden iframe for automatic PDF download
-      // Create a downloadable Blob from the HTML
-      // Dynamically import html2pdf.js if using modules
-      const html2pdf = (await import('html2pdf.js')).default;
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
       
-      // Create a temporary container for rendering the HTML
-      const container = document.createElement('div');
-      container.style.display = 'none';
-      container.innerHTML = pdfContent;
-      document.body.appendChild(container);
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        throw new Error('Unable to access iframe document');
+      }
       
-      // Use html2pdf to generate and download the PDF
-      await html2pdf()
-        .from(container)
-        .set({
-          margin:       [10, 10, 10, 10],   // top, right, bottom, left in mm
-          filename:     `Quotation_${quotation.quotation_number || 'Document'}.pdf`,
-          image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 2, useCORS: true },
-          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        })
-        .save();
+      iframeDoc.open();
+      iframeDoc.write(pdfContent);
+      iframeDoc.close();
       
-      // Clean up the container after download
-      document.body.removeChild(container);
-
-toast.success('PDF download started');
-
-
-toast.success('PDF download started');
- // Increased delay to allow images to load
+      // Wait for content and images to load, then trigger print
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          
+          // Clean up the iframe after a delay
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        } catch (error) {
+          console.error('Error triggering print:', error);
+          // Fallback: open in new window if iframe method fails
+          const printWindow = window.open('', '_blank');
+          if (printWindow) {
+            printWindow.document.write(pdfContent);
+            printWindow.document.close();
+            setTimeout(() => {
+              printWindow.focus();
+              printWindow.print();
+              printWindow.close();
+            }, 1000);
+          }
+        }
+      }, 1500); // Increased delay to allow images to load
 
       toast.success('PDF download initiated');
     } catch (error) {
