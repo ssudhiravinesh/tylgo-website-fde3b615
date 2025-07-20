@@ -225,30 +225,30 @@ export const usePDFGeneration = () => {
           
           return `
             <tr>
-              <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+              <td style="padding: 10px 8px; border: 1px solid #ddd; font-size: 13px; vertical-align: top;">
                 <strong>${roomNamesWithLayers}</strong><br/>
-                <small style="color: #666; font-size: 9px;">${areaDisplay}</small>
+                <small style="color: #666; font-size: 11px;">${areaDisplay}</small>
               </td>
-              <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+              <td style="padding: 10px 8px; border: 1px solid #ddd; font-size: 13px; vertical-align: top;">
                 <strong>Code: ${tile?.code || 'N/A'}</strong><br/>
-                <small style="color: #666; font-size: 9px;">${tile?.name || 'Unknown Tile'}</small><br/>
-                <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small><br/>
-                ${boxPricing}
+                <small style="color: #666; font-size: 11px;">${tile?.name || 'Unknown Tile'}</small><br/>
+                <small style="color: #666; font-size: 11px;">Size: ${tileDimensions}</small><br/>
+                ${boxPricing.replace('font-size: 9px', 'font-size: 10px')}
               </td>
-              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; vertical-align: middle;">
+              <td style="text-align: center; padding: 10px 8px; border: 1px solid #ddd; vertical-align: middle;">
                 ${imageCell}
               </td>
-              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+              <td style="text-align: center; padding: 10px 8px; border: 1px solid #ddd; font-size: 13px; vertical-align: top;">
                 ${calc.rawTilesNeeded || 'N/A'}<br/>
                 ${calc.fullBoxes >= 0 && calc.leftoverTiles >= 0 ? 
-                  `<small style="color: #666; font-size: 9px;">(${calc.fullBoxes} ${calc.fullBoxes === 1 ? 'box' : 'boxes'}${calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})</small><br/>` : 
+                  `<small style="color: #666; font-size: 11px;">(${calc.fullBoxes} ${calc.fullBoxes === 1 ? 'box' : 'boxes'}${calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})</small><br/>` : 
                   ''
                 }
-                <small style="color: #666; font-size: 9px;">+${wastagePercentage}% wastage</small>
+                <small style="color: #666; font-size: 11px;">+${wastagePercentage}% wastage</small>
               </td>
-              <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${calc.boxesNeeded || 'N/A'}</td>
-              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${tile?.price_per_box ? parseFloat(tile.price_per_box).toLocaleString('en-IN') : 'N/A'}</td>
-              <td style="text-align: right; font-weight: bold; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${calc.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: right; padding: 10px 8px; border: 1px solid #ddd; font-size: 13px; vertical-align: top;">${calc.boxesNeeded || 'N/A'}</td>
+              <td style="text-align: center; padding: 10px 8px; border: 1px solid #ddd; font-size: 13px; vertical-align: top;">₹${tile?.price_per_box ? parseFloat(tile.price_per_box).toLocaleString('en-IN') : 'N/A'}</td>
+              <td style="text-align: right; font-weight: bold; padding: 10px 8px; border: 1px solid #ddd; font-size: 13px; vertical-align: top;">₹${calc.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           `;
         }).join('');
@@ -280,74 +280,74 @@ export const usePDFGeneration = () => {
               font-family: Arial, sans-serif; 
               margin: 15px; 
               color: #333; 
-              font-size: 14px;
-              line-height: 1.4;
+              font-size: 16px;
+              line-height: 1.5;
             }
             .header { 
               text-align: center; 
-              margin-bottom: 25px; 
+              margin-bottom: 30px; 
               border-bottom: 2px solid #007bff; 
-              padding-bottom: 15px; 
+              padding-bottom: 20px; 
             }
             .company-name { 
-              font-size: 32px; 
+              font-size: 42px; 
               font-weight: bold; 
               color: #007bff; 
-              margin-bottom: 8px; 
+              margin-bottom: 12px; 
             }
             .orange-g {
               color: #ff8c00;
             }
             .quotation-title { 
-              font-size: 18px; 
+              font-size: 24px; 
               color: #555; 
-              margin-bottom: 10px; 
+              margin-bottom: 15px; 
             }
             .details { 
               display: flex; 
               justify-content: space-between; 
-              margin-bottom: 20px; 
+              margin-bottom: 25px; 
             }
             .customer-info, .quotation-info { 
               width: 45%; 
             }
             .section-title { 
-              font-size: 14px; 
+              font-size: 18px; 
               font-weight: bold; 
-              margin-bottom: 8px; 
+              margin-bottom: 12px; 
               color: #007bff; 
               border-bottom: 1px solid #ddd; 
-              padding-bottom: 4px; 
+              padding-bottom: 6px; 
             }
             .info-row { 
-              margin-bottom: 6px; 
-              font-size: 11px; 
+              margin-bottom: 8px; 
+              font-size: 14px; 
             }
             .label { 
               font-weight: bold; 
               color: #555; 
-              width: 80px; 
+              width: 100px; 
               display: inline-block; 
             }
             .items-table { 
               width: 100%; 
               border-collapse: collapse; 
-              margin: 15px 0; 
-              font-size: 10px;
+              margin: 20px 0; 
+              font-size: 13px;
             }
             .items-table th { 
               background-color: #f8f9fa; 
               font-weight: bold; 
-              padding: 6px 4px; 
+              padding: 10px 8px; 
               border: 1px solid #ddd; 
               text-align: left; 
-              font-size: 9px;
+              font-size: 12px;
             }
             .items-table td { 
               border: 1px solid #ddd; 
-              padding: 6px 4px; 
+              padding: 10px 8px; 
               vertical-align: top; 
-              font-size: 10px;
+              font-size: 12px;
             }
             .items-table tr:nth-child(even) { 
               background-color: #f9f9f9; 
@@ -408,6 +408,7 @@ export const usePDFGeneration = () => {
                 if (customer?.address) addressParts.push(customer.address);
                 if (customer?.area) addressParts.push(customer.area);
                 if (customer?.state) addressParts.push(customer.state);
+                if (customer?.pincode) addressParts.push(customer.pincode);
                 
                 return addressParts.length > 0 ? 
                   `<div class="info-row"><span class="label">Address:</span> ${addressParts.join(', ')}</div>` : 
