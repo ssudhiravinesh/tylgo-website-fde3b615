@@ -177,6 +177,18 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setStateFilter("all");
     setSearchTerm("");
   };
+
+  // Helper function to format address
+  const formatAddress = (customer: any) => {
+    const addressParts = [
+      customer?.address,
+      customer?.area,
+      customer?.state,
+      customer?.pincode
+    ].filter(Boolean);
+    
+    return addressParts.length > 0 ? addressParts.join(", ") : "-";
+  };
 // styles or loading state
   const styles = {
   tilesContainer: {
@@ -492,26 +504,11 @@ document.head.appendChild(styleSheet);
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">
-                        {(() => {
-                          const customer = quotation.customer as any;
-                          const addressParts = [];
-                          
-                          if (customer?.address) addressParts.push(customer.address);
-                          if (customer?.area) addressParts.push(customer.area);
-                          if (customer?.state) addressParts.push(customer.state);
-                          
-                          return addressParts.length > 0 ? (
-                            <div className="flex items-start gap-1">
-                              <MapPin className="h-3 w-3 mt-0.5 text-gray-400" />
-                              <div>
-                                <div>{addressParts.join(', ')}</div>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-xs">No address</span>
-                          );
-                        })()}
+                      <div className="text-sm text-gray-600 flex items-start gap-1">
+                        <MapPin className="h-3 w-3 mt-0.5 text-gray-400" />
+                        <div>
+                          {formatAddress(quotation.customer)}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -563,12 +560,12 @@ document.head.appendChild(styleSheet);
                     </div>
                   </div>
                   
-                  {(quotation.customer as any)?.area && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <span>{(quotation.customer as any).area}, {(quotation.customer as any).state}</span>
-                    </div>
-                  )}
+                  <div className="flex items-start gap-2 text-sm text-gray-600">
+                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
+                    <span className="line-clamp-2">
+                      {formatAddress(quotation.customer)}
+                    </span>
+                  </div>
                   
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="h-4 w-4 text-gray-400" />
