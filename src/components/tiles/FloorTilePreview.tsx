@@ -191,7 +191,10 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+  className="!w-[75vw] !h-[75vh] flex flex-col p-8 justify-center items-center"
+  style={{ maxWidth: '75vw', maxHeight: '75vh', minWidth: 300, minHeight: 300 }}
+>
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <DialogTitle className="text-xl font-semibold">
             Floor Preview - {tile.name}
@@ -229,13 +232,14 @@ export const FloorTilePreview = ({ isOpen, onClose, tile, area, unit }: FloorTil
           
           <div className="flex flex-col items-center space-y-4">
             <h3 className="text-lg font-medium text-gray-800">Floor Layout Preview (4 Layers × 6 Tiles)</h3>
-            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-lg bg-white p-4">
+           <div className="border border-gray-300 rounded-lg overflow-hidden shadow-lg bg-white flex items-center justify-center w-full h-full">
               <canvas
                 ref={canvasRef}
-                className="max-w-full h-auto block"
-                style={{ imageRendering: 'crisp-edges' }}
+                className="block w-full h-full"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'crisp-edges' }}
               />
             </div>
+
             <p className="text-sm text-gray-600 text-center max-w-md">
               This preview shows how your selected tile will look when laid on the floor in a 4×6 pattern. 
               Each tile is displayed horizontally with its actual aspect ratio based on the tile dimensions.
