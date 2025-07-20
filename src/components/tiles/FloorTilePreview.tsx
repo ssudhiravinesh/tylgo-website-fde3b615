@@ -171,42 +171,27 @@ export const FloorTilePreview = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-[98vw] w-[98vw] h-[92vh] p-8 rounded-2xl"
-      >
-        {/* Overlayed Header/Close */}
-        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-white/95 via-white/75 to-transparent z-30">
-          <DialogTitle className="text-xl font-semibold truncate">Floor Preview - {tile.name}</DialogTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* Compact floating tile details overlay */}
-        <div className="absolute right-6 top-20 z-20 bg-amber-50 border border-amber-200 shadow rounded-lg px-4 py-2 text-xs text-amber-700 space-y-1 min-w-[190px]">
-          <div><span className="font-medium text-amber-800">Code:</span> {tile.code || 'N/A'}</div>
-          <div><span className="font-medium text-amber-800">Size:</span> {tile.size_length && tile.size_breadth ? `${tile.size_length}×${tile.size_breadth} mm` : 'N/A'}</div>
-          <div><span className="font-medium text-amber-800">Area:</span> {area.toFixed(2)} {unit}²</div>
-          <div><span className="font-medium text-amber-800">Price:</span> ₹{tile.price_per_box || 'N/A'}</div>
-        </div>
-
-        {/* Main content: Fills almost all space */}
-        <div className="flex flex-col items-center justify-center flex-grow w-full h-full">
-          <div className="w-full h-full max-w-full max-h-full p-6">
-            <div className="border rounded-xl overflow-hidden shadow bg-white w-full h-full flex items-center justify-center">
-              <canvas
-                ref={canvasRef}
-                className="w-full h-full"
-                style={{ objectFit: 'contain' }}
-              />
+          className="max-w-[98vw] w-[98vw] h-[92vh] p-8 rounded-2xl"
+        >
+          <DialogHeader>
+            <DialogTitle>Wall Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center items-center w-full h-full">
+            <div className="flex flex-col items-center justify-center flex-grow w-full h-full">
+              <div className="w-full h-full max-w-full max-h-full p-6">
+                <div className="border rounded-xl overflow-hidden shadow bg-white w-full h-full flex items-center justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-full"
+                    style={{ objectFit: 'contain' }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Info below canvas */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[96%] max-w-xl mx-auto text-center text-xs md:text-sm text-gray-600 bg-white/80 py-2 px-4 rounded shadow-lg">
-          This layout preview shows your tile in a 4×6 floor pattern.<br />
-          Each tile is shown with its real aspect ratio and dimensions as per your selection.
-        </div>
+          <div className="text-sm text-gray-600 text-center mt-4">
+            <p>Preview shows 4 X 6 tiles with actual tile proportions</p>
+          </div>
       </DialogContent>
     </Dialog>
   );
