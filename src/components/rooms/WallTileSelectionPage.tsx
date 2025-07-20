@@ -641,25 +641,29 @@ export const WallTileSelectionPage = ({
       />
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent
+          className="!w-[75vw] !h-[75vh] flex flex-col justify-center items-center p-8"
+          style={{ maxWidth: '75vw', maxHeight: '75vh', minWidth: 300, minHeight: 300 }}
+        >
           <DialogHeader>
             <DialogTitle>Wall Preview</DialogTitle>
           </DialogHeader>
-          <div className="flex justify-center p-6">
-            <div className="border rounded-lg overflow-hidden shadow-sm bg-white">
+          <div className="flex justify-center items-center w-full h-full">
+            <div className="border rounded-lg overflow-hidden shadow-sm bg-white flex items-center justify-center w-full h-full">
               <canvas
                 ref={canvasRef}
-                className="block"
-                style={{ maxWidth: '100%', height: 'auto' }}
+                className="block w-full h-full"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             </div>
           </div>
-          <div className="text-sm text-gray-600 text-center">
+          <div className="text-sm text-gray-600 text-center mt-4">
             <p>Preview shows 6 tiles per layer with actual tile proportions</p>
             <p>Layers are stacked from bottom (Layer 1) to top</p>
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };
