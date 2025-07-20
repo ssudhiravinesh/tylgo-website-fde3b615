@@ -34,23 +34,12 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
             >
               <Menu className="h-5 w-5" />
             </Button>
-   <h1 className="text-xl font-semibold text-gray-800">
-      TYL
-      <span
-      style={{
-        background: "linear-gradient(90deg, #ffd700 10%, #ffa500 60%, #fff8dc 90%)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        color: "#ffd700",
-        textShadow:
-          "0 0 8px #ffd700, 0 0 16px #ffa500, 0 0 24px #ffd700, 0 0 32px #fff8dc",
-        fontWeight: "bold",
-      }}
-      >
-      G
-      </span>
-      O
+      <h1 className="text-xl font-semibold text-gray-800">
+        TYL
+        <span style={{ color: "#ffd700", fontWeight: "bold" }}>G</span>
+        O
       </h1>
+
 
           </div>
 
