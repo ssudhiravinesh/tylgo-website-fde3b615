@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
+import html2pdf from 'html2pdf.js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
@@ -463,47 +464,25 @@ export const usePDFGeneration = () => {
         </html>
       `;
 
-      // Create a hidden iframe for automatic PDF download
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
+      const element = document.createElement('div');
+      element.innerHTML = pdfContent;
+      element.style.position = 'absolute';
+      element.style.left = '-9999px'; // Off-screen
+      document.body.appendChild(element);
       
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc) {
-        throw new Error('Unable to access iframe document');
-      }
+      await html2pdf()
+        .set({
+          margin: 0.3,
+          filename: `Quotation-${quotation.quotation_number}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        })
+        .from(element)
+        .save();
       
-      iframeDoc.open();
-      iframeDoc.write(pdfContent);
-      iframeDoc.close();
-      
-      // Wait for content and images to load, then trigger print
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-          
-          // Clean up the iframe after a delay
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        } catch (error) {
-          console.error('Error triggering print:', error);
-          // Fallback: open in new window if iframe method fails
-          const printWindow = window.open('', '_blank');
-          if (printWindow) {
-            printWindow.document.write(pdfContent);
-            printWindow.document.close();
-            setTimeout(() => {
-              printWindow.focus();
-              printWindow.print();
-              printWindow.close();
-            }, 1000);
-          }
-        }
-      }, 1500); // Increased delay to allow images to load
-
-      toast.success('PDF download initiated');
+      document.body.removeChild(element);
+      toast.success('PDF downloaded successfully');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
