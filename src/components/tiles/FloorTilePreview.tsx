@@ -184,9 +184,9 @@ export const FloorTilePreview = ({
           />
           
           <div className="absolute right-10 top-20 bg-yellow-50 border border-yellow-200 px-6 py-4 rounded-lg text-yellow-800 text-base font-medium shadow-md z-20">
-            <div>Rows: {previewData?.rows}</div>
-            <div>Cols: {previewData?.cols}</div>
-            <div>Tile Size: {tile.width}×{tile.height}</div>
+            <div>Rows: 4</div>
+            <div>Cols: 6</div>
+            <div>Tile Size: {tile.size_length || 600}×{tile.size_breadth || 600}mm</div>
           </div>
         </div>
       
