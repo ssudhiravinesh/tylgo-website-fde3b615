@@ -1,7 +1,6 @@
+
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
@@ -24,7 +23,8 @@ export const usePDFGeneration = () => {
           tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
         `)
         .eq('quotation_id', quotation.id);
-
+//to debug
+console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item => item.tile?.code === '24027'));
       if (error) {
         console.error('Error fetching quotation items:', error);
         throw new Error(`Failed to fetch quotation items: ${error.message}`);
@@ -32,95 +32,251 @@ export const usePDFGeneration = () => {
 
       console.log('Fetched quotation items for PDF:', quotationItems);
 
-      // Create a properly positioned container for PDF generation
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '0';
-      tempContainer.style.width = '210mm'; // A4 width
-      tempContainer.style.height = 'auto';
-      tempContainer.style.backgroundColor = 'white';
-      tempContainer.style.zIndex = '-1000';
-      tempContainer.style.overflow = 'visible';
-      document.body.appendChild(tempContainer);
+      // Create a new window for PDF generation
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error('Popup blocked. Please allow popups for this site.');
+      }
 
-      // Group items by tile and room, handling layers
-      const processedItems = new Map();
-      let totalBoxes = 0;
-      let grandTotal = 0;
-
+      // Group items by tile using unified calculation system
+      const tileCalculations: { [tileId: string]: TileCalculationResult } = {};
+/*
       if (quotationItems && quotationItems.length > 0) {
         quotationItems.forEach((item: any) => {
-          const key = `${item.tile_id}-${item.room_id}`;
+          const tileId = item.tile_id;
+          const room = item.room;
+          const tile = item.tile;
           
-          if (!processedItems.has(key)) {
-            processedItems.set(key, {
-              room: item.room,
-              tile: item.tile,
-              layers: [],
-              area: parseFloat(item.area) || 0,
-              totalPrice: 0,
-              boxes: 0,
-              tilesRequired: 0,
-              pricePerBox: parseFloat(item.price_per_box) || parseFloat(item.tile?.price_per_box) || 0
-            });
+          if (!tileCalculations[tileId]) {
+            tileCalculations[tileId] = {
+              tile,
+              rooms: [],
+              totalArea: 0,
+              tilesNeeded: 0,
+              boxesNeeded: 0,
+              totalPrice: 0
+            };
           }
-          
-          const processedItem = processedItems.get(key);
-          if (!processedItem.layers.includes(item.layer_number)) {
-            processedItem.layers.push(item.layer_number);
-          }
-          
-          processedItem.totalPrice += parseFloat(item.total_price) || 0;
-          processedItem.boxes += item.custom_boxes || 0;
+
+          const roomAreaInSqFt = parseFloat(item.area) || 0;
+          tileCalculations[tileId].rooms.push(room);
+          tileCalculations[tileId].totalArea += roomAreaInSqFt;
+          // Sum stored total_price from all quotation_items for this tile
+          tileCalculations[tileId].totalPrice += parseFloat(item.total_price) || 0;
         });
 
-        // Calculate tiles required for each item
-        processedItems.forEach((item) => {
-          const tile = item.tile;
-          if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box) {
+        // Calculate tiles and boxes for display, using stored custom adjustments
+        Object.values(tileCalculations).forEach(calc => {
+          const tile = calc.tile;
+          
+          if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
             const tileLengthFt = (tile.size_length || 0) / 304.8;
             const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+            const piecesPerBox = parseInt(tile.pieces_per_box.toString());
             
             if (tileAreaSqFt > 0) {
-              // Calculate area considering layers
-              const totalArea = item.area * item.layers.length;
-              const basicTilesNeeded = Math.ceil(totalArea / tileAreaSqFt);
-              item.tilesRequired = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+              const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+              const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
               
-              // Calculate boxes if not already set
-              if (item.boxes === 0) {
-                item.boxes = Math.ceil(item.tilesRequired / tile.pieces_per_box);
-              }
+              // Get custom box adjustment from the first item for this tile
+              const tileItem = quotationItems?.find((item: any) => item.tile_id === tile.id);
+              const customBoxAdjustment = tileItem?.custom_boxes || 0;
               
-              // Recalculate total price if needed
-              if (item.totalPrice === 0) {
-                item.totalPrice = item.boxes * item.pricePerBox;
-              }
+              // Calculate base boxes needed and apply custom adjustment
+              const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
+              calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
+              
+              // Update tiles needed to reflect the actual boxes being purchased
+              calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+              
+              // Use the summed stored total_price - it already includes all manual adjustments
+              // No need to recalculate as calc.totalPrice already has the right value from stored data
             }
           }
-          
-          totalBoxes += item.boxes;
-          grandTotal += item.totalPrice;
         });
       }
+*/
+//       if (quotationItems && quotationItems.length > 0) {
+//   quotationItems.forEach((item: any) => {
+//     const tileId = item.tile_id;
+//     const room = item.room;
+//     const tile = item.tile;
+    
+//     if (!tileCalculations[tileId]) {
+//       tileCalculations[tileId] = {
+//         tile,
+//         rooms: [],
+//         totalArea: 0,
+//         tilesNeeded: 0,
+//         boxesNeeded: 0,
+//         totalPrice: 0,
+//         quotationItems: [] // Add this to track individual items
+//       };
+//     }
 
-      // Generate items rows with clean format matching the image
-      let itemsRows = '';
+//     const roomAreaInSqFt = parseFloat(item.area) || 0;
+//     tileCalculations[tileId].rooms.push(room);
+//     tileCalculations[tileId].totalArea += roomAreaInSqFt;
+    
+//     // Store the quotation item for later processing
+//     tileCalculations[tileId].quotationItems.push(item);
+//   });
+
+//   // Calculate tiles, boxes, and CORRECT total price
+//   Object.values(tileCalculations).forEach(calc => {
+//     const tile = calc.tile;
+    
+//     if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
+//       const tileLengthFt = (tile.size_length || 0) / 304.8;
+//       const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+//       const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+//       const piecesPerBox = parseInt(tile.pieces_per_box.toString());
       
-      if (processedItems.size > 0) {
-        itemsRows = Array.from(processedItems.values()).map((item: any) => {
-          const tile = item.tile;
-          const room = item.room;
+//       if (tileAreaSqFt > 0) {
+//         const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+//         const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        
+//         // Get custom box adjustment - sum from all items for this tile
+//         const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
+//           return sum + (item.custom_boxes || 0);
+//         }, 0);
+        
+//         // Calculate base boxes needed and apply custom adjustment
+//         const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
+//         calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
+        
+//         // Update tiles needed to reflect the actual boxes being purchased
+//         calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+        
+//         // FIXED: Calculate total price based on boxes needed and price per box
+//         // Instead of summing stored total_price (which can be duplicated for layers)
+//         calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
+//       }
+//     }
+//   });
+// }
+      // version 2.0
+
+if (quotationItems && quotationItems.length > 0) {
+  // Group items by tile_id and room_id to handle layers correctly
+  const tileRoomGroups = new Map();
+  
+  quotationItems.forEach((item: any) => {
+    const tileId = item.tile_id;
+    const roomId = item.room_id;
+    const groupKey = `${tileId}-${roomId}`;
+    
+    if (!tileRoomGroups.has(groupKey)) {
+      tileRoomGroups.set(groupKey, {
+        tile: item.tile,
+        room: item.room,
+        layers: [],
+        baseArea: parseFloat(item.area) || 0, // Area per layer
+        totalArea: 0, // Will be calculated based on layers
+        customBoxes: 0,
+        totalPrice: 0,
+        pricePerBox: parseFloat(item.price_per_box) || 0
+      });
+    }
+    
+    const group = tileRoomGroups.get(groupKey);
+    
+    // Add layer if not already present
+    if (!group.layers.includes(item.layer_number)) {
+      group.layers.push(item.layer_number);
+    }
+    
+    // Accumulate custom boxes and total price from each quotation item
+    group.customBoxes += item.custom_boxes || 0;
+    group.totalPrice += parseFloat(item.total_price) || 0;
+  });
+
+  // Calculate total area considering layers and process tiles
+  tileRoomGroups.forEach((group, groupKey) => {
+    const tileId = groupKey.split('-')[0];
+    
+    // Calculate total area: base area × number of layers
+    group.totalArea = group.baseArea * group.layers.length;
+    
+    if (!tileCalculations[tileId]) {
+      tileCalculations[tileId] = {
+        tile: group.tile,
+        rooms: [],
+        totalArea: 0,
+        rawTilesNeeded: 0,
+        tilesNeeded: 0,
+        fullBoxes: 0,
+        leftoverTiles: 0,
+        boxesNeeded: 0,
+        totalPrice: 0,
+        quotationItems: []
+      };
+    }
+
+    // Add room with layer information
+    tileCalculations[tileId].rooms.push({
+      ...group.room,
+      layers: group.layers.sort((a, b) => a - b),
+      totalArea: group.totalArea // Area including all layers
+    });
+    
+    // Sum up total area and price for this tile across all rooms
+    tileCalculations[tileId].totalArea += group.totalArea;
+    tileCalculations[tileId].totalPrice += group.totalPrice;
+    
+    // Store the group for custom boxes calculation
+    tileCalculations[tileId].quotationItems.push({
+      custom_boxes: group.customBoxes,
+      total_price: group.totalPrice
+    });
+  });
+
+  // Calculate tiles and boxes for display
+  Object.values(tileCalculations).forEach(calc => {
+    const tile = calc.tile;
+    
+    if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
+      const tileLengthFt = (tile.size_length || 0) / 304.8;
+      const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+      const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+      const piecesPerBox = parseInt(tile.pieces_per_box.toString());
+      
+      if (tileAreaSqFt > 0) {
+        const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+        calc.rawTilesNeeded = basicTilesNeeded;
+        const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+        calc.tilesNeeded = tilesWithWastage;
+        
+        // Calculate box breakdown
+        calc.fullBoxes = Math.floor(basicTilesNeeded / piecesPerBox);
+        calc.leftoverTiles = basicTilesNeeded % piecesPerBox;
+        
+        // Get custom box adjustment - sum from all UNIQUE tile-room combinations
+        const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
+          return sum + (item.custom_boxes || 0);
+        }, 0);
+        
+        // Calculate base boxes needed and apply custom adjustment
+        const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
+        calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
+        
+        // Use the already calculated totalPrice (includes layer adjustments)
+        // calc.totalPrice is already set correctly from the grouping logic above
+      }
+    }
+  });
+}
+      // generate items rows, PDF content with updated wastage percentage display
+      let itemsRows = '';
+      let totalBoxes = 0;
+      let grandTotal = 0;
+      
+      if (Object.keys(tileCalculations).length > 0) {
+        itemsRows = Object.entries(tileCalculations).map(([tileId, calc]: [string, any]) => {
+          console.log('Processing calc for PDF:', calc);
           
-          // Format room name with layers
-          let roomDisplay = room?.name || 'Unknown Room';
-          if (item.layers.length > 1) {
-            roomDisplay += ` (Layers: ${item.layers.sort((a, b) => a - b).join(', ')})`;
-          } else if (item.layers[0] > 1) {
-            roomDisplay += ` (Layer ${item.layers[0]})`;
-          }
+          const tile = calc.tile;
           
           // Calculate tile dimensions for display
           let tileDimensions = 'N/A';
@@ -129,94 +285,107 @@ export const usePDFGeneration = () => {
             const widthInMm = tile.size_breadth || 0;
             
             if (lengthInMm >= 1000 || widthInMm >= 1000) {
-              const lengthInM = (lengthInMm / 1000).toFixed(1);
-              const widthInM = (widthInMm / 1000).toFixed(1);
+              const lengthInM = (lengthInMm / 1000).toFixed(2);
+              const widthInM = (widthInMm / 1000).toFixed(2);
               tileDimensions = `${lengthInM} × ${widthInM} m`;
             } else if (lengthInMm >= 100 || widthInMm >= 100) {
-              const lengthInCm = (lengthInMm / 10).toFixed(0);
-              const widthInCm = (widthInMm / 10).toFixed(0);
+              const lengthInCm = (lengthInMm / 10).toFixed(1);
+              const widthInCm = (widthInMm / 10).toFixed(1);
               tileDimensions = `${lengthInCm} × ${widthInCm} cm`;
             } else {
               tileDimensions = `${lengthInMm} × ${widthInMm} mm`;
             }
           }
 
-          // Format area display
-          const totalArea = item.area * item.layers.length;
-          const areaDisplay = `Total Area: ${totalArea.toFixed(2)} sq ft`;
-          if (item.layers.length > 1) {
-            const baseAreaText = `(${item.area.toFixed(2)} sq ft × ${item.layers.length} layer${item.layers.length > 1 ? 's' : ''})`;
-            roomDisplay += `\n${areaDisplay} ${baseAreaText}`;
-          } else {
-            roomDisplay += `\n${areaDisplay}`;
-          }
+          totalBoxes += calc.boxesNeeded;
+          grandTotal += calc.totalPrice;
 
-          // Generate image cell content with proper aspect ratio
-          let imageCell = '<div style="width: 50px; height: 40px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #999;">No Image</div>';
-          if (tile?.image_url) {
-            // Calculate proper dimensions based on tile aspect ratio
-            let imageWidth = 50;
-            let imageHeight = 40;
+          const boxPricing = tile?.price_per_box ? 
+            `<small style="color: #666; font-size: 9px;">₹${parseFloat(tile.price_per_box).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>` : '';
+
+          // Get unique room names with layer information specific to this tile
+          const tileQuotationItems = quotationItems?.filter((item: any) => item.tile_id === tileId) || [];
+          const roomLayerMap = new Map();
+          
+          tileQuotationItems.forEach((item: any) => {
+            const roomName = item.room?.name || 'Unknown Room';
+            const layerNumber = item.layer_number || 1;
             
-            if (tile.size_length && tile.size_breadth) {
-              const tileAspectRatio = tile.size_length / tile.size_breadth;
-              const containerAspectRatio = 50 / 40; // 1.25
-              
-              if (tileAspectRatio > containerAspectRatio) {
-                // Tile is wider than container - fit to width
-                imageWidth = 50;
-                imageHeight = Math.round(50 / tileAspectRatio);
-              } else {
-                // Tile is taller than container - fit to height
-                imageHeight = 40;
-                imageWidth = Math.round(40 * tileAspectRatio);
-              }
+            if (!roomLayerMap.has(roomName)) {
+              roomLayerMap.set(roomName, []);
             }
-            
-            imageCell = `
-              <div style="width: 50px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                <img 
-                  src="${tile.image_url}" 
-                  alt="${tile.name || 'Tile'}" 
-                  style="width: ${imageWidth}px; height: ${imageHeight}px; object-fit: cover; border-radius: 3px;" 
-                  onerror="this.style.display='none'; this.parentNode.innerHTML='<div style=\\'font-size: 8px; color: #999; text-align: center;\\'>No Image</div>';" 
-                />
-              </div>
-            `;
-          }
+            if (!roomLayerMap.get(roomName).includes(layerNumber)) {
+              roomLayerMap.get(roomName).push(layerNumber);
+            }
+          });
 
+          // const roomNamesWithLayers = Array.from(roomLayerMap.entries()).map(([roomName, layers]) => {
+          //   const sortedLayers = layers.sort((a, b) => a - b);
+          //   if (sortedLayers.length > 1) {
+          //     return `${roomName} (Layers: ${sortedLayers.join(', ')})`;
+          //   } else if (sortedLayers[0] > 1) {
+          //     return `${roomName} (Layer ${sortedLayers[0]})`;
+          //   } else {
+          //     return roomName;
+          //   }
+          // }).join(', ');
+
+          // version 2.0 rems 
+// nive-sudhir-karthi-varuna
+const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
+  const layers = room.layers || [];
+  const totalArea = room.totalArea || 0;
+  
+  let roomDisplay = room.name;
+  if (layers.length > 1) {
+    roomDisplay += ` (Layers: ${layers.join(', ')})`;
+  } else if (layers[0] > 1) {
+    roomDisplay += ` (Layer ${layers[0]})`;
+  }
+  
+  return roomDisplay;
+}).join(', ');
+
+
+          // Generate image cell content
+          const imageCell = tile?.image_url ? 
+            `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none';" />` :
+            '<small style="color: #999; font-style: italic;">No image</small>';
+          const hasMultipleLayers = tileCalculations[tileId].rooms.some((room: any) => room.layers && room.layers.length > 1);
+          const areaDisplay = hasMultipleLayers ? 
+            `Total Area: ${formatArea(calc.totalArea)} (includes ${calc.totalArea / calc.totalArea * calc.rooms.length} layers)` : 
+            `Total Area: ${formatArea(calc.totalArea)}`;
           return `
-            <tr style="border-bottom: 1px solid #e5e5e5; page-break-inside: avoid;">
-              <td style="padding: 8px; font-size: 10px; vertical-align: top; border-right: 1px solid #e5e5e5; white-space: pre-line;">
-                <strong style="color: #333; font-size: 10px;">${roomDisplay}</strong>
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                <strong>${roomNamesWithLayers}</strong><br/>
+                <small style="color: #666; font-size: 9px;">${areaDisplay}</small>
               </td>
-              <td style="padding: 8px; font-size: 10px; vertical-align: top; border-right: 1px solid #e5e5e5;">
-                <div style="margin-bottom: 2px;"><strong>Code: ${tile?.code || 'N/A'}</strong></div>
-                <div style="font-size: 9px; color: #666; margin-bottom: 2px;">${tile?.name || 'Unknown Tile'}</div>
-                <div style="font-size: 9px; color: #666; margin-bottom: 2px;">Size: ${tileDimensions}</div>
-                <div style="font-size: 9px; color: #666;">₹${item.pricePerBox.toLocaleString('en-IN')} per box (${tile?.pieces_per_box || 'N/A'} pcs)</div>
+              <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                <strong>Code: ${tile?.code || 'N/A'}</strong><br/>
+                <small style="color: #666; font-size: 9px;">${tile?.name || 'Unknown Tile'}</small><br/>
+                <small style="color: #666; font-size: 9px;">Size: ${tileDimensions}</small><br/>
+                ${boxPricing}
               </td>
-              <td style="text-align: center; padding: 8px; vertical-align: middle; border-right: 1px solid #e5e5e5;">
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; vertical-align: middle;">
                 ${imageCell}
               </td>
-              <td style="text-align: center; padding: 8px; font-size: 10px; vertical-align: middle; border-right: 1px solid #e5e5e5;">
-                <strong>${item.tilesRequired}</strong>
-                ${wastagePercentage > 0 ? `<div style="font-size: 8px; color: #666;">+${wastagePercentage}% wastage</div>` : ''}
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
+                ${calc.rawTilesNeeded || 'N/A'}<br/>
+                ${calc.fullBoxes >= 0 && calc.leftoverTiles >= 0 ? 
+                  `<small style="color: #666; font-size: 9px;">(${calc.fullBoxes} ${calc.fullBoxes === 1 ? 'box' : 'boxes'}${calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})</small><br/>` : 
+                  ''
+                }
+                <small style="color: #666; font-size: 9px;">+${wastagePercentage}% wastage</small>
               </td>
-              <td style="text-align: center; padding: 8px; font-size: 10px; vertical-align: middle; border-right: 1px solid #e5e5e5; font-weight: bold;">
-                ${item.boxes}
-              </td>
-              <td style="text-align: center; padding: 8px; font-size: 10px; vertical-align: middle; border-right: 1px solid #e5e5e5;">
-                ₹${item.pricePerBox.toLocaleString('en-IN')}
-              </td>
-              <td style="text-align: right; padding: 8px; font-size: 10px; vertical-align: middle; font-weight: bold;">
-                ₹${item.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
+              <td style="text-align: right; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">${calc.boxesNeeded || 'N/A'}</td>
+              <td style="text-align: center; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${tile?.price_per_box ? parseFloat(tile.price_per_box).toLocaleString('en-IN') : 'N/A'}</td>
+              <td style="text-align: right; font-weight: bold; padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">₹${calc.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           `;
         }).join('');
       } else {
-        itemsRows = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #999; font-style: italic;">No items found in this quotation</td></tr>';
+        itemsRows = '<tr><td colspan="7" class="no-items">No items found in this quotation</td></tr>';
       }
 
       const pdfContent = `
@@ -227,193 +396,163 @@ export const usePDFGeneration = () => {
           <style>
             @media print {
               @page { 
-                margin: 15mm; 
+                margin: 10mm; 
                 size: A4; 
               }
               body { 
                 margin: 0; 
-                font-size: 11px;
+                font-size: 12px;
+                line-height: 1.2;
+              }
+              .no-page-break { 
+                page-break-inside: avoid; 
               }
             }
             body { 
-              font-family: 'Segoe UI', Arial, sans-serif; 
-              margin: 0; 
-              padding: 25px;
+              font-family: Arial, sans-serif; 
+              margin: 15px; 
               color: #333; 
-              font-size: 11px;
-              background: white;
+              font-size: 12px;
               line-height: 1.3;
             }
             .header { 
               text-align: center; 
-              margin-bottom: 15px; 
-              border-bottom: 2px solid #2196F3; 
+              margin-bottom: 20px; 
+              border-bottom: 2px solid #007bff; 
               padding-bottom: 10px; 
             }
             .company-name { 
-              font-size: 20px; 
+              font-size: 24px; 
               font-weight: bold; 
-              color: #2196F3; 
-              margin-bottom: 3px; 
+              color: #007bff; 
+              margin-bottom: 5px; 
             }
             .quotation-title { 
-              font-size: 14px; 
-              color: #666; 
-              margin: 0;
-              font-weight: normal;
+              font-size: 18px; 
+              color: #555; 
+              margin-bottom: 10px; 
             }
-            .details-section { 
-              margin-bottom: 15px;
-              display: flex;
-              justify-content: space-between;
+            .details { 
+              display: flex; 
+              justify-content: space-between; 
+              margin-bottom: 20px; 
             }
-            .customer-details, .quotation-details {
-              width: 48%;
+            .customer-info, .quotation-info { 
+              width: 45%; 
             }
             .section-title { 
-              font-size: 12px; 
+              font-size: 14px; 
               font-weight: bold; 
               margin-bottom: 8px; 
-              color: #2196F3; 
-              border-bottom: 1px solid #e5e5e5;
-              padding-bottom: 3px;
+              color: #007bff; 
+              border-bottom: 1px solid #ddd; 
+              padding-bottom: 4px; 
             }
             .info-row { 
-              margin-bottom: 4px; 
-              font-size: 10px; 
-              display: flex;
+              margin-bottom: 6px; 
+              font-size: 11px; 
             }
             .label { 
               font-weight: bold; 
               color: #555; 
-              width: 70px;
-              flex-shrink: 0;
-            }
-            .value {
-              color: #333;
+              width: 80px; 
+              display: inline-block; 
             }
             .items-table { 
               width: 100%; 
               border-collapse: collapse; 
-              margin: 10px 0; 
-              font-size: 9px;
-              border: 1px solid #ddd;
+              margin: 15px 0; 
+              font-size: 10px;
             }
             .items-table th { 
-              background: #2196F3; 
-              color: white;
+              background-color: #f8f9fa; 
               font-weight: bold; 
-              padding: 8px 6px; 
+              padding: 6px 4px; 
+              border: 1px solid #ddd; 
               text-align: left; 
               font-size: 9px;
-              border-right: 1px solid rgba(255,255,255,0.2);
             }
-            .items-table th:nth-child(3),
-            .items-table th:nth-child(4),
-            .items-table th:nth-child(5),
-            .items-table th:nth-child(6) { 
-              text-align: center; 
-            }
-            .items-table th:nth-child(7) { 
-              text-align: right; 
+            .items-table td { 
+              border: 1px solid #ddd; 
+              padding: 6px 4px; 
+              vertical-align: top; 
+              font-size: 10px;
             }
             .items-table tr:nth-child(even) { 
-              background-color: #f8f9fa; 
-            }
-            .items-table tr:hover {
-              background-color: #f0f8ff;
+              background-color: #f9f9f9; 
             }
             .total-section { 
+              text-align: right; 
               margin-top: 15px; 
-              text-align: right;
-              background: #f8f9fa;
-              padding: 12px;
-              border-radius: 5px;
-              border: 1px solid #e5e5e5;
+              padding: 10px; 
+              background-color: #f8f9fa; 
+              border-radius: 4px; 
             }
-            .summary-text {
-              font-size: 10px;
-              margin-bottom: 8px;
-              color: #666;
-            }
-            .total-amount { 
-              font-size: 14px; 
+            .total-row { 
+              font-size: 16px; 
               font-weight: bold; 
-              color: #2196F3; 
+              color: #007bff; 
+              padding: 8px 0; 
+              border-top: 2px solid #007bff; 
+              margin-top: 5px; 
+            }
+            .notes-section { 
+              margin-top: 15px; 
+              padding: 10px; 
+              background-color: #fff9c4; 
+              border-left: 3px solid #ffc107; 
+              border-radius: 3px; 
             }
             .footer { 
               margin-top: 20px; 
               text-align: center; 
               color: #666; 
               font-size: 9px; 
-              border-top: 1px solid #e5e5e5; 
+              border-top: 1px solid #ddd; 
               padding-top: 10px; 
             }
-            .footer p {
-              margin: 3px 0;
+            .no-items {
+              text-align: center; 
+              padding: 20px; 
+              color: #999; 
+              font-style: italic;
             }
           </style>
         </head>
         <body>
-          <div class="header">
-            <div class="company-name">TYL<span style="color: #FF9800;">G</span>O</div>
+          <div class="header no-page-break">
+            <div class="company-name">Tile Solutions</div>
             <div class="quotation-title">QUOTATION</div>
           </div>
           
-          <div class="details-section">
-            <div class="customer-details">
+          <div class="details no-page-break">
+            <div class="customer-info">
               <div class="section-title">Customer Details</div>
-              <div class="info-row">
-                <span class="label">Name:</span>
-                <span class="value">${quotation.customer?.name || 'N/A'}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Mobile:</span>
-                <span class="value">${quotation.customer?.mobile || 'N/A'}</span>
-              </div>
-              ${quotation.customer?.address ? `
-                <div class="info-row">
-                  <span class="label">Address:</span>
-                  <span class="value">${quotation.customer.address}</span>
-                </div>
-              ` : ''}
+              <div class="info-row"><span class="label">Name:</span> ${quotation.customer?.name || 'N/A'}</div>
+              <div class="info-row"><span class="label">Mobile:</span> ${quotation.customer?.mobile || 'N/A'}</div>
+              ${quotation.customer?.address ? `<div class="info-row"><span class="label">Address:</span> ${quotation.customer.address}</div>` : ''}
             </div>
             
-            <div class="quotation-details">
+            <div class="quotation-info">
               <div class="section-title">Quotation Details</div>
-              <div class="info-row">
-                <span class="label">Quotation #:</span>
-                <span class="value">${quotation.quotation_number}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Date:</span>
-                <span class="value">${new Date(quotation.created_at).toLocaleDateString('en-IN')}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Status:</span>
-                <span class="value">${quotation.status.toUpperCase()}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Created by:</span>
-                <span class="value">${quotation.worker?.name || 'N/A'}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Wastage:</span>
-                <span class="value">${wastagePercentage}%</span>
-              </div>
+              <div class="info-row"><span class="label">Quotation #:</span> ${quotation.quotation_number}</div>
+              <div class="info-row"><span class="label">Date:</span> ${new Date(quotation.created_at).toLocaleDateString()}</div>
+              <div class="info-row"><span class="label">Status:</span> ${quotation.status.toUpperCase()}</div>
+              <div class="info-row"><span class="label">Created by:</span> ${quotation.worker?.name || 'N/A'}</div>
+              <div class="info-row"><span class="label">Wastage:</span> ${wastagePercentage}%</div>
             </div>
           </div>
 
           <table class="items-table">
             <thead>
               <tr>
-                <th style="width: 22%;">Room(s) & Area</th>
-                <th style="width: 26%;">Tile Details</th>
-                <th style="width: 8%; text-align: center;">Image</th>
-                <th style="width: 12%; text-align: center;">Tiles Required</th>
-                <th style="width: 8%; text-align: center;">Boxes</th>
-                <th style="width: 12%; text-align: center;">Price/Box</th>
-                <th style="width: 12%; text-align: right;">Total Amount</th>
+                <th style="width: 20%;">Room(s) & Area</th>
+                <th style="width: 20%;">Tile Details</th>
+                <th style="width: 10%; text-align: center;">Image</th>
+                <th style="width: 15%; text-align: center;">Tiles Required</th>
+                <th style="width: 12%; text-align: center;">Boxes</th>
+                <th style="width: 10%; text-align: center;">Price/Box</th>
+                <th style="width: 13%; text-align: right;">Total Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -421,153 +560,43 @@ export const usePDFGeneration = () => {
             </tbody>
           </table>
 
-          <div class="total-section">
-            <div class="summary-text">
-              Summary: ${processedItems.size} item(s) | ${totalBoxes} boxes total
+          <div class="total-section no-page-break">
+            <div style="font-size: 11px; margin-bottom: 5px;">
+              <strong>Summary:</strong> ${Object.keys(tileCalculations).length} tile type(s) | ${totalBoxes} boxes total
             </div>
-            <div class="total-amount">
+            <div class="total-row">
               Total Amount: ₹${grandTotal > 0 ? grandTotal.toLocaleString('en-IN') : (quotation.total_cost || 0).toLocaleString('en-IN')}
             </div>
           </div>
 
+          ${quotation.notes ? `
+            <div class="notes-section no-page-break">
+              <div class="section-title">Additional Notes</div>
+              <p style="margin: 0; font-size: 11px;">${quotation.notes}</p>
+            </div>
+          ` : ''}
+
           <div class="footer">
-            <p><strong>Thank you for choosing TYLGO!</strong></p>
+            <p><strong>Thank you for choosing Tile Solutions!</strong></p>
             <p>This quotation is valid for 30 days from the date of issue.</p>
-            ${wastagePercentage > 0 ? `<p>All tile quantities include a ${wastagePercentage}% wastage allowance.</p>` : ''}
+            <p><strong>Note:</strong> All tile quantities include a ${wastagePercentage}% wastage allowance.</p>
             <p>All calculations are based on square feet measurements for accuracy.</p>
           </div>
         </body>
         </html>
       `;
 
-      // Set the HTML content to the temp container
-      tempContainer.innerHTML = pdfContent;
+      printWindow.document.write(pdfContent);
+      printWindow.document.close();
       
-      // Wait for images to load and content to render
-      const images = tempContainer.querySelectorAll('img');
-      const imagePromises = Array.from(images).map(img => {
-        return new Promise((resolve) => {
-          if (img.complete || img.naturalWidth > 0) {
-            resolve(true);
-          } else {
-            const handleLoad = () => {
-              img.removeEventListener('load', handleLoad);
-              img.removeEventListener('error', handleError);
-              resolve(true);
-            };
-            
-            const handleError = () => {
-              img.removeEventListener('load', handleLoad);
-              img.removeEventListener('error', handleError);
-              // Execute the error handler in the onerror attribute
-              if (img.onerror) {
-                try {
-                  const errorHandler = new Function('event', img.getAttribute('onerror'));
-                  errorHandler.call(img);
-                } catch (e) {
-                  console.warn('Error executing image error handler:', e);
-                }
-              }
-              resolve(true);
-            };
-            
-            img.addEventListener('load', handleLoad);
-            img.addEventListener('error', handleError);
-            
-            // Fallback timeout
-            setTimeout(() => {
-              img.removeEventListener('load', handleLoad);
-              img.removeEventListener('error', handleError);
-              resolve(true);
-            }, 8000);
-          }
-        });
-      });
+      // Wait for content to load, then print
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      }, 1000);
 
-      // Wait for all images to load before generating PDF
-      await Promise.all(imagePromises);
-      
-      // Add a small delay to ensure all rendering is complete
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      try {
-        console.log('Starting PDF canvas generation...');
-        
-        // Convert HTML to canvas with optimized settings
-        const canvas = await html2canvas(tempContainer, {
-          scale: 2, // High quality
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: '#ffffff',
-          width: tempContainer.scrollWidth,
-          height: tempContainer.scrollHeight,
-          logging: false,
-          imageTimeout: 15000,
-          removeContainer: false,
-          foreignObjectRendering: false,
-          onclone: (clonedDoc, element) => {
-            // Ensure styles are applied in cloned document
-            const clonedContainer = element;
-            if (clonedContainer) {
-              clonedContainer.style.position = 'static';
-              clonedContainer.style.left = 'auto';
-              clonedContainer.style.visibility = 'visible';
-              clonedContainer.style.transform = 'none';
-            }
-            
-            // Ensure all images in cloned document are properly handled
-            const clonedImages = clonedDoc.querySelectorAll('img');
-            clonedImages.forEach(img => {
-              img.style.maxWidth = 'none';
-              img.style.maxHeight = 'none';
-            });
-          }
-        });
-
-        console.log('Canvas generated, creating PDF...');
-
-        // Create PDF
-        const pdf = new jsPDF({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'a4'
-        });
-
-        const imgData = canvas.toDataURL('image/png', 0.95);
-        const imgWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-
-        let position = 0;
-
-        // Add first page
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, '', 'FAST');
-        heightLeft -= pageHeight;
-
-        // Add additional pages if content is longer than one page
-        while (heightLeft >= 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, '', 'FAST');
-          heightLeft -= pageHeight;
-        }
-
-        // Download the PDF
-        pdf.save(`Quotation_${quotation.quotation_number}.pdf`);
-        
-        console.log('PDF downloaded successfully');
-        toast.success('PDF downloaded successfully');
-        
-      } catch (pdfError) {
-        console.error('Error converting to PDF:', pdfError);
-        toast.error('Failed to generate PDF. Please try again.');
-      } finally {
-        // Clean up
-        if (document.body.contains(tempContainer)) {
-          document.body.removeChild(tempContainer);
-        }
-      }
+      toast.success('PDF generated successfully');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
