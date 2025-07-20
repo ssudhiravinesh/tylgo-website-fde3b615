@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import html2pdf from 'html2pdf.js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
@@ -470,7 +469,11 @@ export const usePDFGeneration = () => {
       element.style.left = '-9999px'; // Off-screen
       document.body.appendChild(element);
       
-      await html2pdf()
+      // Dynamic import to avoid Vite build issues
+      const html2pdf = await import('html2pdf.js');
+      const html2pdfModule = html2pdf.default || html2pdf;
+      
+      await html2pdfModule()
         .set({
           margin: 0.3,
           filename: `Quotation-${quotation.quotation_number}.pdf`,
