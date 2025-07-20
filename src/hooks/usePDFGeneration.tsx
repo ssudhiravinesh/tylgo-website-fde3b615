@@ -1,6 +1,8 @@
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 import { calculateAreaInSquareFeet, formatDimensions, formatArea } from '@/utils/unitConversions';
@@ -32,11 +34,14 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
 
       console.log('Fetched quotation items for PDF:', quotationItems);
 
-      // Create a new window for PDF generation
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('Popup blocked. Please allow popups for this site.');
-      }
+      // Create a hidden container for PDF generation
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0';
+      tempContainer.style.width = '210mm'; // A4 width
+      tempContainer.style.backgroundColor = 'white';
+      document.body.appendChild(tempContainer);
 
       // Group items by tile using unified calculation system
       const tileCalculations: { [tileId: string]: TileCalculationResult } = {};
@@ -586,17 +591,62 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
         </html>
       `;
 
-      printWindow.document.write(pdfContent);
-      printWindow.document.close();
+      // Set the HTML content to the temp container
+      tempContainer.innerHTML = pdfContent;
       
-      // Wait for content to load, then print
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }, 1000);
+      // Wait for content to load, then generate PDF
+      setTimeout(async () => {
+        try {
+          // Convert HTML to canvas
+          const canvas = await html2canvas(tempContainer, {
+            scale: 2, // Higher resolution
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: '#ffffff',
+            width: tempContainer.scrollWidth,
+            height: tempContainer.scrollHeight
+          });
 
-      toast.success('PDF generated successfully');
+          // Create PDF
+          const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+          });
+
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = 210; // A4 width in mm
+          const pageHeight = 295; // A4 height in mm
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          let heightLeft = imgHeight;
+
+          let position = 0;
+
+          // Add first page
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+
+          // Add additional pages if content is longer than one page
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+          }
+
+          // Download the PDF
+          pdf.save(`Quotation_${quotation.quotation_number}.pdf`);
+          
+          // Clean up
+          document.body.removeChild(tempContainer);
+          
+          toast.success('PDF downloaded successfully');
+        } catch (pdfError) {
+          console.error('Error converting to PDF:', pdfError);
+          document.body.removeChild(tempContainer);
+          toast.error('Failed to generate PDF. Please try again.');
+        }
+      }, 1000);
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
