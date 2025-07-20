@@ -118,19 +118,13 @@ export const useStrictSessionManagement = () => {
       localStorage.setItem('session_invalidated', 'true');
       
       // Show user-friendly message
-      toast.error('Your session has expired or another device has logged in. Please sign in again.');
+      toast.error('Your session has expired. Another device has logged in with this account.');
       
-      // Force sign out and reload page to ensure clean state
+      // Force sign out cleanly without page reload to prevent loops
       try {
         await supabase.auth.signOut();
-        // Force a page reload to clear any stale state
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
       } catch (error) {
         console.error('Error during signout:', error);
-        // Force reload even if signout fails
-        window.location.reload();
       }
       return false;
     }
