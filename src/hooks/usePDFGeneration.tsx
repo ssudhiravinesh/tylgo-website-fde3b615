@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,8 +22,9 @@ export const usePDFGeneration = () => {
           tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
         `)
         .eq('quotation_id', quotation.id);
-//to debug
-console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item => item.tile?.code === '24027'));
+
+      console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item => item.tile?.code === '24027'));
+      
       if (error) {
         console.error('Error fetching quotation items:', error);
         throw new Error(`Failed to fetch quotation items: ${error.message}`);
@@ -32,40 +32,84 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
 
       console.log('Fetched quotation items for PDF:', quotationItems);
 
-      // Create a new window for PDF generation
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('Popup blocked. Please allow popups for this site.');
-      }
-
       // Group items by tile using unified calculation system
       const tileCalculations: { [tileId: string]: TileCalculationResult } = {};
-/*
+
       if (quotationItems && quotationItems.length > 0) {
+        // Group items by tile_id and room_id to handle layers correctly
+        const tileRoomGroups = new Map();
+        
         quotationItems.forEach((item: any) => {
           const tileId = item.tile_id;
-          const room = item.room;
-          const tile = item.tile;
+          const roomId = item.room_id;
+          const groupKey = `${tileId}-${roomId}`;
+          
+          if (!tileRoomGroups.has(groupKey)) {
+            tileRoomGroups.set(groupKey, {
+              tile: item.tile,
+              room: item.room,
+              layers: [],
+              baseArea: parseFloat(item.area) || 0, // Area per layer
+              totalArea: 0, // Will be calculated based on layers
+              customBoxes: 0,
+              totalPrice: 0,
+              pricePerBox: parseFloat(item.price_per_box) || 0
+            });
+          }
+          
+          const group = tileRoomGroups.get(groupKey);
+          
+          // Add layer if not already present
+          if (!group.layers.includes(item.layer_number)) {
+            group.layers.push(item.layer_number);
+          }
+          
+          // Accumulate custom boxes and total price from each quotation item
+          group.customBoxes += item.custom_boxes || 0;
+          group.totalPrice += parseFloat(item.total_price) || 0;
+        });
+
+        // Calculate total area considering layers and process tiles
+        tileRoomGroups.forEach((group, groupKey) => {
+          const tileId = groupKey.split('-')[0];
+          
+          // Calculate total area: base area × number of layers
+          group.totalArea = group.baseArea * group.layers.length;
           
           if (!tileCalculations[tileId]) {
             tileCalculations[tileId] = {
-              tile,
+              tile: group.tile,
               rooms: [],
               totalArea: 0,
+              rawTilesNeeded: 0,
               tilesNeeded: 0,
+              fullBoxes: 0,
+              leftoverTiles: 0,
               boxesNeeded: 0,
-              totalPrice: 0
+              totalPrice: 0,
+              quotationItems: []
             };
           }
 
-          const roomAreaInSqFt = parseFloat(item.area) || 0;
-          tileCalculations[tileId].rooms.push(room);
-          tileCalculations[tileId].totalArea += roomAreaInSqFt;
-          // Sum stored total_price from all quotation_items for this tile
-          tileCalculations[tileId].totalPrice += parseFloat(item.total_price) || 0;
+          // Add room with layer information
+          tileCalculations[tileId].rooms.push({
+            ...group.room,
+            layers: group.layers.sort((a, b) => a - b),
+            totalArea: group.totalArea // Area including all layers
+          });
+          
+          // Sum up total area and price for this tile across all rooms
+          tileCalculations[tileId].totalArea += group.totalArea;
+          tileCalculations[tileId].totalPrice += group.totalPrice;
+          
+          // Store the group for custom boxes calculation
+          tileCalculations[tileId].quotationItems.push({
+            custom_boxes: group.customBoxes,
+            total_price: group.totalPrice
+          });
         });
 
-        // Calculate tiles and boxes for display, using stored custom adjustments
+        // Calculate tiles and boxes for display
         Object.values(tileCalculations).forEach(calc => {
           const tile = calc.tile;
           
@@ -77,196 +121,30 @@ console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item =>
             
             if (tileAreaSqFt > 0) {
               const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+              calc.rawTilesNeeded = basicTilesNeeded;
               const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+              calc.tilesNeeded = tilesWithWastage;
               
-              // Get custom box adjustment from the first item for this tile
-              const tileItem = quotationItems?.find((item: any) => item.tile_id === tile.id);
-              const customBoxAdjustment = tileItem?.custom_boxes || 0;
+              // Calculate box breakdown
+              calc.fullBoxes = Math.floor(basicTilesNeeded / piecesPerBox);
+              calc.leftoverTiles = basicTilesNeeded % piecesPerBox;
+              
+              // Get custom box adjustment - sum from all UNIQUE tile-room combinations
+              const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
+                return sum + (item.custom_boxes || 0);
+              }, 0);
               
               // Calculate base boxes needed and apply custom adjustment
               const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
-              calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
+              calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
               
-              // Update tiles needed to reflect the actual boxes being purchased
-              calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
-              
-              // Use the summed stored total_price - it already includes all manual adjustments
-              // No need to recalculate as calc.totalPrice already has the right value from stored data
+              // Use the already calculated totalPrice (includes layer adjustments)
+              // calc.totalPrice is already set correctly from the grouping logic above
             }
           }
         });
       }
-*/
-//       if (quotationItems && quotationItems.length > 0) {
-//   quotationItems.forEach((item: any) => {
-//     const tileId = item.tile_id;
-//     const room = item.room;
-//     const tile = item.tile;
-    
-//     if (!tileCalculations[tileId]) {
-//       tileCalculations[tileId] = {
-//         tile,
-//         rooms: [],
-//         totalArea: 0,
-//         tilesNeeded: 0,
-//         boxesNeeded: 0,
-//         totalPrice: 0,
-//         quotationItems: [] // Add this to track individual items
-//       };
-//     }
-
-//     const roomAreaInSqFt = parseFloat(item.area) || 0;
-//     tileCalculations[tileId].rooms.push(room);
-//     tileCalculations[tileId].totalArea += roomAreaInSqFt;
-    
-//     // Store the quotation item for later processing
-//     tileCalculations[tileId].quotationItems.push(item);
-//   });
-
-//   // Calculate tiles, boxes, and CORRECT total price
-//   Object.values(tileCalculations).forEach(calc => {
-//     const tile = calc.tile;
-    
-//     if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
-//       const tileLengthFt = (tile.size_length || 0) / 304.8;
-//       const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
-//       const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-//       const piecesPerBox = parseInt(tile.pieces_per_box.toString());
       
-//       if (tileAreaSqFt > 0) {
-//         const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-//         const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-        
-//         // Get custom box adjustment - sum from all items for this tile
-//         const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
-//           return sum + (item.custom_boxes || 0);
-//         }, 0);
-        
-//         // Calculate base boxes needed and apply custom adjustment
-//         const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
-//         calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
-        
-//         // Update tiles needed to reflect the actual boxes being purchased
-//         calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
-        
-//         // FIXED: Calculate total price based on boxes needed and price per box
-//         // Instead of summing stored total_price (which can be duplicated for layers)
-//         calc.totalPrice = calc.boxesNeeded * parseFloat(tile.price_per_box.toString());
-//       }
-//     }
-//   });
-// }
-      // version 2.0
-
-if (quotationItems && quotationItems.length > 0) {
-  // Group items by tile_id and room_id to handle layers correctly
-  const tileRoomGroups = new Map();
-  
-  quotationItems.forEach((item: any) => {
-    const tileId = item.tile_id;
-    const roomId = item.room_id;
-    const groupKey = `${tileId}-${roomId}`;
-    
-    if (!tileRoomGroups.has(groupKey)) {
-      tileRoomGroups.set(groupKey, {
-        tile: item.tile,
-        room: item.room,
-        layers: [],
-        baseArea: parseFloat(item.area) || 0, // Area per layer
-        totalArea: 0, // Will be calculated based on layers
-        customBoxes: 0,
-        totalPrice: 0,
-        pricePerBox: parseFloat(item.price_per_box) || 0
-      });
-    }
-    
-    const group = tileRoomGroups.get(groupKey);
-    
-    // Add layer if not already present
-    if (!group.layers.includes(item.layer_number)) {
-      group.layers.push(item.layer_number);
-    }
-    
-    // Accumulate custom boxes and total price from each quotation item
-    group.customBoxes += item.custom_boxes || 0;
-    group.totalPrice += parseFloat(item.total_price) || 0;
-  });
-
-  // Calculate total area considering layers and process tiles
-  tileRoomGroups.forEach((group, groupKey) => {
-    const tileId = groupKey.split('-')[0];
-    
-    // Calculate total area: base area × number of layers
-    group.totalArea = group.baseArea * group.layers.length;
-    
-    if (!tileCalculations[tileId]) {
-      tileCalculations[tileId] = {
-        tile: group.tile,
-        rooms: [],
-        totalArea: 0,
-        rawTilesNeeded: 0,
-        tilesNeeded: 0,
-        fullBoxes: 0,
-        leftoverTiles: 0,
-        boxesNeeded: 0,
-        totalPrice: 0,
-        quotationItems: []
-      };
-    }
-
-    // Add room with layer information
-    tileCalculations[tileId].rooms.push({
-      ...group.room,
-      layers: group.layers.sort((a, b) => a - b),
-      totalArea: group.totalArea // Area including all layers
-    });
-    
-    // Sum up total area and price for this tile across all rooms
-    tileCalculations[tileId].totalArea += group.totalArea;
-    tileCalculations[tileId].totalPrice += group.totalPrice;
-    
-    // Store the group for custom boxes calculation
-    tileCalculations[tileId].quotationItems.push({
-      custom_boxes: group.customBoxes,
-      total_price: group.totalPrice
-    });
-  });
-
-  // Calculate tiles and boxes for display
-  Object.values(tileCalculations).forEach(calc => {
-    const tile = calc.tile;
-    
-    if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
-      const tileLengthFt = (tile.size_length || 0) / 304.8;
-      const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
-      const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-      const piecesPerBox = parseInt(tile.pieces_per_box.toString());
-      
-      if (tileAreaSqFt > 0) {
-        const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-        calc.rawTilesNeeded = basicTilesNeeded;
-        const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-        calc.tilesNeeded = tilesWithWastage;
-        
-        // Calculate box breakdown
-        calc.fullBoxes = Math.floor(basicTilesNeeded / piecesPerBox);
-        calc.leftoverTiles = basicTilesNeeded % piecesPerBox;
-        
-        // Get custom box adjustment - sum from all UNIQUE tile-room combinations
-        const totalCustomBoxAdjustment = calc.quotationItems.reduce((sum, item) => {
-          return sum + (item.custom_boxes || 0);
-        }, 0);
-        
-        // Calculate base boxes needed and apply custom adjustment
-        const baseBoxes = Math.ceil(tilesWithWastage / piecesPerBox);
-        calc.boxesNeeded = Math.max(0, baseBoxes + totalCustomBoxAdjustment);
-        
-        // Use the already calculated totalPrice (includes layer adjustments)
-        // calc.totalPrice is already set correctly from the grouping logic above
-      }
-    }
-  });
-}
       // generate items rows, PDF content with updated wastage percentage display
       let itemsRows = '';
       let totalBoxes = 0;
@@ -319,42 +197,30 @@ if (quotationItems && quotationItems.length > 0) {
             }
           });
 
-          // const roomNamesWithLayers = Array.from(roomLayerMap.entries()).map(([roomName, layers]) => {
-          //   const sortedLayers = layers.sort((a, b) => a - b);
-          //   if (sortedLayers.length > 1) {
-          //     return `${roomName} (Layers: ${sortedLayers.join(', ')})`;
-          //   } else if (sortedLayers[0] > 1) {
-          //     return `${roomName} (Layer ${sortedLayers[0]})`;
-          //   } else {
-          //     return roomName;
-          //   }
-          // }).join(', ');
+          const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
+            const layers = room.layers || [];
+            const totalArea = room.totalArea || 0;
+            
+            let roomDisplay = room.name;
+            if (layers.length > 1) {
+              roomDisplay += ` (Layers: ${layers.join(', ')})`;
+            } else if (layers[0] > 1) {
+              roomDisplay += ` (Layer ${layers[0]})`;
+            }
+            
+            return roomDisplay;
+          }).join(', ');
 
-          // version 2.0 rems 
-// nive-sudhir-karthi-varuna
-const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
-  const layers = room.layers || [];
-  const totalArea = room.totalArea || 0;
-  
-  let roomDisplay = room.name;
-  if (layers.length > 1) {
-    roomDisplay += ` (Layers: ${layers.join(', ')})`;
-  } else if (layers[0] > 1) {
-    roomDisplay += ` (Layer ${layers[0]})`;
-  }
-  
-  return roomDisplay;
-}).join(', ');
-
-
-          // Generate image cell content
+          // Generate image cell content with proper aspect ratio
           const imageCell = tile?.image_url ? 
-            `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none';" />` :
+            `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="max-width: 80px; max-height: 60px; width: auto; height: auto; object-fit: contain;" onerror="this.style.display='none';" />` :
             '<small style="color: #999; font-style: italic;">No image</small>';
+          
           const hasMultipleLayers = tileCalculations[tileId].rooms.some((room: any) => room.layers && room.layers.length > 1);
           const areaDisplay = hasMultipleLayers ? 
             `Total Area: ${formatArea(calc.totalArea)} (includes ${calc.totalArea / calc.totalArea * calc.rooms.length} layers)` : 
             `Total Area: ${formatArea(calc.totalArea)}`;
+          
           return `
             <tr>
               <td style="padding: 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top;">
@@ -586,17 +452,47 @@ const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
         </html>
       `;
 
-      printWindow.document.write(pdfContent);
-      printWindow.document.close();
+      // Create a hidden iframe for automatic PDF download
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
       
-      // Wait for content to load, then print
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        throw new Error('Unable to access iframe document');
+      }
+      
+      iframeDoc.open();
+      iframeDoc.write(pdfContent);
+      iframeDoc.close();
+      
+      // Wait for content and images to load, then trigger print
       setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }, 1000);
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          
+          // Clean up the iframe after a delay
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        } catch (error) {
+          console.error('Error triggering print:', error);
+          // Fallback: open in new window if iframe method fails
+          const printWindow = window.open('', '_blank');
+          if (printWindow) {
+            printWindow.document.write(pdfContent);
+            printWindow.document.close();
+            setTimeout(() => {
+              printWindow.focus();
+              printWindow.print();
+              printWindow.close();
+            }, 1000);
+          }
+        }
+      }, 1500); // Increased delay to allow images to load
 
-      toast.success('PDF generated successfully');
+      toast.success('PDF download initiated');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
