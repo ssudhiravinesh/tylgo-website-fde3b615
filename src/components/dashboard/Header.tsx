@@ -36,7 +36,7 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
             </Button>
 <h1 className="text-xl font-semibold text-gray-800">
   TYL
-  <span style={{ color: "orange", fontWeight: "bold" }}>G</span>
+  <span style={{ color: "#2563eb", fontWeight: "bold" }}>G</span>
   O
 </h1>
 
