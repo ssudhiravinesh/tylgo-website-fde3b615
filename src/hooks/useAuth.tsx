@@ -52,6 +52,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }, 0);
       } else if (event === 'SIGNED_OUT') {
+        // Clear any session invalidated flag on sign out
+        localStorage.removeItem('session_invalidated');
         if (user) {
           // Invalidate session on sign out
           setTimeout(async () => {
