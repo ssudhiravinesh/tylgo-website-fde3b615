@@ -174,7 +174,7 @@ export const FloorTilePreview = ({
           className="max-w-[98vw] w-[98vw] h-[92vh] p-8 rounded-2xl"
         >
           <DialogHeader>
-            <DialogTitle>Wall Preview</DialogTitle>
+            <DialogTitle>Floor Preview</DialogTitle>
           </DialogHeader>
           <div className="flex justify-center items-center w-full h-full">
             <div className="flex flex-col items-center justify-center flex-grow w-full h-full">
