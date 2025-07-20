@@ -151,10 +151,38 @@ export const usePDFGeneration = () => {
             roomDisplay += `\n${areaDisplay}`;
           }
 
-          // Generate image cell content
-          let imageCell = 'No Image';
+          // Generate image cell content with proper aspect ratio
+          let imageCell = '<div style="width: 50px; height: 40px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #999;">No Image</div>';
           if (tile?.image_url) {
-            imageCell = `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;" onerror="this.style.display='none'; this.nextSibling.style.display='block';" /><div style="display: none; width: 40px; height: 40px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #999;">No Image</div>`;
+            // Calculate proper dimensions based on tile aspect ratio
+            let imageWidth = 50;
+            let imageHeight = 40;
+            
+            if (tile.size_length && tile.size_breadth) {
+              const tileAspectRatio = tile.size_length / tile.size_breadth;
+              const containerAspectRatio = 50 / 40; // 1.25
+              
+              if (tileAspectRatio > containerAspectRatio) {
+                // Tile is wider than container - fit to width
+                imageWidth = 50;
+                imageHeight = Math.round(50 / tileAspectRatio);
+              } else {
+                // Tile is taller than container - fit to height
+                imageHeight = 40;
+                imageWidth = Math.round(40 * tileAspectRatio);
+              }
+            }
+            
+            imageCell = `
+              <div style="width: 50px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                <img 
+                  src="${tile.image_url}" 
+                  alt="${tile.name || 'Tile'}" 
+                  style="width: ${imageWidth}px; height: ${imageHeight}px; object-fit: cover; border-radius: 3px;" 
+                  onerror="this.style.display='none'; this.parentNode.innerHTML='<div style=\\'font-size: 8px; color: #999; text-align: center;\\'>No Image</div>';" 
+                />
+              </div>
+            `;
           }
 
           return `
@@ -210,7 +238,7 @@ export const usePDFGeneration = () => {
             body { 
               font-family: 'Segoe UI', Arial, sans-serif; 
               margin: 0; 
-              padding: 15px;
+              padding: 25px;
               color: #333; 
               font-size: 11px;
               background: white;
@@ -328,7 +356,7 @@ export const usePDFGeneration = () => {
         </head>
         <body>
           <div class="header">
-            <div class="company-name">Tile Solutions</div>
+            <div class="company-name">TYL<span style="color: #FF9800;">G</span>O</div>
             <div class="quotation-title">QUOTATION</div>
           </div>
           
@@ -403,7 +431,7 @@ export const usePDFGeneration = () => {
           </div>
 
           <div class="footer">
-            <p><strong>Thank you for choosing Tile Solutions!</strong></p>
+            <p><strong>Thank you for choosing TYLGO!</strong></p>
             <p>This quotation is valid for 30 days from the date of issue.</p>
             ${wastagePercentage > 0 ? `<p>All tile quantities include a ${wastagePercentage}% wastage allowance.</p>` : ''}
             <p>All calculations are based on square feet measurements for accuracy.</p>
@@ -419,21 +447,39 @@ export const usePDFGeneration = () => {
       const images = tempContainer.querySelectorAll('img');
       const imagePromises = Array.from(images).map(img => {
         return new Promise((resolve) => {
-          if (img.complete) {
+          if (img.complete || img.naturalWidth > 0) {
             resolve(true);
           } else {
-            img.onload = () => resolve(true);
-            img.onerror = () => {
-              // Show fallback div when image fails
-              const fallback = img.nextSibling as HTMLElement;
-              if (fallback) {
-                img.style.display = 'none';
-                fallback.style.display = 'flex';
+            const handleLoad = () => {
+              img.removeEventListener('load', handleLoad);
+              img.removeEventListener('error', handleError);
+              resolve(true);
+            };
+            
+            const handleError = () => {
+              img.removeEventListener('load', handleLoad);
+              img.removeEventListener('error', handleError);
+              // Execute the error handler in the onerror attribute
+              if (img.onerror) {
+                try {
+                  const errorHandler = new Function('event', img.getAttribute('onerror'));
+                  errorHandler.call(img);
+                } catch (e) {
+                  console.warn('Error executing image error handler:', e);
+                }
               }
               resolve(true);
             };
+            
+            img.addEventListener('load', handleLoad);
+            img.addEventListener('error', handleError);
+            
             // Fallback timeout
-            setTimeout(() => resolve(true), 5000);
+            setTimeout(() => {
+              img.removeEventListener('load', handleLoad);
+              img.removeEventListener('error', handleError);
+              resolve(true);
+            }, 8000);
           }
         });
       });
@@ -442,7 +488,7 @@ export const usePDFGeneration = () => {
       await Promise.all(imagePromises);
       
       // Add a small delay to ensure all rendering is complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       try {
         console.log('Starting PDF canvas generation...');
@@ -457,14 +503,24 @@ export const usePDFGeneration = () => {
           height: tempContainer.scrollHeight,
           logging: false,
           imageTimeout: 15000,
-          onclone: (clonedDoc) => {
+          removeContainer: false,
+          foreignObjectRendering: false,
+          onclone: (clonedDoc, element) => {
             // Ensure styles are applied in cloned document
-            const clonedContainer = clonedDoc.querySelector('div');
+            const clonedContainer = element;
             if (clonedContainer) {
               clonedContainer.style.position = 'static';
               clonedContainer.style.left = 'auto';
               clonedContainer.style.visibility = 'visible';
+              clonedContainer.style.transform = 'none';
             }
+            
+            // Ensure all images in cloned document are properly handled
+            const clonedImages = clonedDoc.querySelectorAll('img');
+            clonedImages.forEach(img => {
+              img.style.maxWidth = 'none';
+              img.style.maxHeight = 'none';
+            });
           }
         });
 
