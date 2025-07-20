@@ -3,6 +3,7 @@ import { useState, createContext, useContext, ReactNode, useEffect } from 'react
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { useStrictSessionManagement } from './useStrictSessionManagement';
 
 interface Profile {
   id: string;
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const { createSession, invalidateSession, enforceSessionValidation } = useStrictSessionManagement();
 
   useEffect(() => {
     console.log('AuthProvider: Initializing auth state');
@@ -34,14 +36,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.email);
       
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Fetch profile data when user is authenticated
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user);
+        
+        // Create new session (this will invalidate any existing sessions)
         setTimeout(async () => {
-          await fetchProfile(session.user.id);
+          try {
+            await createSession(session.user.id);
+            await fetchProfile(session.user.id);
+          } catch (error) {
+            console.error('Error creating session:', error);
+            // If session creation fails, sign out
+            await supabase.auth.signOut();
+          }
+        }, 0);
+      } else if (event === 'SIGNED_OUT') {
+        if (user) {
+          // Invalidate session on sign out
+          setTimeout(async () => {
+            try {
+              await invalidateSession(user.id);
+            } catch (error) {
+              console.error('Error invalidating session:', error);
+            }
+          }, 0);
+        }
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      } else if (session?.user) {
+        setUser(session.user);
+        // For existing sessions, validate session
+        setTimeout(async () => {
+          const isValid = await enforceSessionValidation(session.user.id);
+          if (isValid) {
+            await fetchProfile(session.user.id);
+          }
         }, 0);
       } else {
+        setUser(null);
         setProfile(null);
         setLoading(false);
       }
@@ -61,7 +94,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
+          // Validate existing session
+          const isValid = await enforceSessionValidation(session.user.id);
+          if (isValid) {
+            await fetchProfile(session.user.id);
+          } else {
+            setLoading(false);
+          }
         } else {
           setLoading(false);
         }

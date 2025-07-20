@@ -6,24 +6,11 @@ export const useSessionManagement = () => {
   useEffect(() => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          // Force sign out from other devices by invalidating all other sessions
-          try {
-            // This will sign out the user from all other sessions/devices
-            // except the current one by refreshing the token
-            const { error } = await supabase.auth.refreshSession();
-            if (error) {
-              console.error('Session refresh error:', error);
-            }
-          } catch (error) {
-            console.error('Error managing session:', error);
-          }
-        }
-        
+      async (event, session) => {        
         if (event === 'SIGNED_OUT') {
-          // Clear any local storage data
-          localStorage.clear();
+          // Clear session-related data on sign out
+          localStorage.removeItem('app_session_token');
+          localStorage.removeItem('app_session_user_id');
           sessionStorage.clear();
         }
       }

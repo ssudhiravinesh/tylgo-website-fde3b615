@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { QRScanningProvider } from "@/contexts/QRScanningContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { SessionValidator } from "@/components/auth/SessionValidator";
 import Index from "./pages/Index";
 import TileDetails from "./pages/TileDetails";
 import NotFound from "./pages/NotFound";
@@ -16,20 +17,22 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <QRScanningProvider>
-          <NotificationProvider>
-            <TooltipProvider>
-              <Toaster />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/tiles/:tileId" element={<TileDetails />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
-          </NotificationProvider>
-        </QRScanningProvider>
+        <SessionValidator>
+          <QRScanningProvider>
+            <NotificationProvider>
+              <TooltipProvider>
+                <Toaster />
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/tiles/:tileId" element={<TileDetails />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </TooltipProvider>
+            </NotificationProvider>
+          </QRScanningProvider>
+        </SessionValidator>
       </AuthProvider>
     </QueryClientProvider>
   );

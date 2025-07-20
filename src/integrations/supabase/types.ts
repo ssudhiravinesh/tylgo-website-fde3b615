@@ -75,24 +75,33 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
+          last_active: string | null
           name: string
           role: Database["public"]["Enums"]["user_role"]
+          session_expires_at: string | null
+          session_token: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           email: string
           id: string
+          last_active?: string | null
           name: string
           role?: Database["public"]["Enums"]["user_role"]
+          session_expires_at?: string | null
+          session_token?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           email?: string
           id?: string
+          last_active?: string | null
           name?: string
           role?: Database["public"]["Enums"]["user_role"]
+          session_expires_at?: string | null
+          session_token?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -355,9 +364,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_user_session: {
+        Args: { user_id: string; token: string; expires_at: string }
+        Returns: undefined
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      invalidate_user_session: {
+        Args: { user_id: string }
+        Returns: undefined
+      }
+      validate_user_session: {
+        Args: { user_id: string; token: string }
+        Returns: boolean
       }
     }
     Enums: {
