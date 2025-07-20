@@ -19,4 +19,12 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      external: mode === 'production' ? [] : undefined,
+    },
+  },
+  optimizeDeps: {
+    include: ['html2pdf.js'],
+  },
 }));
