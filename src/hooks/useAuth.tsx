@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const { createSession, invalidateSession, enforceSessionValidation } = useStrictSessionManagement();
+  const { createSession, invalidateSession, validateSession } = useStrictSessionManagement();
 
   useEffect(() => {
     console.log('AuthProvider: Initializing auth state');
@@ -82,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session.user);
         // For existing sessions, validate session
         setTimeout(async () => {
-          const isValid = await enforceSessionValidation(session.user.id);
+          const isValid = await validateSession(session.user.id);
           if (isValid) {
             await fetchProfile(session.user.id);
           }
@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(session.user);
           // Validate existing session
           console.log('Validating existing session for single session enforcement');
-          const isValid = await enforceSessionValidation(session.user.id);
+          const isValid = await validateSession(session.user.id);
           if (isValid) {
             await fetchProfile(session.user.id);
           } else {

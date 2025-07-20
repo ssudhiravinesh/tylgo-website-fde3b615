@@ -5,13 +5,13 @@ import { useStrictSessionManagement } from './useStrictSessionManagement';
 
 export const useSecureSupabaseClient = () => {
   const { user } = useAuth();
-  const { enforceSessionValidation } = useStrictSessionManagement();
+  const { validateSession } = useStrictSessionManagement();
 
   const withSessionValidation = useCallback(async (operation: () => Promise<any>): Promise<any> => {
     // Validate session before executing any database operation
     if (user) {
       console.log('Validating session before database operation for user:', user.id);
-      const isValid = await enforceSessionValidation(user.id);
+      const isValid = await validateSession(user.id);
       if (!isValid) {
         console.log('Session validation failed - rejecting database operation');
         throw new Error('Session invalid or expired. Please sign in again.');
@@ -21,7 +21,7 @@ export const useSecureSupabaseClient = () => {
 
     // Execute the operation
     return await operation();
-  }, [user, enforceSessionValidation]);
+  }, [user, validateSession]);
 
   return {
     withSessionValidation,

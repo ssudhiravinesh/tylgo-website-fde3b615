@@ -1,9 +1,12 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
 export const useStrictSessionManagement = () => {
+  const realtimeChannelRef = useRef<any>(null);
+  const currentSessionTokenRef = useRef<string | null>(null);
+
   const generateSessionToken = useCallback(() => {
     return `session_${uuidv4()}_${Date.now()}`;
   }, []);
@@ -11,6 +14,7 @@ export const useStrictSessionManagement = () => {
   const invalidateLocalSession = useCallback(async () => {
     localStorage.removeItem('app_session_token');
     localStorage.removeItem('app_session_user_id');
+    currentSessionTokenRef.current = null;
   }, []);
 
   const createSession = useCallback(async (userId: string) => {
@@ -20,10 +24,9 @@ export const useStrictSessionManagement = () => {
       expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour session
 
       console.log('Creating new session for user:', userId);
-      console.log('This will invalidate any existing sessions for this user');
 
-      // Create session in database (this will invalidate any existing sessions)
-      const { error } = await supabase.rpc('create_user_session', {
+      // Use the new v2 function that returns invalidated sessions
+      const { data, error } = await supabase.rpc('create_user_session_v2', {
         user_id: userId,
         token: sessionToken,
         expires_at: expiresAt.toISOString()
@@ -34,17 +37,20 @@ export const useStrictSessionManagement = () => {
         throw error;
       }
 
-      // Store session token in local storage for validation ONLY after successful DB update
+      // Store session token and update ref
       localStorage.setItem('app_session_token', sessionToken);
       localStorage.setItem('app_session_user_id', userId);
+      currentSessionTokenRef.current = sessionToken;
 
-      console.log('Session created successfully for user:', userId, 'Token:', sessionToken.substring(0, 20) + '...');
+      console.log('Session created successfully for user:', userId);
+      console.log('Invalidated older sessions:', data);
+      
       return sessionToken;
     } catch (error) {
       console.error('Failed to create session:', error);
-      // Clear any potentially stale local storage data
       localStorage.removeItem('app_session_token');
       localStorage.removeItem('app_session_user_id');
+      currentSessionTokenRef.current = null;
       throw error;
     }
   }, [generateSessionToken]);
@@ -54,15 +60,12 @@ export const useStrictSessionManagement = () => {
       const sessionToken = localStorage.getItem('app_session_token');
       const storedUserId = localStorage.getItem('app_session_user_id');
 
-      console.log('Validating session for user:', userId);
-      console.log('Local storage has token:', !!sessionToken, 'stored user:', storedUserId);
-
       if (!sessionToken || !storedUserId || storedUserId !== userId) {
-        console.log('No valid session token found in localStorage or user mismatch');
         return false;
       }
 
-      const { data, error } = await supabase.rpc('validate_user_session', {
+      // Use the new v2 function
+      const { data, error } = await supabase.rpc('validate_user_session_v2', {
         user_id: userId,
         token: sessionToken
       });
@@ -73,12 +76,10 @@ export const useStrictSessionManagement = () => {
       }
 
       if (!data) {
-        console.log('Session validation failed - session expired, invalid, or replaced by another login');
         await invalidateLocalSession();
         return false;
       }
 
-      console.log('Session validation successful');
       return true;
     } catch (error) {
       console.error('Session validation error:', error);
@@ -86,79 +87,97 @@ export const useStrictSessionManagement = () => {
     }
   }, [invalidateLocalSession]);
 
-  const invalidateSession = useCallback(async (userId: string) => {
+  const invalidateSession = useCallback(async (userId: string, specificToken?: string) => {
     try {
-      await invalidateLocalSession();
-
-      const { error } = await supabase.rpc('invalidate_user_session', {
-        user_id: userId
+      const { error } = await supabase.rpc('invalidate_user_session_v2', {
+        user_id: userId,
+        token: specificToken || null
       });
 
       if (error) {
         console.error('Error invalidating session:', error);
+      }
+
+      // Only clear local storage if invalidating current session
+      if (!specificToken || specificToken === currentSessionTokenRef.current) {
+        await invalidateLocalSession();
       }
     } catch (error) {
       console.error('Failed to invalidate session:', error);
     }
   }, [invalidateLocalSession]);
 
-  const enforceSessionValidation = useCallback(async (userId: string) => {
-    if (!userId) return false;
-
-    console.log('Enforcing session validation for user:', userId);
-    const isValid = await validateSession(userId);
-    
-    if (!isValid) {
-      console.log('Session invalid or expired, signing out user:', userId);
-      
-      // Clear local storage immediately
-      await invalidateLocalSession();
-      
-      // Set a flag to prevent re-validation loops
-      localStorage.setItem('session_invalidated', 'true');
-      
-      // Show user-friendly message
-      toast.error('Your session has expired. Another device has logged in with this account.');
-      
-      // Force sign out cleanly without page reload to prevent loops
-      try {
-        await supabase.auth.signOut();
-      } catch (error) {
-        console.error('Error during signout:', error);
-      }
-      return false;
-    }
-
-    console.log('Session validation successful for user:', userId);
-    return true;
-  }, [validateSession, invalidateLocalSession]);
-
-  // Set up periodic session validation
+  // Real-time session invalidation listener
   useEffect(() => {
     const userId = localStorage.getItem('app_session_user_id');
-    if (!userId) return;
+    const currentToken = localStorage.getItem('app_session_token');
+    
+    if (!userId || !currentToken) return;
 
-    console.log('Setting up periodic session validation for user:', userId);
+    currentSessionTokenRef.current = currentToken;
 
-    // Validate session every 2 minutes for more frequent checks
-    const interval = setInterval(async () => {
-      console.log('Performing periodic session validation...');
-      await enforceSessionValidation(userId);
-    }, 2 * 60 * 1000);
+    console.log('Setting up real-time session listener for user:', userId);
+
+    // Create real-time channel to listen for session changes
+    const channel = supabase
+      .channel('session-invalidation')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_sessions',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Real-time session update received:', payload);
+          
+          // Check if this session was invalidated
+          const updatedSession = payload.new;
+          if (
+            updatedSession.session_token === currentSessionTokenRef.current &&
+            updatedSession.is_active === false
+          ) {
+            console.log('Current session was invalidated by newer login');
+            
+            // Clear local session immediately
+            invalidateLocalSession();
+            
+            // Show toast message
+            toast.error('Your session has expired. Another device has logged in with this account.');
+            
+            // Sign out cleanly
+            supabase.auth.signOut().catch(error => {
+              console.error('Error during signout:', error);
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    realtimeChannelRef.current = channel;
 
     return () => {
-      console.log('Cleaning up periodic session validation');
-      clearInterval(interval);
+      console.log('Cleaning up real-time session listener');
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+        realtimeChannelRef.current = null;
+      }
     };
-  }, [enforceSessionValidation]);
+  }, [invalidateLocalSession]);
 
   // Listen for storage changes (other tabs) and visibility changes
   useEffect(() => {
     const handleStorageChange = async (e: StorageEvent) => {
-      if (e.key === 'app_session_token' && !e.newValue) {
-        // Session was cleared in another tab, sign out
-        console.log('Session cleared in another tab, signing out');
-        await supabase.auth.signOut();
+      if (e.key === 'app_session_token') {
+        if (!e.newValue) {
+          // Session was cleared in another tab, sign out
+          console.log('Session cleared in another tab, signing out');
+          await supabase.auth.signOut();
+        } else {
+          // Update current session token ref
+          currentSessionTokenRef.current = e.newValue;
+        }
       }
     };
 
@@ -168,7 +187,11 @@ export const useStrictSessionManagement = () => {
         const userId = localStorage.getItem('app_session_user_id');
         if (userId) {
           console.log('Tab became visible, validating session...');
-          await enforceSessionValidation(userId);
+          const isValid = await validateSession(userId);
+          if (!isValid) {
+            console.log('Session invalid, signing out');
+            await supabase.auth.signOut();
+          }
         }
       }
     };
@@ -180,12 +203,11 @@ export const useStrictSessionManagement = () => {
       window.removeEventListener('storage', handleStorageChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [enforceSessionValidation]);
+  }, [validateSession]);
 
   return {
     createSession,
     validateSession,
-    invalidateSession,
-    enforceSessionValidation
+    invalidateSession
   };
 };
