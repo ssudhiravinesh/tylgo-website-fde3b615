@@ -34,7 +34,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
     <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
       <CardHeader className="flex flex-col items-center pb-4">
         <img src="/tylgo.svg" className="w-8 h-8 mb-2" />
-        <CardTitle className="text-2xl font-bold text-gray-800">TYL<span style="color:orange">G</span>O</CardTitle>
+        <CardTitle className="text-2xl font-bold text-gray-800">TYL<span style={{ color: "orange" }}>G</span>O</CardTitle>
         <CardDescription className="text-gray-600">
           Sign in to your account to continue
         </CardDescription>
