@@ -113,7 +113,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent className="max-h-48 overflow-auto">
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">Categories</SelectItem>
                 <SelectItem value="Customer">Customer</SelectItem>
                 <SelectItem value="Builder">Builder</SelectItem>
                 <SelectItem value="Engineer">Engineer</SelectItem>
@@ -148,7 +148,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole }: CustomerLi
                 <SelectValue placeholder="Filter by state" />
               </SelectTrigger>
               <SelectContent className="max-h-48 overflow-auto">
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">States</SelectItem>
                 {uniqueStates.map(s => (
                   <SelectItem key={s} value={s}>
                     {s}
