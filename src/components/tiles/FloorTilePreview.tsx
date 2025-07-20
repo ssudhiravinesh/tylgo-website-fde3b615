@@ -171,19 +171,21 @@ export const FloorTilePreview = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="!w-[90vw] !h-[88vh] bg-white p-0 flex flex-col items-center justify-start relative overflow-hidden"
-        style={{ maxHeight: '88vh', minWidth: 320, minHeight: 320 }}
+        className="!w-[96vw] !h-[92vh] bg-white p-8 flex flex-col items-center justify-start relative overflow-hidden rounded-2xl"
+        style={{ minWidth: 360, minHeight: 360 }}
       >
         {/* Overlayed Header/Close */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-white/95 via-white/75 to-transparent z-30">
-          <DialogTitle className="text-xl font-semibold truncate">Floor Preview - {tile.name}</DialogTitle>
+          <DialogTitle className="text-2xl font-semibold truncate">
+            Floor Preview – {tile.name}
+          </DialogTitle>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
         {/* Compact floating tile details overlay */}
-        <div className="absolute right-6 top-20 z-20 bg-amber-50 border border-amber-200 shadow rounded-lg px-4 py-2 text-xs text-amber-700 space-y-1 min-w-[190px]">
+        <div className="absolute right-8 top-24 z-20 bg-amber-50 border border-amber-200 shadow rounded-lg px-5 py-3 text-sm text-amber-700 space-y-2 min-w-[200px]">
           <div><span className="font-medium text-amber-800">Code:</span> {tile.code || 'N/A'}</div>
           <div><span className="font-medium text-amber-800">Size:</span> {tile.size_length && tile.size_breadth ? `${tile.size_length}×${tile.size_breadth} mm` : 'N/A'}</div>
           <div><span className="font-medium text-amber-800">Area:</span> {area.toFixed(2)} {unit}²</div>
@@ -191,18 +193,12 @@ export const FloorTilePreview = ({
         </div>
 
         {/* Main content: Fills almost all space */}
-        <div className="flex-1 w-full h-full flex flex-col items-center justify-center">
-          <div className="w-full h-full flex items-center justify-center">
+        <div className="flex-1 w-full h-full flex items-center justify-center p-6">
+          <div className="w-full h-full max-w-full max-h-full border shadow rounded-xl overflow-hidden bg-white flex items-center justify-center">
             <canvas
               ref={canvasRef}
-              className="block w-full h-full"
+              className="w-full h-full"
               style={{
-                width: '98%',
-                height: '98%',
-                minWidth: 340,
-                minHeight: 300,
-                maxWidth: '100%',
-                maxHeight: '100%',
                 objectFit: 'contain',
                 imageRendering: 'crisp-edges'
               }}
@@ -211,7 +207,7 @@ export const FloorTilePreview = ({
         </div>
 
         {/* Info below canvas */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[96%] max-w-xl mx-auto text-center text-xs md:text-sm text-gray-600 bg-white/80 py-2 px-4 rounded shadow-lg">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[96%] max-w-2xl text-center text-sm text-gray-600 bg-white/80 py-3 px-6 rounded shadow">
           This layout preview shows your tile in a 4×6 floor pattern.<br />
           Each tile is shown with its real aspect ratio and dimensions as per your selection.
         </div>
