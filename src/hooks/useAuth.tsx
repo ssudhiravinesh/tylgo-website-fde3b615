@@ -156,26 +156,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // First check if user can login (single device enforcement)
-      const { data: userResponse, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (userError) {
-        throw new Error('Error checking user status');
-      }
-
-      if (!userResponse) {
-        throw new Error('Invalid credentials');
-      }
-
-      const canLogin = await checkCanLogin(userResponse.id);
-      if (!canLogin) {
-        throw new Error('Already logged in on another device. Please logout first.');
-      }
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -185,11 +165,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
 
+      // Single device check will be handled in the auth state change listener
       // Profile and session will be handled by the auth state change listener
       toast.success('Signed in successfully!');
     } catch (error: any) {
       console.error('Sign in error:', error);
       toast.error(error.message || 'Error signing in');
+      throw error;
     } finally {
       setLoading(false);
     }

@@ -28,6 +28,13 @@ export const useSingleDeviceAuth = () => {
 
   const createSession = useCallback(async (userId: string): Promise<string | null> => {
     try {
+      // First check if user can login
+      const canLogin = await checkCanLogin(userId);
+      if (!canLogin) {
+        toast.error('Already logged in on another device. Please logout first.');
+        return null;
+      }
+
       const sessionToken = generateSessionToken();
       
       const { data, error } = await supabase.rpc('create_single_session', {
@@ -55,7 +62,7 @@ export const useSingleDeviceAuth = () => {
       console.error('Failed to create session:', error);
       return null;
     }
-  }, [generateSessionToken]);
+  }, [generateSessionToken, checkCanLogin]);
 
   const clearSession = useCallback(async (userId: string) => {
     try {
