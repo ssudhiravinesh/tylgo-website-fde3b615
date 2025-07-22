@@ -37,9 +37,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
-        await fetchProfile(session.user.id);
         
-        // Create single device session
+        // Create single device session FIRST
         try {
           console.log('User signed in, creating single device session...');
           const sessionToken = await createSession(session.user.id);
@@ -48,6 +47,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await supabase.auth.signOut();
             return;
           }
+          
+          // Now fetch profile after session is created
+          await fetchProfile(session.user.id);
         } catch (error) {
           console.error('Failed to create session:', error);
           await supabase.auth.signOut();
@@ -71,14 +73,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Initialize session from stored session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        // Check if this device has a valid session
+        setUser(session.user);
+        
+        // Check if this device has a valid session token
         const storedToken = localStorage.getItem('device_session_token');
         if (storedToken) {
-          setUser(session.user);
+          // We have a stored token, try to fetch profile
           await fetchProfile(session.user.id);
         } else {
-          // No valid device session, sign out
-          await supabase.auth.signOut();
+          // No valid device session, try to create one
+          try {
+            const sessionToken = await createSession(session.user.id);
+            if (sessionToken) {
+              await fetchProfile(session.user.id);
+            } else {
+              // Can't create session (user logged in elsewhere), sign out
+              await supabase.auth.signOut();
+            }
+          } catch (error) {
+            console.error('Failed to create session on init:', error);
+            await supabase.auth.signOut();
+          }
         }
       }
       setLoading(false);
@@ -98,19 +113,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching profile:', error);
-        if (error.code === 'PGRST116') {
-          console.log('Profile not found for user:', userId);
-          toast.error('Profile not found. Please contact your administrator.');
-        } else {
-          toast.error('Error loading profile');
-        }
+        toast.error('Error loading profile');
       } else if (data) {
         console.log('Profile loaded:', data);
         setProfile(data);
+      } else {
+        console.log('Profile not found for user:', userId);
+        toast.error('Profile not found. Please contact your administrator.');
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
