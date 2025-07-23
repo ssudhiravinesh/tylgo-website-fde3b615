@@ -5,12 +5,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Lock, Mail, Loader2, UserPlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner"; // Make sure you have this import
 
 interface LoginFormProps {
   onShowSignUp: () => void;
+  onSuccessfulLogin?: (userId: string) => Promise<void>; // Add this prop
 }
 
-export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
+export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,9 +24,63 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
     
     setIsSubmitting(true);
     try {
-      await signIn(email, password);
-    } catch (error) {
+      // Use the signIn method from useAuth hook
+      const result = await signIn(email, password);
+      
+      // If your signIn method returns user data, handle the session management
+      if (result?.user) {
+        // Create a new session and invalidate all other sessions
+        if (onSuccessfulLogin) {
+          await onSuccessfulLogin(result.user.id);
+        }
+        
+        toast.success('Login successful!');
+      }
+    } catch (error: any) {
       console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Alternative implementation if you want to handle Supabase auth directly
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      setIsSubmitting(true);
+      
+      // If you're using Supabase directly instead of the useAuth hook
+      // const { data, error } = await supabase.auth.signInWithPassword({
+      //   email,
+      //   password,
+      // });
+      
+      // if (error) {
+      //   throw error;
+      // }
+      
+      // if (data.user) {
+      //   // Create a new session and invalidate all other sessions
+      //   if (onSuccessfulLogin) {
+      //     await onSuccessfulLogin(data.user.id);
+      //   }
+        
+      //   toast.success('Login successful!');
+      // }
+      
+      // For now, using the existing useAuth hook
+      const result = await signIn(email, password);
+      
+      if (result?.user) {
+        if (onSuccessfulLogin) {
+          await onSuccessfulLogin(result.user.id);
+        }
+        
+        toast.success('Login successful!');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -34,23 +90,18 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
     <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
       <CardHeader className="flex flex-col items-center pb-4">
         <img src="/tylgo.svg" className="w-8 h-8 mb-2" />
-<CardTitle className="text-2xl font-bold text-gray-800">
-  TYL
-  <span style={{ color: "#2563eb", fontWeight: "bold" }}>G</span>
-  O
-</CardTitle>
-
-
-
-
+        <CardTitle className="text-2xl font-bold text-gray-800">
+          TYL
+          <span style={{ color: "#2563eb", fontWeight: "bold" }}>G</span>
+          O
+        </CardTitle>
         <CardDescription className="text-gray-600">
           Sign in to your account to continue
         </CardDescription>
       </CardHeader>
 
-      
       <CardContent>
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium text-gray-700">
               Email Address
@@ -90,7 +141,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
           </div>
           
           <Button 
-            onClick={handleSubmit}
+            type="submit"
             className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             disabled={isSubmitting}
           >
@@ -103,7 +154,7 @@ export const LoginForm = ({ onShowSignUp }: LoginFormProps) => {
               "Sign In"
             )}
           </Button>
-        </div>
+        </form>
         
         <div className="mt-6 text-center space-y-4"> 
           <div className="pt-4 border-t border-gray-200">
