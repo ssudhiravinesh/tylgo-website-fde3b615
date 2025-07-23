@@ -1,58 +1,66 @@
+
 import { useState } from "react";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignUpForm } from "@/components/auth/SignUpForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionManagement } from "@/hooks/useSessionManagement";
-import { useStrictSessionManagement } from "@/hooks/useStrictSessionManagement"; // Add this import
 
 const Index = () => {
   const { user, profile, signOut, loading } = useAuth();
   const [showSignUp, setShowSignUp] = useState(false);
   
-  // Initialize both session management hooks
+  // Initialize session management
   useSessionManagement();
-  const { createSession, validateSession, invalidateSession } = useStrictSessionManagement(); // Use this hook
 
   const handleLogoutClick = async () => {
     try {
-      // Invalidate the current session before signing out
-      if (user?.id) {
-        await invalidateSession(user.id);
-      }
       await signOut();
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          {/* Tile Loading Animation */}
-          <div style={styles.tilesContainer}>
-            {[...Array(12)].map((_, index) => (
-              <div
-                key={index}
-                style={{
-                  ...styles.tile,
-                  ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                  animationDelay: `${index * 0.08}s`
-                }}
-              />
-            ))}
+  // // Show loading state while checking authentication
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+  //       <div className="text-center">
+  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+  //         <p className="text-gray-600">Loading...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+//// new addition:
+      if (loading) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+            <div className="text-center">
+              {/* Tile Loading Animation */}
+              <div style={styles.tilesContainer}>
+                {[...Array(12)].map((_, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...styles.tile,
+                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
+                      animationDelay: `${index * 0.08}s`
+                    }}
+                  />
+                ))}
+              </div>
+              
+              <p style={styles.loadingText}>Loading...</p>
+              
+              <div style={styles.progressBar}>
+                <div style={styles.progressFill}></div>
+              </div>
+            </div>
           </div>
-          
-          <p style={styles.loadingText}>Loading...</p>
-          
-          <div style={styles.progressBar}>
-            <div style={styles.progressFill}></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+        );
+      }
+
   
   // If not authenticated, show login/signup forms
   if (!user || !profile) {
@@ -61,12 +69,7 @@ const Index = () => {
         {showSignUp ? (
           <SignUpForm onShowLogin={() => setShowSignUp(false)} />
         ) : (
-          <LoginForm 
-            onShowSignUp={() => setShowSignUp(true)} 
-            onSuccessfulLogin={async (userId: string) => {
-              await createSession(userId);
-            }}
-          />
+          <LoginForm onShowSignUp={() => setShowSignUp(true)} />
         )}
       </div>
     );
@@ -77,7 +80,7 @@ const Index = () => {
   );
 };
 
-// Inline styles with keyframe animations (keeping your existing styles)
+// Inline styles with keyframe animations
 const styles = {
   tilesContainer: {
     display: 'grid',
@@ -149,5 +152,6 @@ styleSheet.textContent = `
   }
 `;
 document.head.appendChild(styleSheet);
+
 
 export default Index;
