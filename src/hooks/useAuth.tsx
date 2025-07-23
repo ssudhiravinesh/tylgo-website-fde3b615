@@ -1,8 +1,9 @@
+
 import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import { useSingleDeviceAuth } from './useSingleDeviceAuth';
+import { useStrictSessionManagement } from './useStrictSessionManagement';
 
 interface Profile {
   id: string;
@@ -18,7 +19,6 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, role: 'admin' | 'worker') => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  createDefaultUsers: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,84 +27,120 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const { checkCanLogin, createSession, clearSession } = useSingleDeviceAuth();
+  const { createSession, invalidateSession, validateSession } = useStrictSessionManagement();
 
   useEffect(() => {
-    console.log('AuthProvider: Initializing single device auth state');
+    console.log('AuthProvider: Initializing auth state');
     
-    // Listen for auth changes
+    // Listen for auth changes first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.email);
       
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         
-        // Create single device session FIRST
-        try {
-          console.log('User signed in, creating single device session...');
-          const sessionToken = await createSession(session.user.id);
-          if (!sessionToken) {
-            // Login denied - user already logged in elsewhere
-            await supabase.auth.signOut();
-            return;
-          }
-          
-          // Now fetch profile after session is created
-          await fetchProfile(session.user.id);
-        } catch (error) {
-          console.error('Failed to create session:', error);
-          await supabase.auth.signOut();
-          return;
-        }
-      } else if (event === 'SIGNED_OUT') {
-        if (user) {
+        // Create new session (this will invalidate any existing sessions)
+        setTimeout(async () => {
           try {
-            console.log('User signing out, clearing session...');
-            await clearSession(user.id);
+            console.log('Creating session for newly signed in user - this will invalidate any existing sessions');
+            await createSession(session.user.id);
+            await fetchProfile(session.user.id);
           } catch (error) {
-            console.error('Failed to clear session:', error);
+            console.error('Error creating session:', error);
+            // If session creation fails, sign out
+            await supabase.auth.signOut();
           }
+        }, 0);
+      } else if (event === 'SIGNED_OUT') {
+        // Clear any session invalidated flag on sign out
+        localStorage.removeItem('session_invalidated');
+        if (user) {
+          // Invalidate session on sign out
+          setTimeout(async () => {
+            try {
+              await invalidateSession(user.id);
+            } catch (error) {
+              console.error('Error invalidating session:', error);
+            }
+          }, 0);
         }
         setUser(null);
         setProfile(null);
+        setLoading(false);
+      } else if (session?.user) {
+        // Check if session was invalidated to prevent loops
+        const sessionInvalidated = localStorage.getItem('session_invalidated');
+        if (sessionInvalidated) {
+          console.log('Session was invalidated, preventing validation loop');
+          localStorage.removeItem('session_invalidated');
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+        
+        setUser(session.user);
+        // For existing sessions, validate session
+        setTimeout(async () => {
+          const isValid = await validateSession(session.user.id);
+          if (isValid) {
+            await fetchProfile(session.user.id);
+          }
+        }, 0);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    // Initialize session from stored session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
+    // Get initial session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Initial session:', session?.user?.email, error);
         
-        // Check if this device has a valid session token
-        const storedToken = localStorage.getItem('device_session_token');
-        if (storedToken) {
-          // We have a stored token, try to fetch profile
-          await fetchProfile(session.user.id);
-        } else {
-          // No valid device session, try to create one
-          try {
-            const sessionToken = await createSession(session.user.id);
-            if (sessionToken) {
-              await fetchProfile(session.user.id);
-            } else {
-              // Can't create session (user logged in elsewhere), sign out
-              await supabase.auth.signOut();
-            }
-          } catch (error) {
-            console.error('Failed to create session on init:', error);
-            await supabase.auth.signOut();
-          }
+        if (error) {
+          console.error('Error getting session:', error);
+          setLoading(false);
+          return;
         }
+
+        if (session?.user) {
+          // Check if session was invalidated to prevent loops
+          const sessionInvalidated = localStorage.getItem('session_invalidated');
+          if (sessionInvalidated) {
+            console.log('Session was invalidated, skipping validation to prevent loop');
+            localStorage.removeItem('session_invalidated');
+            setLoading(false);
+            return;
+          }
+          
+          setUser(session.user);
+          // Validate existing session
+          console.log('Validating existing session for single session enforcement');
+          const isValid = await validateSession(session.user.id);
+          if (isValid) {
+            await fetchProfile(session.user.id);
+          } else {
+            setLoading(false);
+          }
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    initializeAuth();
 
     return () => {
       console.log('Cleaning up auth subscription');
       subscription.unsubscribe();
     };
-  }, [checkCanLogin, createSession, clearSession]);
+  }, []);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -114,21 +150,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('Error fetching profile:', error);
-        toast.error('Error loading profile');
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found for user:', userId);
+          toast.error('Profile not found. Please contact your administrator.');
+        } else {
+          toast.error('Error loading profile');
+        }
       } else if (data) {
         console.log('Profile loaded:', data);
         setProfile(data);
-      } else {
-        console.log('Profile not found for user:', userId);
-        toast.error('Profile not found. Please contact your administrator.');
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast.error('Error loading user profile');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -167,64 +207,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const createDefaultUsers = async () => {
-    console.log('Creating default users...');
-    
-    // Create admin user
-    try {
-      await supabase.auth.signUp({
-        email: 'gavaskar@gmail.com',
-        password: '123456789',
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            name: 'Admin User',
-            role: 'admin'
-          }
-        }
-      });
-      console.log('Admin user created or already exists');
-    } catch (error) {
-      console.log('Admin user might already exist:', error);
-    }
-
-    // Create worker user
-    try {
-      await supabase.auth.signUp({
-        email: 'worker1@gmail.com',
-        password: '123456789',
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            name: 'Worker User',
-            role: 'worker'
-          }
-        }
-      });
-      console.log('Worker user created or already exists');
-    } catch (error) {
-      console.log('Worker user might already exist:', error);
-    }
-  };
-
   const signIn = async (email: string, password: string) => {
-    setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      setLoading(true);
+      console.log('Signing in user:', email);
+      
+      const { error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password
       });
-
+      
       if (error) {
         throw error;
       }
-
-      // Single device check will be handled in the auth state change listener
-      // Profile and session will be handled by the auth state change listener
+      
       toast.success('Signed in successfully!');
     } catch (error: any) {
       console.error('Sign in error:', error);
-      toast.error(error.message || 'Error signing in');
+      if (error.message.includes('Invalid login credentials')) {
+        toast.error('Invalid email or password. Please try again.');
+      } else {
+        toast.error(error.message || 'Error signing in');
+      }
       throw error;
     } finally {
       setLoading(false);
@@ -232,24 +236,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    setLoading(true);
     try {
-      // Clear session first
-      if (user) {
-        await clearSession(user.id);
-      }
-
+      console.log('Signing out user');
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) {
+        // Handle specific case where session is already invalid
+        if (error.message?.includes('session') && error.message?.includes('missing')) {
+          console.log('Session already invalidated, clearing local state');
+          setUser(null);
+          setProfile(null);
+          return;
+        }
         throw error;
       }
-      
       setUser(null);
       setProfile(null);
       toast.success('Signed out successfully!');
     } catch (error: any) {
       console.error('Sign out error:', error);
-      toast.error(error.message || 'Error signing out');
+      // Don't show error toast for already invalidated sessions
+      if (!error.message?.includes('session') || !error.message?.includes('missing')) {
+        toast.error(error.message || 'Error signing out');
+      }
     } finally {
       setLoading(false);
     }
@@ -262,7 +271,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signUp,
     signIn,
     signOut,
-    createDefaultUsers,
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
