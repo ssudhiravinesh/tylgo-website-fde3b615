@@ -63,7 +63,9 @@ const Index = () => {
         ) : (
           <LoginForm 
             onShowSignUp={() => setShowSignUp(true)} 
-            onSuccessfulLogin={createSession} // Pass the createSession function
+            onSuccessfulLogin={async (userId: string) => {
+              await createSession(userId);
+            }}
           />
         )}
       </div>

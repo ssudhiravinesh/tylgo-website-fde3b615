@@ -17,7 +17,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string, role: 'admin' | 'worker') => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ user: User | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -212,7 +212,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       console.log('Signing in user:', email);
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
@@ -222,6 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       toast.success('Signed in successfully!');
+      return { user: data.user };
     } catch (error: any) {
       console.error('Sign in error:', error);
       if (error.message.includes('Invalid login credentials')) {
