@@ -18,6 +18,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, role: 'admin' | 'worker') => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  createDefaultUsers: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -166,6 +167,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const createDefaultUsers = async () => {
+    console.log('Creating default users...');
+    
+    // Create admin user
+    try {
+      await supabase.auth.signUp({
+        email: 'gavaskar@gmail.com',
+        password: '123456789',
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            name: 'Admin User',
+            role: 'admin'
+          }
+        }
+      });
+      console.log('Admin user created or already exists');
+    } catch (error) {
+      console.log('Admin user might already exist:', error);
+    }
+
+    // Create worker user
+    try {
+      await supabase.auth.signUp({
+        email: 'worker1@gmail.com',
+        password: '123456789',
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            name: 'Worker User',
+            role: 'worker'
+          }
+        }
+      });
+      console.log('Worker user created or already exists');
+    } catch (error) {
+      console.log('Worker user might already exist:', error);
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
@@ -221,6 +262,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signUp,
     signIn,
     signOut,
+    createDefaultUsers,
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
