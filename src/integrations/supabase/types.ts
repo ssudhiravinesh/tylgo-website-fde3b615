@@ -75,10 +75,8 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
-          last_active: string | null
           name: string
           role: Database["public"]["Enums"]["user_role"]
-          session_expires_at: string | null
           session_token: string | null
           updated_at: string | null
         }
@@ -86,10 +84,8 @@ export type Database = {
           created_at?: string | null
           email: string
           id: string
-          last_active?: string | null
           name: string
           role?: Database["public"]["Enums"]["user_role"]
-          session_expires_at?: string | null
           session_token?: string | null
           updated_at?: string | null
         }
@@ -97,10 +93,8 @@ export type Database = {
           created_at?: string | null
           email?: string
           id?: string
-          last_active?: string | null
           name?: string
           role?: Database["public"]["Enums"]["user_role"]
-          session_expires_at?: string | null
           session_token?: string | null
           updated_at?: string | null
         }
@@ -394,9 +388,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_user_session: {
-        Args: { user_id: string; token: string; expires_at: string }
+      can_user_login: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      clear_user_session: {
+        Args: { user_id: string }
         Returns: undefined
+      }
+      create_single_session: {
+        Args: { user_id: string; token: string }
+        Returns: boolean
       }
       create_user_session_v2: {
         Args: { user_id: string; token: string; expires_at: string }
@@ -408,16 +410,12 @@ export type Database = {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      invalidate_user_session: {
-        Args: { user_id: string }
-        Returns: undefined
-      }
       invalidate_user_session_v2: {
         Args: { user_id: string; token?: string }
         Returns: undefined
       }
-      validate_user_session: {
-        Args: { user_id: string; token: string }
+      validate_current_session: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       validate_user_session_v2: {
