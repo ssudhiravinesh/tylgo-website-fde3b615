@@ -5,15 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image as ImageIcon, DollarSign } from "lucide-react";
+import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image as ImageIcon, DollarSign, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { CategoryBulkPriceUpdateDialog } from "@/components/tiles/CategoryBulkPriceUpdateDialog";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useImageUpload } from "@/hooks/useImageUpload";
+import { useExcelExport } from "@/hooks/useExcelExport";
 import { useTilesPDFGeneration } from "@/hooks/useTilesPDFGeneration";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,6 +60,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const generateQRMutation = useGenerateQRForTile();
   const { uploadImage, isUploading } = useImageUpload();
   const { generateTilesPDF } = useTilesPDFGeneration();
+  const { exportTilesToExcel } = useExcelExport();
 
   const form = useForm<TileFormData>({
     resolver: zodResolver(tileSchema),
@@ -229,17 +232,26 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   };
 
   const handleDownloadTilesPDF = () => {
-    
     if (filteredTiles.length === 0) {
       toast.error('No tiles to download');
       return;
     }
     try {
-      
       generateTilesPDF(filteredTiles);
     } catch (error) {
-      
       toast.error('Failed to generate PDF. Please try again.');
+    }
+  };
+
+  const handleDownloadTilesExcel = () => {
+    if (filteredTiles.length === 0) {
+      toast.error('No tiles to download');
+      return;
+    }
+    try {
+      exportTilesToExcel(filteredTiles);
+    } catch (error) {
+      toast.error('Failed to generate Excel file. Please try again.');
     }
   };
 
@@ -325,14 +337,31 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
             </Button>
           )}
           
-          <Button 
-            onClick={handleDownloadTilesPDF}
-            variant="outline"
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download PDF
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                Download
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-white border shadow-lg">
+              <DropdownMenuItem 
+                onClick={handleDownloadTilesPDF}
+                className="gap-2 cursor-pointer hover:bg-gray-50"
+              >
+                <Download className="h-4 w-4" />
+                Download as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleDownloadTilesExcel}
+                className="gap-2 cursor-pointer hover:bg-gray-50"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Download as Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
