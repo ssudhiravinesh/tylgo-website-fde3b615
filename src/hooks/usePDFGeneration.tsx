@@ -26,8 +26,8 @@ export const usePDFGeneration = () => {
         .from('quotation_items')
         .select(`
           *,
-          room:rooms!room_id(name,length,width,unit),
-          tile:tiles!tile_id(name,code,price_per_box,pieces_per_box,size_length,size_breadth)
+          room:quotation_items_room_id_fkey(name,length,width,unit),
+          tile:quotation_items_tile_id_fkey(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
         `)
         .eq('quotation_id', quotation.id);
 
