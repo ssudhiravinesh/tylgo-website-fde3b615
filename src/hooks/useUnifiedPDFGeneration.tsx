@@ -223,9 +223,10 @@ const downloadBlob = (blob: Blob, filename: string) => {
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
-  link.remove();
+  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 };
 
@@ -273,78 +274,114 @@ export const useUnifiedPDFGeneration = () => {
           const pdf = new jsPDF('p', 'mm', 'a4');
 
           // Title block
-          pdf.setFontSize(16).setFont('helvetica', 'bold');
-          pdf.text('Tile Solutions – Quotation', 105, 20, { align: 'center' });
-
-          pdf.setFontSize(11).setFont('helvetica', 'normal');
-          pdf.text(`Quotation #: ${quotation.quotation_number}`, 14, 32);
-          pdf.text(
-            `Date: ${new Date(quotation.created_at).toLocaleDateString()}`,
-            14,
-            39
-          );
-          pdf.text(`Customer: ${quotation.customer.name}`, 14, 46);
-          pdf.text(`Mobile: ${quotation.customer.mobile}`, 14, 53);
+          pdf.setFontSize(18).setFont('helvetica', 'bold');
+          pdf.text('QUOTATION', 105, 25, { align: 'center' });
+          
+          pdf.setFontSize(12).setFont('helvetica', 'normal');
+          pdf.text(`Quotation No: ${quotation.quotation_number}`, 20, 40);
+          pdf.text(`Date: ${new Date(quotation.created_at).toLocaleDateString('en-IN')}`, 20, 48);
+          
+          // Customer details
+          pdf.setFontSize(11).setFont('helvetica', 'bold');
+          pdf.text('Bill To:', 20, 60);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(`${quotation.customer?.name || 'N/A'}`, 20, 68);
+          pdf.text(`Mobile: ${quotation.customer?.mobile || 'N/A'}`, 20, 76);
+          if (quotation.customer?.address) {
+            pdf.text(`Address: ${quotation.customer.address}`, 20, 84);
+          }
 
           // Table
+          const tableData = quotationRows(quotation);
+          
           autoTable(pdf, {
-            startY: 62,
+            startY: 95,
             head: [
               [
-                'Room / Area',
+                'Room',
                 'Tile Code',
                 'Size (cm)',
                 'Boxes',
-                'Price / Box',
-                'Line Total',
+                'Price/Box',
+                'Total',
               ],
             ],
-            body: quotationRows(quotation),
+            body: tableData.map(row => [
+              row.room,
+              row.tileCode,
+              row.size,
+              row.boxes.toString(),
+              row.pricePerBox,
+              row.total
+            ]),
             theme: 'grid',
-            headStyles: { fillColor: [52, 118, 235] },
-            styles: { cellPadding: 2, fontSize: 10 },
-            columnStyles: {
-              room: { cellWidth: 50 },
-              tileCode: { cellWidth: 25 },
-              size: { cellWidth: 25 },
-              boxes: { halign: 'right', cellWidth: 20 },
-              pricePerBox: { halign: 'right', cellWidth: 28 },
-              total: { halign: 'right', cellWidth: 28 },
+            headStyles: { 
+              fillColor: [52, 118, 235],
+              textColor: [255, 255, 255],
+              fontSize: 10,
+              fontStyle: 'bold'
             },
+            styles: { 
+              cellPadding: 3, 
+              fontSize: 9,
+              lineColor: [128, 128, 128],
+              lineWidth: 0.1
+            },
+            columnStyles: {
+              0: { cellWidth: 35 }, // Room
+              1: { cellWidth: 25 }, // Tile Code
+              2: { cellWidth: 25 }, // Size
+              3: { halign: 'center', cellWidth: 20 }, // Boxes
+              4: { halign: 'right', cellWidth: 25 }, // Price/Box
+              5: { halign: 'right', cellWidth: 30 }, // Total
+            },
+            margin: { left: 20, right: 20 },
             didDrawPage: (data) => {
               const doc = data.doc as jsPDF;
+              // Footer with page numbers
               doc.setFontSize(8);
               doc.text(
                 `Page ${data.pageNumber} of ${doc.getNumberOfPages()}`,
-                200,
-                287,
+                doc.internal.pageSize.width - 20,
+                doc.internal.pageSize.height - 10,
                 { align: 'right' }
               );
             },
           });
 
-          pdf.setFontSize(12).setFont('helvetica', 'bold');
+          // Grand total
           const finalY = (pdf as any).lastAutoTable?.finalY || 200;
+          pdf.setFontSize(12).setFont('helvetica', 'bold');
           pdf.text(
             `Grand Total: ₹${quotation.total_cost.toLocaleString('en-IN')}`,
-            200,
-            finalY + 10,
+            pdf.internal.pageSize.width - 20,
+            finalY + 15,
             { align: 'right' }
           );
 
-          const blob = pdf.output('blob');
+          // Generate PDF with proper MIME type
+          const pdfBlob = new Blob([pdf.output('arraybuffer')], { 
+            type: 'application/pdf' 
+          });
+          
           downloadBlob(
-            blob,
+            pdfBlob,
             `Quotation_${quotation.quotation_number}.pdf`
           );
-          toast.success('PDF created on client');
+          toast.success('PDF generated successfully');
           return;
         }
 
         /* ---------- normal server success path ---------- */
-        const blob = await res.blob(); // response already application/pdf
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+        }
+        
+        const blob = new Blob([await res.arrayBuffer()], { 
+          type: 'application/pdf' 
+        });
         downloadBlob(blob, `Quotation_${quotation.quotation_number}.pdf`);
-        toast.success('PDF downloaded');
+        toast.success('PDF downloaded successfully');
       } catch (err: any) {
         console.error(err);
         toast.error(err.message || 'Failed to generate quotation PDF.');
@@ -380,58 +417,76 @@ export const useUnifiedPDFGeneration = () => {
           console.warn('Server tiles PDF failed – using client fallback');
           const pdf = new jsPDF('p', 'mm', 'a4');
 
-          pdf.setFontSize(16).setFont('helvetica', 'bold');
-          pdf.text('Tiles Inventory', 105, 20, { align: 'center' });
+          pdf.setFontSize(18).setFont('helvetica', 'bold');
+          pdf.text('TILES INVENTORY', 105, 25, { align: 'center' });
+          
+          pdf.setFontSize(10);
+          pdf.text(`Generated on: ${new Date().toLocaleDateString('en-IN')}`, 20, 40);
+          pdf.text(`Total Tiles: ${tiles.length}`, 20, 48);
 
-          const rows = tiles.map((t) => ({
-            code: t.code,
-            name: t.name,
-            size: `${t.size_length} × ${t.size_breadth}`,
-            price:
-              t.price_per_box != null
-                ? `₹${t.price_per_box.toLocaleString('en-IN')}`
-                : '-',
-            pcs: t.pieces_per_box ?? '-',
-          }));
+          const tableData = tiles.map((tile) => [
+            tile.code,
+            tile.name,
+            `${tile.size_length} × ${tile.size_breadth}`,
+            tile.price_per_box != null ? `₹${tile.price_per_box.toLocaleString('en-IN')}` : '-',
+            tile.pieces_per_box?.toString() || '-'
+          ]);
 
           autoTable(pdf, {
-            startY: 30,
-            head: [['Code', 'Name', 'Size (cm)', 'Price / Box', 'Pieces / Box']],
-            body: rows,
+            startY: 58,
+            head: [['Code', 'Name', 'Size (cm)', 'Price/Box', 'Pieces/Box']],
+            body: tableData,
             theme: 'grid',
-            headStyles: { fillColor: [52, 118, 235] },
-            styles: { fontSize: 9, cellPadding: 2 },
-            columnStyles: {
-              code: { cellWidth: 24 },
-              name: { cellWidth: 60 },
-              size: { cellWidth: 24 },
-              price: { halign: 'right', cellWidth: 28 },
-              pcs: { halign: 'right', cellWidth: 24 },
+            headStyles: { 
+              fillColor: [52, 118, 235],
+              textColor: [255, 255, 255],
+              fontSize: 10,
+              fontStyle: 'bold'
             },
+            styles: { 
+              fontSize: 9, 
+              cellPadding: 2,
+              lineColor: [128, 128, 128],
+              lineWidth: 0.1
+            },
+            columnStyles: {
+              0: { cellWidth: 25 }, // Code
+              1: { cellWidth: 60 }, // Name
+              2: { cellWidth: 25 }, // Size
+              3: { halign: 'right', cellWidth: 30 }, // Price
+              4: { halign: 'center', cellWidth: 20 }, // Pieces
+            },
+            margin: { left: 20, right: 20 },
             didDrawPage: (data) => {
               const doc = data.doc as jsPDF;
               doc.setFontSize(8);
               doc.text(
                 `Page ${data.pageNumber} of ${doc.getNumberOfPages()}`,
-                200,
-                287,
+                doc.internal.pageSize.width - 20,
+                doc.internal.pageSize.height - 10,
                 { align: 'right' }
               );
             },
           });
 
-          const blob = pdf.output('blob');
-          downloadBlob(blob, 'Tiles-Inventory.pdf');
-          toast.success('Tiles PDF created on client');
+          const pdfBlob = new Blob([pdf.output('arraybuffer')], { 
+            type: 'application/pdf' 
+          });
+          downloadBlob(pdfBlob, 'Tiles-Inventory.pdf');
+          toast.success('Tiles PDF generated successfully');
           return;
         }
 
         /* server OK */
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+        }
+        
         const blob = new Blob([await res.arrayBuffer()], {
           type: 'application/pdf',
         });
         downloadBlob(blob, res.headers.get('X-Filename') || 'Tiles-Inventory.pdf');
-        toast.success('Tiles PDF downloaded');
+        toast.success('Tiles PDF downloaded successfully');
       } catch (err: any) {
         console.error(err);
         toast.error(err.message || 'Failed to generate tiles PDF.');
