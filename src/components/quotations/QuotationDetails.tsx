@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
-import { useServerPDFGeneration } from "@/hooks/useUnifiedPDFGeneration";
+import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
 import type { Quotation } from "@/hooks/useQuotations";
 
 interface QuotationDetailsProps {
