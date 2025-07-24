@@ -374,10 +374,28 @@ export const useUnifiedPDFGeneration = () => {
 
         /* ---------- normal server success path ---------- */
         if (!res.ok) {
-          throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+          // Try to get error details from response
+          try {
+            const errorText = await res.text();
+            console.error('Server error response:', errorText);
+            throw new Error(`Server returned ${res.status}: ${errorText}`);
+          } catch {
+            throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+          }
+        }
+
+        // Validate content-type before creating blob
+        const serverContentType = res.headers.get('content-type') || '';
+        if (!serverContentType.includes('application/pdf')) {
+          const responseText = await res.text();
+          console.error('Unexpected response content-type:', serverContentType);
+          console.error('Response body:', responseText);
+          throw new Error('Downloaded content is not a PDF - server may have returned an error page');
         }
         
-        const blob = new Blob([await res.arrayBuffer()], { 
+        // Read arrayBuffer once and wrap in Uint8Array for better browser compatibility
+        const arrayBuffer = await res.arrayBuffer();
+        const blob = new Blob([new Uint8Array(arrayBuffer)], { 
           type: 'application/pdf' 
         });
         downloadBlob(blob, `Quotation_${quotation.quotation_number}.pdf`);
@@ -479,10 +497,28 @@ export const useUnifiedPDFGeneration = () => {
 
         /* server OK */
         if (!res.ok) {
-          throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+          // Try to get error details from response
+          try {
+            const errorText = await res.text();
+            console.error('Server error response:', errorText);
+            throw new Error(`Server returned ${res.status}: ${errorText}`);
+          } catch {
+            throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+          }
+        }
+
+        // Validate content-type before creating blob
+        const serverContentType = res.headers.get('content-type') || '';
+        if (!serverContentType.includes('application/pdf')) {
+          const responseText = await res.text();
+          console.error('Unexpected response content-type:', serverContentType);
+          console.error('Response body:', responseText);
+          throw new Error('Downloaded content is not a PDF - server may have returned an error page');
         }
         
-        const blob = new Blob([await res.arrayBuffer()], {
+        // Read arrayBuffer once and wrap in Uint8Array for better browser compatibility
+        const arrayBuffer = await res.arrayBuffer();
+        const blob = new Blob([new Uint8Array(arrayBuffer)], {
           type: 'application/pdf',
         });
         downloadBlob(blob, res.headers.get('X-Filename') || 'Tiles-Inventory.pdf');
