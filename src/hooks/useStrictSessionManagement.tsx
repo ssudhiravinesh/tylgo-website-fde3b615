@@ -61,6 +61,17 @@ export const useStrictSessionManagement = () => {
       const storedUserId = localStorage.getItem('app_session_user_id');
 
       if (!sessionToken || !storedUserId || storedUserId !== userId) {
+        console.log('No valid session token found locally');
+        await invalidateLocalSession();
+        
+        // Mark session as invalidated to prevent auth loops
+        localStorage.setItem('session_invalidated', 'true');
+        
+        // Sign out the user
+        setTimeout(async () => {
+          await supabase.auth.signOut();
+        }, 100);
+        
         return false;
       }
 
@@ -72,17 +83,50 @@ export const useStrictSessionManagement = () => {
 
       if (error) {
         console.error('Error validating session:', error);
+        await invalidateLocalSession();
+        
+        // Mark session as invalidated
+        localStorage.setItem('session_invalidated', 'true');
+        
+        // Sign out the user
+        setTimeout(async () => {
+          await supabase.auth.signOut();
+        }, 100);
+        
         return false;
       }
 
       if (!data) {
+        console.log('Session validation failed - session is invalid or expired');
         await invalidateLocalSession();
+        
+        // Mark session as invalidated
+        localStorage.setItem('session_invalidated', 'true');
+        
+        // Show message to user about session invalidation
+        toast.error('Your session has expired. Please sign in again.');
+        
+        // Sign out the user
+        setTimeout(async () => {
+          await supabase.auth.signOut();
+        }, 100);
+        
         return false;
       }
 
       return true;
     } catch (error) {
       console.error('Session validation error:', error);
+      await invalidateLocalSession();
+      
+      // Mark session as invalidated
+      localStorage.setItem('session_invalidated', 'true');
+      
+      // Sign out the user on validation error
+      setTimeout(async () => {
+        await supabase.auth.signOut();
+      }, 100);
+      
       return false;
     }
   }, [invalidateLocalSession]);
@@ -143,13 +187,20 @@ export const useStrictSessionManagement = () => {
             // Clear local session immediately
             invalidateLocalSession();
             
+            // Mark session as invalidated to prevent auth loops
+            localStorage.setItem('session_invalidated', 'true');
+            
             // Show toast message
             toast.error('Your session has expired. Another device has logged in with this account.');
             
-            // Sign out cleanly
-            supabase.auth.signOut().catch(error => {
-              console.error('Error during signout:', error);
-            });
+            // Sign out cleanly with a small delay to prevent loops
+            setTimeout(async () => {
+              try {
+                await supabase.auth.signOut();
+              } catch (error) {
+                console.error('Error during signout:', error);
+              }
+            }, 500);
           }
         }
       )
@@ -189,8 +240,8 @@ export const useStrictSessionManagement = () => {
           console.log('Tab became visible, validating session...');
           const isValid = await validateSession(userId);
           if (!isValid) {
-            console.log('Session invalid, signing out');
-            await supabase.auth.signOut();
+            console.log('Session invalid on tab focus, user will be signed out');
+            // validateSession already handles signout in this case
           }
         }
       }
