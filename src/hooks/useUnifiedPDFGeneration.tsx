@@ -2,8 +2,6 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
-import { renderToStaticMarkup } from 'react-dom/server';
-import QuotationPdfTemplate from '@/pdf-templates/QuotationPdfTemplate';
 
 interface TileData {
   id: string;
@@ -19,16 +17,11 @@ interface TileData {
 export const useServerPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const supabaseUrl = 'https://onucizagpgwdpcakskat.supabase.co';
-  const buildHtml = (quotation: Quotation) => {
-    const html = renderToStaticMarkup(<QuotationPdfTemplate data={quotation} />);
-    return `<!DOCTYPE html><html lang="en">${html}</html>`;
-  };
+  
   const generateQuotationPDF = useCallback(
     async (quotation: Quotation) => {
       setIsGenerating(true);
       try {
-        const html = buildHtml(quotation);
-
         const { data: session } = await supabase.auth.getSession();
         const response = await fetch(
           `${supabaseUrl}/functions/v1/generate-quotation-pdf`,
@@ -39,8 +32,7 @@ export const useServerPDFGeneration = () => {
               Authorization: `Bearer ${session.session?.access_token || ''}`,
             },
             body: JSON.stringify({
-              html,                          // <-- NEW
-              quotation_number: quotation.quotation_number,
+              quotation,
             }),
           },
         );
@@ -200,5 +192,5 @@ export const useServerPDFGeneration = () => {
     }
   }, [supabaseUrl]);
 
-   return { generateQuotationPDF, generateTilesPDF: undefined, isGenerating };
+   return { generateQuotationPDF, generateTilesPDF, isGenerating };
 };
