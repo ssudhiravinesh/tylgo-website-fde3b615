@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 import { formatArea } from '@/utils/unitConversions';
@@ -212,7 +212,7 @@ export const usePDFGeneration = () => {
       }
 
       // Create table using autoTable
-      (pdf as any).autoTable({
+      autoTable(pdf, {
         startY: yPos,
         head: [['Room(s) & Area', 'Tile Details', 'Tiles Required', 'Boxes', 'Price/Box', 'Total Amount']],
         body: tableBody,
@@ -242,7 +242,7 @@ export const usePDFGeneration = () => {
       });
 
       // Summary
-      const finalY = (pdf as any).lastAutoTable.finalY + 10;
+      const finalY = (pdf as any).lastAutoTable?.finalY + 10 || 180;
       pdf.setFontSize(10);
       
       const summaryText = `Summary: ${Object.keys(tileCalculations).length} tile type(s) | ${totalBoxes} boxes total`;
