@@ -84,17 +84,7 @@ export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
               Back to Sign In
             </Button>
             
-            {/* Temporary Admin Creation Button - Remove this after first admin is created */}
-            <Button 
-              onClick={() => setShowAdminCreation(true)}
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
-            >
-              <Shield className="w-4 h-4 mr-2" />
-              Create First Admin Account
-            </Button>
-            <p className="text-xs text-amber-600 text-center">
-              ⚠️ This option should be removed after the first admin is created
-            </p>
+            {/* Admin creation is now secure - only available through admin panel */}
           </div>
         </CardContent>
       </Card>

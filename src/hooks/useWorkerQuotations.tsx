@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface WorkerQuotation {
   id: string;
   quotation_number: string;
   customer_id: string;
-  status: 'draft' | 'sent' | 'approved' | 'rejected';
+  worker_id: string;
   total_cost: number;
-  notes?: string;
+  status: 'draft' | 'sent' | 'approved' | 'rejected';
+  notes: string;
+  wastage_percentage: number;
   created_at: string;
-  customer?: {
+  updated_at: string;
+  customer: {
     name: string;
     mobile: string;
   };
@@ -39,21 +41,36 @@ export const useWorkerQuotations = () => {
 
       console.log('Worker quotations fetched:', data);
       
-      // Type cast the status field to match our interface
-      const typedQuotations: WorkerQuotation[] = (data || []).map(quotation => ({
-        ...quotation,
-        status: quotation.status as 'draft' | 'sent' | 'approved' | 'rejected'
-      }));
+      // Type cast and handle RLS restrictions
+      const typedQuotations: WorkerQuotation[] = (data || []).map((quotation: any) => {
+        // Handle potential RLS restrictions on customer data
+        let customerData;
+        if (quotation.customer && typeof quotation.customer === 'object' && !('error' in quotation.customer)) {
+          customerData = quotation.customer as { name: string; mobile: string };
+        } else {
+          customerData = { name: 'Restricted', mobile: 'N/A' };
+        }
+        
+        return {
+          id: quotation.id,
+          quotation_number: quotation.quotation_number,
+          customer_id: quotation.customer_id,
+          worker_id: quotation.worker_id || '',
+          total_cost: quotation.total_cost || 0,
+          status: quotation.status as 'draft' | 'sent' | 'approved' | 'rejected',
+          notes: quotation.notes || '',
+          wastage_percentage: quotation.wastage_percentage || 0,
+          created_at: quotation.created_at,
+          updated_at: quotation.updated_at,
+          customer: customerData
+        };
+      });
       
       setWorkerQuotations(typedQuotations);
     } catch (error) {
       console.error('Error fetching worker quotations:', error);
-      toast.error('Error fetching quotations');
     }
   };
 
-  return {
-    workerQuotations,
-    fetchWorkerQuotations,
-  };
+  return { workerQuotations, fetchWorkerQuotations };
 };

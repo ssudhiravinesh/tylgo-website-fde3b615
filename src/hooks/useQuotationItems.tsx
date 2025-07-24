@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,13 +14,13 @@ export interface QuotationItem {
   custom_boxes?: number;
   created_at: string;
   // Joined data
-  room?: {
+  room: {
     name: string;
     length: number;
     width: number;
     unit: string;
   };
-  tile?: {
+  tile: {
     name: string;
     code: string;
     price_per_box?: number;
@@ -47,7 +46,48 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
     throw error;
   }
 
-  return data || [];
+  // Filter out items with RLS access errors and provide fallback data
+  const validData: QuotationItem[] = (data || []).map((item: any) => {
+    // Handle potential RLS restrictions on room data
+    let roomData;
+    if (item.room && typeof item.room === 'object' && !('error' in item.room)) {
+      roomData = item.room as { name: string; length: number; width: number; unit: string };
+    } else {
+      roomData = { name: 'Restricted', length: 0, width: 0, unit: 'metre' };
+    }
+
+    // Handle potential RLS restrictions on tile data
+    let tileData;
+    if (item.tile && typeof item.tile === 'object' && !('error' in item.tile)) {
+      tileData = item.tile as { name: string; code: string; price_per_box?: number; pieces_per_box?: number; size_length: number; size_breadth: number };
+    } else {
+      tileData = { 
+        name: 'Restricted', 
+        code: 'N/A', 
+        price_per_box: 0, 
+        pieces_per_box: 0, 
+        size_length: 0, 
+        size_breadth: 0 
+      };
+    }
+    
+    return {
+      id: item.id,
+      quotation_id: item.quotation_id,
+      room_id: item.room_id,
+      tile_id: item.tile_id,
+      area: item.area,
+      price_per_box: item.price_per_box,
+      total_price: item.total_price,
+      layer_number: item.layer_number,
+      custom_boxes: item.custom_boxes,
+      created_at: item.created_at,
+      room: roomData,
+      tile: tileData
+    };
+  });
+
+  return validData;
 };
 
 export const useQuotationItems = (quotationId: string) => {
