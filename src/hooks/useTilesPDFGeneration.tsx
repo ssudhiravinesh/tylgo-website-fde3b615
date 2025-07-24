@@ -54,18 +54,19 @@ export const useTilesPDFGeneration = () => {
         <html>
         <head>
           <style>
-            body{font-family:Arial,sans-serif;margin:0;padding:20px;font-size:14px;color:#333;}
-            .header{text-align:center;margin-bottom:20px;border-bottom:2px solid #007bff;padding-bottom:10px;}
-            .company-name{font-size:36px;font-weight:bold;color:#007bff;}
-            .orange-g{color:#ff8c00;}
-            .report-title{font-size:20px;color:#555;}
-            .meta-info{text-align:center;margin-bottom:20px;font-size:12px;color:#666;}
-            table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px;}
-            th,td{border:1px solid #ddd;padding:8px;vertical-align:top;}
-            th{background:#f8f9fa;font-weight:bold;font-size:10px;text-align:left;}
-            tr:nth-child(even){background:#f9f9f9;}
-            .summary{margin-top:15px;text-align:center;font-size:12px;color:#007bff;}
-            .footer{text-align:center;margin-top:20px;font-size:9px;color:#666;border-top:1px solid #ddd;padding-top:8px;}
+            body{font-family:Arial,sans-serif;margin:0;padding:20px;font-size:14px;color:#333;background:#fff;}
+            .header{text-align:center;margin-bottom:30px;border-bottom:3px solid #007bff;padding-bottom:20px;}
+            .company-name{font-size:42px;font-weight:bold;color:#007bff;margin-bottom:10px;letter-spacing:2px;}
+            .orange-g{color:#ff8c00;font-weight:bold;}
+            .report-title{font-size:24px;color:#555;font-weight:600;margin-top:5px;}
+            .meta-info{text-align:center;margin-bottom:25px;font-size:14px;color:#666;background:#f8f9fa;padding:15px;border-radius:8px;}
+            table{width:100%;border-collapse:collapse;font-size:12px;margin-top:15px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+            th,td{border:1px solid #ddd;padding:12px 8px;vertical-align:top;}
+            th{background:#f8f9fa;font-weight:bold;font-size:11px;text-align:left;color:#333;}
+            tr:nth-child(even){background:#fdfdfd;}
+            tr:hover{background:#f0f8ff;}
+            .summary{margin-top:20px;text-align:center;font-size:16px;color:#007bff;font-weight:600;background:#e3f2fd;padding:15px;border-radius:8px;}
+            .footer{text-align:center;margin-top:25px;font-size:10px;color:#666;border-top:1px solid #ddd;padding-top:15px;}
           </style>
         </head>
         <body>
