@@ -101,7 +101,7 @@ export const useCreateTile = () => {
   });
 };
 
-export const useUpdateTile = () => {
+export const useUpdateTile = (skipToast = false) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -146,14 +146,18 @@ export const useUpdateTile = () => {
     onSuccess: (data) => {
       console.log('Tile update mutation succeeded:', data);
       queryClient.invalidateQueries({ queryKey: ['tiles'] });
-      toast.success('Tile updated successfully');
+      if (!skipToast) {
+        toast.success('Tile updated successfully');
+      }
     },
     onError: (error: any) => {
       console.error('Tile update mutation failed:', error);
-      if (error.code === '23505' && error.message.includes('tiles_code_key')) {
-        toast.error('A tile with this code already exists');
-      } else {
-        toast.error(error.message || 'Error updating tile');
+      if (!skipToast) {
+        if (error.code === '23505' && error.message.includes('tiles_code_key')) {
+          toast.error('A tile with this code already exists');
+        } else {
+          toast.error(error.message || 'Error updating tile');
+        }
       }
     },
   });

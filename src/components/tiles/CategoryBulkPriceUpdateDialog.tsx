@@ -21,7 +21,7 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
   const [isUpdating, setIsUpdating] = useState(false);
   
   const { data: tiles = [] } = useTiles();
-  const updateTileMutation = useUpdateTile();
+  const updateTileMutation = useUpdateTile(true); // Skip individual toasts during bulk update
   
   // Get unique categories for dropdown
   const categories = Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean)));
