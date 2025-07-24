@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
 import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
+import { useQuotationItems } from '@/hooks/useQuotationItems';
 import type { Quotation } from "@/hooks/useQuotations";
 
 interface QuotationDetailsProps {
@@ -36,6 +37,7 @@ interface TileCalculation {
 
 export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) => {
   const { generateQuotationPDF, isGenerating } = useUnifiedPDFGeneration();
+  const { data: quotationItems = [], isLoading: isLoadingItems } = useQuotationItems(quotation.id);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -67,20 +69,28 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
     }
   };
 
-  // Use unified calculation system from tileCalculations.ts
+  // Use quotation items from the dedicated hook for accurate calculations
   const calculateTileRequirements = (): { calculations: TileCalculation[]; wastagePercentage: number } => {
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
     const wastagePercentage = quotation.wastage_percentage || 0; // Use stored wastage percentage, default to 0
 
-    if (quotation.quotation_items && quotation.quotation_items.length > 0) {
-      quotation.quotation_items.forEach((item) => {
+    if (quotationItems && quotationItems.length > 0) {
+      quotationItems.forEach((item) => {
         const tileId = item.tile_id;
         const room = item.room;
         const tile = item.tile;
         
         if (!tileCalculations[tileId] && tile) {
           tileCalculations[tileId] = {
-            tile,
+            tile: {
+              id: tileId,
+              name: tile.name,
+              code: tile.code,
+              price_per_box: tile.price_per_box,
+              pieces_per_box: tile.pieces_per_box,
+              size_length: tile.size_length,
+              size_breadth: tile.size_breadth
+            },
             rooms: [],
             totalArea: 0,
             tilesNeeded: 0,
@@ -93,7 +103,13 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
           // Use the stored area from the quotation item (original area without wastage)
           const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
           
-          tileCalculations[tileId].rooms.push(room);
+          tileCalculations[tileId].rooms.push({
+            id: item.room_id,
+            name: room.name,
+            length: room.length,
+            width: room.width,
+            unit: room.unit
+          });
           tileCalculations[tileId].totalArea += roomAreaInSqFt;
         }
       });
@@ -119,20 +135,20 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
               // Step 2: Add wastage percentage to tiles
               calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
               
-               // Step 3: Calculate boxes needed from total tiles with custom adjustments
-               const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
-               
-               // Get custom box adjustment from the first item for this tile
-               const tileItem = quotation.quotation_items?.find(item => item.tile_id === tile.id);
-               const customBoxAdjustment = tileItem?.custom_boxes || 0;
-               
-               calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
-               
-               // Update tiles needed to reflect actual boxes being purchased
-               if (customBoxAdjustment !== 0) {
-                 calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
-               }
-               
+              // Step 3: Calculate boxes needed from total tiles with custom adjustments
+              const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
+              
+              // Get custom box adjustment from the first item for this tile
+              const tileItem = quotationItems?.find(item => item.tile_id === tile.id);
+              const customBoxAdjustment = tileItem?.custom_boxes || 0;
+              
+              calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
+              
+              // Update tiles needed to reflect actual boxes being purchased
+              if (customBoxAdjustment !== 0) {
+                calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+              }
+              
               // Step 4: Calculate total price based on current box count (same as edit page)
               calc.totalPrice = calc.boxesNeeded * pricePerBox;
             }
@@ -151,7 +167,28 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
 
   const handleDownloadPDF = () => {
-    generateQuotationPDF(quotation);
+    // Transform quotation items to match the expected interface
+    const transformedQuotationItems = quotationItems.map(item => ({
+      ...item,
+      tile: item.tile ? {
+        id: item.tile_id,
+        code: item.tile.code,
+        name: item.tile.name,
+        size_length: item.tile.size_length,
+        size_breadth: item.tile.size_breadth,
+        price_per_box: item.tile.price_per_box || 0,
+        pieces_per_box: item.tile.pieces_per_box || 0
+      } : undefined,
+      room: item.room ? {
+        id: item.room_id,
+        name: item.room.name,
+        length: item.room.length,
+        width: item.room.width,
+        unit: item.room.unit
+      } : undefined
+    }));
+    
+    generateQuotationPDF({ ...quotation, quotation_items: transformedQuotationItems });
   };
 
   return (
@@ -286,7 +323,12 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         </CardHeader>
         
         <CardContent>
-          {calculations.length > 0 ? (
+          {isLoadingItems ? (
+            <div className="text-center py-8">
+              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading quotation items...</p>
+            </div>
+          ) : calculations.length > 0 ? (
             <div className="space-y-4">
               {calculations.map((calc) => (
                 <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
@@ -300,7 +342,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                         </p>
                         {(() => {
                           // Get layer information for this tile from quotation items
-                          const tileItems = quotation.quotation_items?.filter(item => item.tile_id === calc.tile.id) || [];
+                          const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
                           const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
                           
                           if (layerNumbers.length > 0) {
@@ -354,18 +396,18 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                       <div>
                         <p className="text-gray-600">Boxes Needed</p>
                         <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
-                        {(() => {
-                          const tileItem = quotation.quotation_items?.find(item => item.tile_id === calc.tile.id);
-                          const customBoxAdjustment = tileItem?.custom_boxes || 0;
-                          if (customBoxAdjustment !== 0) {
-                            return (
-                              <p className="text-xs text-orange-600">
-                                {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
-                              </p>
-                            );
-                          }
-                          return null;
-                        })()}
+                         {(() => {
+                           const tileItem = quotationItems?.find(item => item.tile_id === calc.tile.id);
+                           const customBoxAdjustment = tileItem?.custom_boxes || 0;
+                           if (customBoxAdjustment !== 0) {
+                             return (
+                               <p className="text-xs text-orange-600">
+                                 {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
+                               </p>
+                             );
+                           }
+                           return null;
+                         })()}
                       </div>
                     </div>
                     
