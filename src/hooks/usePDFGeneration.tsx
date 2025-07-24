@@ -1,11 +1,20 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import 'jspdf-autotable';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 import { formatArea } from '@/utils/unitConversions';
-import type { TileCalculationResult } from '@/utils/tileCalculations';
+
+interface TileCalculation {
+  tile: any;
+  rooms: any[];
+  totalArea: number;
+  rawTilesNeeded: number;
+  tilesNeeded: number;
+  boxesNeeded: number;
+  totalPrice: number;
+}
 
 export const usePDFGeneration = () => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
@@ -18,7 +27,7 @@ export const usePDFGeneration = () => {
         .select(`
           *,
           room:rooms(name,length,width,unit),
-          tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
+          tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth)
         `)
         .eq('quotation_id', quotation.id);
 
@@ -26,8 +35,8 @@ export const usePDFGeneration = () => {
         throw new Error(`Failed to fetch quotation items: ${error.message}`);
       }
 
-      // Group items by tile using unified calculation system
-      const tileCalculations: { [tileId: string]: TileCalculationResult & { rooms: any[], quotationItems: any[] } } = {};
+      // Group items by tile for calculations
+      const tileCalculations: { [tileId: string]: TileCalculation } = {};
 
       if (quotationItems && quotationItems.length > 0) {
         // Group items by tile_id and room_id to handle layers correctly
@@ -63,22 +72,18 @@ export const usePDFGeneration = () => {
               totalArea: 0,
               rawTilesNeeded: 0,
               tilesNeeded: 0,
-              fullBoxes: 0,
-              leftoverTiles: 0,
               boxesNeeded: 0,
               totalPrice: 0,
-              quotationItems: [],
             };
           }
 
           const calc = tileCalculations[tileId];
-          calc.rooms.push({ ...group.room, layers: [...group.layers].sort(), totalArea: group.totalArea } as any);
+          calc.rooms.push({ ...group.room, layers: [...group.layers].sort(), totalArea: group.totalArea });
           calc.totalArea += group.totalArea;
           calc.totalPrice += group.totalPrice;
-          calc.quotationItems.push({ custom_boxes: group.customBoxes });
         });
 
-        // Calculate tiles, boxes, and other metrics per tile type
+        // Calculate tiles and boxes per tile type
         Object.values(tileCalculations).forEach((calc) => {
           const tile = calc.tile;
           if (!tile?.size_length || !tile.size_breadth || !tile.pieces_per_box) return;
@@ -91,235 +96,193 @@ export const usePDFGeneration = () => {
           calc.tilesNeeded = Math.ceil(basicTiles * (1 + wastagePercentage / 100));
 
           const piecesPerBox = Number(tile.pieces_per_box);
-          calc.fullBoxes = Math.floor(basicTiles / piecesPerBox);
-          calc.leftoverTiles = basicTiles % piecesPerBox;
-
-          const customAdj = calc.quotationItems.reduce((sum, qi) => sum + (qi.custom_boxes || 0), 0);
-          const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
-          calc.boxesNeeded = Math.max(0, baseBoxes + customAdj);
+          calc.boxesNeeded = Math.ceil(calc.tilesNeeded / piecesPerBox);
         });
       }
 
-      // Generate table rows for PDF
-      let itemsRows = '';
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Set font
+      pdf.setFont('helvetica');
+      
+      // Header
+      pdf.setFontSize(20);
+      pdf.text('TYLGO', 105, 20, { align: 'center' });
+      
+      pdf.setFontSize(14);
+      pdf.text('QUOTATION', 105, 30, { align: 'center' });
+
+      // Customer and Quotation Details (Two columns)
+      pdf.setFontSize(11);
+      let yPos = 45;
+
+      // Customer Details
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Customer Details', 20, yPos);
+      pdf.setFont('helvetica', 'normal');
+      yPos += 7;
+
+      pdf.text(`Name: ${quotation.customer?.name || 'N/A'}`, 20, yPos);
+      yPos += 5;
+      pdf.text(`Mobile: ${quotation.customer?.mobile || 'N/A'}`, 20, yPos);
+      yPos += 5;
+
+      const customer: any = quotation.customer || {};
+      const address = [customer.address, customer.area, customer.state, customer.pincode]
+        .filter(Boolean)
+        .join(', ');
+      if (address) {
+        pdf.text(`Address: ${address}`, 20, yPos);
+        yPos += 5;
+      }
+
+      // Quotation Details (right column)
+      let rightYPos = 45;
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Quotation Details', 120, rightYPos);
+      pdf.setFont('helvetica', 'normal');
+      rightYPos += 7;
+
+      pdf.text(`Quotation #: ${quotation.quotation_number}`, 120, rightYPos);
+      rightYPos += 5;
+      pdf.text(`Date: ${new Date(quotation.created_at).toLocaleDateString()}`, 120, rightYPos);
+      rightYPos += 5;
+      pdf.text(`Status: ${quotation.status.toUpperCase()}`, 120, rightYPos);
+      rightYPos += 5;
+      pdf.text(`Created by: ${quotation.worker?.name || 'N/A'}`, 120, rightYPos);
+      rightYPos += 5;
+      pdf.text(`Wastage: ${wastagePercentage}%`, 120, rightYPos);
+
+      yPos = Math.max(yPos, rightYPos) + 10;
+
+      // Prepare table data
+      const tableBody = [];
       let totalBoxes = 0;
       let grandTotal = 0;
 
-      if (Object.keys(tileCalculations).length) {
-        itemsRows = Object.entries(tileCalculations)
-          .map(([tileId, calc]) => {
-            const tile = calc.tile;
-            totalBoxes += calc.boxesNeeded;
-            grandTotal += calc.totalPrice;
+      if (Object.keys(tileCalculations).length > 0) {
+        Object.entries(tileCalculations).forEach(([tileId, calc]) => {
+          const tile = calc.tile;
+          totalBoxes += calc.boxesNeeded;
+          grandTotal += calc.totalPrice;
 
-            const dims =
-              tile.size_length >= 1000 || tile.size_breadth >= 1000
-                ? `${(tile.size_length / 1000).toFixed(2)} × ${(tile.size_breadth / 1000).toFixed(2)} m`
-                : tile.size_length >= 100 || tile.size_breadth >= 100
-                  ? `${(tile.size_length / 10).toFixed(1)} × ${(tile.size_breadth / 10).toFixed(1)} cm`
-                  : `${tile.size_length} × ${tile.size_breadth} mm`;
+          // Format tile dimensions
+          const dims =
+            tile.size_length >= 1000 || tile.size_breadth >= 1000
+              ? `${(tile.size_length / 1000).toFixed(2)} × ${(tile.size_breadth / 1000).toFixed(2)} m`
+              : tile.size_length >= 100 || tile.size_breadth >= 100
+              ? `${(tile.size_length / 10).toFixed(1)} × ${(tile.size_breadth / 10).toFixed(1)} cm`
+              : `${tile.size_length} × ${tile.size_breadth} mm`;
 
-            const roomDisplay = calc.rooms
-              .map(
-                (room: any) =>
-                  `${room.name}${
-                    room.layers?.length > 1
-                      ? ` (Layers: ${room.layers.join(', ')})`
-                      : room.layers?.[0] > 1
-                      ? ` (Layer ${room.layers[0]})`
-                      : ''
-                  }`
-              )
-              .join(', ');
+          // Format room display
+          const roomDisplay = calc.rooms
+            .map((room: any) =>
+              `${room.name}${
+                room.layers?.length > 1
+                  ? ` (Layers: ${room.layers.join(', ')})`
+                  : room.layers?.[0] > 1
+                  ? ` (Layer ${room.layers[0]})`
+                  : ''
+              }`
+            )
+            .join(', ');
 
-            const boxPricing = tile.price_per_box
-              ? `<small style="color:#666;font-size:10px;">₹${parseFloat(String(tile.price_per_box)).toLocaleString('en-IN')} per box (${tile.pieces_per_box} pcs)</small><br/>`
-              : '';
+          // Tile details
+          const tileDetails = [
+            `Code: ${tile.code || 'N/A'}`,
+            `${tile.name || 'Unknown Tile'}`,
+            `Size: ${dims}`,
+            tile.pieces_per_box ? `${tile.pieces_per_box} pcs/box` : ''
+          ].filter(Boolean).join('\n');
 
-            const imageCell = tile.image_url
-              ? `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="max-width:80px;max-height:60px;object-fit:contain;" onerror="this.style.display='none';" />`
-              : '<small style="color:#999;font-style:italic;">No image</small>';
-
-            return `
-              <tr>
-                <td style="padding:8px;border:1px solid #ddd;font-size:12px;">
-                  <strong>${roomDisplay}</strong><br/>
-                  <small style="color:#666;">Total Area: ${formatArea(calc.totalArea)}</small>
-                </td>
-                <td style="padding:8px;border:1px solid #ddd;font-size:12px;">
-                  <strong>Code: ${tile.code || 'N/A'}</strong><br/>
-                  <small style="color:#666;">${tile.name || 'Unknown Tile'}</small><br/>
-                  <small style="color:#666;">Size: ${dims}</small><br/>
-                  ${boxPricing}
-                </td>
-                <td style="text-align:center;padding:8px;border:1px solid #ddd;">
-                  ${imageCell}
-                </td>
-                <td style="text-align:center;padding:8px;border:1px solid #ddd;font-size:12px;">
-                  ${calc.rawTilesNeeded}<br/>
-                  <small style="color:#666;">+${wastagePercentage}% wastage</small>
-                </td>
-                <td style="text-align:right;padding:8px;border:1px solid #ddd;font-size:12px;">
-                  ${calc.boxesNeeded}
-                </td>
-                <td style="text-align:center;padding:8px;border:1px solid #ddd;font-size:12px;">
-                  ₹${tile.price_per_box ? parseFloat(String(tile.price_per_box)).toLocaleString('en-IN') : 'N/A'}
-                </td>
-                <td style="text-align:right;padding:8px;border:1px solid #ddd;font-weight:bold;font-size:12px;">
-                  ₹${calc.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </td>
-              </tr>
-            `;
-          })
-          .join('');
+          tableBody.push([
+            `${roomDisplay}\nTotal Area: ${formatArea(calc.totalArea)}`,
+            tileDetails,
+            `${calc.rawTilesNeeded}\n+${wastagePercentage}% wastage`,
+            calc.boxesNeeded,
+            tile.price_per_box ? `₹${parseFloat(String(tile.price_per_box)).toLocaleString('en-IN')}` : 'N/A',
+            `₹${calc.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+          ]);
+        });
       } else {
-        itemsRows =
-          '<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;font-style:italic;">No items found in this quotation</td></tr>';
+        tableBody.push([
+          { content: 'No items found in this quotation', colSpan: 6, styles: { halign: 'center', fontStyle: 'italic' } }
+        ]);
       }
 
-      // Final HTML for rendering
-      const pdfHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body{font-family:Arial,sans-serif;margin:0;padding:20px;font-size:14px;color:#333;}
-            .header{text-align:center;margin-bottom:20px;border-bottom:2px solid #007bff;padding-bottom:10px;}
-            .company-name{font-size:36px;font-weight:bold;color:#007bff;}
-            .orange-g{color:#ff8c00;}
-            .quotation-title{font-size:20px;color:#555;}
-            .details{display:flex;justify-content:space-between;margin-bottom:20px;}
-            .section{width:48%;}
-            .section-title{font-size:16px;font-weight:bold;margin-bottom:8px;color:#007bff;border-bottom:1px solid #ddd;padding-bottom:4px;}
-            .info{margin-bottom:6px;font-size:12px;}
-            .label{font-weight:bold;color:#555;width:90px;display:inline-block;}
-            table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px;}
-            th,td{border:1px solid #ddd;padding:8px;vertical-align:top;}
-            th{background:#f8f9fa;font-weight:bold;font-size:10px;text-align:left;}
-            tr:nth-child(even){background:#f9f9f9;}
-            .summary{margin-top:15px;text-align:right;font-size:12px;}
-            .total{font-size:14px;font-weight:bold;color:#007bff;border-top:2px solid #007bff;padding-top:6px;}
-            .footer{text-align:center;margin-top:20px;font-size:9px;color:#666;border-top:1px solid #ddd;padding-top:8px;}
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="company-name">TYL<span class="orange-g">G</span>O</div>
-            <div class="quotation-title">QUOTATION</div>
-          </div>
-          <div class="details">
-            <div class="section">
-              <div class="section-title">Customer Details</div>
-              <div class="info"><span class="label">Name:</span> ${quotation.customer?.name || 'N/A'}</div>
-              <div class="info"><span class="label">Mobile:</span> ${quotation.customer?.mobile || 'N/A'}</div>
-              ${
-                (() => {
-                  const c: any = quotation.customer || {};
-                  const addr = [c.address, c.area, c.state, c.pincode].filter(Boolean).join(', ');
-                  return addr ? `<div class="info"><span class="label">Address:</span> ${addr}</div>` : '';
-                })()
-              }
-            </div>
-            <div class="section">
-              <div class="section-title">Quotation Details</div>
-              <div class="info"><span class="label">Quotation #:</span> ${quotation.quotation_number}</div>
-              <div class="info"><span class="label">Date:</span> ${new Date(quotation.created_at).toLocaleDateString()}</div>
-              <div class="info"><span class="label">Status:</span> ${quotation.status.toUpperCase()}</div>
-              <div class="info"><span class="label">Created by:</span> ${quotation.worker?.name || 'N/A'}</div>
-              <div class="info"><span class="label">Wastage:</span> ${wastagePercentage}%</div>
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width:22%;">Room(s) & Area</th>
-                <th style="width:22%;">Tile Details</th>
-                <th style="width:8%;text-align:center;">Image</th>
-                <th style="width:16%;text-align:center;">Tiles Required</th>
-                <th style="width:10%;text-align:center;">Boxes</th>
-                <th style="width:10%;text-align:center;">Price/Box</th>
-                <th style="width:12%;text-align:right;">Total Amount</th>
-              </tr>
-            </thead>
-            <tbody>${itemsRows}</tbody>
-          </table>
-          <div class="summary">
-            <div><strong>Summary:</strong> ${Object.keys(tileCalculations).length} tile type(s) | ${totalBoxes} boxes total</div>
-            <div class="total">Total Amount: ₹${grandTotal.toLocaleString('en-IN')}</div>
-          </div>
-          ${
-            quotation.notes
-              ? `<div style="margin-top:15px;padding:8px;background:#fff9c4;border-left:3px solid #ffc107;">
-                   <div style="font-size:12px;font-weight:bold;color:#007bff;margin-bottom:4px;">Additional Notes</div>
-                   <p style="margin:0;font-size:10px;">${quotation.notes}</p>
-                 </div>`
-              : ''
-          }
-          <div class="footer">
-            <p><strong>Thank you for choosing TYLGO!</strong></p>
-            <p>This quotation is valid for 30 days from the date of issue.</p>
-            <p><strong>Note:</strong> All tile quantities include a ${wastagePercentage}% wastage allowance.</p>
-            <p>All calculations are based on square feet measurements for accuracy.</p>
-          </div>
-        </body>
-        </html>
-      `;
-
-      // Render to off-screen container
-      const container = document.createElement('div');
-      container.innerHTML = pdfHTML;
-      container.style.position = 'fixed';
-      container.style.left = '-9999px';
-      container.style.width = '794px'; // 96 DPI ≈ 794 px for A4 width
-      document.body.appendChild(container);
-
-      const canvas = await html2canvas(container, {
-        scale: 1,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        width: 794,
-        height: container.scrollHeight,
+      // Create table using autoTable
+      (pdf as any).autoTable({
+        startY: yPos,
+        head: [['Room(s) & Area', 'Tile Details', 'Tiles Required', 'Boxes', 'Price/Box', 'Total Amount']],
+        body: tableBody,
+        theme: 'plain',
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+          lineWidth: 0,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fontStyle: 'bold',
+          fontSize: 9,
+          fillColor: false,
+          textColor: [0, 0, 0],
+          lineWidth: 0,
+        },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 45 },
+          2: { cellWidth: 30, halign: 'center' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 25, halign: 'center' },
+          5: { cellWidth: 30, halign: 'right' }
+        },
+        margin: { left: 20, right: 20 },
       });
 
-      document.body.removeChild(container);
+      // Summary
+      const finalY = (pdf as any).lastAutoTable.finalY + 10;
+      pdf.setFontSize(10);
+      
+      const summaryText = `Summary: ${Object.keys(tileCalculations).length} tile type(s) | ${totalBoxes} boxes total`;
+      pdf.text(summaryText, 190, finalY, { align: 'right' });
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.text(`Total Amount: ₹${grandTotal.toLocaleString('en-IN')}`, 190, finalY + 8, { align: 'right' });
 
-      // Create PDF, split into pages if needed
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pxPerMm = 3.78; // at 96 DPI
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 10;
-      const usableHeight = pageHeight - margin * 2;
-      const totalPages = Math.ceil(canvas.height / (usableHeight * pxPerMm));
-
-      for (let i = 0; i < totalPages; i++) {
-        if (i) pdf.addPage();
-        const slice = document.createElement('canvas');
-        slice.width = canvas.width;
-        slice.height = Math.min(canvas.height - i * usableHeight * pxPerMm, usableHeight * pxPerMm);
-
-        const ctx = slice.getContext('2d')!;
-        ctx.drawImage(
-          canvas,
-          0,
-          i * usableHeight * pxPerMm,
-          canvas.width,
-          slice.height,
-          0,
-          0,
-          canvas.width,
-          slice.height,
-        );
-
-        const imgData = slice.toDataURL('image/png');
-        const imgHeightMm = slice.height / pxPerMm;
-        pdf.addImage(imgData, 'PNG', margin, margin, pageWidth - margin * 2, imgHeightMm);
+      // Notes (if any)
+      let notesY = finalY + 20;
+      if (quotation.notes) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        pdf.text('Additional Notes', 20, notesY);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        
+        const noteLines = pdf.splitTextToSize(quotation.notes, 170);
+        pdf.text(noteLines, 20, notesY + 5);
+        notesY += 5 + (noteLines.length * 4);
       }
 
+      // Footer
+      const footerY = Math.max(notesY + 10, 250);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.text('Thank you for choosing TYLGO!', 105, footerY, { align: 'center' });
+      
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.text('This quotation is valid for 30 days from the date of issue.', 105, footerY + 5, { align: 'center' });
+      pdf.text(`Note: All tile quantities include a ${wastagePercentage}% wastage allowance.`, 105, footerY + 10, { align: 'center' });
+      pdf.text('All calculations are based on square feet measurements for accuracy.', 105, footerY + 15, { align: 'center' });
+
+      // Save PDF
       pdf.save(`Quotation-${quotation.quotation_number}.pdf`);
       toast.success('PDF downloaded successfully');
+
     } catch (error: any) {
-      console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
     }
   }, []);
