@@ -360,6 +360,7 @@ export type Database = {
           id: string
           is_active: boolean
           last_active: string
+          last_activity: string | null
           session_token: string
           user_id: string
         }
@@ -369,6 +370,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_active?: string
+          last_activity?: string | null
           session_token: string
           user_id: string
         }
@@ -378,6 +380,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_active?: string
+          last_activity?: string | null
           session_token?: string
           user_id?: string
         }
@@ -390,13 +393,11 @@ export type Database = {
     Functions: {
       cleanup_expired_sessions: {
         Args: Record<PropertyKey, never>
-        Returns: undefined
+        Returns: number
       }
       create_user_session_v2: {
         Args: { user_id: string; token: string; expires_at: string }
-        Returns: {
-          invalidated_sessions: string[]
-        }[]
+        Returns: string[]
       }
       get_user_role: {
         Args: { user_id: string }
