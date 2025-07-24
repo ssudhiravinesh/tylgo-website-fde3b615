@@ -105,7 +105,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .from('quotations')
           .select(`
             *,
-            customer:customers!customer_id (
+            customers!quotations_customer_id_fkey (
               id,
               name,
               mobile,
@@ -114,7 +114,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
               state,
               pincode
             ),
-            worker:profiles!worker_id (
+            profiles!quotations_worker_id_fkey (
               id,
               name,
               email
@@ -218,7 +218,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .from('quotation_items')
           .select(`
             *,
-            tile:tiles!tile_id (
+            tiles!quotation_items_tile_id_fkey (
               id,
               code,
               name,
@@ -227,7 +227,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
               price_per_box,
               pieces_per_box
             ),
-            room:rooms!room_id (
+            rooms!quotation_items_room_id_fkey (
               id,
               name,
               length,
@@ -291,7 +291,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .insert(quotationItems)
           .select(`
             *,
-            tile:tiles!tile_id (
+            tiles!quotation_items_tile_id_fkey (
               id,
               code,
               name,
@@ -300,7 +300,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
               price_per_box,
               pieces_per_box
             ),
-            room:rooms!room_id (
+            rooms!quotation_items_room_id_fkey (
               id,
               name,
               length,
@@ -324,43 +324,43 @@ export const useQuotations = (filters?: QuotationFilters) => {
         .from('quotations')
         .select(`
           *,
-          customer:customers!customer_id (
+          customers!quotations_customer_id_fkey (
             id,
             name,
             mobile,
             address
           ),
-          worker:profiles!worker_id (
+          profiles!quotations_worker_id_fkey (
             id,
             name,
             email
           ),
-           quotation_items (
-             id,
-             tile_id,
-             room_id,
-             area,
-             price_per_box,
-             total_price,
-             layer_number,
-             custom_boxes,
-             tile:tiles!tile_id (
-               id,
-               code,
-               name,
-               size_length,
-               size_breadth,
-               price_per_box,
-               pieces_per_box
-             ),
-             room:rooms!room_id (
-               id,
-               name,
-               length,
-               width,
-               unit
-             )
-           )
+          quotation_items (
+            id,
+            tile_id,
+            room_id,
+            area,
+            price_per_box,
+            total_price,
+            layer_number,
+            custom_boxes,
+            tiles!quotation_items_tile_id_fkey (
+              id,
+              code,
+              name,
+              size_length,
+              size_breadth,
+              price_per_box,
+              pieces_per_box
+            ),
+            rooms!quotation_items_room_id_fkey (
+              id,
+              name,
+              length,
+              width,
+              unit
+            )
+          )
         `)
         .eq('id', quotation.id)
         .single();
@@ -443,13 +443,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
         .from('quotations')
         .select(`
           *,
-          customer:customers!customer_id (
+          customers!quotations_customer_id_fkey (
             id,
             name,
             mobile,
             address
           ),
-          worker:profiles!worker_id (
+          profiles!quotations_worker_id_fkey (
             id,
             name,
             email
@@ -462,7 +462,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
             price_per_box,
             total_price,
             layer_number,
-            tile:tiles!tile_id (
+            tiles!quotation_items_tile_id_fkey (
               id,
               code,
               name,
@@ -471,7 +471,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
               price_per_box,
               pieces_per_box
             ),
-            room:rooms!room_id (
+            rooms!quotation_items_room_id_fkey (
               id,
               name,
               length,
@@ -603,13 +603,13 @@ export const useCreateQuotation = () => {
         .from('quotations')
         .select(`
           *,
-          customer:customers!customer_id (
+          customers!quotations_customer_id_fkey (
             id,
             name,
             mobile,
             address
           ),
-          worker:profiles!worker_id (
+          profiles!quotations_worker_id_fkey (
             id,
             name,
             email
@@ -622,7 +622,7 @@ export const useCreateQuotation = () => {
             price_per_box,
             total_price,
             layer_number,
-            tile:tiles!tile_id (
+            tiles!quotation_items_tile_id_fkey (
               id,
               code,
               name,
@@ -631,7 +631,7 @@ export const useCreateQuotation = () => {
               price_per_box,
               pieces_per_box
             ),
-            room:rooms!room_id (
+            rooms!quotation_items_room_id_fkey (
               id,
               name,
               length,
@@ -672,7 +672,7 @@ export const useQuotationItems = (quotationId?: string) => {
         .from('quotation_items')
         .select(`
           *,
-          tile:tiles!tile_id (
+          tiles!quotation_items_tile_id_fkey (
             id,
             code,
             name,
@@ -681,7 +681,7 @@ export const useQuotationItems = (quotationId?: string) => {
             price_per_box,
             pieces_per_box
           ),
-          room:rooms!room_id (
+          rooms!quotation_items_room_id_fkey (
             id,
             name,
             length,
