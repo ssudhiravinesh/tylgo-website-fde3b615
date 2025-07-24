@@ -139,6 +139,27 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_quotation_items_quotation"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_quotation_items_room"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_quotation_items_tile"
+            columns: ["tile_id"]
+            isOneToOne: false
+            referencedRelation: "tiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotation_items_quotation_id_fkey"
             columns: ["quotation_id"]
             isOneToOne: false
@@ -200,6 +221,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_quotations_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotations_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -241,6 +269,27 @@ export type Database = {
           tile_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_room_tile_selections_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_room_tile_selections_room"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_room_tile_selections_tile"
+            columns: ["tile_id"]
+            isOneToOne: false
+            referencedRelation: "tiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "room_tile_selections_customer_id_fkey"
             columns: ["customer_id"]
@@ -302,6 +351,13 @@ export type Database = {
           width?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_rooms_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rooms_customer_id_fkey"
             columns: ["customer_id"]
