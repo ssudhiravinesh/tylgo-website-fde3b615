@@ -234,7 +234,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Use Puppeteer to generate PDF
     const puppeteer = await import('https://deno.land/x/puppeteer@16.2.0/mod.ts');
     
-    const browser = await puppeteer.launch({
+    const browser = await puppeteer.default.launch({
       headless: true,
       args: [
         '--no-sandbox',
