@@ -283,7 +283,8 @@ export const usePDFGeneration = () => {
       toast.success('PDF downloaded successfully');
 
     } catch (error: any) {
-      toast.error('Failed to generate PDF. Please try again.');
+      console.error('PDF Generation Error:', error);
+      toast.error(`Failed to generate PDF: ${error.message || 'Unknown error'}`);
     }
   }, []);
 
