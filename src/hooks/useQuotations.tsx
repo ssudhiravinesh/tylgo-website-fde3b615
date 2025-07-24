@@ -47,6 +47,9 @@ export interface Quotation {
     name: string;
     mobile: string;
     address?: string;
+    area?: string;
+    state?: string;
+    pincode?: string;
   };
   worker?: {
     id: string;
@@ -242,9 +245,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
           // Don't throw error for items, just log and continue with quotations without items
         }
 
-        // Combine quotations with their items
+        // Combine quotations with their items and map field names
         const quotationsWithItems = quotationsData.map(quotation => ({
           ...quotation,
+          // Map profiles to worker to match interface
+          worker: quotation.profiles,
+          // Map customers to customer and ensure it includes address fields
+          customer: quotation.customers,
           quotation_items: itemsData?.filter(item => item.quotation_id === quotation.id) || []
         }));
 
@@ -325,7 +332,10 @@ export const useQuotations = (filters?: QuotationFilters) => {
             id,
             name,
             mobile,
-            address
+            address,
+            area,
+            state,
+            pincode
           ),
           profiles!quotations_worker_id_fkey (
             id,
@@ -366,8 +376,16 @@ export const useQuotations = (filters?: QuotationFilters) => {
         throw fetchError;
       }
 
+      // Map the data structure to match interface
+      const mappedQuotation = {
+        ...completeQuotation,
+        worker: completeQuotation.profiles,
+        customer: completeQuotation.customers,
+        quotation_items: completeQuotation.quotation_items || []
+      };
+
       
-      return completeQuotation as Quotation;
+      return mappedQuotation as Quotation;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
@@ -442,7 +460,10 @@ export const useQuotations = (filters?: QuotationFilters) => {
             id,
             name,
             mobile,
-            address
+            address,
+            area,
+            state,
+            pincode
           ),
           profiles!quotations_worker_id_fkey (
             id,
@@ -483,8 +504,16 @@ export const useQuotations = (filters?: QuotationFilters) => {
         throw fetchError;
       }
 
+      // Map the data structure to match interface
+      const mappedQuotation = {
+        ...completeQuotation,
+        worker: completeQuotation.profiles,
+        customer: completeQuotation.customers,
+        quotation_items: completeQuotation.quotation_items || []
+      };
+
       
-      return { quotation: completeQuotation as Quotation, previousStatus: previousQuotation?.status };
+      return { quotation: mappedQuotation as Quotation, previousStatus: previousQuotation?.status };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
@@ -602,7 +631,10 @@ export const useCreateQuotation = () => {
             id,
             name,
             mobile,
-            address
+            address,
+            area,
+            state,
+            pincode
           ),
           profiles!quotations_worker_id_fkey (
             id,
@@ -643,7 +675,15 @@ export const useCreateQuotation = () => {
         throw fetchError;
       }
 
-      return completeQuotation as Quotation;
+      // Map the data structure to match interface
+      const mappedQuotation = {
+        ...completeQuotation,
+        worker: completeQuotation.profiles,
+        customer: completeQuotation.customers,
+        quotation_items: completeQuotation.quotation_items || []
+      };
+
+      return mappedQuotation as Quotation;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
