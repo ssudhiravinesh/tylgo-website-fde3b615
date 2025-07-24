@@ -197,7 +197,6 @@
 
 
 
-// useUnifiedPDFGeneration.tsx
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -232,13 +231,13 @@ const downloadBlob = (blob: Blob, filename: string) => {
 
 /* Produce AutoTable rows from Quotation line-items */
 const quotationRows = (quotation: Quotation) =>
-  quotation.items.map((row) => ({
-    room: row.room_label,
-    tileCode: row.tile.code,
-    size: `${row.tile.size_length} × ${row.tile.size_breadth}`,
-    boxes: row.boxes,
-    pricePerBox: `₹${row.tile.price_per_box?.toLocaleString('en-IN') ?? ''}`,
-    total: `₹${row.total_cost.toLocaleString('en-IN')}`,
+  (quotation.quotation_items || []).map((item) => ({
+    room: item.room?.name || 'N/A',
+    tileCode: item.tile?.code || 'N/A',
+    size: item.tile ? `${item.tile.size_length} × ${item.tile.size_breadth}` : 'N/A',
+    boxes: Math.ceil(item.area / ((item.tile?.size_length || 1) * (item.tile?.size_breadth || 1) / 10000) / (item.tile?.pieces_per_box || 1)),
+    pricePerBox: `₹${item.price_per_box?.toLocaleString('en-IN') ?? '0'}`,
+    total: `₹${item.total_price.toLocaleString('en-IN')}`,
   }));
 
 export const useUnifiedPDFGeneration = () => {
@@ -312,10 +311,11 @@ export const useUnifiedPDFGeneration = () => {
               pricePerBox: { halign: 'right', cellWidth: 28 },
               total: { halign: 'right', cellWidth: 28 },
             },
-            didDrawPage: ({ doc, pageNumber, pageCount }) => {
+            didDrawPage: (data) => {
+              const doc = data.doc as jsPDF;
               doc.setFontSize(8);
               doc.text(
-                `Page ${pageNumber} of ${pageCount}`,
+                `Page ${data.pageNumber} of ${doc.getNumberOfPages()}`,
                 200,
                 287,
                 { align: 'right' }
@@ -324,10 +324,11 @@ export const useUnifiedPDFGeneration = () => {
           });
 
           pdf.setFontSize(12).setFont('helvetica', 'bold');
+          const finalY = (pdf as any).lastAutoTable?.finalY || 200;
           pdf.text(
             `Grand Total: ₹${quotation.total_cost.toLocaleString('en-IN')}`,
             200,
-            pdf.lastAutoTable.finalY + 10,
+            finalY + 10,
             { align: 'right' }
           );
 
@@ -407,10 +408,11 @@ export const useUnifiedPDFGeneration = () => {
               price: { halign: 'right', cellWidth: 28 },
               pcs: { halign: 'right', cellWidth: 24 },
             },
-            didDrawPage: ({ doc, pageNumber, pageCount }) => {
+            didDrawPage: (data) => {
+              const doc = data.doc as jsPDF;
               doc.setFontSize(8);
               doc.text(
-                `Page ${pageNumber} of ${pageCount}`,
+                `Page ${data.pageNumber} of ${doc.getNumberOfPages()}`,
                 200,
                 287,
                 { align: 'right' }
@@ -442,3 +444,6 @@ export const useUnifiedPDFGeneration = () => {
 
   return { generateQuotationPDF, generateTilesPDF, isGenerating };
 };
+
+// Legacy export alias for backward compatibility
+export const useServerPDFGeneration = useUnifiedPDFGeneration;

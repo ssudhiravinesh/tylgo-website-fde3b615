@@ -35,7 +35,7 @@ interface TileCalculation {
 }
 
 export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) => {
-  const { generateQuotationPDF, isGenerating } = useServerPDFGeneration();
+  const { generateQuotationPDF, isGenerating } = useUnifiedPDFGeneration();
 
   const getStatusColor = (status: string) => {
     switch (status) {

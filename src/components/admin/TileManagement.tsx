@@ -59,7 +59,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const deleteTileMutation = useDeleteTile();
   const generateQRMutation = useGenerateQRForTile();
   const { uploadImage, isUploading } = useImageUpload();
-  const { generateTilesPDF, isGenerating: isPDFGenerating } = useServerPDFGeneration();
+  const { generateTilesPDF, isGenerating: isPDFGenerating } = useUnifiedPDFGeneration();
   const { exportTilesToExcel } = useExcelExport();
 
   const form = useForm<TileFormData>({
