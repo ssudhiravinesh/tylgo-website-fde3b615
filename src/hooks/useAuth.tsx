@@ -1,4 +1,3 @@
-
 import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,118 +28,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { createSession, invalidateSession, validateSession } = useStrictSessionManagement();
 
-  useEffect(() => {
-    console.log('AuthProvider: Initializing auth state');
-    
-    // Listen for auth changes first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.email);
-      
-      if (event === 'SIGNED_IN' && session?.user) {
-        setUser(session.user);
-        
-        // Create new session (this will invalidate any existing sessions)
-        setTimeout(async () => {
-          try {
-            console.log('Creating session for newly signed in user - this will invalidate any existing sessions');
-            await createSession(session.user.id);
-            await fetchProfile(session.user.id);
-          } catch (error) {
-            console.error('Error creating session:', error);
-            // If session creation fails, sign out
-            await supabase.auth.signOut();
-          }
-        }, 0);
-      } else if (event === 'SIGNED_OUT') {
-        // Clear any session invalidated flag on sign out
-        localStorage.removeItem('session_invalidated');
-        if (user) {
-          // Invalidate session on sign out
-          setTimeout(async () => {
-            try {
-              await invalidateSession(user.id);
-            } catch (error) {
-              console.error('Error invalidating session:', error);
-            }
-          }, 0);
-        }
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      } else if (session?.user) {
-        // Check if session was invalidated to prevent loops
-        const sessionInvalidated = localStorage.getItem('session_invalidated');
-        if (sessionInvalidated) {
-          console.log('Session was invalidated, preventing validation loop');
-          localStorage.removeItem('session_invalidated');
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
-        
-        setUser(session.user);
-        // For existing sessions, validate session
-        setTimeout(async () => {
-          const isValid = await validateSession(session.user.id);
-          if (isValid) {
-            await fetchProfile(session.user.id);
-          }
-        }, 0);
-      } else {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    // Get initial session
-    const initializeAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('Initial session:', session?.user?.email, error);
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          setLoading(false);
-          return;
-        }
-
-        if (session?.user) {
-          // Check if session was invalidated to prevent loops
-          const sessionInvalidated = localStorage.getItem('session_invalidated');
-          if (sessionInvalidated) {
-            console.log('Session was invalidated, skipping validation to prevent loop');
-            localStorage.removeItem('session_invalidated');
-            setLoading(false);
-            return;
-          }
-          
-          setUser(session.user);
-          // Validate existing session
-          console.log('Validating existing session for single session enforcement');
-          const isValid = await validateSession(session.user.id);
-          if (isValid) {
-            await fetchProfile(session.user.id);
-          } else {
-            setLoading(false);
-          }
-        } else {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    return () => {
-      console.log('Cleaning up auth subscription');
-      subscription.unsubscribe();
-    };
-  }, []);
+  const clearAuthState = () => {
+    setUser(null);
+    setProfile(null);
+    setLoading(false);
+  };
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -160,17 +52,137 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           toast.error('Error loading profile');
         }
+        return false;
       } else if (data) {
         console.log('Profile loaded:', data);
         setProfile(data);
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast.error('Error loading user profile');
+      return false;
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    console.log('AuthProvider: Initializing auth state');
+    let isInitializing = true;
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.email);
+      
+      // Prevent processing during initialization
+      if (isInitializing && event === 'INITIAL_SESSION') {
+        return;
+      }
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('User signed in, creating session');
+        setUser(session.user);
+        setLoading(true);
+        
+        try {
+          // Create session first (this invalidates other sessions)
+          await createSession(session.user.id);
+          
+          // Then fetch profile
+          const profileLoaded = await fetchProfile(session.user.id);
+          if (!profileLoaded) {
+            // If profile loading fails, sign out
+            await supabase.auth.signOut();
+            return;
+          }
+        } catch (error) {
+          console.error('Error setting up user session:', error);
+          await supabase.auth.signOut();
+        }
+      } 
+      else if (event === 'SIGNED_OUT') {
+        console.log('User signed out, cleaning up');
+        
+        // Clear session invalidated flag
+        localStorage.removeItem('session_invalidated');
+        
+        // Cleanup session if we have a user
+        if (user?.id) {
+          try {
+            await invalidateSession(user.id);
+          } catch (error) {
+            console.error('Error invalidating session on signout:', error);
+          }
+        }
+        
+        clearAuthState();
+      }
+      else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        console.log('Token refreshed, validating session');
+        // On token refresh, validate our session is still active
+        const isValid = await validateSession(session.user.id);
+        if (!isValid) {
+          console.log('Session invalid after token refresh');
+          // validateSession handles signout
+        }
+      }
+    });
+
+    // Initialize auth state
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Initial session check:', session?.user?.email, error);
+        
+        if (error) {
+          console.error('Error getting initial session:', error);
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user) {
+          // Check if session was previously invalidated
+          const sessionInvalidated = localStorage.getItem('session_invalidated');
+          if (sessionInvalidated) {
+            console.log('Session was invalidated, clearing state');
+            localStorage.removeItem('session_invalidated');
+            clearAuthState();
+            return;
+          }
+          
+          console.log('Found existing session, validating...');
+          setUser(session.user);
+          
+          // Validate the session
+          const isValid = await validateSession(session.user.id);
+          if (isValid) {
+            console.log('Session is valid, loading profile');
+            await fetchProfile(session.user.id);
+          } else {
+            console.log('Session is invalid, will be signed out');
+            // validateSession handles the signout
+          }
+        } else {
+          console.log('No initial session found');
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        setLoading(false);
+      } finally {
+        isInitializing = false;
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      console.log('Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
+  }, []); // Remove dependencies to prevent re-initialization
 
   const signUp = async (email: string, password: string, name: string, role: 'admin' | 'worker') => {
     try {
@@ -221,6 +233,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
       
+      console.log('Sign in successful, session will be created via auth state change');
       toast.success('Signed in successfully!');
       return { user: data.user };
     } catch (error: any) {
@@ -240,19 +253,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log('Signing out user');
       setLoading(true);
+      
+      // Clear session invalidated flag first
+      localStorage.removeItem('session_invalidated');
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
         // Handle specific case where session is already invalid
         if (error.message?.includes('session') && error.message?.includes('missing')) {
           console.log('Session already invalidated, clearing local state');
-          setUser(null);
-          setProfile(null);
+          clearAuthState();
           return;
         }
         throw error;
       }
-      setUser(null);
-      setProfile(null);
+      
       toast.success('Signed out successfully!');
     } catch (error: any) {
       console.error('Sign out error:', error);
@@ -260,8 +275,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!error.message?.includes('session') || !error.message?.includes('missing')) {
         toast.error(error.message || 'Error signing out');
       }
-    } finally {
-      setLoading(false);
+      // Clear state anyway
+      clearAuthState();
     }
   };
 
