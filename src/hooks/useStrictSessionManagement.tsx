@@ -1,291 +1,230 @@
-import { useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useRef, useCallback } from 'react';
+import { useAuth } from './useAuth';
+import { singleSessionService } from '@/services/singleSessionService';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * Enhanced Strict Session Management Hook
+ * Implements single-session login with immediate invalidation
+ */
 export const useStrictSessionManagement = () => {
-  const realtimeChannelRef = useRef<any>(null);
-  const currentSessionTokenRef = useRef<string | null>(null);
+  const { user, signOut } = useAuth();
+  const validationIntervalRef = useRef<NodeJS.Timeout>();
+  const idleCheckIntervalRef = useRef<NodeJS.Timeout>();
+  const lastActivityRef = useRef<number>(Date.now());
+  const isInitializedRef = useRef(false);
 
-  const generateSessionToken = useCallback(() => {
-    return `session_${uuidv4()}_${Date.now()}`;
-  }, []);
-
-  const invalidateLocalSession = useCallback(async () => {
-    localStorage.removeItem('app_session_token');
-    localStorage.removeItem('app_session_user_id');
-    currentSessionTokenRef.current = null;
-  }, []);
-
-  const createSession = useCallback(async (userId: string) => {
-    try {
-      const sessionToken = generateSessionToken();
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour session
-
-      console.log('Creating new session for user:', userId);
-
-      // Use the new v2 function that returns invalidated sessions
-      const { data, error } = await supabase.rpc('create_user_session_v2', {
-        user_id: userId,
-        token: sessionToken,
-        expires_at: expiresAt.toISOString()
-      });
-
-      if (error) {
-        console.error('Error creating session:', error);
-        throw error;
-      }
-
-      // Store session token and update ref
-      localStorage.setItem('app_session_token', sessionToken);
-      localStorage.setItem('app_session_user_id', userId);
-      currentSessionTokenRef.current = sessionToken;
-
-      console.log('Session created successfully for user:', userId);
-      console.log('Invalidated older sessions:', data);
-      
-      return sessionToken;
-    } catch (error) {
-      console.error('Failed to create session:', error);
-      localStorage.removeItem('app_session_token');
-      localStorage.removeItem('app_session_user_id');
-      currentSessionTokenRef.current = null;
-      throw error;
-    }
-  }, [generateSessionToken]);
-
-  const validateSession = useCallback(async (userId: string) => {
-    try {
-      const sessionToken = localStorage.getItem('app_session_token');
-      const storedUserId = localStorage.getItem('app_session_user_id');
-
-      if (!sessionToken || !storedUserId || storedUserId !== userId) {
-        console.log('No valid session token found locally');
-        await invalidateLocalSession();
-        
-        // Mark session as invalidated to prevent auth loops
-        localStorage.setItem('session_invalidated', 'true');
-        
-        // Sign out the user
-        setTimeout(async () => {
-          await supabase.auth.signOut();
-        }, 100);
-        
-        return false;
-      }
-
-      // Use the new v2 function
-      const { data, error } = await supabase.rpc('validate_user_session_v2', {
-        user_id: userId,
-        token: sessionToken
-      });
-
-      if (error) {
-        console.error('Error validating session:', error);
-        await invalidateLocalSession();
-        
-        // Mark session as invalidated
-        localStorage.setItem('session_invalidated', 'true');
-        
-        // Sign out the user
-        setTimeout(async () => {
-          await supabase.auth.signOut();
-        }, 100);
-        
-        return false;
-      }
-
-      if (!data) {
-        console.log('Session validation failed - session is invalid or expired');
-        await invalidateLocalSession();
-        
-        // Mark session as invalidated
-        localStorage.setItem('session_invalidated', 'true');
-        
-        // Show message to user about session invalidation
-        toast.error('Your session has expired. Please sign in again.');
-        
-        // Sign out the user
-        setTimeout(async () => {
-          await supabase.auth.signOut();
-        }, 100);
-        
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Session validation error:', error);
-      await invalidateLocalSession();
-      
-      // Mark session as invalidated
-      localStorage.setItem('session_invalidated', 'true');
-      
-      // Sign out the user on validation error
-      setTimeout(async () => {
-        await supabase.auth.signOut();
-      }, 100);
-      
-      return false;
-    }
-  }, [invalidateLocalSession]);
-
-  const invalidateSession = useCallback(async (userId: string, specificToken?: string) => {
-    try {
-      const { error } = await supabase.rpc('invalidate_user_session_v2', {
-        user_id: userId,
-        token: specificToken || null
-      });
-
-      if (error) {
-        console.error('Error invalidating session:', error);
-      }
-
-      // Only clear local storage if invalidating current session
-      if (!specificToken || specificToken === currentSessionTokenRef.current) {
-        await invalidateLocalSession();
-      }
-    } catch (error) {
-      console.error('Failed to invalidate session:', error);
-    }
-  }, [invalidateLocalSession]);
-
-  // Real-time session invalidation listener
-  useEffect(() => {
-    const userId = localStorage.getItem('app_session_user_id');
-    const currentToken = localStorage.getItem('app_session_token');
+  // Handle session invalidation events
+  const handleSessionInvalidation = useCallback((event: CustomEvent) => {
+    const { reason } = event.detail;
+    console.log('🚫 Session invalidated:', reason);
     
-    if (!userId || !currentToken) return;
+    let message = 'Your session has been terminated.';
+    switch (reason) {
+      case 'new_login':
+        message = 'You have been logged in from another device.';
+        break;
+      case 'idle_timeout':
+        message = 'Your session expired due to inactivity.';
+        break;
+      case 'manual_logout':
+        message = 'You have been logged out.';
+        break;
+      case 'password_change':
+        message = 'Your session was terminated due to a password change.';
+        break;
+      default:
+        message = 'Your session has been terminated.';
+    }
 
-    currentSessionTokenRef.current = currentToken;
+    toast.error(message);
+    signOut();
+  }, [signOut]);
 
-    console.log('Setting up real-time session listener for user:', userId);
+  // Create session when user logs in
+  const createUserSession = useCallback(async (userId: string) => {
+    if (!userId || isInitializedRef.current) return;
 
-    // Create real-time channel to listen for session changes
-    const channel = supabase
-      .channel('session-invalidation')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_sessions',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          console.log('Real-time session update received:', payload);
-          
-          // Check if this session was invalidated
-          const updatedSession = payload.new;
-          if (
-            updatedSession.session_token === currentSessionTokenRef.current &&
-            updatedSession.is_active === false
-          ) {
-            console.log('Current session was invalidated by newer login');
-            
-            // Clear local session immediately
-            invalidateLocalSession();
-            
-            // Mark session as invalidated to prevent auth loops
-            localStorage.setItem('session_invalidated', 'true');
-            
-            // Show toast message
-            toast.error('Your session has expired. Another device has logged in with this account.');
-            
-            // Sign out cleanly with a small delay to prevent loops
-            setTimeout(async () => {
-              try {
-                await supabase.auth.signOut();
-              } catch (error) {
-                console.error('Error during signout:', error);
-              }
-            }, 500);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'user_sessions',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          console.log('Real-time new session insert received:', payload);
-          
-          // If a new session was created and it's not our current session, we might be invalidated
-          const newSession = payload.new;
-          if (newSession.session_token !== currentSessionTokenRef.current) {
-            console.log('New session created for same user, checking if ours is still valid');
-            
-            // Validate our current session after a small delay to allow database to process
-            setTimeout(async () => {
-              const isValid = await validateSession(userId);
-              if (!isValid) {
-                console.log('Our session was invalidated by the new session');
-                // validateSession already handles the signout and cleanup
-              }
-            }, 1000);
-          }
-        }
-      )
-      .subscribe();
+    console.log('🔐 Creating session for user:', userId);
+    isInitializedRef.current = true;
 
-    realtimeChannelRef.current = channel;
+    try {
+      await singleSessionService.createSession(userId);
+      console.log('✅ Session created successfully');
+    } catch (error) {
+      console.error('❌ Failed to create session:', error);
+      toast.error('Failed to establish secure session');
+      signOut();
+    }
+  }, [signOut]);
+
+  // Validate session periodically
+  const validateSession = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const validation = await singleSessionService.validateSession();
+      
+      if (validation.shouldSignOut) {
+        console.log('🚫 Session validation failed - signing out');
+        signOut();
+        return;
+      }
+
+      // Update activity if session is valid
+      if (validation.isValid) {
+        await singleSessionService.updateActivity();
+      }
+
+    } catch (error) {
+      console.error('❌ Session validation error:', error);
+      signOut();
+    }
+  }, [user?.id, signOut]);
+
+  // Check for idle timeout
+  const checkIdleTimeout = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const isExpired = await singleSessionService.checkIdleTimeout();
+      if (isExpired) {
+        console.log('⏰ Session expired due to idle timeout');
+        signOut();
+      }
+    } catch (error) {
+      console.error('❌ Idle timeout check failed:', error);
+    }
+  }, [user?.id, signOut]);
+
+  // Track user activity
+  const updateActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    if (user?.id) {
+      singleSessionService.updateActivity().catch(console.error);
+    }
+  }, [user?.id]);
+
+  // Setup activity tracking
+  useEffect(() => {
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    const throttledUpdateActivity = (() => {
+      let timeout: NodeJS.Timeout;
+      return () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(updateActivity, 1000); // Throttle to once per second
+      };
+    })();
+
+    events.forEach(event => {
+      document.addEventListener(event, throttledUpdateActivity, true);
+    });
 
     return () => {
-      console.log('Cleaning up real-time session listener');
-      if (realtimeChannelRef.current) {
-        supabase.removeChannel(realtimeChannelRef.current);
-        realtimeChannelRef.current = null;
-      }
+      events.forEach(event => {
+        document.removeEventListener(event, throttledUpdateActivity, true);
+      });
     };
-  }, [invalidateLocalSession]);
+  }, [updateActivity]);
 
-  // Listen for storage changes (other tabs) and visibility changes
+  // Main session management effect
   useEffect(() => {
-    const handleStorageChange = async (e: StorageEvent) => {
-      if (e.key === 'app_session_token') {
-        if (!e.newValue) {
-          // Session was cleared in another tab, sign out
-          console.log('Session cleared in another tab, signing out');
-          await supabase.auth.signOut();
-        } else {
-          // Update current session token ref
-          currentSessionTokenRef.current = e.newValue;
-        }
+    if (!user?.id) {
+      // User logged out - cleanup
+      console.log('👤 User logged out - cleaning up session');
+      singleSessionService.clearSession();
+      isInitializedRef.current = false;
+      
+      // Clear intervals
+      if (validationIntervalRef.current) {
+        clearInterval(validationIntervalRef.current);
+        validationIntervalRef.current = undefined;
+      }
+      if (idleCheckIntervalRef.current) {
+        clearInterval(idleCheckIntervalRef.current);
+        idleCheckIntervalRef.current = undefined;
+      }
+      
+      return;
+    }
+
+    // User logged in - setup session management
+    console.log('👤 User logged in - setting up session management');
+    
+    // Create session for new login
+    createUserSession(user.id);
+
+    // Setup session validation interval (every 5 minutes)
+    validationIntervalRef.current = setInterval(validateSession, 5 * 60 * 1000);
+
+    // Setup idle timeout check interval (every minute)
+    idleCheckIntervalRef.current = setInterval(checkIdleTimeout, 60 * 1000);
+
+    // Setup session invalidation event listener
+    window.addEventListener('session-invalidated', handleSessionInvalidation as EventListener);
+
+    // Validate session immediately
+    setTimeout(validateSession, 1000);
+
+    return () => {
+      // Cleanup intervals
+      if (validationIntervalRef.current) {
+        clearInterval(validationIntervalRef.current);
+      }
+      if (idleCheckIntervalRef.current) {
+        clearInterval(idleCheckIntervalRef.current);
+      }
+      
+      // Remove event listener
+      window.removeEventListener('session-invalidated', handleSessionInvalidation as EventListener);
+    };
+  }, [user?.id, createUserSession, validateSession, checkIdleTimeout, handleSessionInvalidation]);
+
+  // Handle tab visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user?.id) {
+        console.log('👁️ Tab became visible - validating session');
+        validateSession();
       }
     };
 
-    const handleVisibilityChange = async () => {
-      if (!document.hidden) {
-        // User returned to tab, validate session
-        const userId = localStorage.getItem('app_session_user_id');
-        if (userId) {
-          console.log('Tab became visible, validating session...');
-          const isValid = await validateSession(userId);
-          if (!isValid) {
-            console.log('Session invalid on tab focus, user will be signed out');
-            // validateSession already handles signout in this case
-          }
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [validateSession]);
+  }, [user?.id, validateSession]);
 
+  // Handle page focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user?.id) {
+        console.log('🎯 Window focused - validating session');
+        validateSession();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [user?.id, validateSession]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      singleSessionService.cleanup();
+    };
+  }, []);
+
+  // Return session management functions
   return {
-    createSession,
+    getCurrentSession: () => singleSessionService.getCurrentSession(),
+    invalidateAllSessions: (reason?: string) => singleSessionService.invalidateAllSessions(reason),
     validateSession,
-    invalidateSession
+    updateActivity
   };
 };

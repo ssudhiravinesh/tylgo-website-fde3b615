@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const { createSession, invalidateSession, validateSession } = useStrictSessionManagement();
+  const sessionManagement = useStrictSessionManagement();
 
   useEffect(() => {
     console.log('AuthProvider: Initializing auth state');
@@ -39,54 +39,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         
-        // Create new session (this will invalidate any existing sessions)
+        // Session creation is handled by useStrictSessionManagement
+        // Just fetch the profile
         setTimeout(async () => {
           try {
-            console.log('Creating session for newly signed in user - this will invalidate any existing sessions');
-            await createSession(session.user.id);
             await fetchProfile(session.user.id);
           } catch (error) {
-            console.error('Error creating session:', error);
-            // If session creation fails, sign out
-            await supabase.auth.signOut();
+            console.error('Error fetching profile after sign in:', error);
           }
-        }, 0);
+        }, 100);
       } else if (event === 'SIGNED_OUT') {
-        // Clear any session invalidated flag on sign out
-        localStorage.removeItem('session_invalidated');
-        if (user) {
-          // Invalidate session on sign out
-          setTimeout(async () => {
-            try {
-              await invalidateSession(user.id);
-            } catch (error) {
-              console.error('Error invalidating session:', error);
-            }
-          }, 0);
-        }
         setUser(null);
         setProfile(null);
         setLoading(false);
       } else if (session?.user) {
-        // Check if session was invalidated to prevent loops
-        const sessionInvalidated = localStorage.getItem('session_invalidated');
-        if (sessionInvalidated) {
-          console.log('Session was invalidated, preventing validation loop');
-          localStorage.removeItem('session_invalidated');
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
-        
         setUser(session.user);
-        // For existing sessions, validate session
+        // Fetch profile for existing sessions
         setTimeout(async () => {
-          const isValid = await validateSession(session.user.id);
-          if (isValid) {
-            await fetchProfile(session.user.id);
-          }
-        }, 0);
+          await fetchProfile(session.user.id);
+        }, 100);
       } else {
         setUser(null);
         setProfile(null);
@@ -107,24 +78,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (session?.user) {
-          // Check if session was invalidated to prevent loops
-          const sessionInvalidated = localStorage.getItem('session_invalidated');
-          if (sessionInvalidated) {
-            console.log('Session was invalidated, skipping validation to prevent loop');
-            localStorage.removeItem('session_invalidated');
-            setLoading(false);
-            return;
-          }
-          
           setUser(session.user);
-          // Validate existing session
-          console.log('Validating existing session for single session enforcement');
-          const isValid = await validateSession(session.user.id);
-          if (isValid) {
-            await fetchProfile(session.user.id);
-          } else {
-            setLoading(false);
-          }
+          await fetchProfile(session.user.id);
         } else {
           setLoading(false);
         }

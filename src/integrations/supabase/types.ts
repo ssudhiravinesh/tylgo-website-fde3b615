@@ -77,6 +77,7 @@ export type Database = {
           id: string
           name: string
           role: Database["public"]["Enums"]["user_role"]
+          token_version: number
           updated_at: string | null
         }
         Insert: {
@@ -85,6 +86,7 @@ export type Database = {
           id: string
           name: string
           role?: Database["public"]["Enums"]["user_role"]
+          token_version?: number
           updated_at?: string | null
         }
         Update: {
@@ -93,6 +95,7 @@ export type Database = {
           id?: string
           name?: string
           role?: Database["public"]["Enums"]["user_role"]
+          token_version?: number
           updated_at?: string | null
         }
         Relationships: []
@@ -358,6 +361,8 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          invalidated_by: string | null
+          invalidation_reason: string | null
           is_active: boolean
           last_activity: string
           session_token: string
@@ -367,6 +372,8 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
+          invalidated_by?: string | null
+          invalidation_reason?: string | null
           is_active?: boolean
           last_activity?: string
           session_token: string
@@ -376,6 +383,8 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          invalidated_by?: string | null
+          invalidation_reason?: string | null
           is_active?: boolean
           last_activity?: string
           session_token?: string
@@ -392,6 +401,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      create_single_session: {
+        Args: {
+          p_user_id: string
+          p_session_token: string
+          p_expires_at: string
+        }
+        Returns: {
+          invalidated_tokens: string[]
+        }[]
+      }
       create_user_session_v2: {
         Args: { user_id: string; token: string; expires_at: string }
         Returns: string[]
@@ -400,6 +419,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      invalidate_all_user_sessions: {
+        Args: { p_user_id: string; p_reason?: string }
+        Returns: undefined
+      }
       invalidate_user_session_v2: {
         Args: { user_id: string; token?: string }
         Returns: undefined
@@ -407,6 +430,14 @@ export type Database = {
       validate_current_session: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      validate_single_session: {
+        Args: { p_user_id: string; p_session_token: string }
+        Returns: {
+          is_valid: boolean
+          token_version: number
+          expires_at: string
+        }[]
       }
       validate_user_session_v2: {
         Args: { user_id: string; token: string }
