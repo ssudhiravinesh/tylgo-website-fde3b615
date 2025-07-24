@@ -42,7 +42,14 @@ export const useStrictSessionManagement = (user: any, signOut: () => void) => {
 
   // Create session when user logs in
   const createUserSession = useCallback(async (userId: string) => {
-    if (!userId || isInitializedRef.current) return;
+    if (!userId) return;
+
+    // Only create session if we don't already have one for this user
+    const currentSession = singleSessionService.getCurrentSession();
+    if (currentSession && currentSession.userId === userId) {
+      console.log('✅ Session already exists for user:', userId);
+      return;
+    }
 
     console.log('🔐 Creating session for user:', userId);
     isInitializedRef.current = true;
@@ -163,8 +170,8 @@ export const useStrictSessionManagement = (user: any, signOut: () => void) => {
     // Setup session invalidation event listener
     window.addEventListener('session-invalidated', handleSessionInvalidation as EventListener);
 
-    // Validate session immediately
-    setTimeout(validateSession, 1000);
+    // Don't validate immediately - let the session establish first
+    // The periodic validation will handle it after 5 minutes
 
     return () => {
       // Cleanup intervals
