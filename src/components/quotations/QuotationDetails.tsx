@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
-import { usePDFGeneration } from "@/hooks/usePDFGeneration";
+import { useServerPDFGeneration } from "@/hooks/useServerPDFGeneration";
 import type { Quotation } from "@/hooks/useQuotations";
 
 interface QuotationDetailsProps {
@@ -35,7 +35,7 @@ interface TileCalculation {
 }
 
 export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) => {
-  const { generateQuotationPDF } = usePDFGeneration();
+  const { generateQuotationPDF, isGenerating } = useServerPDFGeneration();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -179,10 +179,11 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         <div className="flex gap-2">
           <Button
             onClick={handleDownloadPDF}
-            className="gap-2 bg-blue-600 hover:bg-blue-700"
+            disabled={isGenerating}
+            className="gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
-            Download PDF
+            {isGenerating ? 'Generating...' : 'Download PDF'}
           </Button>
         </div>
       </div>

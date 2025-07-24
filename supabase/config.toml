@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.admin-create-worker]
 verify_jwt = true
+
+[functions.send-quotation-email]
+verify_jwt = true
+
+[functions.generate-quotation-pdf]
+verify_jwt = true
