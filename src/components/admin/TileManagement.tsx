@@ -229,11 +229,18 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   };
 
   const handleDownloadTilesPDF = () => {
+    console.log('Download PDF clicked, tiles count:', filteredTiles.length);
     if (filteredTiles.length === 0) {
       toast.error('No tiles to download');
       return;
     }
-    generateTilesPDF(filteredTiles);
+    try {
+      console.log('Calling generateTilesPDF with tiles:', filteredTiles);
+      generateTilesPDF(filteredTiles);
+    } catch (error) {
+      console.error('Error calling generateTilesPDF:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    }
   };
 
   const openEditDialog = (tile: any) => {

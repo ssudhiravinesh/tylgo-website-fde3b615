@@ -6,7 +6,9 @@ import type { Tile } from '@/hooks/useTiles';
 
 export const useTilesPDFGeneration = () => {
   const generateTilesPDF = useCallback(async (tiles: Tile[]) => {
+      console.log('generateTilesPDF called with', tiles.length, 'tiles');
     try {
+      console.log('Starting PDF generation process...');
       // Generate table rows for PDF
       const itemsRows = tiles
         .map((tile, index) => {
