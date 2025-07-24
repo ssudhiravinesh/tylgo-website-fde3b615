@@ -5,37 +5,16 @@ import * as XLSX from 'xlsx';
 export const useExcelExport = () => {
   const exportTilesToExcel = useCallback((tiles: any[]) => {
     try {
-      // Prepare data for Excel export
-      const excelData = tiles.map((tile, index) => {
-        // Calculate price per sq ft
-        const calculatePricePerSqFt = () => {
-          if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
-            return 'N/A';
-          }
-          const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
-          const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
-          return (tile.price_per_box / areaPerBoxSqFt).toFixed(2);
-        };
-
-        return {
-          'S.No': index + 1,
-          'Tile Code': tile.code || 'N/A',
-          'Tile Name': tile.name || 'N/A',
-          'Category': tile.category || 'N/A',
-          'Size (Length mm)': tile.size_length || 'N/A',
-          'Size (Breadth mm)': tile.size_breadth || 'N/A',
-          'Size Display': tile.size_length && tile.size_breadth 
-            ? `${tile.size_length} × ${tile.size_breadth} mm`
-            : 'N/A',
-          'Pieces per Box': tile.pieces_per_box || 'N/A',
-          'Price per Box (₹)': tile.price_per_box ? `₹${tile.price_per_box}` : 'N/A',
-          'Price per Sq Ft (₹)': `₹${calculatePricePerSqFt()}`,
-          'Has QR Code': tile.qr_code_url ? 'Yes' : 'No',
-          'Has Image': tile.image_url ? 'Yes' : 'No',
-          'Created Date': tile.created_at ? new Date(tile.created_at).toLocaleDateString() : 'N/A',
-          'Updated Date': tile.updated_at ? new Date(tile.updated_at).toLocaleDateString() : 'N/A'
-        };
-      });
+      // Prepare simplified data for Excel export
+      const excelData = tiles.map((tile) => ({
+        'Tile Name': tile.name || 'N/A',
+        'Tile Code': tile.code || 'N/A',
+        'Category': tile.category || 'N/A',
+        'Size': tile.size_length && tile.size_breadth 
+          ? `${tile.size_length} × ${tile.size_breadth} mm`
+          : 'N/A',
+        'Price per Box (₹)': tile.price_per_box ? `₹${tile.price_per_box}` : 'N/A'
+      }));
 
       // Create workbook and worksheet
       const wb = XLSX.utils.book_new();
@@ -43,20 +22,11 @@ export const useExcelExport = () => {
 
       // Set column widths for better formatting
       const colWidths = [
-        { wch: 6 },   // S.No
-        { wch: 12 },  // Tile Code
-        { wch: 25 },  // Tile Name
-        { wch: 15 },  // Category
-        { wch: 12 },  // Length
-        { wch: 12 },  // Breadth
-        { wch: 18 },  // Size Display
-        { wch: 12 },  // Pieces per Box
-        { wch: 15 },  // Price per Box
-        { wch: 15 },  // Price per Sq Ft
-        { wch: 12 },  // Has QR Code
-        { wch: 12 },  // Has Image
-        { wch: 12 },  // Created Date
-        { wch: 12 }   // Updated Date
+        { wch: 30 },  // Tile Name
+        { wch: 15 },  // Tile Code
+        { wch: 20 },  // Category
+        { wch: 20 },  // Size
+        { wch: 18 }   // Price per Box
       ];
       ws['!cols'] = colWidths;
 
