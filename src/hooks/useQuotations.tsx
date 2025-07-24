@@ -86,43 +86,138 @@ export const useQuotations = (filters?: QuotationFilters) => {
     queryFn: async () => {
       console.log('Fetching quotations with filters:', filters);
       
-      // Get current user to determine filtering
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+      try {
+        // Get current user to determine filtering
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
 
-      // Get user profile to check role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+        // Get user profile to check role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
 
-      let query = supabase
-        .from('quotations')
-        .select(`
-          *,
-          customer:customers!customer_id (
-            id,
-            name,
-            mobile,
-            address
-          ),
-          worker:profiles!worker_id (
-            id,
-            name,
-            email
-          ),
-          quotation_items (
-            id,
-            tile_id,
-            room_id,
-            area,
-            price_per_box,
-            total_price,
-            layer_number,
-            custom_boxes,
+        // Optimize query by fetching quotations first, then items separately for better performance
+        let baseQuery = supabase
+          .from('quotations')
+          .select(`
+            *,
+            customer:customers!customer_id (
+              id,
+              name,
+              mobile,
+              address,
+              area,
+              state,
+              pincode
+            ),
+            worker:profiles!worker_id (
+              id,
+              name,
+              email
+            )
+          `)
+          .order('created_at', { ascending: false });
+
+        // Filter by worker_id if user is a worker (not admin)
+        if (profile?.role === 'worker') {
+          console.log('Filtering quotations for worker:', user.id);
+          baseQuery = baseQuery.eq('worker_id', user.id);
+        } else {
+          console.log('Admin user - showing all quotations');
+        }
+
+        // Apply date filters
+        if (filters?.quickSort && filters.quickSort !== 'all') {
+          const now = new Date();
+          let startDate: string;
+          let endDate: string;
+          
+          switch (filters.quickSort) {
+            case 'today':
+              startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+              endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+              baseQuery = baseQuery.gte('created_at', startDate).lte('created_at', endDate);
+              break;
+            case 'yesterday':
+              const yesterday = new Date(now);
+              yesterday.setDate(now.getDate() - 1);
+              startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()).toISOString();
+              endDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59).toISOString();
+              baseQuery = baseQuery.gte('created_at', startDate).lte('created_at', endDate);
+              break;
+            case 'this_week':
+              const weekStart = new Date(now);
+              weekStart.setDate(now.getDate() - now.getDay());
+              startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
+              baseQuery = baseQuery.gte('created_at', startDate);
+              break;
+            case 'last_week':
+              const lastWeekStart = new Date(now);
+              lastWeekStart.setDate(now.getDate() - now.getDay() - 7);
+              const lastWeekEnd = new Date(lastWeekStart);
+              lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+              startDate = new Date(lastWeekStart.getFullYear(), lastWeekStart.getMonth(), lastWeekStart.getDate()).toISOString();
+              endDate = new Date(lastWeekEnd.getFullYear(), lastWeekEnd.getMonth(), lastWeekEnd.getDate(), 23, 59, 59).toISOString();
+              baseQuery = baseQuery.gte('created_at', startDate).lte('created_at', endDate);
+              break;
+            case 'this_month':
+              startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+              baseQuery = baseQuery.gte('created_at', startDate);
+              break;
+            case 'last_month':
+              const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+              const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+              baseQuery = baseQuery.gte('created_at', lastMonth.toISOString())
+                          .lte('created_at', new Date(lastMonthEnd.getFullYear(), lastMonthEnd.getMonth(), lastMonthEnd.getDate(), 23, 59, 59).toISOString());
+              break;
+            case 'this_year':
+              startDate = new Date(now.getFullYear(), 0, 1).toISOString();
+              baseQuery = baseQuery.gte('created_at', startDate);
+              break;
+          }
+        }
+
+        // Apply precise year/month filters
+        if (filters?.year && filters.year > 0) {
+          const yearStart = new Date(filters.year, 0, 1).toISOString();
+          const yearEnd = new Date(filters.year, 11, 31, 23, 59, 59).toISOString();
+          baseQuery = baseQuery.gte('created_at', yearStart).lte('created_at', yearEnd);
+          
+          if (filters.month && filters.month > 0 && filters.month <= 12) {
+            const monthStart = new Date(filters.year, filters.month - 1, 1).toISOString();
+            const monthEnd = new Date(filters.year, filters.month, 0, 23, 59, 59).toISOString();
+            baseQuery = baseQuery.gte('created_at', monthStart).lte('created_at', monthEnd);
+          }
+        } else if (filters?.month && filters.month > 0 && filters.month <= 12) {
+          // If only month is selected, use current year
+          const currentYear = new Date().getFullYear();
+          const monthStart = new Date(currentYear, filters.month - 1, 1).toISOString();
+          const monthEnd = new Date(currentYear, filters.month, 0, 23, 59, 59).toISOString();
+          baseQuery = baseQuery.gte('created_at', monthStart).lte('created_at', monthEnd);
+        }
+
+        const { data: quotationsData, error: quotationError } = await baseQuery;
+
+        if (quotationError) {
+          console.error('Error fetching quotations:', quotationError);
+          throw quotationError;
+        }
+
+        if (!quotationsData || quotationsData.length === 0) {
+          console.log('No quotations found');
+          return [];
+        }
+
+        // Fetch quotation items separately for better performance
+        const quotationIds = quotationsData.map(q => q.id);
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('quotation_items')
+          .select(`
+            *,
             tile:tiles!tile_id (
               id,
               code,
@@ -139,97 +234,26 @@ export const useQuotations = (filters?: QuotationFilters) => {
               width,
               unit
             )
-          )
-        `)
-        .order('created_at', { ascending: false });
+          `)
+          .in('quotation_id', quotationIds);
 
-      // Filter by worker_id if user is a worker (not admin)
-      if (profile?.role === 'worker') {
-        console.log('Filtering quotations for worker:', user.id);
-        query = query.eq('worker_id', user.id);
-      } else {
-        console.log('Admin user - showing all quotations');
-      }
-
-      // Apply date filters
-      if (filters?.quickSort && filters.quickSort !== 'all') {
-        const now = new Date();
-        let startDate: string;
-        let endDate: string;
-        
-        switch (filters.quickSort) {
-          case 'today':
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
-            query = query.gte('created_at', startDate).lte('created_at', endDate);
-            break;
-          case 'yesterday':
-            const yesterday = new Date(now);
-            yesterday.setDate(now.getDate() - 1);
-            startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()).toISOString();
-            endDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59).toISOString();
-            query = query.gte('created_at', startDate).lte('created_at', endDate);
-            break;
-          case 'this_week':
-            const weekStart = new Date(now);
-            weekStart.setDate(now.getDate() - now.getDay());
-            startDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).toISOString();
-            query = query.gte('created_at', startDate);
-            break;
-          case 'last_week':
-            const lastWeekStart = new Date(now);
-            lastWeekStart.setDate(now.getDate() - now.getDay() - 7);
-            const lastWeekEnd = new Date(lastWeekStart);
-            lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
-            startDate = new Date(lastWeekStart.getFullYear(), lastWeekStart.getMonth(), lastWeekStart.getDate()).toISOString();
-            endDate = new Date(lastWeekEnd.getFullYear(), lastWeekEnd.getMonth(), lastWeekEnd.getDate(), 23, 59, 59).toISOString();
-            query = query.gte('created_at', startDate).lte('created_at', endDate);
-            break;
-          case 'this_month':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-            query = query.gte('created_at', startDate);
-            break;
-          case 'last_month':
-            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-            query = query.gte('created_at', lastMonth.toISOString())
-                        .lte('created_at', new Date(lastMonthEnd.getFullYear(), lastMonthEnd.getMonth(), lastMonthEnd.getDate(), 23, 59, 59).toISOString());
-            break;
-          case 'this_year':
-            startDate = new Date(now.getFullYear(), 0, 1).toISOString();
-            query = query.gte('created_at', startDate);
-            break;
+        if (itemsError) {
+          console.error('Error fetching quotation items:', itemsError);
+          // Don't throw error for items, just log and continue with quotations without items
         }
-      }
 
-      // Apply precise year/month filters
-      if (filters?.year && filters.year > 0) {
-        const yearStart = new Date(filters.year, 0, 1).toISOString();
-        const yearEnd = new Date(filters.year, 11, 31, 23, 59, 59).toISOString();
-        query = query.gte('created_at', yearStart).lte('created_at', yearEnd);
-        
-        if (filters.month && filters.month > 0 && filters.month <= 12) {
-          const monthStart = new Date(filters.year, filters.month - 1, 1).toISOString();
-          const monthEnd = new Date(filters.year, filters.month, 0, 23, 59, 59).toISOString();
-          query = query.gte('created_at', monthStart).lte('created_at', monthEnd);
-        }
-      } else if (filters?.month && filters.month > 0 && filters.month <= 12) {
-        // If only month is selected, use current year
-        const currentYear = new Date().getFullYear();
-        const monthStart = new Date(currentYear, filters.month - 1, 1).toISOString();
-        const monthEnd = new Date(currentYear, filters.month, 0, 23, 59, 59).toISOString();
-        query = query.gte('created_at', monthStart).lte('created_at', monthEnd);
-      }
+        // Combine quotations with their items
+        const quotationsWithItems = quotationsData.map(quotation => ({
+          ...quotation,
+          quotation_items: itemsData?.filter(item => item.quotation_id === quotation.id) || []
+        }));
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching quotations:', error);
+        console.log('Quotations fetched:', quotationsWithItems.length);
+        return quotationsWithItems as Quotation[];
+      } catch (error) {
+        console.error('Error in quotations query:', error);
         throw error;
       }
-
-      console.log('Quotations fetched:', data?.length || 0);
-      return data as Quotation[];
     },
   });
 

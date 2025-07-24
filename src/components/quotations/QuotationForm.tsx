@@ -46,14 +46,19 @@ export const QuotationForm = ({
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auto-generate quotation number based on timestamp
+  // Auto-generate quotation number based on timestamp with better uniqueness
   const generateQuotationNumber = () => {
     const now = new Date();
     const year = now.getFullYear().toString().substr(-2);
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    const time = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
-    return `QT${year}${month}${day}${time}`;
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+    // Add a random 2-digit number for extra uniqueness
+    const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+    return `QT${year}${month}${day}${hours}${minutes}${seconds}${random}`;
   };
 
   const [quotationNumber] = useState(generateQuotationNumber());
