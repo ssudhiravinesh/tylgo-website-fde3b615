@@ -204,6 +204,33 @@ export const useStrictSessionManagement = () => {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_sessions',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Real-time new session insert received:', payload);
+          
+          // If a new session was created and it's not our current session, we might be invalidated
+          const newSession = payload.new;
+          if (newSession.session_token !== currentSessionTokenRef.current) {
+            console.log('New session created for same user, checking if ours is still valid');
+            
+            // Validate our current session after a small delay to allow database to process
+            setTimeout(async () => {
+              const isValid = await validateSession(userId);
+              if (!isValid) {
+                console.log('Our session was invalidated by the new session');
+                // validateSession already handles the signout and cleanup
+              }
+            }, 1000);
+          }
+        }
+      )
       .subscribe();
 
     realtimeChannelRef.current = channel;
