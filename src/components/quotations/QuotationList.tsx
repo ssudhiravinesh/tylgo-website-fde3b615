@@ -180,14 +180,18 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
 
   // Helper function to format address
   const formatAddress = (customer: any) => {
-    const addressParts = [
-      customer?.address,
-      customer?.area,
-      customer?.state,
-      customer?.pincode
-    ].filter(Boolean);
+    if (!customer) return "-";
     
-    return addressParts.length > 0 ? addressParts.join(", ") : "-";
+    const parts = [];
+    if (customer.area) parts.push(customer.area);
+    if (customer.state) parts.push(customer.state);
+    
+    let formatted = parts.join(", ");
+    if (customer.pincode) {
+      formatted += formatted ? ` - ${customer.pincode}` : customer.pincode;
+    }
+    
+    return formatted || "-";
   };
 // styles or loading state
   const styles = {

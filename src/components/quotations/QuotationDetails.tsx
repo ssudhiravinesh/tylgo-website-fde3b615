@@ -218,12 +218,26 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                   <Phone className="h-4 w-4 text-gray-500" />
                   <span>{quotation.customer?.mobile}</span>
                 </div>
-                {quotation.customer?.address && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-gray-500 mt-1" />
-                    <span className="text-sm">{quotation.customer.address}</span>
-                  </div>
-                )}
+                {(() => {
+                  const customer = quotation.customer as any;
+                  if (!customer) return null;
+                  
+                  const parts = [];
+                  if (customer.area) parts.push(customer.area);
+                  if (customer.state) parts.push(customer.state);
+                  
+                  let formatted = parts.join(", ");
+                  if (customer.pincode) {
+                    formatted += formatted ? ` - ${customer.pincode}` : customer.pincode;
+                  }
+                  
+                  return formatted ? (
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-gray-500 mt-1" />
+                      <span className="text-sm">{formatted}</span>
+                    </div>
+                  ) : null;
+                })()}
               </div>
             </div>
 
