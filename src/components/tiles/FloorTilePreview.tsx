@@ -57,19 +57,28 @@ export const FloorTilePreview = ({
       tileWidth = baseSize * aspectRatio;
     }
 
-    // Make the canvas large to take up most of the popup
-    // But scale down if contents are smaller for performance
-    const maxW = 0.88 * window.innerWidth;
-    const maxH = 0.82 * window.innerHeight;
-    const canvasWidth = Math.min(maxW, tilesPerRow * tileWidth);
-    const canvasHeight = Math.min(maxH, tilesPerColumn * tileHeight);
+    // Calculate available space in the dialog (leaving space for header/footer)
+    const maxW = Math.min(window.innerWidth * 0.88, 1200); // Max width
+    const maxH = Math.min(window.innerHeight * 0.7, 800);  // Max height for canvas area
+    
+    // Calculate required canvas size for the grid
+    const requiredWidth = tilesPerRow * tileWidth;
+    const requiredHeight = tilesPerColumn * tileHeight;
+    
+    // Calculate scaling factor to fit within available space
+    const scaleToFitX = maxW / requiredWidth;
+    const scaleToFitY = maxH / requiredHeight;
+    const scaleToFit = Math.min(scaleToFitX, scaleToFitY, 1); // Don't scale up
+    
+    const canvasWidth = requiredWidth * scaleToFit;
+    const canvasHeight = requiredHeight * scaleToFit;
 
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    // Calculate scaling factor if canvas had to be shrunk
-    const scaleX = canvasWidth / (tilesPerRow * tileWidth);
-    const scaleY = canvasHeight / (tilesPerColumn * tileHeight);
+    // Use the scaling factor we calculated
+    const scaleX = scaleToFit;
+    const scaleY = scaleToFit;
 
     // Clear
     ctx.fillStyle = "#fff";
