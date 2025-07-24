@@ -15,7 +15,7 @@ export const useSessionTest = () => {
       // Check if user has active session in user_sessions table
       const { data: sessions, error } = await supabase
         .from('user_sessions')
-        .select('session_token, expires_at, last_active, is_active')
+        .select('session_token, expires_at, last_activity, is_active')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
@@ -37,7 +37,7 @@ export const useSessionTest = () => {
       console.log('Local storage user ID:', localUserId);
       console.log('Database session token:', activeSession?.session_token?.substring(0, 20) + '...');
       console.log('Session expires at:', activeSession?.expires_at);
-      console.log('Last active:', activeSession?.last_active);
+      console.log('Last activity:', activeSession?.last_activity);
       console.log('Tokens match:', localToken === activeSession?.session_token);
       console.log('Session valid:', activeSession?.expires_at && new Date(activeSession.expires_at) > new Date());
       console.log('=== END TEST ===');

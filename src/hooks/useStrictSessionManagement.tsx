@@ -206,19 +206,11 @@ export const useStrictSessionManagement = () => {
           
           // If a new session was created and it's not our current session
           if (newSession.session_token !== currentSessionTokenRef.current && newSession.is_active) {
-            console.log('New active session detected for same user, validating our session');
+            console.log('New active session detected for same user - this session should be invalidated');
             
-            // Wait a bit for the database to process session invalidations
-            setTimeout(async () => {
-              try {
-                const isValid = await validateSession(userId);
-                if (!isValid) {
-                  console.log('Our session was invalidated by the new session');
-                }
-              } catch (error) {
-                console.error('Error validating session after new session detected:', error);
-              }
-            }, 2000); // Increased delay to ensure DB operations complete
+            // Our session should have been invalidated by the database function
+            // Force sign out immediately since only one session is allowed
+            signOutUser(true, 'Another device has logged in with this account. You have been signed out.');
           }
         }
       )

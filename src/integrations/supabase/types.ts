@@ -359,8 +359,7 @@ export type Database = {
           expires_at: string
           id: string
           is_active: boolean
-          last_active: string
-          last_activity: string | null
+          last_activity: string
           session_token: string
           user_id: string
         }
@@ -369,8 +368,7 @@ export type Database = {
           expires_at: string
           id?: string
           is_active?: boolean
-          last_active?: string
-          last_activity?: string | null
+          last_activity?: string
           session_token: string
           user_id: string
         }
@@ -379,8 +377,7 @@ export type Database = {
           expires_at?: string
           id?: string
           is_active?: boolean
-          last_active?: string
-          last_activity?: string | null
+          last_activity?: string
           session_token?: string
           user_id?: string
         }
