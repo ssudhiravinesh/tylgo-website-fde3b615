@@ -13,6 +13,7 @@ export interface Tile {
   price_per_box?: number;
   image_url?: string;
   qr_code_url?: string;
+  category?: string;
   created_at?: string;
   updated_at?: string;
 }

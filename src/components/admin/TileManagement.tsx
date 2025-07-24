@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image, DollarSign } from "lucide-react";
-import { BulkPriceUpdateDialog } from "@/components/tiles/BulkPriceUpdateDialog";
+import { CategoryBulkPriceUpdateDialog } from "@/components/tiles/CategoryBulkPriceUpdateDialog";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useImageUpload } from "@/hooks/useImageUpload";
@@ -25,6 +25,7 @@ const tileSchema = z.object({
   price_per_box: z.number().min(0, "Price must be 0 or greater").optional(),
   pieces_per_box: z.number().min(1, "Pieces per box must be greater than 0").optional(),
   image_url: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
 }).transform((data) => ({
   ...data,
   // Ensure undefined values are handled properly for optional fields
@@ -46,6 +47,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const [isPriceUpdateDialogOpen, setIsPriceUpdateDialogOpen] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   const { data: tiles = [], isLoading } = useTiles();
   const createTileMutation = useCreateTile();
@@ -64,6 +66,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       price_per_box: undefined,
       pieces_per_box: undefined,
       image_url: "",
+      category: "",
     },
   });
 
@@ -72,9 +75,11 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Check if search term matches any tile names for bulk price update
-  const shouldShowPriceUpdateButton = searchTerm.length > 0 && 
-    tiles.some(tile => tile.name.toLowerCase() === searchTerm.toLowerCase());
+  // Get unique categories for dropdown
+  const categories = Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean)));
+  
+  // Always show bulk price update button if there are categories
+  const shouldShowPriceUpdateButton = categories.length > 0;
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -111,6 +116,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       price_per_box: data.price_per_box || null,
       pieces_per_box: data.pieces_per_box || null,
       image_url: imageUrl,
+      category: data.category,
     };
     
     createTileMutation.mutate(tileData, {
@@ -143,6 +149,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         price_per_box: data.price_per_box || null,
         pieces_per_box: data.pieces_per_box || null,
         image_url: imageUrl,
+        category: data.category,
       };
       
       updateTileMutation.mutate(updateData, {
@@ -183,6 +190,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       price_per_box: tile.price_per_box || undefined,
       pieces_per_box: tile.pieces_per_box || undefined,
       image_url: tile.image_url || "",
+      category: tile.category || "",
     });
     
     // Reset image states when opening edit dialog
@@ -250,7 +258,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               className="bg-green-600 hover:bg-green-700 text-white gap-2"
             >
               <DollarSign className="h-4 w-4" />
-              Change Price
+              Bulk Price Update
             </Button>
           )}
           
@@ -395,9 +403,33 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                        </FormItem>
                      )}
                    />
-                </div>
+                 </div>
 
-                {/* Image Section */}
+                 {/* Category Field */}
+                 <FormField
+                   control={form.control}
+                   name="category"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Category</FormLabel>
+                       <FormControl>
+                         <Input 
+                           {...field} 
+                           placeholder="e.g., Bathroom, Kitchen, Living Room" 
+                           list="categories-list"
+                         />
+                       </FormControl>
+                       <datalist id="categories-list">
+                         {categories.map((category) => (
+                           <option key={category} value={category} />
+                         ))}
+                       </datalist>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
+
+                 {/* Image Section */}
                 <div className="space-y-3">
                   <FormLabel>Tile Image</FormLabel>
                   <div className="grid grid-cols-2 gap-4">
@@ -482,11 +514,10 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         </div>
       </div>
 
-      {/* Bulk Price Update Dialog */}
-      <BulkPriceUpdateDialog
+      {/* Category Bulk Price Update Dialog */}
+      <CategoryBulkPriceUpdateDialog
         isOpen={isPriceUpdateDialogOpen}
         onClose={() => setIsPriceUpdateDialogOpen(false)}
-        tileName={searchTerm}
       />
       
       <Card>
@@ -499,6 +530,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Price Info</TableHead>
                 <TableHead>QR Code</TableHead>
@@ -516,6 +548,13 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{tile.name}</TableCell>
+                    <TableCell>
+                      {tile.category && (
+                        <Badge variant="outline" className="text-xs">
+                          {tile.category}
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm text-gray-600">
                         <Ruler className="h-3 w-3" />
@@ -770,9 +809,33 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                      </FormItem>
                    )}
                  />
-              </div>
+               </div>
 
-              {/* Image Section */}
+               {/* Category Field */}
+               <FormField
+                 control={form.control}
+                 name="category"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Category</FormLabel>
+                     <FormControl>
+                       <Input 
+                         {...field} 
+                         placeholder="e.g., Bathroom, Kitchen, Living Room" 
+                         list="categories-list-edit"
+                       />
+                     </FormControl>
+                     <datalist id="categories-list-edit">
+                       {categories.map((category) => (
+                         <option key={category} value={category} />
+                       ))}
+                     </datalist>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
+
+               {/* Image Section */}
               <div className="space-y-3">
                 <FormLabel>Tile Image</FormLabel>
                 <div className="grid grid-cols-2 gap-4">
