@@ -370,10 +370,10 @@ const handler = async (req: Request): Promise<Response> => {
       .from('quotation_items')
       .select(`
         *,
-        rooms:room_id (
+        rooms!quotation_items_room_id_fkey (
           id, name, length, width, wall_length, wall_height, room_type, unit
         ),
-        tiles:tile_id (
+        tiles!quotation_items_tile_id_fkey (
           id, name, code, size_length, size_breadth, price_per_box, pieces_per_box
         )
       `)
@@ -418,17 +418,60 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate HTML
     const html = generateHTML(quotation, quotationItems || [], calculations);
 
-    // For now, return the HTML as a simple text response
-    // In production, you would use a service like htmlcsstoimage.com or similar
-    console.log('Returning HTML for quotation:', quotation.quotation_number);
-
-    return new Response(html, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/html',
-        ...corsHeaders,
-      },
+    // Use Puppeteer to generate PDF
+    const puppeteer = await import('https://deno.land/x/puppeteer@16.2.0/mod.ts');
+    
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process'
+      ]
     });
+
+    try {
+      const page = await browser.newPage();
+      
+      await page.setContent(html, {
+        waitUntil: 'networkidle0',
+        timeout: 30000
+      });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20mm',
+          right: '15mm',
+          bottom: '20mm',
+          left: '15mm'
+        },
+        preferCSSPageSize: true
+      });
+
+      await browser.close();
+
+      console.log('PDF generated successfully for quotation:', quotation.quotation_number);
+
+      return new Response(pdfBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="Quotation_${quotation.quotation_number}.pdf"`,
+          ...corsHeaders,
+        },
+      });
+
+    } catch (pdfError) {
+      console.error('PDF generation error:', pdfError);
+      await browser.close();
+      throw pdfError;
+    }
 
   } catch (error: any) {
     console.error('Error in generate-quotation-pdf function:', error);

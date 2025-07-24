@@ -16,7 +16,7 @@ import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useExcelExport } from "@/hooks/useExcelExport";
-import { useTilesPDFGeneration } from "@/hooks/useTilesPDFGeneration";
+import { useServerPDFGeneration } from "@/hooks/useUnifiedPDFGeneration";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -59,7 +59,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const deleteTileMutation = useDeleteTile();
   const generateQRMutation = useGenerateQRForTile();
   const { uploadImage, isUploading } = useImageUpload();
-  const { generateTilesPDF } = useTilesPDFGeneration();
+  const { generateTilesPDF, isGenerating: isPDFGenerating } = useServerPDFGeneration();
   const { exportTilesToExcel } = useExcelExport();
 
   const form = useForm<TileFormData>({
@@ -348,10 +348,11 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
             <DropdownMenuContent align="end" className="w-48 bg-white border shadow-lg">
               <DropdownMenuItem 
                 onClick={handleDownloadTilesPDF}
+                disabled={isPDFGenerating}
                 className="gap-2 cursor-pointer hover:bg-gray-50"
               >
                 <Download className="h-4 w-4" />
-                Download as PDF
+                {isPDFGenerating ? 'Generating PDF...' : 'Download as PDF'}
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={handleDownloadTilesExcel}
