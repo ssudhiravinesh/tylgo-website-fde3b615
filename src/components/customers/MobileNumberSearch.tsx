@@ -63,7 +63,7 @@ export const MobileNumberSearch = ({
   };
 
   const handleCustomerClick = (customer: Customer) => {
-    console.log('Customer clicked:', customer);
+    
     onChange(customer.mobile);
     setIsOpen(false);
     setSelectedIndex(-1);

@@ -113,11 +113,11 @@ export const QuotationForm = ({
         items: quotationItems,
       };
 
-      console.log('Creating quotation with data:', quotationData);
+      
       await createQuotationMutation.mutateAsync(quotationData);
       onSuccess();
     } catch (error) {
-      console.error('Error creating quotation:', error);
+      
       toast.error('Failed to create quotation');
     } finally {
       setIsSubmitting(false);

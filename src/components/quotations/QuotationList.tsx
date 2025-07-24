@@ -112,26 +112,26 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   };
 
   const handleDelete = (quotationId: string) => {
-    console.log('Setting up delete for quotation:', quotationId);
+    
     setSelectedQuotationForAction(quotationId);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
     if (selectedQuotationForAction) {
-      console.log('Confirming delete for quotation:', selectedQuotationForAction);
+      
       
       try {
         await deleteQuotation(selectedQuotationForAction);
-        console.log('Delete successful, closing dialogs...');
+        
         setDeleteDialogOpen(false);
         setSelectedQuotationForAction(null);
       } catch (error) {
-        console.error('Delete failed:', error);
+        
         // Dialog will stay open to show the error and allow retry
       }
     } else {
-      console.error('No quotation selected for deletion');
+      
     }
   };
 

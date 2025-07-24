@@ -24,7 +24,7 @@ export const useEmailSending = () => {
       toast.success(`Quotation sent successfully to ${recipientEmail}`);
       return data;
     } catch (error: any) {
-      console.error('Error sending email:', error);
+      
       toast.error(error.message || 'Failed to send email. Please try again.');
       throw error;
     } finally {

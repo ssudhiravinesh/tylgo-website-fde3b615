@@ -44,25 +44,24 @@ export const useCustomers = () => {
   } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
-      console.log('Fetching customers...');
+      
       const { data, error } = await supabase
         .from('customers')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching customers:', error);
+        
         throw error;
       }
 
-      console.log('Customers fetched:', data?.length || 0);
+      
       return data as Customer[];
     },
   });
 
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: CreateCustomerData) => {
-      console.log('Creating customer:', customerData);
       
       // Get current user ID
       const { data: { user } } = await supabase.auth.getUser();
@@ -83,11 +82,9 @@ export const useCustomers = () => {
         .single();
 
       if (error) {
-        console.error('Error creating customer:', error);
         throw error;
       }
 
-      console.log('Customer created:', data);
       return data as Customer;
     },
     onSuccess: (data) => {
@@ -95,14 +92,13 @@ export const useCustomers = () => {
       toast.success(`Customer "${data.name}" created successfully!`);
     },
     onError: (error: any) => {
-      console.error('Customer creation failed:', error);
       toast.error(error.message || 'Failed to create customer');
     },
   });
 
   const updateCustomerMutation = useMutation({
     mutationFn: async ({ id, ...customerData }: Partial<Customer> & { id: string }) => {
-      console.log('Updating customer:', id, customerData);
+      
       const { data, error } = await supabase
         .from('customers')
         .update(customerData)
@@ -111,11 +107,11 @@ export const useCustomers = () => {
         .single();
 
       if (error) {
-        console.error('Error updating customer:', error);
+        
         throw error;
       }
 
-      console.log('Customer updated:', data);
+      
       return data as Customer;
     },
     onSuccess: (data) => {
@@ -123,25 +119,25 @@ export const useCustomers = () => {
       toast.success(`Customer "${data.name}" updated successfully!`);
     },
     onError: (error: any) => {
-      console.error('Customer update failed:', error);
+      
       toast.error(error.message || 'Failed to update customer');
     },
   });
 
   const deleteCustomerMutation = useMutation({
     mutationFn: async (id: string) => {
-      console.log('Deleting customer:', id);
+      
       const { error } = await supabase
         .from('customers')
         .delete()
         .eq('id', id);
 
       if (error) {
-        console.error('Error deleting customer:', error);
+        
         throw error;
       }
 
-      console.log('Customer deleted:', id);
+      
       return id;
     },
     onSuccess: () => {
@@ -149,7 +145,7 @@ export const useCustomers = () => {
       toast.success('Customer deleted successfully!');
     },
     onError: (error: any) => {
-      console.error('Customer deletion failed:', error);
+      
       toast.error(error.message || 'Failed to delete customer');
     },
   });
@@ -176,7 +172,7 @@ export const useCreateCustomer = () => {
   
   return useMutation({
     mutationFn: async (customerData: CreateCustomerData) => {
-      console.log('Creating customer:', customerData);
+      
       
       // Get current user ID
       const { data: { user } } = await supabase.auth.getUser();
@@ -197,11 +193,11 @@ export const useCreateCustomer = () => {
         .single();
 
       if (error) {
-        console.error('Error creating customer:', error);
+        
         throw error;
       }
 
-      console.log('Customer created:', data);
+      
       return data as Customer;
     },
     onSuccess: (data) => {
@@ -214,7 +210,7 @@ export const useCreateCustomer = () => {
       toast.success(`Customer "${data.name}" created successfully!`);
     },
     onError: (error: any) => {
-      console.error('Customer creation failed:', error);
+      
       toast.error(error.message || 'Failed to create customer');
     },
   });

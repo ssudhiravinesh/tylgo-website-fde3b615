@@ -23,7 +23,7 @@ export const useSessionTest = () => {
 
       if (error) {
         toast.error('Failed to check session status');
-        console.error('Session check error:', error);
+        
         return;
       }
 
@@ -31,16 +31,6 @@ export const useSessionTest = () => {
       const localUserId = localStorage.getItem('app_session_user_id');
       const activeSession = sessions?.[0];
 
-      console.log('=== SESSION ENFORCEMENT TEST ===');
-      console.log('User ID:', user.id);
-      console.log('Local storage token:', localToken?.substring(0, 20) + '...');
-      console.log('Local storage user ID:', localUserId);
-      console.log('Database session token:', activeSession?.session_token?.substring(0, 20) + '...');
-      console.log('Session expires at:', activeSession?.expires_at);
-      console.log('Last activity:', activeSession?.last_activity);
-      console.log('Tokens match:', localToken === activeSession?.session_token);
-      console.log('Session valid:', activeSession?.expires_at && new Date(activeSession.expires_at) > new Date());
-      console.log('=== END TEST ===');
 
       if (localToken === activeSession?.session_token) {
         toast.success('Session tokens match - single session enforced');
@@ -48,7 +38,7 @@ export const useSessionTest = () => {
         toast.error('Session token mismatch - this session should be invalid');
       }
     } catch (error) {
-      console.error('Session test error:', error);
+      
       toast.error('Session test failed');
     }
   }, []);
@@ -75,14 +65,13 @@ export const useSessionTest = () => {
 
       if (error) {
         toast.error('Failed to simulate second device login');
-        console.error('Simulation error:', error);
         return;
       }
 
       toast.info('Simulated second device login - your current session should be invalidated soon');
-      console.log('Simulated second device login with token:', newToken.substring(0, 20) + '...');
+      
     } catch (error) {
-      console.error('Simulation error:', error);
+      
       toast.error('Failed to simulate second device login');
     }
   }, []);

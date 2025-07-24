@@ -18,22 +18,22 @@ export const QuotationActionButtons = ({
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Delete button clicked');
+    
     if (onDelete) {
       onDelete();
     } else {
-      console.error('onDelete function not provided');
+      
     }
   };
 
   const handleEdit = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Edit button clicked');
+    
     if (onEdit) {
       onEdit();
     } else {
-      console.error('onEdit function not provided');
+      
     }
   };
 

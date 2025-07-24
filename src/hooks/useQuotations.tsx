@@ -84,7 +84,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
   } = useQuery({
     queryKey: ['quotations', filters],
     queryFn: async () => {
-      console.log('Fetching quotations with filters:', filters);
+      
       
       try {
         // Get current user to determine filtering
@@ -124,10 +124,10 @@ export const useQuotations = (filters?: QuotationFilters) => {
 
         // Filter by worker_id if user is a worker (not admin)
         if (profile?.role === 'worker') {
-          console.log('Filtering quotations for worker:', user.id);
+          
           baseQuery = baseQuery.eq('worker_id', user.id);
         } else {
-          console.log('Admin user - showing all quotations');
+          
         }
 
         // Apply date filters
@@ -203,12 +203,12 @@ export const useQuotations = (filters?: QuotationFilters) => {
         const { data: quotationsData, error: quotationError } = await baseQuery;
 
         if (quotationError) {
-          console.error('Error fetching quotations:', quotationError);
+          
           throw quotationError;
         }
 
         if (!quotationsData || quotationsData.length === 0) {
-          console.log('No quotations found');
+          
           return [];
         }
 
@@ -238,7 +238,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .in('quotation_id', quotationIds);
 
         if (itemsError) {
-          console.error('Error fetching quotation items:', itemsError);
+          
           // Don't throw error for items, just log and continue with quotations without items
         }
 
@@ -248,10 +248,10 @@ export const useQuotations = (filters?: QuotationFilters) => {
           quotation_items: itemsData?.filter(item => item.quotation_id === quotation.id) || []
         }));
 
-        console.log('Quotations fetched:', quotationsWithItems.length);
+        
         return quotationsWithItems as Quotation[];
       } catch (error) {
-        console.error('Error in quotations query:', error);
+        
         throw error;
       }
     },
@@ -261,7 +261,6 @@ export const useQuotations = (filters?: QuotationFilters) => {
 
   const createQuotationMutation = useMutation({
     mutationFn: async (quotationData: CreateQuotationData) => {
-      console.log('Creating quotation with items:', quotationData);
       
       const { items, ...quotationFields } = quotationData;
       
@@ -273,11 +272,10 @@ export const useQuotations = (filters?: QuotationFilters) => {
         .single();
 
       if (quotationError) {
-        console.error('Error creating quotation:', quotationError);
         throw quotationError;
       }
 
-      console.log('Quotation created:', quotation);
+      
 
       // Then, create the quotation items
       if (items && items.length > 0) {
@@ -310,13 +308,12 @@ export const useQuotations = (filters?: QuotationFilters) => {
           `);
 
         if (itemsError) {
-          console.error('Error creating quotation items:', itemsError);
           // If items creation fails, we should delete the quotation to maintain consistency
           await supabase.from('quotations').delete().eq('id', quotation.id);
           throw itemsError;
         }
 
-        console.log('Quotation items created:', createdItems);
+        
       }
 
       // Fetch the complete quotation with items
@@ -366,11 +363,10 @@ export const useQuotations = (filters?: QuotationFilters) => {
         .single();
 
       if (fetchError) {
-        console.error('Error fetching complete quotation:', fetchError);
         throw fetchError;
       }
 
-      console.log('Complete quotation with items:', completeQuotation);
+      
       return completeQuotation as Quotation;
     },
     onSuccess: (data) => {
@@ -383,14 +379,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
       toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
     },
     onError: (error: any) => {
-      console.error('Quotation creation failed:', error);
       toast.error(error.message || 'Failed to create quotation');
     },
   });
 
   const updateQuotationMutation = useMutation({
     mutationFn: async ({ id, items, ...quotationData }: Partial<Quotation> & { id: string; items?: Omit<QuotationItem, 'quotation_id'>[] }) => {
-      console.log('Updating quotation:', id, quotationData);
+      
       
       // Store the previous status to check for changes
       const { data: previousQuotation } = await supabase
@@ -408,7 +403,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
         .single();
 
       if (quotationError) {
-        console.error('Error updating quotation:', quotationError);
+        
         throw quotationError;
       }
 
@@ -432,7 +427,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
             .insert(quotationItems);
 
           if (itemsError) {
-            console.error('Error updating quotation items:', itemsError);
+            
             throw itemsError;
           }
         }
@@ -484,11 +479,11 @@ export const useQuotations = (filters?: QuotationFilters) => {
         .single();
 
       if (fetchError) {
-        console.error('Error fetching updated quotation:', fetchError);
+        
         throw fetchError;
       }
 
-      console.log('Quotation updated:', completeQuotation);
+      
       return { quotation: completeQuotation as Quotation, previousStatus: previousQuotation?.status };
     },
     onSuccess: (data) => {
@@ -503,14 +498,14 @@ export const useQuotations = (filters?: QuotationFilters) => {
       toast.success(`Quotation "${data.quotation.quotation_number}" updated successfully!`);
     },
     onError: (error: any) => {
-      console.error('Quotation update failed:', error);
+      
       toast.error(error.message || 'Failed to update quotation');
     },
   });
 
   const deleteQuotationMutation = useMutation({
     mutationFn: async (id: string) => {
-      console.log('Deleting quotation:', id);
+      
       
       // Delete quotation items first (due to foreign key constraint)
       await supabase
@@ -525,11 +520,11 @@ export const useQuotations = (filters?: QuotationFilters) => {
         .eq('id', id);
 
       if (error) {
-        console.error('Error deleting quotation:', error);
+        
         throw error;
       }
 
-      console.log('Quotation deleted:', id);
+      
       return id;
     },
     onSuccess: () => {
@@ -537,7 +532,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
       toast.success('Quotation deleted successfully!');
     },
     onError: (error: any) => {
-      console.error('Quotation deletion failed:', error);
+      
       toast.error(error.message || 'Failed to delete quotation');
     },
   });
@@ -563,7 +558,7 @@ export const useCreateQuotation = () => {
   
   return useMutation({
     mutationFn: async (quotationData: CreateQuotationData) => {
-      console.log('Creating quotation with items:', quotationData);
+      
       
       const { items, ...quotationFields } = quotationData;
       
@@ -575,7 +570,7 @@ export const useCreateQuotation = () => {
         .single();
 
       if (quotationError) {
-        console.error('Error creating quotation:', quotationError);
+        
         throw quotationError;
       }
 
@@ -591,7 +586,7 @@ export const useCreateQuotation = () => {
           .insert(quotationItems);
 
         if (itemsError) {
-          console.error('Error creating quotation items:', itemsError);
+          
           // Clean up: delete the quotation if items creation fails
           await supabase.from('quotations').delete().eq('id', quotation.id);
           throw itemsError;
@@ -644,7 +639,7 @@ export const useCreateQuotation = () => {
         .single();
 
       if (fetchError) {
-        console.error('Error fetching complete quotation:', fetchError);
+        
         throw fetchError;
       }
 
@@ -655,7 +650,7 @@ export const useCreateQuotation = () => {
       toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
     },
     onError: (error: any) => {
-      console.error('Quotation creation failed:', error);
+      
       toast.error(error.message || 'Failed to create quotation');
     },
   });
@@ -692,7 +687,7 @@ export const useQuotationItems = (quotationId?: string) => {
         .eq('quotation_id', quotationId);
 
       if (error) {
-        console.error('Error fetching quotation items:', error);
+        
         throw error;
       }
 
