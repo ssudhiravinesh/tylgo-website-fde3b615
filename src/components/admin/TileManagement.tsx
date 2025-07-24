@@ -16,7 +16,7 @@ import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useExcelExport } from "@/hooks/useExcelExport";
-import { useServerPDFGeneration } from "@/hooks/useUnifiedPDFGeneration";
+import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
