@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
+import { renderToStaticMarkup } from 'react-dom/server';
+import QuotationPdfTemplate from '@/pdf-templates/QuotationPdfTemplate';
 
 interface TileData {
   id: string;
@@ -17,32 +19,36 @@ interface TileData {
 export const useServerPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const supabaseUrl = 'https://onucizagpgwdpcakskat.supabase.co';
+  const buildHtml = (quotation: Quotation) => {
+    const html = renderToStaticMarkup(<QuotationPdfTemplate data={quotation} />);
+    return `<!DOCTYPE html><html lang="en">${html}</html>`;
+  };
+  const generateQuotationPDF = useCallback(
+    async (quotation: Quotation) => {
+      setIsGenerating(true);
+      try {
+        const html = buildHtml(quotation);
 
-  const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
-    setIsGenerating(true);
-    try {
-      console.log('Starting server-side PDF generation for quotation:', quotation.quotation_number);
+        const { data: session } = await supabase.auth.getSession();
+        const response = await fetch(
+          `${supabaseUrl}/functions/v1/generate-quotation-pdf`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.session?.access_token || ''}`,
+            },
+            body: JSON.stringify({
+              html,                          // <-- NEW
+              quotation_number: quotation.quotation_number,
+            }),
+          },
+        );
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/generate-quotation-pdf`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
-        body: JSON.stringify({ quotation }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = `Failed to generate PDF (${response.status})`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
+        if (!response.ok) {
+          const { error } = await response.json();
+          throw new Error(error || `HTTP ${response.status}`);
         }
-        throw new Error(errorMessage);
-      }
-
       // Check if server-side PDF generation failed and returned HTML instead
       const contentType = response.headers.get('content-type');
       const pdfGenerationFailed = response.headers.get('X-PDF-Generation-Failed');
@@ -79,26 +85,26 @@ export const useServerPDFGeneration = () => {
       }
 
       // Handle PDF blob response
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Quotation_${quotation.quotation_number}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+ const fileBlob = await response.blob();
+        const url = URL.createObjectURL(fileBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Quotation_${quotation.quotation_number}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
 
-      toast.success('PDF generated and downloaded successfully!');
-      console.log('Server-side PDF generation completed successfully');
-
-    } catch (error: any) {
-      console.error('PDF generation failed:', error);
-      toast.error(error.message || 'Failed to generate PDF. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [supabaseUrl]);
+        toast.success('PDF generated and downloaded successfully!');
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err.message || 'Failed to generate PDF.');
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [supabaseUrl],
+  );
 
   const generateTilesPDF = useCallback(async (tiles: TileData[]) => {
     setIsGenerating(true);
@@ -194,5 +200,5 @@ export const useServerPDFGeneration = () => {
     }
   }, [supabaseUrl]);
 
-  return { generateQuotationPDF, generateTilesPDF, isGenerating };
+   return { generateQuotationPDF, generateTilesPDF: undefined, isGenerating };
 };
