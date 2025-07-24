@@ -27,7 +27,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const sessionManagement = useStrictSessionManagement();
+
+  const signOut = async () => {
+    try {
+      console.log('Signing out user');
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        // Handle specific case where session is already invalid
+        if (error.message?.includes('session') && error.message?.includes('missing')) {
+          console.log('Session already invalidated, clearing local state');
+          setUser(null);
+          setProfile(null);
+          return;
+        }
+        throw error;
+      }
+      setUser(null);
+      setProfile(null);
+      toast.success('Signed out successfully!');
+    } catch (error: any) {
+      console.error('Sign out error:', error);
+      // Don't show error toast for already invalidated sessions
+      if (!error.message?.includes('session') || !error.message?.includes('missing')) {
+        toast.error(error.message || 'Error signing out');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Use session management - now signOut is defined
+  const sessionManagement = useStrictSessionManagement(user, signOut);
 
   useEffect(() => {
     console.log('AuthProvider: Initializing auth state');
@@ -191,34 +222,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signOut = async () => {
-    try {
-      console.log('Signing out user');
-      setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        // Handle specific case where session is already invalid
-        if (error.message?.includes('session') && error.message?.includes('missing')) {
-          console.log('Session already invalidated, clearing local state');
-          setUser(null);
-          setProfile(null);
-          return;
-        }
-        throw error;
-      }
-      setUser(null);
-      setProfile(null);
-      toast.success('Signed out successfully!');
-    } catch (error: any) {
-      console.error('Sign out error:', error);
-      // Don't show error toast for already invalidated sessions
-      if (!error.message?.includes('session') || !error.message?.includes('missing')) {
-        toast.error(error.message || 'Error signing out');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const contextValue: AuthContextType = {
     user,

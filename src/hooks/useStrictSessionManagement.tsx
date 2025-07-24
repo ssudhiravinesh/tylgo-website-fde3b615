@@ -1,14 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useAuth } from './useAuth';
 import { singleSessionService } from '@/services/singleSessionService';
 import { toast } from 'sonner';
 
 /**
  * Enhanced Strict Session Management Hook
  * Implements single-session login with immediate invalidation
+ * Note: Does not use useAuth to avoid circular dependency
  */
-export const useStrictSessionManagement = () => {
-  const { user, signOut } = useAuth();
+export const useStrictSessionManagement = (user: any, signOut: () => void) => {
   const validationIntervalRef = useRef<NodeJS.Timeout>();
   const idleCheckIntervalRef = useRef<NodeJS.Timeout>();
   const lastActivityRef = useRef<number>(Date.now());
