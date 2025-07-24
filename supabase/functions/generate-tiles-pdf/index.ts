@@ -231,60 +231,83 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate HTML
     const html = generateTilesHTML(tiles);
 
-    // Use Puppeteer to generate PDF
-    const puppeteer = await import('https://deno.land/x/puppeteer@16.2.0/mod.ts');
-    
-    const browser = await puppeteer.default.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process'
-      ]
-    });
-
+    // Try using Puppeteer with proper serverless configuration
     try {
-      const page = await browser.newPage();
+      const puppeteer = await import('https://deno.land/x/puppeteer@16.2.0/mod.ts');
       
-      await page.setContent(html, {
-        waitUntil: 'networkidle0',
-        timeout: 30000
+      const browser = await puppeteer.default.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--user-data-dir=/tmp/chrome-user-data',
+          '--data-path=/tmp/chrome-data',
+          '--disk-cache-dir=/tmp/chrome-cache'
+        ]
       });
 
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '20mm',
-          right: '15mm',
-          bottom: '20mm',
-          left: '15mm'
-        },
-        preferCSSPageSize: true
-      });
+      try {
+        const page = await browser.newPage();
+        
+        await page.setContent(html, {
+          waitUntil: 'networkidle0',
+          timeout: 30000
+        });
 
-      await browser.close();
+        const pdfBuffer = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: {
+            top: '20mm',
+            right: '15mm',
+            bottom: '20mm',
+            left: '15mm'
+          },
+          preferCSSPageSize: true
+        });
 
-      console.log('PDF generated successfully for tiles inventory');
+        await browser.close();
 
+        console.log('PDF generated successfully for tiles inventory');
+
+        const timestamp = new Date().toISOString().slice(0, 10);
+        return new Response(pdfBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="Tiles-Inventory-${timestamp}.pdf"`,
+            ...corsHeaders,
+          },
+        });
+
+      } catch (pdfError) {
+        console.error('PDF generation error:', pdfError);
+        await browser.close();
+        throw pdfError;
+      }
+
+    } catch (puppeteerError) {
+      console.error('Puppeteer initialization failed:', puppeteerError);
+      
+      // If Puppeteer fails, return the HTML content instead and let client handle it
       const timestamp = new Date().toISOString().slice(0, 10);
-      return new Response(pdfBuffer, {
+      return new Response(html, {
         status: 200,
         headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="Tiles-Inventory-${timestamp}.pdf"`,
+          'Content-Type': 'text/html',
+          'X-PDF-Generation-Failed': 'true',
+          'X-Filename': `Tiles-Inventory-${timestamp}.pdf`,
           ...corsHeaders,
         },
       });
-
-    } catch (pdfError) {
-      console.error('PDF generation error:', pdfError);
-      await browser.close();
-      throw pdfError;
     }
 
   } catch (error: any) {

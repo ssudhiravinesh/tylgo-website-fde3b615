@@ -43,6 +43,41 @@ export const useServerPDFGeneration = () => {
         throw new Error(errorMessage);
       }
 
+      // Check if server-side PDF generation failed and returned HTML instead
+      const contentType = response.headers.get('content-type');
+      const pdfGenerationFailed = response.headers.get('X-PDF-Generation-Failed');
+      
+      if (pdfGenerationFailed && contentType?.includes('text/html')) {
+        console.log('Server-side PDF generation failed, falling back to client-side generation');
+        const html = await response.text();
+        
+        // Import jsPDF for client-side fallback
+        const { jsPDF } = await import('jspdf');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        // Create a simple text-based PDF as fallback
+        pdf.setFontSize(16);
+        pdf.text(`Quotation ${quotation.quotation_number}`, 20, 20);
+        pdf.setFontSize(12);
+        pdf.text(`Customer: ${quotation.customer.name}`, 20, 35);
+        pdf.text(`Mobile: ${quotation.customer.mobile}`, 20, 45);
+        pdf.text(`Total: ₹${quotation.total_cost.toLocaleString('en-IN')}`, 20, 55);
+        pdf.text('Generated using client-side fallback', 20, 270);
+        
+        const pdfBlob = pdf.output('blob');
+        const url = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Quotation_${quotation.quotation_number}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('PDF generated using client-side fallback');
+        return;
+      }
+
       // Handle PDF blob response
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -88,6 +123,52 @@ export const useServerPDFGeneration = () => {
           errorMessage = response.statusText || errorMessage;
         }
         throw new Error(errorMessage);
+      }
+
+      // Check if server-side PDF generation failed and returned HTML instead
+      const contentType = response.headers.get('content-type');
+      const pdfGenerationFailed = response.headers.get('X-PDF-Generation-Failed');
+      const filename = response.headers.get('X-Filename');
+      
+      if (pdfGenerationFailed && contentType?.includes('text/html')) {
+        console.log('Server-side tiles PDF generation failed, falling back to client-side generation');
+        
+        // Import jsPDF for client-side fallback
+        const { jsPDF } = await import('jspdf');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        // Create a simple text-based PDF as fallback
+        pdf.setFontSize(16);
+        pdf.text('Tiles Inventory Report', 20, 20);
+        pdf.setFontSize(12);
+        pdf.text(`Total Tiles: ${tiles.length}`, 20, 35);
+        
+        // Add tiles data in simple format
+        let yPosition = 50;
+        tiles.slice(0, 20).forEach((tile, index) => { // Limit to first 20 tiles
+          if (yPosition > 270) return; // Avoid overflow
+          pdf.text(`${index + 1}. ${tile.name} (${tile.code})`, 20, yPosition);
+          yPosition += 10;
+        });
+        
+        if (tiles.length > 20) {
+          pdf.text(`... and ${tiles.length - 20} more tiles`, 20, yPosition);
+        }
+        
+        pdf.text('Generated using client-side fallback', 20, 280);
+        
+        const pdfBlob = pdf.output('blob');
+        const url = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename || `Tiles-Inventory-${new Date().toISOString().slice(0, 10)}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('Tiles PDF generated using client-side fallback');
+        return;
       }
 
       // Handle PDF blob response
