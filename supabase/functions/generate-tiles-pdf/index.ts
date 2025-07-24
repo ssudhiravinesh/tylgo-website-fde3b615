@@ -217,13 +217,24 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Validate authentication first
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Missing or invalid Authorization header');
+      return new Response('Unauthorized - Missing or invalid Authorization header', {
+        status: 401,
+        headers: { 'Content-Type': 'text/plain', ...corsHeaders }
+      });
+    }
+
     const { tiles } = await req.json();
     
     if (!tiles || !Array.isArray(tiles)) {
-      return new Response(
-        JSON.stringify({ error: 'Tiles data is required and must be an array' }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      );
+      console.error('Missing or invalid tiles data in request body');
+      return new Response('Bad Request - Tiles data is required and must be an array', {
+        status: 400,
+        headers: { 'Content-Type': 'text/plain', ...corsHeaders }
+      });
     }
 
     console.log('Processing tiles PDF generation for', tiles.length, 'tiles');
@@ -311,14 +322,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
   } catch (error: any) {
-    console.error('Error in generate-tiles-pdf function:', error);
+    console.error('❌ Error in generate-tiles-pdf function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Failed to generate tiles PDF. Please try again.' 
-      }),
+      `Internal Server Error - ${error.message || 'Failed to generate tiles PDF. Please try again.'}`,
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: { 'Content-Type': 'text/plain', ...corsHeaders },
       }
     );
   }

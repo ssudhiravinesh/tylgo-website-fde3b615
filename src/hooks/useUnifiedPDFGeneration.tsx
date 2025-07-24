@@ -388,8 +388,9 @@ export const useUnifiedPDFGeneration = () => {
         const serverContentType = res.headers.get('content-type') || '';
         if (!serverContentType.includes('application/pdf')) {
           const responseText = await res.text();
-          console.error('Unexpected response content-type:', serverContentType);
-          console.error('Response body:', responseText);
+          console.error('❌ Not a PDF response. Content-Type:', serverContentType);
+          console.error('📄 Response body:', responseText);
+          toast.error('Server returned an error instead of a PDF.');
           throw new Error('Downloaded content is not a PDF - server may have returned an error page');
         }
         
@@ -511,8 +512,9 @@ export const useUnifiedPDFGeneration = () => {
         const serverContentType = res.headers.get('content-type') || '';
         if (!serverContentType.includes('application/pdf')) {
           const responseText = await res.text();
-          console.error('Unexpected response content-type:', serverContentType);
-          console.error('Response body:', responseText);
+          console.error('❌ Not a PDF response. Content-Type:', serverContentType);
+          console.error('📄 Response body:', responseText);
+          toast.error('Server returned an error instead of a PDF.');
           throw new Error('Downloaded content is not a PDF - server may have returned an error page');
         }
         

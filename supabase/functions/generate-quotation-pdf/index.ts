@@ -349,13 +349,24 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Validate authentication first
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Missing or invalid Authorization header');
+      return new Response('Unauthorized - Missing or invalid Authorization header', {
+        status: 401,
+        headers: { 'Content-Type': 'text/plain', ...corsHeaders }
+      });
+    }
+
     const { quotation } = await req.json();
     
     if (!quotation) {
-      return new Response(
-        JSON.stringify({ error: 'Quotation data is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      );
+      console.error('Missing quotation data in request body');
+      return new Response('Bad Request - Quotation data is required', {
+        status: 400,
+        headers: { 'Content-Type': 'text/plain', ...corsHeaders }
+      });
     }
 
     console.log('Processing PDF generation for quotation:', quotation.quotation_number);
@@ -381,7 +392,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (itemsError) {
       console.error('Error fetching quotation items:', itemsError);
-      throw new Error('Failed to fetch quotation items');
+      return new Response('Database Error - Failed to fetch quotation items', {
+        status: 500,
+        headers: { 'Content-Type': 'text/plain', ...corsHeaders }
+      });
     }
 
     // Process calculations
@@ -495,14 +509,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
   } catch (error: any) {
-    console.error('Error in generate-quotation-pdf function:', error);
+    console.error('❌ Error in generate-quotation-pdf function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Failed to generate PDF. Please try again.' 
-      }),
+      `Internal Server Error - ${error.message || 'Failed to generate PDF. Please try again.'}`,
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: { 'Content-Type': 'text/plain', ...corsHeaders },
       }
     );
   }
