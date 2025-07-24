@@ -63,9 +63,22 @@ export const useCustomers = () => {
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: CreateCustomerData) => {
       console.log('Creating customer:', customerData);
+      
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Add attended_by field to the customer data
+      const customerWithAttendee = {
+        ...customerData,
+        attended_by: user.id
+      };
+      
       const { data, error } = await supabase
         .from('customers')
-        .insert([customerData])
+        .insert([customerWithAttendee])
         .select()
         .single();
 
@@ -164,9 +177,22 @@ export const useCreateCustomer = () => {
   return useMutation({
     mutationFn: async (customerData: CreateCustomerData) => {
       console.log('Creating customer:', customerData);
+      
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Add attended_by field to the customer data
+      const customerWithAttendee = {
+        ...customerData,
+        attended_by: user.id
+      };
+      
       const { data, error } = await supabase
         .from('customers')
-        .insert([customerData])
+        .insert([customerWithAttendee])
         .select()
         .single();
 
