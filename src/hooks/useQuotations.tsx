@@ -335,7 +335,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
             name,
             email
           ),
-          quotation_items (
+          quotation_items!quotation_items_quotation_id_fkey (
             id,
             tile_id,
             room_id,
@@ -454,7 +454,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
             name,
             email
           ),
-          quotation_items (
+          quotation_items!quotation_items_quotation_id_fkey (
             id,
             tile_id,
             room_id,
@@ -614,7 +614,7 @@ export const useCreateQuotation = () => {
             name,
             email
           ),
-          quotation_items (
+          quotation_items!quotation_items_quotation_id_fkey (
             id,
             tile_id,
             room_id,

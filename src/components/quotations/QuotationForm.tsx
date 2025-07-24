@@ -56,9 +56,9 @@ export const QuotationForm = ({
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
     const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-    // Add a random 2-digit number for extra uniqueness
-    const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
-    return `QT${year}${month}${day}${hours}${minutes}${seconds}${random}`;
+    // Add a random 4-digit number for extra uniqueness
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `QT${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}${random}`;
   };
 
   const [quotationNumber] = useState(generateQuotationNumber());
