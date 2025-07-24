@@ -52,18 +52,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           toast.error('Error loading profile');
         }
+        console.log('Setting loading to false due to profile error');
         return false;
       } else if (data) {
-        console.log('Profile loaded:', data);
+        console.log('Profile loaded successfully:', data);
         setProfile(data);
+        console.log('Setting loading to false after successful profile load');
         return true;
       }
+      console.log('Setting loading to false - no data returned');
       return false;
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast.error('Error loading user profile');
+      console.log('Setting loading to false due to catch block');
       return false;
     } finally {
+      console.log('Finally block: Setting loading to false');
       setLoading(false);
     }
   };
@@ -245,6 +250,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       throw error;
     } finally {
+      console.log('SignIn finally block: Setting loading to false');
       setLoading(false);
     }
   };
