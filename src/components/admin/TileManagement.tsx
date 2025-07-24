@@ -171,13 +171,58 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     await generateQRMutation.mutateAsync(tileId);
   };
 
-  const handleDownloadQR = (qrUrl: string, tileCode: string) => {
-    const link = document.createElement('a');
-    link.href = qrUrl;
-    link.download = `${tileCode}-qr.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadQR = async (qrUrl: string, tileCode: string, tileName: string) => {
+    try {
+      // Create a canvas to combine QR code and tile name
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Set canvas size
+      const qrSize = 300;
+      const padding = 40;
+      const textHeight = 80;
+      canvas.width = qrSize + (padding * 2);
+      canvas.height = qrSize + textHeight + (padding * 2);
+
+      // Fill white background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Load and draw QR code
+      const qrImage = new Image();
+      qrImage.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        qrImage.onload = resolve;
+        qrImage.onerror = reject;
+        qrImage.src = qrUrl;
+      });
+
+      // Draw QR code
+      ctx.drawImage(qrImage, padding, padding, qrSize, qrSize);
+
+      // Add tile name text
+      ctx.fillStyle = 'black';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(tileName, canvas.width / 2, qrSize + padding + 25);
+      
+      // Add tile code text
+      ctx.font = '14px Arial';
+      ctx.fillText(`Code: ${tileCode}`, canvas.width / 2, qrSize + padding + 50);
+
+      // Download as PNG
+      const link = document.createElement('a');
+      link.download = `${tileCode}-qr-code.png`;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+    } catch (error) {
+      console.error('Error downloading QR code:', error);
+    }
   };
 
   const openEditDialog = (tile: any) => {
@@ -591,7 +636,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code)}
+                              onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code, tile.name)}
                               className="gap-1"
                             >
                               <Download className="h-3 w-3" />
