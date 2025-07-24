@@ -267,7 +267,7 @@ export const useUnifiedPDFGeneration = () => {
         const contentType = res.headers.get('content-type') || '';
 
         /* ---------- fall back to client-side jsPDF ---------- */
-        if (pdfFailed && contentType.includes('text/html')) {
+        if (pdfFailed || (!res.ok && !contentType.includes('application/pdf'))) {
           console.warn(
             'Server-side quotation PDF failed – using client fallback'
           );
@@ -432,7 +432,7 @@ export const useUnifiedPDFGeneration = () => {
         const pdfFailed = res.headers.get('X-PDF-Generation-Failed');
         const contentType = res.headers.get('content-type') || '';
 
-        if (pdfFailed && contentType.includes('text/html')) {
+        if (pdfFailed || (!res.ok && !contentType.includes('application/pdf'))) {
           console.warn('Server tiles PDF failed – using client fallback');
           const pdf = new jsPDF('p', 'mm', 'a4');
 
