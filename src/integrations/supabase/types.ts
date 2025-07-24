@@ -77,7 +77,6 @@ export type Database = {
           id: string
           name: string
           role: Database["public"]["Enums"]["user_role"]
-          session_token: string | null
           updated_at: string | null
         }
         Insert: {
@@ -86,7 +85,6 @@ export type Database = {
           id: string
           name: string
           role?: Database["public"]["Enums"]["user_role"]
-          session_token?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -95,7 +93,6 @@ export type Database = {
           id?: string
           name?: string
           role?: Database["public"]["Enums"]["user_role"]
-          session_token?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -391,17 +388,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_user_login: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      clear_user_session: {
-        Args: { user_id: string }
+      cleanup_expired_sessions: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
-      }
-      create_single_session: {
-        Args: { user_id: string; token: string }
-        Returns: boolean
       }
       create_user_session_v2: {
         Args: { user_id: string; token: string; expires_at: string }
