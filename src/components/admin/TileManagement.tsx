@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { CategoryBulkPriceUpdateDialog } from "@/components/tiles/CategoryBulkPr
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useImageUpload } from "@/hooks/useImageUpload";
+import { useTilesPDFGeneration } from "@/hooks/useTilesPDFGeneration";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -55,6 +57,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const deleteTileMutation = useDeleteTile();
   const generateQRMutation = useGenerateQRForTile();
   const { uploadImage, isUploading } = useImageUpload();
+  const { generateTilesPDF } = useTilesPDFGeneration();
 
   const form = useForm<TileFormData>({
     resolver: zodResolver(tileSchema),
@@ -225,6 +228,14 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     }
   };
 
+  const handleDownloadTilesPDF = () => {
+    if (filteredTiles.length === 0) {
+      toast.error('No tiles to download');
+      return;
+    }
+    generateTilesPDF(filteredTiles);
+  };
+
   const openEditDialog = (tile: any) => {
     setEditingTile(tile);
     form.reset({
@@ -306,6 +317,15 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               Bulk Price Update
             </Button>
           )}
+          
+          <Button 
+            onClick={handleDownloadTilesPDF}
+            variant="outline"
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download PDF
+          </Button>
           
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
