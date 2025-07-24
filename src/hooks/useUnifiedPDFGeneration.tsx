@@ -1,207 +1,5 @@
-// import { useCallback, useState } from 'react';
-// import { toast } from 'sonner';
-// import { supabase } from '@/integrations/supabase/client';
-// import type { Quotation } from '@/hooks/useQuotations';
-
-// interface TileData {
-//   id: string;
-//   code: string;
-//   name: string;
-//   category?: string; // Make optional to match Tile interface
-//   size_length: number;
-//   size_breadth: number;
-//   price_per_box?: number | null; // Make optional to match Tile interface
-//   pieces_per_box?: number | null; // Make optional to match Tile interface
-// }
-
-// export const useServerPDFGeneration = () => {
-//   const [isGenerating, setIsGenerating] = useState(false);
-//   const supabaseUrl = 'https://onucizagpgwdpcakskat.supabase.co';
-  
-//   const generateQuotationPDF = useCallback(
-//     async (quotation: Quotation) => {
-//       setIsGenerating(true);
-//       try {
-//         const { data: session } = await supabase.auth.getSession();
-//         const response = await fetch(
-//           `${supabaseUrl}/functions/v1/generate-quotation-pdf`,
-//           {
-//             method: 'POST',
-//             headers: {
-//               'Content-Type': 'application/json',
-//               Authorization: `Bearer ${session.session?.access_token || ''}`,
-//             },
-//             body: JSON.stringify({
-//               quotation,
-//             }),
-//           },
-//         );
-
-//         if (!response.ok) {
-//           const { error } = await response.json();
-//           throw new Error(error || `HTTP ${response.status}`);
-//         }
-//       // Check if server-side PDF generation failed and returned HTML instead
-//       const contentType = response.headers.get('content-type');
-//       const pdfGenerationFailed = response.headers.get('X-PDF-Generation-Failed');
-      
-//       if (pdfGenerationFailed && contentType?.includes('text/html')) {
-//         console.log('Server-side PDF generation failed, falling back to client-side generation');
-//         const html = await response.text();
-        
-//         // Import jsPDF for client-side fallback
-//         const { jsPDF } = await import('jspdf');
-//         const pdf = new jsPDF('p', 'mm', 'a4');
-        
-//         // Create a simple text-based PDF as fallback
-//         pdf.setFontSize(16);
-//         pdf.text(`Quotation ${quotation.quotation_number}`, 20, 20);
-//         pdf.setFontSize(12);
-//         pdf.text(`Customer: ${quotation.customer.name}`, 20, 35);
-//         pdf.text(`Mobile: ${quotation.customer.mobile}`, 20, 45);
-//         pdf.text(`Total: ₹${quotation.total_cost.toLocaleString('en-IN')}`, 20, 55);
-//         pdf.text('Generated using client-side fallback', 20, 270);
-        
-//         const pdfBlob = pdf.output('blob');
-//         const url = window.URL.createObjectURL(pdfBlob);
-//         const link = document.createElement('a');
-//         link.href = url;
-//         link.download = `Quotation_${quotation.quotation_number}.pdf`;
-//         document.body.appendChild(link);
-//         link.click();
-//         document.body.removeChild(link);
-//         window.URL.revokeObjectURL(url);
-        
-//         toast.success('PDF generated using client-side fallback');
-//         return;
-//       }
-
-//       // Handle PDF blob response
-//  const fileBlob = await response.blob();
-//         const url = URL.createObjectURL(fileBlob);
-//         const link = document.createElement('a');
-//         link.href = url;
-//         link.download = `Quotation_${quotation.quotation_number}.pdf`;
-//         document.body.appendChild(link);
-//         link.click();
-//         link.remove();
-//         URL.revokeObjectURL(url);
-
-//         toast.success('PDF generated and downloaded successfully!');
-//       } catch (err: any) {
-//         console.error(err);
-//         toast.error(err.message || 'Failed to generate PDF.');
-//       } finally {
-//         setIsGenerating(false);
-//       }
-//     },
-//     [supabaseUrl],
-//   );
-
-//   const generateTilesPDF = useCallback(async (tiles: TileData[]) => {
-//     setIsGenerating(true);
-//     try {
-//       console.log('Starting server-side tiles PDF generation for', tiles.length, 'tiles');
-
-//       const response = await fetch(`${supabaseUrl}/functions/v1/generate-tiles-pdf`, {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-//         },
-//         body: JSON.stringify({ tiles }),
-//       });
-
-//       if (!response.ok) {
-//         let errorMessage = `Failed to generate tiles PDF (${response.status})`;
-//         try {
-//           const errorData = await response.json();
-//           errorMessage = errorData.error || errorMessage;
-//         } catch {
-//           errorMessage = response.statusText || errorMessage;
-//         }
-//         throw new Error(errorMessage);
-//       }
-
-//       // Check if server-side PDF generation failed and returned HTML instead
-//       const contentType = response.headers.get('content-type');
-//       const pdfGenerationFailed = response.headers.get('X-PDF-Generation-Failed');
-//       const filename = response.headers.get('X-Filename');
-      
-//       if (pdfGenerationFailed && contentType?.includes('text/html')) {
-//         console.log('Server-side tiles PDF generation failed, falling back to client-side generation');
-        
-//         // Import jsPDF for client-side fallback
-//         const { jsPDF } = await import('jspdf');
-//         const pdf = new jsPDF('p', 'mm', 'a4');
-        
-//         // Create a simple text-based PDF as fallback
-//         pdf.setFontSize(16);
-//         pdf.text('Tiles Inventory Report', 20, 20);
-//         pdf.setFontSize(12);
-//         pdf.text(`Total Tiles: ${tiles.length}`, 20, 35);
-        
-//         // Add tiles data in simple format
-//         let yPosition = 50;
-//         tiles.slice(0, 20).forEach((tile, index) => { // Limit to first 20 tiles
-//           if (yPosition > 270) return; // Avoid overflow
-//           pdf.text(`${index + 1}. ${tile.name} (${tile.code})`, 20, yPosition);
-//           yPosition += 10;
-//         });
-        
-//         if (tiles.length > 20) {
-//           pdf.text(`... and ${tiles.length - 20} more tiles`, 20, yPosition);
-//         }
-        
-//         pdf.text('Generated using client-side fallback', 20, 280);
-        
-//         const pdfBlob = pdf.output('blob');
-//         const url = window.URL.createObjectURL(pdfBlob);
-//         const link = document.createElement('a');
-//         link.href = url;
-//         link.download = filename || `Tiles-Inventory-${new Date().toISOString().slice(0, 10)}.pdf`;
-//         document.body.appendChild(link);
-//         link.click();
-//         document.body.removeChild(link);
-//         window.URL.revokeObjectURL(url);
-        
-//         toast.success('Tiles PDF generated using client-side fallback');
-//         return;
-//       }
-
-//       // Handle PDF blob response
-//       const blob = await response.blob();
-//       const url = window.URL.createObjectURL(blob);
-//       const link = document.createElement('a');
-//       link.href = url;
-//       const timestamp = new Date().toISOString().slice(0, 10);
-//       link.download = `Tiles-Inventory-${timestamp}.pdf`;
-//       document.body.appendChild(link);
-//       link.click();
-//       document.body.removeChild(link);
-//       window.URL.revokeObjectURL(url);
-
-//       toast.success('Tiles PDF generated and downloaded successfully!');
-//       console.log('Server-side tiles PDF generation completed successfully');
-
-//     } catch (error: any) {
-//       console.error('Tiles PDF generation failed:', error);
-//       toast.error(error.message || 'Failed to generate tiles PDF. Please try again.');
-//     } finally {
-//       setIsGenerating(false);
-//     }
-//   }, [supabaseUrl]);
-
-//    return { generateQuotationPDF, generateTilesPDF, isGenerating };
-// };
-
-
-
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { Quotation } from '@/hooks/useQuotations';
 
 interface TileData {
@@ -215,328 +13,495 @@ interface TileData {
   pieces_per_box?: number | null;
 }
 
-/* ---------- small helpers ---------- */
-const supabaseUrl = 'https://onucizagpgwdpcakskat.supabase.co';
-
-const downloadBlob = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
-/* Produce AutoTable rows from Quotation line-items */
-const quotationRows = (quotation: Quotation) =>
-  (quotation.quotation_items || []).map((item) => ({
-    room: item.room?.name || 'N/A',
-    tileCode: item.tile?.code || 'N/A',
-    size: item.tile ? `${item.tile.size_length} × ${item.tile.size_breadth}` : 'N/A',
-    boxes: Math.ceil(item.area / ((item.tile?.size_length || 1) * (item.tile?.size_breadth || 1) / 10000) / (item.tile?.pieces_per_box || 1)),
-    pricePerBox: `₹${item.price_per_box?.toLocaleString('en-IN') ?? '0'}`,
-    total: `₹${item.total_price.toLocaleString('en-IN')}`,
-  }));
-
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  /* ---------- 1.  QUOTATION PDF ---------- */
-  const generateQuotationPDF = useCallback(
-    async (quotation: Quotation) => {
-      setIsGenerating(true);
-      try {
-        /* ---------- try serverless first ---------- */
-        const { data: session } = await supabase.auth.getSession();
-        const res = await fetch(
-          `${supabaseUrl}/functions/v1/generate-quotation-pdf`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.session?.access_token || ''}`,
-            },
-            body: JSON.stringify({ quotation }),
-          }
-        );
-
-        const pdfFailed = res.headers.get('X-PDF-Generation-Failed');
-        const contentType = res.headers.get('content-type') || '';
-
-        /* ---------- fall back to client-side jsPDF ---------- */
-        if (pdfFailed || (!res.ok && !contentType.includes('application/pdf'))) {
-          console.warn(
-            'Server-side quotation PDF failed – using client fallback'
-          );
-          const pdf = new jsPDF('p', 'mm', 'a4');
-
-          // Title block
-          pdf.setFontSize(18).setFont('helvetica', 'bold');
-          pdf.text('QUOTATION', 105, 25, { align: 'center' });
-          
-          pdf.setFontSize(12).setFont('helvetica', 'normal');
-          pdf.text(`Quotation No: ${quotation.quotation_number}`, 20, 40);
-          pdf.text(`Date: ${new Date(quotation.created_at).toLocaleDateString('en-IN')}`, 20, 48);
-          
-          // Customer details
-          pdf.setFontSize(11).setFont('helvetica', 'bold');
-          pdf.text('Bill To:', 20, 60);
-          pdf.setFont('helvetica', 'normal');
-          pdf.text(`${quotation.customer?.name || 'N/A'}`, 20, 68);
-          pdf.text(`Mobile: ${quotation.customer?.mobile || 'N/A'}`, 20, 76);
-          if (quotation.customer?.address) {
-            pdf.text(`Address: ${quotation.customer.address}`, 20, 84);
-          }
-
-          // Table
-          const tableData = quotationRows(quotation);
-          
-          autoTable(pdf, {
-            startY: 95,
-            head: [
-              [
-                'Room',
-                'Tile Code',
-                'Size (cm)',
-                'Boxes',
-                'Price/Box',
-                'Total',
-              ],
-            ],
-            body: tableData.map(row => [
-              row.room,
-              row.tileCode,
-              row.size,
-              row.boxes.toString(),
-              row.pricePerBox,
-              row.total
-            ]),
-            theme: 'grid',
-            headStyles: { 
-              fillColor: [52, 118, 235],
-              textColor: [255, 255, 255],
-              fontSize: 10,
-              fontStyle: 'bold'
-            },
-            styles: { 
-              cellPadding: 3, 
-              fontSize: 9,
-              lineColor: [128, 128, 128],
-              lineWidth: 0.1
-            },
-            columnStyles: {
-              0: { cellWidth: 35 }, // Room
-              1: { cellWidth: 25 }, // Tile Code
-              2: { cellWidth: 25 }, // Size
-              3: { halign: 'center', cellWidth: 20 }, // Boxes
-              4: { halign: 'right', cellWidth: 25 }, // Price/Box
-              5: { halign: 'right', cellWidth: 30 }, // Total
-            },
-            margin: { left: 20, right: 20 },
-            didDrawPage: (data) => {
-              const doc = data.doc as jsPDF;
-              // Footer with page numbers
-              doc.setFontSize(8);
-              doc.text(
-                `Page ${data.pageNumber} of ${doc.getNumberOfPages()}`,
-                doc.internal.pageSize.width - 20,
-                doc.internal.pageSize.height - 10,
-                { align: 'right' }
-              );
-            },
-          });
-
-          // Grand total
-          const finalY = (pdf as any).lastAutoTable?.finalY || 200;
-          pdf.setFontSize(12).setFont('helvetica', 'bold');
-          pdf.text(
-            `Grand Total: ₹${quotation.total_cost.toLocaleString('en-IN')}`,
-            pdf.internal.pageSize.width - 20,
-            finalY + 15,
-            { align: 'right' }
-          );
-
-          // Generate PDF with proper MIME type
-          const pdfBlob = new Blob([pdf.output('arraybuffer')], { 
-            type: 'application/pdf' 
-          });
-          
-          downloadBlob(
-            pdfBlob,
-            `Quotation_${quotation.quotation_number}.pdf`
-          );
-          toast.success('PDF generated successfully');
-          return;
-        }
-
-        /* ---------- normal server success path ---------- */
-        if (!res.ok) {
-          // Try to get error details from response
-          try {
-            const errorText = await res.text();
-            console.error('Server error response:', errorText);
-            throw new Error(`Server returned ${res.status}: ${errorText}`);
-          } catch {
-            throw new Error(`Server returned ${res.status}: ${res.statusText}`);
-          }
-        }
-
-        // Validate content-type before creating blob
-        const serverContentType = res.headers.get('content-type') || '';
-        if (!serverContentType.includes('application/pdf')) {
-          const responseText = await res.text();
-          console.error('❌ Not a PDF response. Content-Type:', serverContentType);
-          console.error('📄 Response body:', responseText);
-          toast.error('Server returned an error instead of a PDF.');
-          throw new Error('Downloaded content is not a PDF - server may have returned an error page');
-        }
-        
-        // Read arrayBuffer once and wrap in Uint8Array for better browser compatibility
-        const arrayBuffer = await res.arrayBuffer();
-        const blob = new Blob([new Uint8Array(arrayBuffer)], { 
-          type: 'application/pdf' 
-        });
-        downloadBlob(blob, `Quotation_${quotation.quotation_number}.pdf`);
-        toast.success('PDF downloaded successfully');
-      } catch (err: any) {
-        console.error(err);
-        toast.error(err.message || 'Failed to generate quotation PDF.');
-      } finally {
-        setIsGenerating(false);
+  const generateQuotationHTML = (quotation: Quotation): string => {
+    // Calculate totals and group items
+    const items = quotation.quotation_items || [];
+    const groupedItems: { [tileId: string]: any } = {};
+    
+    items.forEach(item => {
+      const tileId = item.tile_id;
+      if (!groupedItems[tileId]) {
+        groupedItems[tileId] = {
+          tile: item.tile,
+          rooms: [],
+          totalArea: 0,
+          totalPrice: 0
+        };
       }
-    },
-    []
-  );
+      groupedItems[tileId].rooms.push(item.room?.name || 'Unknown');
+      groupedItems[tileId].totalArea += parseFloat(item.area?.toString() || '0');
+      groupedItems[tileId].totalPrice += item.total_price;
+    });
 
-  /* ---------- 2.  TILES INVENTORY PDF ---------- */
-  const generateTilesPDF = useCallback(
-    async (tiles: TileData[]) => {
-      setIsGenerating(true);
-      try {
-        const { data: session } = await supabase.auth.getSession();
-        const res = await fetch(
-          `${supabaseUrl}/functions/v1/generate-tiles-pdf`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.session?.access_token || ''}`,
-            },
-            body: JSON.stringify({ tiles }),
+    const calculations = Object.values(groupedItems);
+    const grandTotal = calculations.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
+    const wastagePercentage = quotation.wastage_percentage || 0;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Quotation ${quotation.quotation_number}</title>
+        <style>
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none !important; }
           }
-        );
-
-        const pdfFailed = res.headers.get('X-PDF-Generation-Failed');
-        const contentType = res.headers.get('content-type') || '';
-
-        if (pdfFailed || (!res.ok && !contentType.includes('application/pdf'))) {
-          console.warn('Server tiles PDF failed – using client fallback');
-          const pdf = new jsPDF('p', 'mm', 'a4');
-
-          pdf.setFontSize(18).setFont('helvetica', 'bold');
-          pdf.text('TILES INVENTORY', 105, 25, { align: 'center' });
           
-          pdf.setFontSize(10);
-          pdf.text(`Generated on: ${new Date().toLocaleDateString('en-IN')}`, 20, 40);
-          pdf.text(`Total Tiles: ${tiles.length}`, 20, 48);
-
-          const tableData = tiles.map((tile) => [
-            tile.code,
-            tile.name,
-            `${tile.size_length} × ${tile.size_breadth}`,
-            tile.price_per_box != null ? `₹${tile.price_per_box.toLocaleString('en-IN')}` : '-',
-            tile.pieces_per_box?.toString() || '-'
-          ]);
-
-          autoTable(pdf, {
-            startY: 58,
-            head: [['Code', 'Name', 'Size (cm)', 'Price/Box', 'Pieces/Box']],
-            body: tableData,
-            theme: 'grid',
-            headStyles: { 
-              fillColor: [52, 118, 235],
-              textColor: [255, 255, 255],
-              fontSize: 10,
-              fontStyle: 'bold'
-            },
-            styles: { 
-              fontSize: 9, 
-              cellPadding: 2,
-              lineColor: [128, 128, 128],
-              lineWidth: 0.1
-            },
-            columnStyles: {
-              0: { cellWidth: 25 }, // Code
-              1: { cellWidth: 60 }, // Name
-              2: { cellWidth: 25 }, // Size
-              3: { halign: 'right', cellWidth: 30 }, // Price
-              4: { halign: 'center', cellWidth: 20 }, // Pieces
-            },
-            margin: { left: 20, right: 20 },
-            didDrawPage: (data) => {
-              const doc = data.doc as jsPDF;
-              doc.setFontSize(8);
-              doc.text(
-                `Page ${data.pageNumber} of ${doc.getNumberOfPages()}`,
-                doc.internal.pageSize.width - 20,
-                doc.internal.pageSize.height - 10,
-                { align: 'right' }
-              );
-            },
-          });
-
-          const pdfBlob = new Blob([pdf.output('arraybuffer')], { 
-            type: 'application/pdf' 
-          });
-          downloadBlob(pdfBlob, 'Tiles-Inventory.pdf');
-          toast.success('Tiles PDF generated successfully');
-          return;
-        }
-
-        /* server OK */
-        if (!res.ok) {
-          // Try to get error details from response
-          try {
-            const errorText = await res.text();
-            console.error('Server error response:', errorText);
-            throw new Error(`Server returned ${res.status}: ${errorText}`);
-          } catch {
-            throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.4;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
           }
-        }
-
-        // Validate content-type before creating blob
-        const serverContentType = res.headers.get('content-type') || '';
-        if (!serverContentType.includes('application/pdf')) {
-          const responseText = await res.text();
-          console.error('❌ Not a PDF response. Content-Type:', serverContentType);
-          console.error('📄 Response body:', responseText);
-          toast.error('Server returned an error instead of a PDF.');
-          throw new Error('Downloaded content is not a PDF - server may have returned an error page');
-        }
+          
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #3B82F6;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          
+          .company-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #3B82F6;
+            margin-bottom: 5px;
+          }
+          
+          .quotation-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 10px;
+          }
+          
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+          }
+          
+          .info-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #3B82F6;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #E5E7EB;
+            padding-bottom: 5px;
+          }
+          
+          .info-section p {
+            margin: 5px 0;
+            font-size: 14px;
+          }
+          
+          .table-container {
+            margin: 30px 0;
+          }
+          
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          
+          th {
+            background: #3B82F6;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+          }
+          
+          td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #E5E7EB;
+            vertical-align: top;
+            font-size: 13px;
+          }
+          
+          tr:nth-child(even) {
+            background: #F9FAFB;
+          }
+          
+          tr:hover {
+            background: #F3F4F6;
+          }
+          
+          .tile-image {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #E5E7EB;
+          }
+          
+          .total-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #F8FAFC;
+            border: 2px solid #3B82F6;
+            border-radius: 8px;
+            text-align: right;
+          }
+          
+          .grand-total {
+            font-size: 20px;
+            font-weight: bold;
+            color: #059669;
+            margin-top: 10px;
+          }
+          
+          .wastage-note {
+            font-size: 12px;
+            color: #6B7280;
+            margin-top: 10px;
+            text-align: center;
+          }
+          
+          .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 11px;
+            color: #6B7280;
+            border-top: 1px solid #E5E7EB;
+            padding-top: 20px;
+          }
+          
+          @page {
+            size: A4;
+            margin: 1cm;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">Tile Solutions</div>
+          <div class="quotation-title">QUOTATION</div>
+        </div>
         
-        // Read arrayBuffer once and wrap in Uint8Array for better browser compatibility
-        const arrayBuffer = await res.arrayBuffer();
-        const blob = new Blob([new Uint8Array(arrayBuffer)], {
-          type: 'application/pdf',
-        });
-        downloadBlob(blob, res.headers.get('X-Filename') || 'Tiles-Inventory.pdf');
-        toast.success('Tiles PDF downloaded successfully');
-      } catch (err: any) {
-        console.error(err);
-        toast.error(err.message || 'Failed to generate tiles PDF.');
-      } finally {
-        setIsGenerating(false);
-      }
-    },
-    []
-  );
+        <div class="info-grid">
+          <div class="info-section">
+            <h3>Customer Details</h3>
+            <p><strong>Name:</strong> ${quotation.customer?.name || 'N/A'}</p>
+            <p><strong>Mobile:</strong> ${quotation.customer?.mobile || 'N/A'}</p>
+            ${quotation.customer?.area ? `<p><strong>Area:</strong> ${quotation.customer.area}</p>` : ''}
+            ${quotation.customer?.state ? `<p><strong>State:</strong> ${quotation.customer.state}</p>` : ''}
+            ${quotation.customer?.pincode ? `<p><strong>Pincode:</strong> ${quotation.customer.pincode}</p>` : ''}
+          </div>
+          
+          <div class="info-section">
+            <h3>Quotation Details</h3>
+            <p><strong>Quotation No:</strong> ${quotation.quotation_number}</p>
+            <p><strong>Date:</strong> ${new Date(quotation.created_at).toLocaleDateString('en-IN')}</p>
+            <p><strong>Created by:</strong> ${quotation.worker?.name || 'N/A'}</p>
+            <p><strong>Status:</strong> ${quotation.status?.toUpperCase() || 'N/A'}</p>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Room(s) & Area</th>
+                <th>Tile Details</th>
+                <th>Image</th>
+                <th>Tiles Required</th>
+                <th>Boxes</th>
+                <th>Price/Box</th>
+                <th>Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${calculations.map((calc: any) => {
+                const tile = calc.tile;
+                const rooms = Array.from(new Set(calc.rooms)).join(', ');
+                const tileSize = tile ? `${(tile.size_length / 10).toFixed(1)} × ${(tile.size_breadth / 10).toFixed(1)} cm` : 'N/A';
+                
+                // Calculate tiles needed with wastage
+                const tileLengthFt = (tile?.size_length || 0) / 304.8;
+                const tileBreadthFt = (tile?.size_breadth || 0) / 304.8;
+                const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+                const basicTilesNeeded = tileAreaSqFt > 0 ? Math.ceil(calc.totalArea / tileAreaSqFt) : 0;
+                const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
+                const boxes = tile?.pieces_per_box ? Math.ceil(tilesWithWastage / tile.pieces_per_box) : 0;
+                
+                return `
+                  <tr>
+                    <td>
+                      <strong>${rooms}</strong><br>
+                      <small>${calc.totalArea.toFixed(2)} sq ft</small>
+                    </td>
+                    <td>
+                      <strong>${tile?.name || 'N/A'}</strong><br>
+                      <small>Code: ${tile?.code || 'N/A'}</small><br>
+                      <small>Size: ${tileSize}</small>
+                    </td>
+                    <td>
+                      ${tile?.image_url ? `<img src="${tile.image_url}" class="tile-image" alt="Tile" />` : '<div class="tile-image" style="background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ca3af;">No Image</div>'}
+                    </td>
+                    <td>
+                      ${tilesWithWastage} tiles<br>
+                      <small style="color:#6b7280;">+${wastagePercentage}% wastage</small>
+                    </td>
+                    <td>${boxes}</td>
+                    <td>₹${tile?.price_per_box?.toLocaleString('en-IN') || '0'}</td>
+                    <td><strong>₹${calc.totalPrice.toLocaleString('en-IN')}</strong></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="total-section">
+          <div class="grand-total">
+            Grand Total: ₹${grandTotal.toLocaleString('en-IN')}
+          </div>
+          <div class="wastage-note">
+            All calculations include ${wastagePercentage}% wastage allowance
+          </div>
+        </div>
+        
+        ${quotation.notes ? `
+          <div style="margin-top: 30px; padding: 15px; background: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; color: #92400E;">Notes:</h4>
+            <p style="margin: 0; color: #78350F;">${quotation.notes}</p>
+          </div>
+        ` : ''}
+        
+        <div class="footer">
+          <p>Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}</p>
+          <p>This is a computer-generated quotation and does not require a signature.</p>
+        </div>
+        
+        <script>
+          window.onload = function() {
+            setTimeout(() => {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+  };
 
-  return { generateQuotationPDF, generateTilesPDF, isGenerating };
+  const generateTilesHTML = (tiles: TileData[]): string => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Tiles Inventory Report</title>
+        <style>
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none !important; }
+          }
+          
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.4;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+          }
+          
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #3B82F6;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          
+          .company-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #3B82F6;
+            margin-bottom: 5px;
+          }
+          
+          .report-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 10px;
+          }
+          
+          .report-info {
+            font-size: 14px;
+            color: #6B7280;
+            margin-bottom: 20px;
+          }
+          
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          
+          th {
+            background: #3B82F6;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+          }
+          
+          td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #E5E7EB;
+            vertical-align: top;
+            font-size: 13px;
+          }
+          
+          tr:nth-child(even) {
+            background: #F9FAFB;
+          }
+          
+          tr:hover {
+            background: #F3F4F6;
+          }
+          
+          .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 11px;
+            color: #6B7280;
+            border-top: 1px solid #E5E7EB;
+            padding-top: 20px;
+          }
+          
+          @page {
+            size: A4;
+            margin: 1cm;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">Tile Solutions</div>
+          <div class="report-title">TILES INVENTORY REPORT</div>
+        </div>
+        
+        <div class="report-info">
+          <p><strong>Generated on:</strong> ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}</p>
+          <p><strong>Total Tiles:</strong> ${tiles.length}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Size (cm)</th>
+              <th>Price/Box</th>
+              <th>Pieces/Box</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tiles.map(tile => `
+              <tr>
+                <td><strong>${tile.code}</strong></td>
+                <td>${tile.name}</td>
+                <td>${tile.category || 'N/A'}</td>
+                <td>${(tile.size_length / 10).toFixed(1)} × ${(tile.size_breadth / 10).toFixed(1)}</td>
+                <td>${tile.price_per_box != null ? `₹${tile.price_per_box.toLocaleString('en-IN')}` : 'N/A'}</td>
+                <td>${tile.pieces_per_box || 'N/A'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          <p>This is a computer-generated report.</p>
+        </div>
+        
+        <script>
+          window.onload = function() {
+            setTimeout(() => {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+  };
+
+  const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
+    setIsGenerating(true);
+    try {
+      const htmlContent = generateQuotationHTML(quotation);
+      const printWindow = window.open('', '_blank');
+      
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        // Focus the print window
+        printWindow.focus();
+        
+        toast.success('PDF print dialog opened');
+      } else {
+        toast.error('Please allow popups to generate PDF');
+      }
+    } catch (error: any) {
+      console.error('Error generating quotation PDF:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, []);
+
+  const generateTilesPDF = useCallback(async (tiles: TileData[]) => {
+    setIsGenerating(true);
+    try {
+      const htmlContent = generateTilesHTML(tiles);
+      const printWindow = window.open('', '_blank');
+      
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        // Focus the print window
+        printWindow.focus();
+        
+        toast.success('PDF print dialog opened');
+      } else {
+        toast.error('Please allow popups to generate PDF');
+      }
+    } catch (error: any) {
+      console.error('Error generating tiles PDF:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, []);
+
+  return {
+    generateQuotationPDF,
+    generateTilesPDF,
+    isGenerating
+  };
 };
 
-// Legacy export alias for backward compatibility
+// For backward compatibility
 export const useServerPDFGeneration = useUnifiedPDFGeneration;
