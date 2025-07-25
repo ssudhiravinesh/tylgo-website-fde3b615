@@ -265,52 +265,78 @@ export const WallTileSelectionPage = ({
     if (!ctx) return;
 
     const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
+    const layerCount = wallSelection.layers.length;
     
     // Calculate tile dimensions based on the first tile's actual size
     const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
     if (!firstTile) return;
     
-    const tileLength = firstTile.size_length || 600; // Default to 600mm if not specified
-    const tileBreadth = firstTile.size_breadth || 600; // Default to 600mm if not specified
+    const tileLength = firstTile.size_length || 600;
+    const tileBreadth = firstTile.size_breadth || 600;
     
-    // Calculate aspect ratio
+    // Calculate aspect ratio (preserve at all costs)
     const aspectRatio = tileLength / tileBreadth;
     
-    // Base size for display (we'll scale from this)
-    const baseSize = 100;
+    // Smart scaling based on layer count
+    const getScalingFactor = (layerCount: number) => {
+      if (layerCount <= 4) return 1.0;
+      if (layerCount <= 6) return 0.85;
+      if (layerCount <= 8) return 0.7;
+      return Math.max(0.5, 4 / layerCount); // Minimum 0.5x scaling
+    };
     
-    // Calculate actual display dimensions maintaining aspect ratio
+    const layerBasedScale = getScalingFactor(layerCount);
+    
+    // Base size for display with layer-based scaling
+    const baseSize = 100 * layerBasedScale;
+    
+    // Calculate display dimensions maintaining aspect ratio
     let tileWidth, tileHeight;
     if (aspectRatio > 1) {
       tileHeight = baseSize;
-      tileWidth = baseSize / aspectRatio;
+      tileWidth = baseSize * aspectRatio;
     } else {
       tileWidth = baseSize;
-      tileHeight = baseSize * aspectRatio;
+      tileHeight = baseSize / aspectRatio;
     }
     
-    // Calculate available space in the dialog (leaving space for header/footer)
-    const maxW = Math.min(window.innerWidth * 0.88, 1200); // Max width
-    const maxH = Math.min(window.innerHeight * 0.7, 800);  // Max height for canvas area
+    // Calculate available space with better margins
+    const dialogPadding = 80; // Account for dialog margins and padding
+    const maxW = Math.min(window.innerWidth - dialogPadding, 1000);
+    const maxH = Math.min(window.innerHeight * 0.6, 600);
     
-    // Calculate required canvas size for the grid
+    // Calculate required canvas size
     const requiredWidth = tilesPerLayer * tileWidth;
-    const requiredHeight = wallSelection.layers.length * tileHeight;
+    const requiredHeight = layerCount * tileHeight;
     
-    // Calculate scaling factor to fit within available space
-    const scaleToFitX = maxW / requiredWidth;
-    const scaleToFitY = maxH / requiredHeight;
-    const scaleToFit = Math.min(scaleToFitX, scaleToFitY, 1); // Don't scale up
+    // Additional scaling if still doesn't fit
+    const additionalScaleX = maxW / requiredWidth;
+    const additionalScaleY = maxH / requiredHeight;
+    const additionalScale = Math.min(additionalScaleX, additionalScaleY, 1);
     
-    const canvasWidth = requiredWidth * scaleToFit;
-    const canvasHeight = requiredHeight * scaleToFit;
+    const finalScale = additionalScale;
     
-    // Scale tile dimensions
-    const scaledTileWidth = tileWidth * scaleToFit;
-    const scaledTileHeight = tileHeight * scaleToFit;
+    // Final dimensions
+    const canvasWidth = requiredWidth * finalScale;
+    const canvasHeight = requiredHeight * finalScale;
+    const scaledTileWidth = tileWidth * finalScale;
+    const scaledTileHeight = tileHeight * finalScale;
     
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    // High-DPI canvas setup for crisp images
+    const setupHighDPICanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = canvasWidth * dpr;
+      canvas.height = canvasHeight * dpr;
+      canvas.style.width = canvasWidth + 'px';
+      canvas.style.height = canvasHeight + 'px';
+      ctx.scale(dpr, dpr);
+      
+      // Better image rendering
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+    };
+    
+    setupHighDPICanvas();
 
     // Clear canvas with better background
     ctx.fillStyle = '#ffffff';
@@ -658,28 +684,34 @@ export const WallTileSelectionPage = ({
       />
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent
-          className="max-w-[98vw] w-[98vw] h-[92vh] p-8 rounded-2xl"
-        >
-          <DialogHeader>
-            <DialogTitle>Wall Preview</DialogTitle>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-4">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-xl font-semibold">
+              Wall Preview - {wallSelection.layers.length} Layer{wallSelection.layers.length > 1 ? 's' : ''}
+            </DialogTitle>
           </DialogHeader>
-          <div className="flex justify-center items-center w-full h-full">
-            <div className="flex flex-col items-center justify-center flex-grow w-full h-full">
-              <div className="w-full h-full max-w-full max-h-full p-6">
-                <div className="border rounded-xl overflow-hidden shadow bg-white w-full h-full flex items-center justify-center">
-                  <canvas
-                    ref={canvasRef}
-                    className="w-full h-full"
-                    style={{ objectFit: 'contain' }}
-                  />
-                </div>
+          
+          <div className="flex-1 flex items-center justify-center min-h-0">
+            <div className="w-full h-full flex items-center justify-center p-4">
+              <div className="border-2 border-gray-200 rounded-lg bg-white shadow-lg flex items-center justify-center p-4 max-w-full max-h-full">
+                <canvas
+                  ref={canvasRef}
+                  className="max-w-full max-h-full block"
+                  style={{ 
+                    imageRendering: 'crisp-edges'
+                  }}
+                />
               </div>
             </div>
           </div>
-          <div className="text-sm text-gray-600 text-center mt-4">
-            <p>Preview shows 6 tiles per layer with actual tile proportions</p>
-            <p>Layers are stacked from bottom (Layer 1) to top</p>
+          
+          <div className="text-sm text-gray-600 text-center pt-4 border-t">
+            <p className="font-medium">
+              Preview shows 6 tiles per layer maintaining actual proportions
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Layers stack from bottom (L1) to top • Auto-scaled for {wallSelection.layers.length} layers
+            </p>
           </div>
         </DialogContent>
       </Dialog>
