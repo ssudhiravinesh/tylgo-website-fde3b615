@@ -11,6 +11,7 @@ interface TileData {
   size_breadth: number;
   price_per_box?: number | null;
   pieces_per_box?: number | null;
+  image_url?: string | null;
 }
 
 export const useUnifiedPDFGeneration = () => {
@@ -338,7 +339,23 @@ const generateQuotationHTML = (quotation: Quotation): string => {
                         <div class="tile-size">Size: ${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>
-                      <td>-</td>
+                      <td style="text-align: center; padding: 4px;">
+                        ${tile.image_url ? `
+                          <img 
+                            src="${tile.image_url}" 
+                            alt="${tile.name}"
+                            style="
+                              width: ${tile.size_length > tile.size_breadth ? '50px' : '35px'}; 
+                              height: ${tile.size_length > tile.size_breadth ? '35px' : '50px'}; 
+                              object-fit: cover; 
+                              border-radius: 3px; 
+                              border: 1px solid #ddd;
+                              display: block;
+                              margin: 0 auto;
+                            "
+                          />
+                        ` : '-'}
+                      </td>
                       <td>
                         ${calc.tilesNeeded}<br>
                         <small>(${calc.boxesNeeded} boxes)</small><br>
