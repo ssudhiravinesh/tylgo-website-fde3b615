@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, User, MapPin, FileText } from "lucide-react";
 import { useCreateCustomer, useCustomers, Customer } from "@/hooks/useCustomers";
 import { MobileNumberSearch } from "./MobileNumberSearch";
-import { DirectCustomerSearch } from "./DirectCustomerSearch";
+import { ReferenceNameSearch } from "./ReferenceNameSearch";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, getStateByPincode } from "@/utils/indianStatesAndCities";
 
@@ -325,7 +325,7 @@ const handleInputChange = (field: string, value: string) => {
               <div className="space-y-4">
                  <div className="space-y-2">
                    <Label htmlFor="reference_name">Reference Name</Label>
-                   <DirectCustomerSearch
+                   <ReferenceNameSearch
                      value={formData.reference_name}
                      onValueChange={(customerName) => handleInputChange("reference_name", customerName)}
                      onMobileChange={(mobile) => handleInputChange("reference_mobile_no", mobile)}
