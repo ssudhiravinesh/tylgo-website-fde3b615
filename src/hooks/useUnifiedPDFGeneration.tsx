@@ -357,8 +357,15 @@ const generateQuotationHTML = (quotation: Quotation): string => {
                         ` : '-'}
                       </td>
                       <td>
-                        ${calc.tilesNeeded}<br>
-                        <small>(${calc.boxesNeeded} boxes)</small><br>
+                        ${calc.tilesNeeded} tiles<br>
+                        <small>(${(() => {
+                          const fullBoxes = Math.floor(calc.tilesNeeded / (tile.pieces_per_box || 1));
+                          const leftoverTiles = calc.tilesNeeded % (tile.pieces_per_box || 1);
+                          if (leftoverTiles > 0) {
+                            return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''} and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}`;
+                          }
+                          return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}`;
+                        })()})</small><br>
                         <small class="wastage-note">+${wastage_percentage}% wastage</small>
                       </td>
                       <td>${calc.boxesNeeded}</td>
