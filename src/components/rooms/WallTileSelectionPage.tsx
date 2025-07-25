@@ -267,6 +267,10 @@ export const WallTileSelectionPage = ({
     const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
     const layerCount = wallSelection.layers.length;
     
+    // Calculate target canvas width (90% of dialog width)
+    const dialogWidth = Math.min(window.innerWidth * 0.95, 1200);
+    const targetCanvasWidth = dialogWidth * 0.9;
+    
     // Calculate tile dimensions based on the first tile's actual size
     const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
     if (!firstTile) return;
@@ -277,50 +281,24 @@ export const WallTileSelectionPage = ({
     // Calculate aspect ratio (preserve at all costs)
     const aspectRatio = tileLength / tileBreadth;
     
-    // Smart scaling based on layer count
-    const getScalingFactor = (layerCount: number) => {
-      if (layerCount <= 4) return 1.0;
-      if (layerCount <= 6) return 0.85;
-      if (layerCount <= 8) return 0.7;
-      return Math.max(0.5, 4 / layerCount); // Minimum 0.5x scaling
-    };
+    // Calculate tile width to fill 90% of dialog width
+    const tileWidth = targetCanvasWidth / tilesPerLayer;
     
-    const layerBasedScale = getScalingFactor(layerCount);
+    // Calculate tile height maintaining aspect ratio
+    const tileHeight = tileWidth / aspectRatio;
     
-    // Base size for display with layer-based scaling
-    const baseSize = 100 * layerBasedScale;
-    
-    // Calculate display dimensions maintaining aspect ratio
-    let tileWidth, tileHeight;
-    if (aspectRatio > 1) {
-      tileHeight = baseSize;
-      tileWidth = baseSize * aspectRatio;
-    } else {
-      tileWidth = baseSize;
-      tileHeight = baseSize / aspectRatio;
-    }
-    
-    // Calculate available space with better margins
-    const dialogPadding = 80; // Account for dialog margins and padding
-    const maxW = Math.min(window.innerWidth - dialogPadding, 1000);
-    const maxH = Math.min(window.innerHeight * 0.6, 600);
-    
-    // Calculate required canvas size
-    const requiredWidth = tilesPerLayer * tileWidth;
+    // Calculate required canvas height
     const requiredHeight = layerCount * tileHeight;
     
-    // Additional scaling if still doesn't fit
-    const additionalScaleX = maxW / requiredWidth;
-    const additionalScaleY = maxH / requiredHeight;
-    const additionalScale = Math.min(additionalScaleX, additionalScaleY, 1);
-    
-    const finalScale = additionalScale;
+    // Apply vertical scaling if needed to fit in viewport
+    const maxHeight = window.innerHeight * 0.7;
+    const verticalScale = Math.min(1.0, maxHeight / requiredHeight);
     
     // Final dimensions
-    const canvasWidth = requiredWidth * finalScale;
-    const canvasHeight = requiredHeight * finalScale;
-    const scaledTileWidth = tileWidth * finalScale;
-    const scaledTileHeight = tileHeight * finalScale;
+    const canvasWidth = targetCanvasWidth;
+    const canvasHeight = requiredHeight * verticalScale;
+    const scaledTileWidth = tileWidth;
+    const scaledTileHeight = tileHeight * verticalScale;
     
     // High-DPI canvas setup for crisp images
     const setupHighDPICanvas = () => {
