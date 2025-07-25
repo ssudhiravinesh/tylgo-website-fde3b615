@@ -35,8 +35,8 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
     .from('quotation_items')
     .select(`
       *,
-      room:rooms!quotation_items_room_id_fkey(name, length, width, unit),
-      tile:tiles(name, code, price_per_box, pieces_per_box, size_length, size_breadth)
+      rooms!quotation_items_room_id_fkey(name, length, width, unit),
+      tiles!quotation_items_tile_id_fkey(name, code, price_per_box, pieces_per_box, size_length, size_breadth)
     `)
     .eq('quotation_id', quotationId)
     .order('created_at', { ascending: true });
@@ -46,30 +46,37 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
     throw error;
   }
 
-  // Filter out items with RLS access errors and provide fallback data
+  // Map the data to the expected structure
   const validData: QuotationItem[] = (data || []).map((item: any) => {
-    // Handle potential RLS restrictions on room data
-    let roomData;
-    if (item.room && typeof item.room === 'object' && !('error' in item.room)) {
-      roomData = item.room as { name: string; length: number; width: number; unit: string };
-    } else {
-      roomData = { name: 'Restricted', length: 0, width: 0, unit: 'metre' };
-    }
+    // Extract room data from the joined rooms table
+    const roomData = item.rooms ? {
+      name: item.rooms.name || 'Unknown Room',
+      length: item.rooms.length || 0,
+      width: item.rooms.width || 0,
+      unit: item.rooms.unit || 'metre'
+    } : {
+      name: 'Unknown Room',
+      length: 0,
+      width: 0,
+      unit: 'metre'
+    };
 
-    // Handle potential RLS restrictions on tile data
-    let tileData;
-    if (item.tile && typeof item.tile === 'object' && !('error' in item.tile)) {
-      tileData = item.tile as { name: string; code: string; price_per_box?: number; pieces_per_box?: number; size_length: number; size_breadth: number };
-    } else {
-      tileData = { 
-        name: 'Restricted', 
-        code: 'N/A', 
-        price_per_box: 0, 
-        pieces_per_box: 0, 
-        size_length: 0, 
-        size_breadth: 0 
-      };
-    }
+    // Extract tile data from the joined tiles table
+    const tileData = item.tiles ? {
+      name: item.tiles.name || 'Unknown Tile',
+      code: item.tiles.code || 'N/A',
+      price_per_box: item.tiles.price_per_box || 0,
+      pieces_per_box: item.tiles.pieces_per_box || 0,
+      size_length: item.tiles.size_length || 0,
+      size_breadth: item.tiles.size_breadth || 0
+    } : {
+      name: 'Unknown Tile',
+      code: 'N/A',
+      price_per_box: 0,
+      pieces_per_box: 0,
+      size_length: 0,
+      size_breadth: 0
+    };
     
     return {
       id: item.id,
