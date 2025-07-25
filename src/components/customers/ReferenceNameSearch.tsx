@@ -56,8 +56,14 @@ export const ReferenceNameSearch = ({
       onMobileChange("");
     }
     
+    // Calculate filtered customers for the new search term
+    const newFilteredCustomers = capitalizedTerm.length >= 2 ? customers.filter((customer) =>
+      customer.name.toLowerCase().includes(capitalizedTerm.toLowerCase()) ||
+      customer.mobile.includes(capitalizedTerm.replace(/\D/g, ''))
+    ) : [];
+    
     // Show results only if there are matches and term is long enough
-    setShowResults(newSearchTerm.length >= 2 && filteredCustomers.length > 0);
+    setShowResults(capitalizedTerm.length >= 2 && newFilteredCustomers.length > 0);
   };
 
   const handleSelectCustomer = (customer: Customer) => {
