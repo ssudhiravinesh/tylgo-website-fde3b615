@@ -48,6 +48,7 @@ interface TileCalculation {
 export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotationPageProps) => {
   const { updateQuotation, isUpdating } = useQuotations();
   const { mutate: updateQuotationItem } = useUpdateQuotationItem();
+  const { data: quotationItems = [], isLoading: isLoadingItems } = useQuotationItems(quotation.id);
   
   const [quotationNumber, setQuotationNumber] = useState("");
   const [status, setStatus] = useState("draft");
@@ -109,15 +110,23 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
     const currentWastagePercentage = wastagePercentage || 0;
 
-    if (quotation.quotation_items && quotation.quotation_items.length > 0) {
-      quotation.quotation_items.forEach((item) => {
+    if (quotationItems && quotationItems.length > 0) {
+      quotationItems.forEach((item) => {
         const tileId = item.tile_id;
         const room = item.room;
         const tile = item.tile;
         
         if (!tileCalculations[tileId] && tile) {
           tileCalculations[tileId] = {
-            tile,
+            tile: {
+              id: tileId,
+              name: tile.name,
+              code: tile.code,
+              price_per_box: tile.price_per_box,
+              pieces_per_box: tile.pieces_per_box,
+              size_length: tile.size_length,
+              size_breadth: tile.size_breadth
+            },
             rooms: [],
             totalArea: 0,
             rawTilesNeeded: 0,
@@ -131,7 +140,13 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
         if (room && tileCalculations[tileId]) {
           const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
-          tileCalculations[tileId].rooms.push(room);
+          tileCalculations[tileId].rooms.push({
+            id: item.room_id,
+            name: room.name,
+            length: room.length,
+            width: room.width,
+            unit: room.unit
+          });
           tileCalculations[tileId].totalArea += roomAreaInSqFt;
         }
       });
@@ -373,7 +388,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         </CardHeader>
         
         <CardContent>
-          {calculations.length > 0 ? (
+          {isLoadingItems ? (
+            <div className="text-center py-8">
+              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading quotation items...</p>
+            </div>
+          ) : calculations.length > 0 ? (
             <div className="space-y-4">
               {calculations.map((calc) => (
                 <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
@@ -385,9 +405,9 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                         <p>
                           Rooms: {calc.rooms.map(r => r.name).join(', ')}
                         </p>
-                        {(() => {
-                          const tileItems = quotation.quotation_items?.filter(item => item.tile_id === calc.tile.id) || [];
-                          const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
+                         {(() => {
+                           const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
+                           const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
                           
                           if (layerNumbers.length > 0) {
                             return (

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers, Plus, Minus } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
 import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
 import { useQuotationItems, useUpdateQuotationItem } from '@/hooks/useQuotationItems';
@@ -39,8 +39,6 @@ interface TileCalculation {
 export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) => {
   const { generateQuotationPDF, isGenerating } = useUnifiedPDFGeneration();
   const { data: quotationItems = [], isLoading: isLoadingItems } = useQuotationItems(quotation.id);
-  const updateQuotationItem = useUpdateQuotationItem();
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
@@ -168,21 +166,6 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   const { calculations, wastagePercentage } = calculateTileRequirements();
   const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
 
-  const handleBoxAdjustment = (tileId: string, adjustment: number) => {
-    const tileItem = quotationItems?.find(item => item.tile_id === tileId);
-    if (!tileItem) {
-      toast.error('Tile item not found');
-      return;
-    }
-
-    const currentAdjustment = tileItem.custom_boxes || 0;
-    const newAdjustment = currentAdjustment + adjustment;
-
-    updateQuotationItem.mutate({
-      id: tileItem.id,
-      custom_boxes: newAdjustment
-    });
-  };
 
   const handleDownloadPDF = () => {
     // Transform quotation items to match the expected interface
@@ -409,47 +392,25 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-blue-600" />
-                      <div className="flex-1">
-                        <p className="text-gray-600">Boxes Needed</p>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleBoxAdjustment(calc.tile.id, -1)}
-                            disabled={updateQuotationItem.isPending}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="font-medium text-blue-600 min-w-[3rem] text-center">
-                            {calc.boxesNeeded}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleBoxAdjustment(calc.tile.id, 1)}
-                            disabled={updateQuotationItem.isPending}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        {(() => {
-                          const tileItem = quotationItems?.find(item => item.tile_id === calc.tile.id);
-                          const customBoxAdjustment = tileItem?.custom_boxes || 0;
-                          if (customBoxAdjustment !== 0) {
-                            return (
-                              <p className="text-xs text-orange-600">
-                                {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
-                              </p>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                    </div>
+                     <div className="flex items-center gap-2">
+                       <Package className="h-4 w-4 text-blue-600" />
+                       <div>
+                         <p className="text-gray-600">Boxes Needed</p>
+                         <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
+                         {(() => {
+                           const tileItem = quotationItems?.find(item => item.tile_id === calc.tile.id);
+                           const customBoxAdjustment = tileItem?.custom_boxes || 0;
+                           if (customBoxAdjustment !== 0) {
+                             return (
+                               <p className="text-xs text-orange-600">
+                                 {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
+                               </p>
+                             );
+                           }
+                           return null;
+                         })()}
+                       </div>
+                     </div>
                     
                     <div className="flex items-center gap-2">
                       <IndianRupee className="h-4 w-4 text-purple-600" />
