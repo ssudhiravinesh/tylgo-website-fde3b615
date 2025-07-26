@@ -18,64 +18,24 @@ interface TileData {
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Enhanced image processing with authentication, retry logic, and proper error handling
+  // Simple and reliable image conversion for public bucket images
   const convertImageToBase64 = async (imageUrl: string, retryCount = 3): Promise<string> => {
     try {
-      if (!imageUrl || imageUrl.trim() === '') {
-        console.warn('Empty or invalid image URL provided');
-        return '';
+      if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
+        console.log('[Image Processing] No valid image URL provided - will show "No Image" placeholder');
+        return ''; // Return empty string to trigger "No Image" placeholder
       }
 
-      console.log(`[Image Processing] Starting conversion for: ${imageUrl} (Attempt: ${4 - retryCount}/3)`);
+      console.log(`[Image Processing] Converting image: ${imageUrl} (Attempt: ${4 - retryCount}/3)`);
       
-      let finalImageUrl = imageUrl;
-      
-      // Check if it's a Supabase storage URL and handle authentication
-      if (imageUrl.includes('supabase.co/storage/v1/object/public/') || 
-          imageUrl.includes('supabase.co/storage/v1/object/sign/')) {
-        try {
-          // Get the file path from the URL
-          const urlParts = imageUrl.split('/');
-          const bucketIndex = urlParts.findIndex(part => part === 'public' || part === 'sign');
-          
-          if (bucketIndex !== -1 && urlParts[bucketIndex + 1] && urlParts[bucketIndex + 2]) {
-            const bucketName = urlParts[bucketIndex + 1];
-            const filePath = urlParts.slice(bucketIndex + 2).join('/');
-            
-            console.log(`[Supabase Storage] Bucket: ${bucketName}, Path: ${filePath}`);
-            
-            // Try to get a signed URL for secure access
-            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-              .from(bucketName)
-              .createSignedUrl(filePath, 3600); // 1 hour expiry
-              
-            if (signedUrlData?.signedUrl && !signedUrlError) {
-              finalImageUrl = signedUrlData.signedUrl;
-              console.log(`[Supabase Storage] Using signed URL for secure access`);
-            } else {
-              console.warn(`[Supabase Storage] Could not create signed URL, using original: ${signedUrlError?.message}`);
-            }
-          }
-        } catch (authError) {
-          console.warn(`[Supabase Storage] Authentication attempt failed, using original URL: ${authError}`);
-        }
-      }
-
-      // Fetch with proper headers and timeout
+      // For public bucket images, use direct fetch - simpler and more reliable
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
       try {
-        const response = await fetch(finalImageUrl, {
+        const response = await fetch(imageUrl, {
           method: 'GET',
-          mode: 'cors',
-          credentials: 'include', // Include credentials for authenticated requests
           signal: controller.signal,
-          headers: {
-            'Accept': 'image/*',
-            'Cache-Control': 'no-cache',
-            'User-Agent': 'Mozilla/5.0 (compatible; PDF-Generator/1.0)',
-          },
         });
 
         clearTimeout(timeoutId);
@@ -91,14 +51,9 @@ export const useUnifiedPDFGeneration = () => {
           throw new Error(`Invalid content type: ${blob.type}. Expected image/*`);
         }
 
-        // Validate file size (max 10MB)
-        if (blob.size > 10 * 1024 * 1024) {
-          throw new Error(`Image too large: ${(blob.size / 1024 / 1024).toFixed(2)}MB. Max 10MB allowed`);
-        }
-
         console.log(`[Image Processing] Successfully fetched: ${blob.size} bytes, type: ${blob.type}`);
 
-        // Convert to base64 with proper error handling
+        // Convert to base64
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
           
@@ -108,16 +63,12 @@ export const useUnifiedPDFGeneration = () => {
               reject(new Error('Invalid base64 conversion result'));
               return;
             }
-            console.log(`[Image Processing] Base64 conversion successful: ${result.length} characters`);
+            console.log(`[Image Processing] ✓ Base64 conversion successful for ${imageUrl}`);
             resolve(result);
           };
           
           reader.onerror = () => {
             reject(new Error('FileReader failed to convert image to base64'));
-          };
-          
-          reader.onabort = () => {
-            reject(new Error('FileReader operation was aborted'));
           };
           
           reader.readAsDataURL(blob);
@@ -129,27 +80,19 @@ export const useUnifiedPDFGeneration = () => {
       }
 
     } catch (error: any) {
-      console.error(`[Image Processing] Error on attempt ${4 - retryCount}:`, error);
+      console.error(`[Image Processing] ✗ Error converting ${imageUrl}:`, error.message);
       
-      // Retry logic with exponential backoff
+      // Retry logic
       if (retryCount > 1) {
-        const delay = Math.pow(2, 3 - retryCount) * 1000; // 1s, 2s, 4s delays
+        const delay = Math.pow(2, 3 - retryCount) * 1000; // 1s, 2s delays
         console.log(`[Image Processing] Retrying in ${delay}ms...`);
-        
         await new Promise(resolve => setTimeout(resolve, delay));
         return convertImageToBase64(imageUrl, retryCount - 1);
       }
       
-      // Final failure - log comprehensive error details
-      console.error(`[Image Processing] All retry attempts failed for: ${imageUrl}`, {
-        error: error.message,
-        stack: error.stack,
-        imageUrl,
-        retryCount
-      });
-      
-      // Return a minimal 1x1 transparent PNG as fallback
-      return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+      // Final failure - return empty string to show "No Image" placeholder
+      console.error(`[Image Processing] ✗ All attempts failed for: ${imageUrl}`);
+      return ''; // This will trigger "No Image" placeholder in HTML
     }
   };
 
