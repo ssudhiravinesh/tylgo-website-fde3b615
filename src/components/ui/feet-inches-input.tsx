@@ -89,6 +89,25 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     const parts = cleanValue.split(/\s+/).filter(part => part !== '');
     const limitedParts = parts.slice(0, 2);
     
+    // Validate and limit inches to 0-11
+    if (limitedParts.length === 2) {
+      const inches = parseInt(limitedParts[1]) || 0;
+      if (inches >= 12) {
+        // Auto-convert excess inches to feet
+        const additionalFeet = Math.floor(inches / 12);
+        const remainingInches = inches % 12;
+        const totalFeet = (parseInt(limitedParts[0]) || 0) + additionalFeet;
+        
+        limitedParts[0] = totalFeet.toString();
+        limitedParts[1] = remainingInches === 0 ? '' : remainingInches.toString();
+        
+        // Remove empty inches part
+        if (limitedParts[1] === '') {
+          limitedParts.splice(1, 1);
+        }
+      }
+    }
+    
     // Reconstruct the clean input
     const cleanInput = limitedParts.join(' ');
     

@@ -26,3 +26,14 @@ export const formatDimensions = (length: number, width: number, unit: Unit): str
 export const formatArea = (area: number): string => {
   return `${area.toFixed(2)} sq ft`;
 };
+
+// Convert decimal feet back to feet-inches display format
+export const decimalFeetToFeetInches = (decimalFeet: number): string => {
+  const feet = Math.floor(decimalFeet);
+  const inches = Math.round((decimalFeet - feet) * 12);
+  
+  if (inches === 0) {
+    return `${feet}'`;
+  }
+  return `${feet}' ${inches}"`;
+};
