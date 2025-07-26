@@ -580,16 +580,9 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                               <span className="font-semibold ml-2">{wallSelection.layers.length}</span>
                             </div>
                               <div className="bg-white p-2 rounded border">
-                                <span className="text-gray-500">Total Tiles:</span>
-                                <span className="font-semibold ml-2">
-                                  {wallSelection.layers.reduce((sum, layer) => {
-                                    const calc = calculations.find(c => 
-                                      c.isWallTile && 
-                                      c.tile.id === layer.tileId && 
-                                      c.wallLayers?.includes(layer.layerNumber)
-                                    );
-                                    return sum + (calc?.rawTilesNeeded || 0);
-                                  }, 0)}
+                                 <span className="text-gray-500">Total Tiles:</span>
+                                 <span className="font-semibold ml-2">
+                                   {wallSelection.layers.reduce((sum, layer) => sum + layer.tilesNeeded, 0)}
                                 </span>
                               </div>
                           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 
 interface FeetInchInputProps {
@@ -15,8 +15,6 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
   disabled = false
 }) => {
   const [inputValue, setInputValue] = useState<string>('');
-  const [showQuotes, setShowQuotes] = useState<boolean>(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // Convert decimal feet to "feet inches" format for display
   const decimalFeetToDisplay = (decimalFeet: number): string => {
@@ -46,8 +44,8 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     return feet + additionalFeet + (inches / 12);
   };
 
-  // Format input value with visual quotes
-  const formatWithQuotes = (input: string): string => {
+  // Format display value with quotes for visual feedback
+  const getDisplayValue = (input: string): string => {
     const parts = input.trim().split(/\s+/).filter(part => part !== '');
     
     if (parts.length === 0) return '';
@@ -115,31 +113,20 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     }
   };
 
-  const handleFocus = () => {
-    setShowQuotes(true);
-  };
-
-  const handleBlur = () => {
-    setShowQuotes(false);
-  };
-
   return (
     <div className="space-y-1">
       <div className="relative">
         <Input
-          ref={inputRef}
           type="text"
           value={inputValue}
           onChange={handleInputChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
           placeholder={placeholder}
           disabled={disabled}
-          className={`font-mono transition-colors ${showQuotes && inputValue ? 'text-transparent' : ''}`}
+          className="font-mono"
         />
-        {showQuotes && inputValue && (
-          <div className="absolute inset-0 pointer-events-none flex items-center px-3 font-mono text-foreground">
-            {formatWithQuotes(inputValue)}
+        {inputValue && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-xs text-muted-foreground">
+            {getDisplayValue(inputValue)}
           </div>
         )}
       </div>

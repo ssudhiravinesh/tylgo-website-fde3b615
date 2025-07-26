@@ -17,7 +17,24 @@ interface TileData {
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-const generateQuotationHTML = (quotation: Quotation): string => {
+// Helper function to convert image URL to base64
+  const convertImageToBase64 = async (imageUrl: string): Promise<string> => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Failed to convert image to base64:', error);
+      return '/placeholder.svg';
+    }
+  };
+
+const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
     const { quotation_items = [], customer, worker, quotation_number, created_at, notes, wastage_percentage = 0 } = quotation;
     
     // Group items by tile for calculations
@@ -46,6 +63,25 @@ const generateQuotationHTML = (quotation: Quotation): string => {
         });
         tileCalculations[tileId].totalArea += roomAreaInSqFt;
       }
+    });
+
+    // Convert all tile images to base64
+    const tileCalculationsWithImages = await Promise.all(
+      Object.entries(tileCalculations).map(async ([tileId, calc]) => {
+        const base64Image = await convertImageToBase64(calc.tile?.image_url || '/placeholder.svg');
+        return {
+          tileId,
+          calc: {
+            ...calc,
+            tile_image_base64: base64Image
+          }
+        };
+      })
+    );
+
+    // Update tileCalculations with base64 images
+    tileCalculationsWithImages.forEach(({ tileId, calc }) => {
+      tileCalculations[tileId] = calc;
     });
 
     // Calculate requirements for each tile
@@ -339,23 +375,23 @@ const generateQuotationHTML = (quotation: Quotation): string => {
                         <div class="tile-size">Size: ${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>
-                      <td style="text-align: center; padding: 4px;">
-                        ${tile.image_url ? `
-                          <img 
-                            src="${tile.image_url}" 
-                            alt="${tile.name}"
-                            style="
-                              width: ${tile.size_length > tile.size_breadth ? '50px' : '35px'}; 
-                              height: ${tile.size_length > tile.size_breadth ? '35px' : '50px'}; 
-                              object-fit: cover; 
-                              border-radius: 3px; 
-                              border: 1px solid #ddd;
-                              display: block;
-                              margin: 0 auto;
-                            "
-                          />
-                        ` : '-'}
-                      </td>
+                       <td style="text-align: center; padding: 4px;">
+                         ${calc.tile_image_base64 ? `
+                           <img 
+                             src="${calc.tile_image_base64}" 
+                             alt="${tile.name}"
+                             style="
+                               width: ${tile.size_length > tile.size_breadth ? '50px' : '35px'}; 
+                               height: ${tile.size_length > tile.size_breadth ? '35px' : '50px'}; 
+                               object-fit: cover; 
+                               border-radius: 3px; 
+                               border: 1px solid #ddd;
+                               display: block;
+                               margin: 0 auto;
+                             "
+                           />
+                         ` : '-'}
+                       </td>
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {
@@ -554,7 +590,7 @@ const generateQuotationHTML = (quotation: Quotation): string => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     setIsGenerating(true);
     try {
-      const htmlContent = generateQuotationHTML(quotation);
+      const htmlContent = await generateQuotationHTML(quotation);
       const printWindow = window.open('', '_blank');
       
       if (printWindow) {
