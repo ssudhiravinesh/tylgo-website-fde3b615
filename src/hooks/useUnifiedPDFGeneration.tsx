@@ -17,51 +17,58 @@ interface TileData {
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-// Helper function to convert image URL to base64
+// Helper function to convert image URL to base64 using canvas
   const convertImageToBase64 = async (imageUrl: string): Promise<string> => {
     try {
-      console.log('Converting image to base64:', imageUrl);
+      console.log('Converting image to base64 using canvas:', imageUrl);
       
-      // Handle relative URLs by making them absolute
-      const absoluteUrl = imageUrl.startsWith('http') 
-        ? imageUrl 
-        : `${window.location.origin}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-      
-      console.log('Absolute URL:', absoluteUrl);
-      
-      // Add a small delay to ensure image is loaded
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const response = await fetch(absoluteUrl, {
-        mode: 'cors',
-        credentials: 'same-origin'
-      });
-      
-      if (!response.ok) {
-        console.error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to fetch image: ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      console.log('Image blob size:', blob.size, 'type:', blob.type);
-      
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = reader.result as string;
-          console.log('Base64 conversion successful, length:', base64.length);
-          resolve(base64);
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              console.error('Could not get canvas context');
+              resolve('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
+              return;
+            }
+            
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+            console.log('Canvas conversion successful, data URL length:', dataURL.length);
+            resolve(dataURL);
+          } catch (error) {
+            console.error('Canvas drawing error:', error);
+            resolve('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
+          }
         };
-        reader.onerror = () => {
-          console.error('Failed to convert blob to base64');
-          reject(new Error('Failed to convert image to base64'));
+        
+        img.onerror = (error) => {
+          console.error('Image load error:', error, 'URL:', imageUrl);
+          resolve('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
         };
-        reader.readAsDataURL(blob);
+        
+        // Handle URL resolution
+        let resolvedUrl = imageUrl;
+        if (imageUrl.startsWith('/')) {
+          resolvedUrl = `${window.location.origin}${imageUrl}`;
+        } else if (!imageUrl.startsWith('http')) {
+          resolvedUrl = `${window.location.origin}/${imageUrl}`;
+        }
+        
+        console.log('Loading image from:', resolvedUrl);
+        img.src = resolvedUrl;
       });
     } catch (error) {
-      console.error('Error converting image to base64:', error);
-      // Return a placeholder or empty string instead of failing
-      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y0ZjRmNCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+';
+      console.error('Error in convertImageToBase64:', error);
+      return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
     }
   };
 
