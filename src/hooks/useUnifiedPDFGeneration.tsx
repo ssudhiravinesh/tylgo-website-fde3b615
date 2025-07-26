@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
 
 interface TileData {
@@ -28,47 +29,69 @@ export const useUnifiedPDFGeneration = () => {
       }
 
       // Extract the file path from Supabase storage URL
+      let bucketName = '';
       let filePath = '';
+      
       if (imageUrl.includes('supabase.co/storage/v1/object/public/')) {
-        // Extract path after the bucket name
         const urlParts = imageUrl.split('/storage/v1/object/public/');
         if (urlParts.length > 1) {
-          filePath = urlParts[1];
+          const pathParts = urlParts[1].split('/');
+          bucketName = pathParts[0];
+          filePath = pathParts.slice(1).join('/');
         }
-      } else if (imageUrl.startsWith('/')) {
-        filePath = imageUrl.substring(1);
-      } else {
-        filePath = imageUrl;
       }
 
-      console.log('Extracted file path:', filePath);
+      console.log('Extracted bucket:', bucketName, 'file path:', filePath);
 
-      // Fetch image as blob from Supabase
-      const response = await fetch(imageUrl, {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
+      if (bucketName && filePath) {
+        // Use Supabase storage API to download the image
+        const { data, error } = await supabase.storage
+          .from(bucketName)
+          .download(filePath);
 
+        if (error) {
+          console.error('Supabase storage error:', error);
+          throw error;
+        }
+
+        if (data) {
+          console.log('Downloaded blob size:', data.size, 'type:', data.type);
+          
+          // Convert blob to base64
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              console.log('Base64 conversion successful, length:', result.length);
+              resolve(result);
+            };
+            reader.onerror = (error) => {
+              console.error('FileReader error:', error);
+              resolve('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
+            };
+            reader.readAsDataURL(data);
+          });
+        }
+      }
+
+      // Fallback to direct fetch if Supabase method fails
+      const response = await fetch(imageUrl);
       if (!response.ok) {
-        console.error('Failed to fetch image:', response.status, response.statusText);
-        return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const blob = await response.blob();
-      console.log('Fetched blob size:', blob.size, 'type:', blob.type);
+      console.log('Fallback fetch - blob size:', blob.size, 'type:', blob.type);
 
-      // Convert blob to base64
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = () => {
           const result = reader.result as string;
-          console.log('Base64 conversion successful, length:', result.length);
+          console.log('Fallback base64 conversion successful, length:', result.length);
           resolve(result);
         };
         reader.onerror = (error) => {
-          console.error('FileReader error:', error);
+          console.error('Fallback FileReader error:', error);
           resolve('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
         };
         reader.readAsDataURL(blob);

@@ -32,7 +32,7 @@ export const ReferenceNameSearch = ({
   const { data: customers = [], isLoading } = useCustomers();
 
   // Filter customers based on search term (only show if there are matches)
-  const filteredCustomers = searchTerm.length >= 1 ? customers.filter((customer) =>
+  const filteredCustomers = searchTerm.length >= 2 ? customers.filter((customer) =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.mobile.includes(searchTerm.replace(/\D/g, ''))
   ) : [];
@@ -57,13 +57,13 @@ export const ReferenceNameSearch = ({
     }
     
     // Calculate filtered customers for the new search term
-    const newFilteredCustomers = capitalizedTerm.length >= 1 ? customers.filter((customer) =>
+    const newFilteredCustomers = capitalizedTerm.length >= 2 ? customers.filter((customer) =>
       customer.name.toLowerCase().includes(capitalizedTerm.toLowerCase()) ||
       customer.mobile.includes(capitalizedTerm.replace(/\D/g, ''))
     ) : [];
     
-    // Show results only if there are matches and term is provided
-    setShowResults(capitalizedTerm.length >= 1 && newFilteredCustomers.length > 0);
+    // Show results only if there are matches and term is at least 2 characters
+    setShowResults(capitalizedTerm.length >= 2 && newFilteredCustomers.length > 0);
   };
 
   const handleSelectCustomer = (customer: Customer) => {
@@ -83,7 +83,7 @@ export const ReferenceNameSearch = ({
   };
 
   const handleInputFocus = () => {
-    if (searchTerm.length >= 1 && filteredCustomers.length > 0 && !selectedCustomer) {
+    if (searchTerm.length >= 2 && filteredCustomers.length > 0 && !selectedCustomer) {
       setShowResults(true);
     }
   };
