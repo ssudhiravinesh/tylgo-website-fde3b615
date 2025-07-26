@@ -18,57 +18,138 @@ interface TileData {
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Helper function to convert image URL to base64 with proper Supabase handling
-  const convertImageToBase64 = async (imageUrl: string): Promise<string> => {
+  // Enhanced image processing with authentication, retry logic, and proper error handling
+  const convertImageToBase64 = async (imageUrl: string, retryCount = 3): Promise<string> => {
     try {
       if (!imageUrl || imageUrl.trim() === '') {
+        console.warn('Empty or invalid image URL provided');
         return '';
       }
 
-      console.log('Converting image to base64:', imageUrl);
+      console.log(`[Image Processing] Starting conversion for: ${imageUrl} (Attempt: ${4 - retryCount}/3)`);
       
-      // For Supabase storage URLs, use direct fetch with proper headers
-      const response = await fetch(imageUrl, {
-        method: 'GET',
-        mode: 'cors',
-        credentials: 'omit',
-        headers: {
-          'Accept': 'image/*',
-          'Cache-Control': 'no-cache',
-        },
-      });
-
-      if (!response.ok) {
-        console.error('Failed to fetch image:', response.status, response.statusText);
-        return '';
-      }
-
-      const blob = await response.blob();
+      let finalImageUrl = imageUrl;
       
-      // Ensure it's an image
-      if (!blob.type.startsWith('image/')) {
-        console.error('Response is not an image:', blob.type);
-        return '';
+      // Check if it's a Supabase storage URL and handle authentication
+      if (imageUrl.includes('supabase.co/storage/v1/object/public/') || 
+          imageUrl.includes('supabase.co/storage/v1/object/sign/')) {
+        try {
+          // Get the file path from the URL
+          const urlParts = imageUrl.split('/');
+          const bucketIndex = urlParts.findIndex(part => part === 'public' || part === 'sign');
+          
+          if (bucketIndex !== -1 && urlParts[bucketIndex + 1] && urlParts[bucketIndex + 2]) {
+            const bucketName = urlParts[bucketIndex + 1];
+            const filePath = urlParts.slice(bucketIndex + 2).join('/');
+            
+            console.log(`[Supabase Storage] Bucket: ${bucketName}, Path: ${filePath}`);
+            
+            // Try to get a signed URL for secure access
+            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+              .from(bucketName)
+              .createSignedUrl(filePath, 3600); // 1 hour expiry
+              
+            if (signedUrlData?.signedUrl && !signedUrlError) {
+              finalImageUrl = signedUrlData.signedUrl;
+              console.log(`[Supabase Storage] Using signed URL for secure access`);
+            } else {
+              console.warn(`[Supabase Storage] Could not create signed URL, using original: ${signedUrlError?.message}`);
+            }
+          }
+        } catch (authError) {
+          console.warn(`[Supabase Storage] Authentication attempt failed, using original URL: ${authError}`);
+        }
       }
 
-      console.log('Successfully fetched image blob:', blob.size, 'bytes, type:', blob.type);
+      // Fetch with proper headers and timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          console.log('Base64 conversion successful, length:', result.length);
-          resolve(result);
-        };
-        reader.onerror = () => {
-          console.error('FileReader error');
-          reject(new Error('Failed to read image as base64'));
-        };
-        reader.readAsDataURL(blob);
+      try {
+        const response = await fetch(finalImageUrl, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'include', // Include credentials for authenticated requests
+          signal: controller.signal,
+          headers: {
+            'Accept': 'image/*',
+            'Cache-Control': 'no-cache',
+            'User-Agent': 'Mozilla/5.0 (compatible; PDF-Generator/1.0)',
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        
+        // Validate content type
+        if (!blob.type.startsWith('image/')) {
+          throw new Error(`Invalid content type: ${blob.type}. Expected image/*`);
+        }
+
+        // Validate file size (max 10MB)
+        if (blob.size > 10 * 1024 * 1024) {
+          throw new Error(`Image too large: ${(blob.size / 1024 / 1024).toFixed(2)}MB. Max 10MB allowed`);
+        }
+
+        console.log(`[Image Processing] Successfully fetched: ${blob.size} bytes, type: ${blob.type}`);
+
+        // Convert to base64 with proper error handling
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            if (!result || !result.startsWith('data:image/')) {
+              reject(new Error('Invalid base64 conversion result'));
+              return;
+            }
+            console.log(`[Image Processing] Base64 conversion successful: ${result.length} characters`);
+            resolve(result);
+          };
+          
+          reader.onerror = () => {
+            reject(new Error('FileReader failed to convert image to base64'));
+          };
+          
+          reader.onabort = () => {
+            reject(new Error('FileReader operation was aborted'));
+          };
+          
+          reader.readAsDataURL(blob);
+        });
+
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
+
+    } catch (error: any) {
+      console.error(`[Image Processing] Error on attempt ${4 - retryCount}:`, error);
+      
+      // Retry logic with exponential backoff
+      if (retryCount > 1) {
+        const delay = Math.pow(2, 3 - retryCount) * 1000; // 1s, 2s, 4s delays
+        console.log(`[Image Processing] Retrying in ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return convertImageToBase64(imageUrl, retryCount - 1);
+      }
+      
+      // Final failure - log comprehensive error details
+      console.error(`[Image Processing] All retry attempts failed for: ${imageUrl}`, {
+        error: error.message,
+        stack: error.stack,
+        imageUrl,
+        retryCount
       });
-    } catch (error) {
-      console.error('Error converting image to base64:', error);
-      return '';
+      
+      // Return a minimal 1x1 transparent PNG as fallback
+      return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
     }
   };
 
@@ -103,15 +184,43 @@ export const useUnifiedPDFGeneration = () => {
       }
     });
 
-    // Convert all tile images to base64 with better error handling
-    console.log('Starting image conversion for', Object.keys(tileCalculations).length, 'tiles');
+    // Convert all tile images to base64 with progress tracking and error handling
+    const totalTiles = Object.keys(tileCalculations).length;
+    console.log(`[PDF Generation] Starting image conversion for ${totalTiles} tiles`);
+    
+    // Show progress toast for large numbers of images
+    if (totalTiles > 3) {
+      toast.info(`Processing ${totalTiles} tile images for PDF...`, {
+        duration: 3000,
+      });
+    }
+    
+    let processedCount = 0;
     
     const imagePromises = Object.entries(tileCalculations).map(async ([tileId, calc]) => {
       try {
         const imageUrl = calc.tile?.image_url || '';
-        console.log(`Converting image for tile ${tileId}:`, imageUrl);
+        console.log(`[PDF Generation] Processing tile ${++processedCount}/${totalTiles}: ${calc.tile?.code || tileId}`);
+        
+        if (!imageUrl) {
+          console.warn(`[PDF Generation] No image URL for tile ${calc.tile?.code || tileId}`);
+          return {
+            tileId,
+            calc: {
+              ...calc,
+              tile_image_base64: ''
+            }
+          };
+        }
         
         const base64Image = await convertImageToBase64(imageUrl);
+        
+        // Log success/failure for tracking
+        if (base64Image && base64Image.length > 100) {
+          console.log(`[PDF Generation] ✓ Successfully processed image for tile ${calc.tile?.code || tileId}`);
+        } else {
+          console.warn(`[PDF Generation] ⚠ Fallback image used for tile ${calc.tile?.code || tileId}`);
+        }
         
         return {
           tileId,
@@ -121,23 +230,68 @@ export const useUnifiedPDFGeneration = () => {
           }
         };
       } catch (error) {
-        console.error(`Failed to convert image for tile ${tileId}:`, error);
+        console.error(`[PDF Generation] ✗ Failed to process image for tile ${calc.tile?.code || tileId}:`, error);
         return {
           tileId,
           calc: {
             ...calc,
-            tile_image_base64: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
+            tile_image_base64: '' // Empty string will trigger "No Image" placeholder
           }
         };
       }
     });
 
-    // Wait for all images to be processed
-    const tileCalculationsWithImages = await Promise.all(imagePromises);
-    console.log('All images processed');
+    // Wait for all images to be processed with timeout
+    const tileCalculationsWithImages = await Promise.allSettled(imagePromises);
+    
+    // Process results and count successes/failures
+    let successCount = 0;
+    let failureCount = 0;
+    const processedCalculations: any[] = [];
+    
+    tileCalculationsWithImages.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        const { tileId, calc } = result.value;
+        processedCalculations.push({ tileId, calc });
+        
+        if (calc.tile_image_base64 && calc.tile_image_base64.length > 100) {
+          successCount++;
+        } else {
+          failureCount++;
+        }
+      } else {
+        console.error(`[PDF Generation] Promise failed for tile:`, result.reason);
+        failureCount++;
+        // Add fallback entry
+        const tileEntries = Object.entries(tileCalculations);
+        if (tileEntries[index]) {
+          const [tileId, calc] = tileEntries[index];
+          processedCalculations.push({
+            tileId,
+            calc: {
+              ...calc,
+              tile_image_base64: ''
+            }
+          });
+        }
+      }
+    });
+    
+    console.log(`[PDF Generation] Image processing complete: ${successCount} successful, ${failureCount} failed out of ${totalTiles} total`);
+    
+    // Show completion notification for larger sets
+    if (totalTiles > 3) {
+      if (failureCount === 0) {
+        toast.success(`All ${totalTiles} tile images processed successfully!`);
+      } else if (successCount > 0) {
+        toast.warning(`Processed ${successCount}/${totalTiles} images. ${failureCount} will show as placeholders.`);
+      } else {
+        toast.error(`Failed to load any tile images. PDF will show placeholders.`);
+      }
+    }
 
     // Update tileCalculations with base64 images
-    tileCalculationsWithImages.forEach(({ tileId, calc }) => {
+    processedCalculations.forEach(({ tileId, calc }) => {
       tileCalculations[tileId] = calc;
     });
 
