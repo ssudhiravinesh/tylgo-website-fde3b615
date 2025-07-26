@@ -18,7 +18,7 @@ interface TileData {
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Simple and reliable image conversion for public bucket images
+  // Get proper image URL from Supabase storage and convert to base64
   const convertImageToBase64 = async (imageUrl: string, retryCount = 3): Promise<string> => {
     try {
       if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
@@ -28,14 +28,79 @@ export const useUnifiedPDFGeneration = () => {
 
       console.log(`[Image Processing] Converting image: ${imageUrl} (Attempt: ${4 - retryCount}/3)`);
       
-      // For public bucket images, use direct fetch - simpler and more reliable
+      let finalImageUrl = imageUrl;
+      
+      // Check if this is a Supabase storage URL pattern
+      if (imageUrl.includes('/storage/v1/object/') || imageUrl.includes('supabase')) {
+        try {
+          // Extract bucket and path from URL
+          let bucketName = '';
+          let filePath = '';
+          
+          if (imageUrl.includes('/storage/v1/object/public/')) {
+            // Public bucket URL pattern
+            const parts = imageUrl.split('/storage/v1/object/public/');
+            if (parts.length === 2) {
+              const [bucket, ...pathParts] = parts[1].split('/');
+              bucketName = bucket;
+              filePath = pathParts.join('/');
+            }
+          } else if (imageUrl.includes('/storage/v1/object/sign/')) {
+            // Signed URL pattern
+            const parts = imageUrl.split('/storage/v1/object/sign/');
+            if (parts.length === 2) {
+              const [bucket, ...pathParts] = parts[1].split('/');
+              bucketName = bucket;
+              filePath = pathParts.join('/').split('?')[0]; // Remove query params
+            }
+          }
+          
+          if (bucketName && filePath) {
+            console.log(`[Image Processing] Detected Supabase storage: bucket=${bucketName}, path=${filePath}`);
+            
+            // Try to get public URL first
+            const { data: publicData } = supabase.storage
+              .from(bucketName)
+              .getPublicUrl(filePath);
+              
+            if (publicData?.publicUrl) {
+              finalImageUrl = publicData.publicUrl;
+              console.log(`[Image Processing] Using public URL: ${finalImageUrl}`);
+            } else {
+              // Fallback: try signed URL for private buckets
+              const { data: signedData, error } = await supabase.storage
+                .from(bucketName)
+                .createSignedUrl(filePath, 3600); // 1 hour expiry
+                
+              if (signedData?.signedUrl && !error) {
+                finalImageUrl = signedData.signedUrl;
+                console.log(`[Image Processing] Using signed URL: ${finalImageUrl}`);
+              } else {
+                console.warn(`[Image Processing] Failed to get signed URL:`, error?.message);
+              }
+            }
+          }
+        } catch (supabaseError) {
+          console.warn(`[Image Processing] Supabase URL processing failed:`, supabaseError);
+          // Continue with original URL
+        }
+      }
+
+      // Now fetch the image with proper handling
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
       try {
-        const response = await fetch(imageUrl, {
+        console.log(`[Image Processing] Fetching image from: ${finalImageUrl}`);
+        
+        const response = await fetch(finalImageUrl, {
           method: 'GET',
           signal: controller.signal,
+          mode: 'cors',
+          credentials: 'omit', // Don't send credentials for CORS
+          headers: {
+            'Accept': 'image/*',
+          }
         });
 
         clearTimeout(timeoutId);
@@ -48,7 +113,7 @@ export const useUnifiedPDFGeneration = () => {
         
         // Validate content type
         if (!blob.type.startsWith('image/')) {
-          throw new Error(`Invalid content type: ${blob.type}. Expected image/*`);
+          console.warn(`[Image Processing] Unexpected content type: ${blob.type}. Proceeding anyway...`);
         }
 
         console.log(`[Image Processing] Successfully fetched: ${blob.size} bytes, type: ${blob.type}`);
@@ -59,7 +124,7 @@ export const useUnifiedPDFGeneration = () => {
           
           reader.onloadend = () => {
             const result = reader.result as string;
-            if (!result || !result.startsWith('data:image/')) {
+            if (!result || !result.includes('data:')) {
               reject(new Error('Invalid base64 conversion result'));
               return;
             }
@@ -82,9 +147,9 @@ export const useUnifiedPDFGeneration = () => {
     } catch (error: any) {
       console.error(`[Image Processing] ✗ Error converting ${imageUrl}:`, error.message);
       
-      // Retry logic
+      // Retry logic with exponential backoff
       if (retryCount > 1) {
-        const delay = Math.pow(2, 3 - retryCount) * 1000; // 1s, 2s delays
+        const delay = Math.pow(2, 4 - retryCount) * 1000; // 2s, 4s delays
         console.log(`[Image Processing] Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return convertImageToBase64(imageUrl, retryCount - 1);
