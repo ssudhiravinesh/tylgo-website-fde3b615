@@ -18,17 +18,15 @@ interface TileData {
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Get proper image URL from Supabase storage and convert to base64
-  const convertImageToBase64 = async (imageUrl: string, retryCount = 3): Promise<string> => {
+  // Get proper image URL from Supabase storage for direct use in HTML
+  const getImageUrl = async (imageUrl: string): Promise<string> => {
     try {
       if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
-        console.log('[Image Processing] No valid image URL provided - will show "No Image" placeholder');
-        return ''; // Return empty string to trigger "No Image" placeholder
+        console.log('[Image Processing] No valid image URL provided');
+        return '';
       }
 
-      console.log(`[Image Processing] Converting image: ${imageUrl} (Attempt: ${4 - retryCount}/3)`);
-      
-      let finalImageUrl = imageUrl;
+      console.log(`[Image Processing] Processing image URL: ${imageUrl}`);
       
       // Check if this is a Supabase storage URL pattern
       if (imageUrl.includes('/storage/v1/object/') || imageUrl.includes('supabase')) {
@@ -64,8 +62,8 @@ export const useUnifiedPDFGeneration = () => {
               .getPublicUrl(filePath);
               
             if (publicData?.publicUrl) {
-              finalImageUrl = publicData.publicUrl;
-              console.log(`[Image Processing] Using public URL: ${finalImageUrl}`);
+              console.log(`[Image Processing] Using public URL: ${publicData.publicUrl}`);
+              return publicData.publicUrl;
             } else {
               // Fallback: try signed URL for private buckets
               const { data: signedData, error } = await supabase.storage
@@ -73,92 +71,39 @@ export const useUnifiedPDFGeneration = () => {
                 .createSignedUrl(filePath, 3600); // 1 hour expiry
                 
               if (signedData?.signedUrl && !error) {
-                finalImageUrl = signedData.signedUrl;
-                console.log(`[Image Processing] Using signed URL: ${finalImageUrl}`);
+                console.log(`[Image Processing] Using signed URL: ${signedData.signedUrl}`);
+                return signedData.signedUrl;
               } else {
                 console.warn(`[Image Processing] Failed to get signed URL:`, error?.message);
+                return imageUrl; // Return original URL as fallback
               }
             }
           }
         } catch (supabaseError) {
           console.warn(`[Image Processing] Supabase URL processing failed:`, supabaseError);
-          // Continue with original URL
+          return imageUrl; // Return original URL as fallback
         }
       }
 
-      // Now fetch the image with proper handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-      try {
-        console.log(`[Image Processing] Fetching image from: ${finalImageUrl}`);
-        
-        const response = await fetch(finalImageUrl, {
-          method: 'GET',
-          signal: controller.signal,
-          mode: 'cors',
-          credentials: 'omit', // Don't send credentials for CORS
-          headers: {
-            'Accept': 'image/*',
-          }
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const blob = await response.blob();
-        
-        // Validate content type
-        if (!blob.type.startsWith('image/')) {
-          console.warn(`[Image Processing] Unexpected content type: ${blob.type}. Proceeding anyway...`);
-        }
-
-        console.log(`[Image Processing] Successfully fetched: ${blob.size} bytes, type: ${blob.type}`);
-
-        // Convert to base64
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            if (!result || !result.includes('data:')) {
-              reject(new Error('Invalid base64 conversion result'));
-              return;
-            }
-            console.log(`[Image Processing] ✓ Base64 conversion successful for ${imageUrl}`);
-            resolve(result);
-          };
-          
-          reader.onerror = () => {
-            reject(new Error('FileReader failed to convert image to base64'));
-          };
-          
-          reader.readAsDataURL(blob);
-        });
-
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        throw fetchError;
-      }
+      // Return the original URL if it's not a Supabase storage URL
+      return imageUrl;
 
     } catch (error: any) {
-      console.error(`[Image Processing] ✗ Error converting ${imageUrl}:`, error.message);
-      
-      // Retry logic with exponential backoff
-      if (retryCount > 1) {
-        const delay = Math.pow(2, 4 - retryCount) * 1000; // 2s, 4s delays
-        console.log(`[Image Processing] Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return convertImageToBase64(imageUrl, retryCount - 1);
-      }
-      
-      // Final failure - return empty string to show "No Image" placeholder
-      console.error(`[Image Processing] ✗ All attempts failed for: ${imageUrl}`);
-      return ''; // This will trigger "No Image" placeholder in HTML
+      console.error(`[Image Processing] Error processing URL ${imageUrl}:`, error.message);
+      return imageUrl; // Return original URL as fallback
     }
+  };
+
+  // Helper function to wait for all images to load in the print window
+  const waitForImages = (win: Window): Promise<void> => {
+    return Promise.all(
+      Array.from(win.document.images).map(
+        img => img.complete ? Promise.resolve() :
+          new Promise<void>(resolve => { 
+            img.onload = img.onerror = () => resolve();
+          })
+      )
+    ).then(() => void 0);
   };
 
   const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
@@ -192,23 +137,14 @@ export const useUnifiedPDFGeneration = () => {
       }
     });
 
-    // Convert all tile images to base64 with progress tracking and error handling
+    // Process all tile image URLs for direct use (no base64 conversion)
     const totalTiles = Object.keys(tileCalculations).length;
-    console.log(`[PDF Generation] Starting image conversion for ${totalTiles} tiles`);
-    
-    // Show progress toast for large numbers of images
-    if (totalTiles > 3) {
-      toast.info(`Processing ${totalTiles} tile images for PDF...`, {
-        duration: 3000,
-      });
-    }
-    
-    let processedCount = 0;
+    console.log(`[PDF Generation] Processing image URLs for ${totalTiles} tiles`);
     
     const imagePromises = Object.entries(tileCalculations).map(async ([tileId, calc]) => {
       try {
         const imageUrl = calc.tile?.image_url || '';
-        console.log(`[PDF Generation] Processing tile ${++processedCount}/${totalTiles}: ${calc.tile?.code || tileId}`);
+        console.log(`[PDF Generation] Processing tile: ${calc.tile?.code || tileId}`);
         
         if (!imageUrl) {
           console.warn(`[PDF Generation] No image URL for tile ${calc.tile?.code || tileId}`);
@@ -216,60 +152,47 @@ export const useUnifiedPDFGeneration = () => {
             tileId,
             calc: {
               ...calc,
-              tile_image_base64: ''
+              tile_image_url: ''
             }
           };
         }
         
-        const base64Image = await convertImageToBase64(imageUrl);
+        // Get the proper URL for direct use in HTML
+        const finalImageUrl = await getImageUrl(imageUrl);
         
-        // Log success/failure for tracking
-        if (base64Image && base64Image.length > 100) {
-          console.log(`[PDF Generation] ✓ Successfully processed image for tile ${calc.tile?.code || tileId}`);
-        } else {
-          console.warn(`[PDF Generation] ⚠ Fallback image used for tile ${calc.tile?.code || tileId}`);
-        }
+        console.log(`[PDF Generation] ✓ Processed image URL for tile ${calc.tile?.code || tileId}: ${finalImageUrl}`);
         
         return {
           tileId,
           calc: {
             ...calc,
-            tile_image_base64: base64Image
+            tile_image_url: finalImageUrl
           }
         };
       } catch (error) {
-        console.error(`[PDF Generation] ✗ Failed to process image for tile ${calc.tile?.code || tileId}:`, error);
+        console.error(`[PDF Generation] ✗ Failed to process image URL for tile ${calc.tile?.code || tileId}:`, error);
         return {
           tileId,
           calc: {
             ...calc,
-            tile_image_base64: '' // Empty string will trigger "No Image" placeholder
+            tile_image_url: '' // Empty string will trigger "No Image" placeholder
           }
         };
       }
     });
 
-    // Wait for all images to be processed with timeout
+    // Wait for all image URLs to be processed
     const tileCalculationsWithImages = await Promise.allSettled(imagePromises);
     
-    // Process results and count successes/failures
-    let successCount = 0;
-    let failureCount = 0;
+    // Process results
     const processedCalculations: any[] = [];
     
     tileCalculationsWithImages.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         const { tileId, calc } = result.value;
         processedCalculations.push({ tileId, calc });
-        
-        if (calc.tile_image_base64 && calc.tile_image_base64.length > 100) {
-          successCount++;
-        } else {
-          failureCount++;
-        }
       } else {
         console.error(`[PDF Generation] Promise failed for tile:`, result.reason);
-        failureCount++;
         // Add fallback entry
         const tileEntries = Object.entries(tileCalculations);
         if (tileEntries[index]) {
@@ -278,27 +201,16 @@ export const useUnifiedPDFGeneration = () => {
             tileId,
             calc: {
               ...calc,
-              tile_image_base64: ''
+              tile_image_url: ''
             }
           });
         }
       }
     });
     
-    console.log(`[PDF Generation] Image processing complete: ${successCount} successful, ${failureCount} failed out of ${totalTiles} total`);
-    
-    // Show completion notification for larger sets
-    if (totalTiles > 3) {
-      if (failureCount === 0) {
-        toast.success(`All ${totalTiles} tile images processed successfully!`);
-      } else if (successCount > 0) {
-        toast.warning(`Processed ${successCount}/${totalTiles} images. ${failureCount} will show as placeholders.`);
-      } else {
-        toast.error(`Failed to load any tile images. PDF will show placeholders.`);
-      }
-    }
+    console.log(`[PDF Generation] Image URL processing complete for ${totalTiles} tiles`);
 
-    // Update tileCalculations with base64 images
+    // Update tileCalculations with image URLs
     processedCalculations.forEach(({ tileId, calc }) => {
       tileCalculations[tileId] = calc;
     });
@@ -611,29 +523,29 @@ export const useUnifiedPDFGeneration = () => {
                         <div class="tile-size">Size: ${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>
-                       <td class="image-cell">
-                          ${calc.tile_image_base64 ? `
-                            <div style="width: 60px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                              <img 
-                                src="${calc.tile_image_base64}" 
-                                alt="${tile.name}"
-                                style="
-                                  max-width: 100%; 
-                                  max-height: 100%; 
-                                  object-fit: contain; 
-                                  border-radius: 4px; 
-                                  border: 1px solid #ddd; 
-                                  background-color: #fff;
-                                  ${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}
-                                "
-                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                              />
-                              <div style="display: none; width: 50px; height: 40px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; align-items: center; justify-content: center; font-size: 9px; color: #999; text-align: center;">No Image</div>
-                            </div>
-                          ` : `
-                            <div style="width: 50px; height: 40px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #999; text-align: center;">No Image</div>
-                          `}
-                        </td>
+                        <td class="image-cell">
+                           ${calc.tile_image_url ? `
+                             <div style="width: 60px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                               <img 
+                                 src="${calc.tile_image_url}" 
+                                 alt="${tile.name}"
+                                 style="
+                                   max-width: 100%; 
+                                   max-height: 100%; 
+                                   object-fit: contain; 
+                                   border-radius: 4px; 
+                                   border: 1px solid #ddd; 
+                                   background-color: #fff;
+                                   ${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}
+                                 "
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                               />
+                               <div style="display: none; width: 50px; height: 40px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; align-items: center; justify-content: center; font-size: 9px; color: #999; text-align: center;">No Image</div>
+                             </div>
+                           ` : `
+                             <div style="width: 50px; height: 40px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #999; text-align: center;">No Image</div>
+                           `}
+                         </td>
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {
@@ -840,10 +752,29 @@ export const useUnifiedPDFGeneration = () => {
         printWindow.document.write(htmlContent);
         printWindow.document.close();
         
-        // Focus the print window
+        // Wait for DOM content to be ready
+        await new Promise<void>(resolve => {
+          if (printWindow.document.readyState === 'complete') {
+            resolve();
+          } else {
+            printWindow.addEventListener('DOMContentLoaded', () => resolve());
+          }
+        });
+        
+        // Wait for all images to load
+        console.log('[PDF Generation] Waiting for all images to load...');
+        await waitForImages(printWindow);
+        console.log('[PDF Generation] All images loaded, ready to print');
+        
+        // Focus the print window and trigger print
         printWindow.focus();
         
-        toast.success('PDF print dialog opened');
+        // Small delay to ensure everything is rendered
+        setTimeout(() => {
+          printWindow.print();
+        }, 100);
+        
+        toast.success('PDF generation complete - images loaded successfully');
       } else {
         toast.error('Please allow popups to generate PDF');
       }
@@ -853,7 +784,7 @@ export const useUnifiedPDFGeneration = () => {
     } finally {
       setIsGenerating(false);
     }
-  }, []);
+  }, [waitForImages]);
 
   const generateTilesPDF = useCallback(async (tiles: TileData[]) => {
     setIsGenerating(true);
