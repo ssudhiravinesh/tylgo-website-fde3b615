@@ -135,10 +135,10 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
           onBlur={handleBlur}
           placeholder={placeholder}
           disabled={disabled}
-          className="font-mono"
+          className={`font-mono transition-colors ${showQuotes && inputValue ? 'text-transparent' : ''}`}
         />
         {showQuotes && inputValue && (
-          <div className="absolute inset-0 pointer-events-none flex items-center px-3 font-mono text-muted-foreground/60">
+          <div className="absolute inset-0 pointer-events-none flex items-center px-3 font-mono text-foreground">
             {formatWithQuotes(inputValue)}
           </div>
         )}
