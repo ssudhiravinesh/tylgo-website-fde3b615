@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, X, User } from "lucide-react";
+import { Search, User, Phone } from "lucide-react";
 import { useCustomers, Customer } from "@/hooks/useCustomers";
 
 interface ReferenceNameSearchProps {
@@ -26,16 +25,18 @@ export const ReferenceNameSearch = ({
 }: ReferenceNameSearchProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showResults, setShowResults] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  
   const { data: customers = [], isLoading } = useCustomers();
 
-  // Filter customers based on search term (only show if there are matches)
-  const filteredCustomers = searchTerm.length >= 2 ? customers.filter((customer) =>
+  // Filter customers based on search term - match name exactly like DirectCustomerSearch
+  const filteredCustomers = customers.filter((customer) =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.mobile.includes(searchTerm.replace(/\D/g, ''))
-  ) : [];
+  );
+
+  // Find if current value matches an existing customer
+  const selectedCustomer = customers.find(customer => 
+    customer.name.toLowerCase() === value.toLowerCase()
+  );
 
   // Initialize with current value
   useEffect(() => {
@@ -50,124 +51,109 @@ export const ReferenceNameSearch = ({
     setSearchTerm(capitalizedTerm);
     onValueChange(capitalizedTerm);
     
-    // Clear selected customer when manually typing
-    if (selectedCustomer) {
-      setSelectedCustomer(null);
+    // Show results when typing - same logic as DirectCustomerSearch
+    setShowResults(capitalizedTerm.length > 0);
+    
+    // Clear mobile when manually typing
+    if (!selectedCustomer || selectedCustomer.name.toLowerCase() !== capitalizedTerm.toLowerCase()) {
       onMobileChange("");
     }
-    
-    // Calculate filtered customers for the new search term
-    const newFilteredCustomers = capitalizedTerm.length >= 2 ? customers.filter((customer) =>
-      customer.name.toLowerCase().includes(capitalizedTerm.toLowerCase()) ||
-      customer.mobile.includes(capitalizedTerm.replace(/\D/g, ''))
-    ) : [];
-    
-    // Show results only if there are matches and term is at least 2 characters
-    setShowResults(capitalizedTerm.length >= 2 && newFilteredCustomers.length > 0);
   };
 
   const handleSelectCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setSearchTerm(capitalizeWords(customer.name));
-    onValueChange(capitalizeWords(customer.name));
-    onMobileChange(customer.mobile);
+    const capitalizedName = capitalizeWords(customer.name);
+    setSearchTerm("");
     setShowResults(false);
+    onValueChange(capitalizedName);
+    onMobileChange(customer.mobile);
   };
 
   const handleClearSelection = () => {
-    setSelectedCustomer(null);
     setSearchTerm("");
+    setShowResults(false);
     onValueChange("");
     onMobileChange("");
-    inputRef.current?.focus();
   };
 
-  const handleInputFocus = () => {
-    if (searchTerm.length >= 2 && filteredCustomers.length > 0 && !selectedCustomer) {
+  // Show results when typing - same logic as DirectCustomerSearch
+  useEffect(() => {
+    if (searchTerm.length > 0) {
       setShowResults(true);
     }
-  };
-
-  const handleInputBlur = () => {
-    // Delay hiding results to allow clicking on them
-    setTimeout(() => setShowResults(false), 150);
-  };
-
-  // If a customer is selected, show selected state
-  if (selectedCustomer) {
-    return (
-      <div className="relative">
-        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <User className="h-4 w-4 text-blue-600" />
-          <div className="flex-1">
-            <p className="font-medium text-blue-800">{selectedCustomer.name}</p>
-            <p className="text-sm text-blue-600">{selectedCustomer.mobile}</p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleClearSelection}
-            className="text-blue-600 border-blue-300 hover:bg-blue-100"
-          >
-            Change
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  }, [searchTerm]);
 
   return (
-    <div className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-        <Input
-          ref={inputRef}
-          type="text"
-          placeholder={placeholder}
-          value={searchTerm}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          className="pl-10 h-12 border-gray-200"
-        />
-        {searchTerm && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
+    <div className="relative w-full">
+      {/* Display selected customer or search input */}
+      {selectedCustomer && !showResults ? (
+        <div className="flex items-center justify-between p-3 border rounded-lg bg-blue-50 border-blue-200">
+          <div className="flex items-center gap-3">
+            <User className="h-5 w-5 text-blue-600" />
+            <div>
+              <div className="font-medium text-gray-900">{selectedCustomer.name}</div>
+              <div className="text-sm text-gray-600 flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                {selectedCustomer.mobile}
+              </div>
+            </div>
+          </div>
+          <button
             onClick={handleClearSelection}
-            className="absolute right-2 top-2 h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-600 text-sm px-2 py-1 rounded hover:bg-white"
           >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
+            Change
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder={placeholder}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 h-12"
+            />
+          </div>
 
-      {/* Results dropdown - only show when there are actual matches */}
-      {showResults && filteredCustomers.length > 0 && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {isLoading ? (
-            <div className="p-3 text-center text-gray-500">Searching...</div>
-          ) : (
-            <>
-              {filteredCustomers.map((customer) => (
-                <button
-                  key={customer.id}
-                  type="button"
-                  onClick={() => handleSelectCustomer(customer)}
-                  className="w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-gray-50 focus:outline-none"
-                >
-                  <div className="flex items-center gap-3">
-                    <User className="h-4 w-4 text-gray-400" />
-                    <div>
-                      <p className="font-medium text-gray-800">{customer.name}</p>
-                      <p className="text-sm text-gray-600">{customer.mobile}</p>
+          {/* Search Results */}
+          {showResults && (
+            <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-80 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+              {isLoading ? (
+                <div className="p-4 text-center text-gray-500">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                  <div className="mt-2">Loading customers...</div>
+                </div>
+              ) : filteredCustomers.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  No customers found matching "{searchTerm}"
+                </div>
+              ) : (
+                <div className="py-2">
+                  {filteredCustomers.map((customer) => (
+                    <div
+                      key={customer.id}
+                      onClick={() => handleSelectCustomer(customer)}
+                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="flex items-start gap-3">
+                        <User className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{customer.name}</div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3 text-green-600" />
+                              <span>{customer.mobile}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-            </>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
