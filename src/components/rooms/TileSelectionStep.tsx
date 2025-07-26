@@ -579,19 +579,19 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                               <span className="text-gray-500">Layers:</span>
                               <span className="font-semibold ml-2">{wallSelection.layers.length}</span>
                             </div>
-                             <div className="bg-white p-2 rounded border">
-                               <span className="text-gray-500">Raw Tiles Needed:</span>
-                               <span className="font-semibold ml-2">
-                                 {wallSelection.layers.reduce((sum, layer) => {
-                                   const calc = calculations.find(c => 
-                                     c.isWallTile && 
-                                     c.tile.id === layer.tileId && 
-                                     c.wallLayers?.includes(layer.layerNumber)
-                                   );
-                                   return sum + (calc?.rawTilesNeeded || 0);
-                                 }, 0)}
-                               </span>
-                             </div>
+                              <div className="bg-white p-2 rounded border">
+                                <span className="text-gray-500">Total Tiles:</span>
+                                <span className="font-semibold ml-2">
+                                  {wallSelection.layers.reduce((sum, layer) => {
+                                    const calc = calculations.find(c => 
+                                      c.isWallTile && 
+                                      c.tile.id === layer.tileId && 
+                                      c.wallLayers?.includes(layer.layerNumber)
+                                    );
+                                    return sum + (calc?.rawTilesNeeded || 0);
+                                  }, 0)}
+                                </span>
+                              </div>
                           </div>
                           <div className="bg-white p-3 rounded-lg border">
                             <p className="text-sm text-gray-600">Click Configure to manage layers and tiles</p>

@@ -1,202 +1,13 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FeetInchInput } from "@/components/ui/feet-inches-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
-
-// Enhanced FeetInchInput Component with Tablet Support and Smart Backspace
-interface FeetInchInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  className?: string;
-  style?: React.CSSProperties;
-}
-
-const FeetInchInput = forwardRef<HTMLInputElement, FeetInchInputProps>(
-  ({ value, onChange, placeholder = "20 5", disabled = false, className, style }, ref) => {
-    const inputRef = useRef<HTMLInputElement>(null);
-    const [cursorPosition, setCursorPosition] = useState<number | null>(null);
-    const [isComposing, setIsComposing] = useState(false);
-
-    // Expose ref to parent
-    useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
-
-    // Enhanced formatting logic that handles spaces properly
-    const formatFeetInches = (input: string): string => {
-      if (!input.trim()) return '';
-      
-      const cleanInput = input.replace(/[^\d\s]/g, '');
-      const parts = cleanInput.trim().split(/\s+/);
-      
-      if (parts.length === 0 || !parts[0]) return '';
-      
-      const feet = parts[0];
-      const inches = parts[1] || '';
-      
-      // Key fix: Handle space input properly
-      if (feet && !inches) {
-        // If input ends with space, user is adding inches
-        if (input.trim() !== input || input.endsWith(' ')) {
-          return feet + "' ";
-        }
-        return feet + "'";
-      } else if (feet && inches) {
-        return feet + "' " + inches + '"';
-      }
-      
-      return cleanInput;
-    };
-
-    // Smart backspace implementation
-    const handleBackspace = (currentValue: string, cursorPos: number): { value: string; cursor: number } => {
-      if (cursorPos === 0) return { value: currentValue, cursor: 0 };
-      
-      const charBeforeCursor = currentValue[cursorPos - 1];
-      
-      // Smart deletion: remove digit when cursor is after formatting character
-      if (charBeforeCursor === "'" || charBeforeCursor === '"') {
-        let digitPos = cursorPos - 2;
-        while (digitPos >= 0 && !/\d/.test(currentValue[digitPos])) {
-          digitPos--;
-        }
-        
-        if (digitPos >= 0) {
-          const beforeDigit = currentValue.substring(0, digitPos);
-          const afterCursor = currentValue.substring(cursorPos);
-          const newRaw = beforeDigit.replace(/[^\d\s]/g, '') + afterCursor.replace(/[^\d\s]/g, '');
-          const newFormatted = formatFeetInches(newRaw);
-          
-          return { value: newFormatted, cursor: Math.max(0, digitPos) };
-        }
-      }
-      
-      // Handle space removal
-      if (charBeforeCursor === ' ') {
-        const newValue = currentValue.substring(0, cursorPos - 1) + currentValue.substring(cursorPos);
-        const newFormatted = formatFeetInches(newValue.replace(/[^\d\s]/g, ''));
-        return { value: newFormatted, cursor: cursorPos - 1 };
-      }
-      
-      // Normal digit removal
-      if (/\d/.test(charBeforeCursor)) {
-        const newValue = currentValue.substring(0, cursorPos - 1) + currentValue.substring(cursorPos);
-        const newFormatted = formatFeetInches(newValue.replace(/[^\d\s]/g, ''));
-        return { value: newFormatted, cursor: cursorPos - 1 };
-      }
-      
-      return { value: currentValue, cursor: cursorPos };
-    };
-
-    // Enhanced keydown handler with space support
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (isComposing) return;
-      
-      const target = e.target as HTMLInputElement;
-      const currentCursor = target.selectionStart || 0;
-      
-      if (e.key === 'Backspace') {
-        e.preventDefault();
-        const result = handleBackspace(target.value, currentCursor);
-        onChange(result.value);
-        setCursorPosition(result.cursor);
-        return;
-      }
-      
-      // Critical fix: Allow space input for inches
-      if (e.key === ' ') {
-        e.preventDefault();
-        const beforeCursor = target.value.substring(0, currentCursor);
-        const afterCursor = target.value.substring(currentCursor);
-        const newValue = beforeCursor + ' ' + afterCursor;
-        const formatted = formatFeetInches(newValue.replace(/[^\d\s]/g, '') + ' ');
-        
-        onChange(formatted);
-        setCursorPosition(formatted.length);
-        return;
-      }
-      
-      // Only allow digits and navigation keys
-      if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
-        if (e.key.length === 1) {
-          e.preventDefault();
-        }
-      }
-    };
-
-    // Multiple event handlers for tablet compatibility
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (isComposing) return;
-      
-      const target = e.target;
-      const inputValue = target.value;
-      const currentCursor = target.selectionStart || 0;
-      
-      const formattedValue = formatFeetInches(inputValue);
-      onChange(formattedValue);
-      setCursorPosition(currentCursor);
-    };
-
-    // Additional input handler for tablet support
-    const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
-      if (isComposing) return;
-      handleInputChange(e as any);
-    };
-
-    // Composition event handling for international keyboards
-    const handleCompositionStart = () => setIsComposing(true);
-    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
-      setIsComposing(false);
-      handleInputChange(e as any);
-    };
-
-    // Touch event handling for tablets
-    const handleTouchStart = (e: React.TouchEvent<HTMLInputElement>) => {
-      if (!disabled) {
-        const target = e.target as HTMLInputElement;
-        target.focus();
-      }
-    };
-
-    // Cursor positioning after render
-    useEffect(() => {
-      if (cursorPosition !== null && inputRef.current && document.activeElement === inputRef.current) {
-        requestAnimationFrame(() => {
-          if (inputRef.current) {
-            inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
-          }
-        });
-      }
-    }, [cursorPosition, value]);
-
-    return (
-      <input
-        ref={inputRef}
-        type="text"
-        inputMode="decimal"
-        pattern="[0-9\s'&quot;]*"
-        value={value}
-        onChange={handleInputChange}
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onCompositionStart={handleCompositionStart}
-        onCompositionEnd={handleCompositionEnd}
-        onTouchStart={handleTouchStart}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={className || "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"}
-        style={style}
-        autoComplete="off"
-        spellCheck={false}
-      />
-    );
-  }
-);
 
 const DEFAULT_ROOM_OPTIONS = [
   "HALL FLOOR",
@@ -470,12 +281,17 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
   const renderDimensionInput = (field: "length" | "width" | "wall_height" | "wall_length", label: string) => {
     if (formData.unit === "feet") {
       return (
-        <FeetInchInput
-          value={formData[field]}
-          onChange={(value) => handleInputChange(field, value)}
-          placeholder="20 5"
-          disabled={isLoading}
-        />
+        <div className="space-y-1">
+          <FeetInchInput
+            value={formData[field]}
+            onChange={(value) => handleInputChange(field, value)}
+            placeholder="20 5"
+            disabled={isLoading}
+          />
+          <div className="text-xs text-gray-500">
+            Enter feet and inches separated by space (e.g., "20 5" for 20 feet 5 inches)
+          </div>
+        </div>
       );
     }
 

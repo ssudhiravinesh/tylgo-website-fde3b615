@@ -92,7 +92,7 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     // Validate and limit inches to 0-11
     if (limitedParts.length === 2) {
       const inches = parseInt(limitedParts[1]) || 0;
-      if (inches >= 12) {
+      if (inches > 11) {
         // Auto-convert excess inches to feet
         const additionalFeet = Math.floor(inches / 12);
         const remainingInches = inches % 12;
