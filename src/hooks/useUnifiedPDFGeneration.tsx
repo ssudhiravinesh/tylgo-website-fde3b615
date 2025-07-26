@@ -532,19 +532,20 @@ export const useUnifiedPDFGeneration = () => {
                         <div class="tile-size">Size: ${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>
-                      <td class="image-cell">
-                        ${calc.tile_image_base64 ? `
-                          <img 
-                            src="${calc.tile_image_base64}" 
-                            alt="${tile.name}"
-                            class="tile-image"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                          />
-                          <div style="display: none; width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>
-                        ` : `
-                          <div style="width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>
-                        `}
-                      </td>
+                       <td class="image-cell">
+                         ${calc.tile_image_base64 ? `
+                           <img 
+                             src="${calc.tile_image_base64}" 
+                             alt="${tile.name}"
+                             class="tile-image"
+                             style="${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg); width: 50px; height: 50px;' : 'width: 50px; height: 50px;'} object-fit: contain; border-radius: 4px; border: 1px solid #ddd; display: block; margin: 0 auto; background-color: #f9f9f9;"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                           />
+                           <div style="display: none; width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>
+                         ` : `
+                           <div style="width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>
+                         `}
+                       </td>
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {

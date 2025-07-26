@@ -325,12 +325,21 @@ const handleInputChange = (field: string, value: string) => {
               <div className="space-y-4">
                  <div className="space-y-2">
                    <Label htmlFor="reference_name">Reference Name</Label>
-                   <ReferenceNameSearch
-                     value={formData.reference_name}
-                     onValueChange={(customerName) => handleInputChange("reference_name", customerName)}
-                     onMobileChange={(mobile) => handleInputChange("reference_mobile_no", mobile)}
-                     placeholder="Search reference by name or mobile..."
-                   />
+                   <div className="relative">
+                     <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                     <Input
+                       id="reference_name"
+                       type="text"
+                       placeholder="Enter reference name"
+                       value={formData.reference_name}
+                       onChange={(e) => handleInputChange("reference_name", e.target.value)}
+                       onBlur={() => handleInputBlur("reference_name")}
+                       className={`pl-10 h-12 border-gray-200 ${
+                         errors.reference_name ? "border-red-500" : ""
+                       }`}
+                     />
+                   </div>
+                   {errors.reference_name && <p className="text-sm text-red-600">{errors.reference_name}</p>}
                  </div>
 
                  <div className="space-y-2">
