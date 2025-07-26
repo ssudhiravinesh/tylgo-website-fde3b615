@@ -18,140 +18,57 @@ interface TileData {
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Helper function to convert image URL to base64 by fetching from Supabase
+  // Helper function to convert image URL to base64 with proper Supabase handling
   const convertImageToBase64 = async (imageUrl: string): Promise<string> => {
     try {
-      console.log('Converting image to base64 from Supabase:', imageUrl);
-      
-      // Return placeholder immediately for empty/placeholder images
-      if (!imageUrl || imageUrl.includes('placeholder') || imageUrl.trim() === '') {
-        console.log('Using placeholder for empty/placeholder image');
-        return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+      if (!imageUrl || imageUrl.trim() === '') {
+        return '';
       }
 
-      // First try: Use Supabase storage API if it's a Supabase URL
-      if (imageUrl.includes('supabase.co/storage/v1/object/public/')) {
-        try {
-          const urlParts = imageUrl.split('/storage/v1/object/public/');
-          if (urlParts.length > 1) {
-            const pathParts = urlParts[1].split('/');
-            const bucketName = pathParts[0];
-            const filePath = pathParts.slice(1).join('/');
-
-            console.log('Extracted bucket:', bucketName, 'file path:', filePath);
-
-            if (bucketName && filePath) {
-              const { data, error } = await supabase.storage
-                .from(bucketName)
-                .download(filePath);
-
-              if (!error && data) {
-                console.log('Downloaded blob size:', data.size, 'type:', data.type);
-                
-                // Convert blob to base64
-                const base64 = await new Promise<string>((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    const result = reader.result as string;
-                    console.log('Base64 conversion successful, length:', result.length);
-                    resolve(result);
-                  };
-                  reader.onerror = () => {
-                    console.error('FileReader error');
-                    reject(new Error('FileReader failed'));
-                  };
-                  reader.readAsDataURL(data);
-                });
-                
-                return base64;
-              } else {
-                console.error('Supabase storage error:', error);
-              }
-            }
-          }
-        } catch (supabaseError) {
-          console.error('Supabase method failed:', supabaseError);
-        }
-      }
-
-      // Second try: Direct fetch with proper error handling and CORS handling
-      console.log('Attempting direct fetch for:', imageUrl);
+      console.log('Converting image to base64:', imageUrl);
       
+      // For Supabase storage URLs, use direct fetch with proper headers
       const response = await fetch(imageUrl, {
         method: 'GET',
-        mode: 'cors', // Try CORS first
-        cache: 'no-cache',
+        mode: 'cors',
+        credentials: 'omit',
         headers: {
           'Accept': 'image/*',
+          'Cache-Control': 'no-cache',
         },
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        console.error('Failed to fetch image:', response.status, response.statusText);
+        return '';
       }
 
       const blob = await response.blob();
-      console.log('Direct fetch - blob size:', blob.size, 'type:', blob.type);
-
-      // Verify it's actually an image
+      
+      // Ensure it's an image
       if (!blob.type.startsWith('image/')) {
-        console.warn('Fetched content is not an image, type:', blob.type);
-        throw new Error('Not an image');
+        console.error('Response is not an image:', blob.type);
+        return '';
       }
 
-      const base64 = await new Promise<string>((resolve, reject) => {
+      console.log('Successfully fetched image blob:', blob.size, 'bytes, type:', blob.type);
+
+      return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onloadend = () => {
           const result = reader.result as string;
-          console.log('Direct fetch base64 conversion successful, length:', result.length);
+          console.log('Base64 conversion successful, length:', result.length);
           resolve(result);
         };
         reader.onerror = () => {
-          console.error('Direct fetch FileReader error');
-          reject(new Error('FileReader failed'));
+          console.error('FileReader error');
+          reject(new Error('Failed to read image as base64'));
         };
         reader.readAsDataURL(blob);
       });
-
-      return base64;
-
     } catch (error) {
-      console.error('Error in convertImageToBase64:', error);
-      
-      // Third try: Create a simple colored placeholder based on tile name
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 60;
-        canvas.height = 60;
-        const ctx = canvas.getContext('2d');
-        
-        if (ctx) {
-          // Generate a color based on the image URL hash
-          const hash = imageUrl.split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-          }, 0);
-          
-          const hue = Math.abs(hash) % 360;
-          ctx.fillStyle = `hsl(${hue}, 70%, 80%)`;
-          ctx.fillRect(0, 0, 60, 60);
-          
-          // Add a simple tile pattern
-          ctx.strokeStyle = `hsl(${hue}, 70%, 60%)`;
-          ctx.lineWidth = 2;
-          ctx.strokeRect(5, 5, 50, 50);
-          ctx.strokeRect(15, 15, 30, 30);
-          
-          const base64 = canvas.toDataURL('image/png');
-          console.log('Generated colored placeholder');
-          return base64;
-        }
-      } catch (canvasError) {
-        console.error('Canvas placeholder generation failed:', canvasError);
-      }
-      
-      // Final fallback: transparent pixel
-      return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+      console.error('Error converting image to base64:', error);
+      return '';
     }
   };
 
@@ -533,19 +450,28 @@ export const useUnifiedPDFGeneration = () => {
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>
                        <td class="image-cell">
-                         ${calc.tile_image_base64 ? `
-                           <img 
-                             src="${calc.tile_image_base64}" 
-                             alt="${tile.name}"
-                             class="tile-image"
-                             style="${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg); width: 50px; height: 50px;' : 'width: 50px; height: 50px;'} object-fit: contain; border-radius: 4px; border: 1px solid #ddd; display: block; margin: 0 auto; background-color: #f9f9f9;"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                           />
-                           <div style="display: none; width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>
-                         ` : `
-                           <div style="width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>
-                         `}
-                       </td>
+                          ${calc.tile_image_base64 ? `
+                            <div style="width: 60px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                              <img 
+                                src="${calc.tile_image_base64}" 
+                                alt="${tile.name}"
+                                style="
+                                  max-width: 100%; 
+                                  max-height: 100%; 
+                                  object-fit: contain; 
+                                  border-radius: 4px; 
+                                  border: 1px solid #ddd; 
+                                  background-color: #fff;
+                                  ${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}
+                                "
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                              />
+                              <div style="display: none; width: 50px; height: 40px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; align-items: center; justify-content: center; font-size: 9px; color: #999; text-align: center;">No Image</div>
+                            </div>
+                          ` : `
+                            <div style="width: 50px; height: 40px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #999; text-align: center;">No Image</div>
+                          `}
+                        </td>
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {
