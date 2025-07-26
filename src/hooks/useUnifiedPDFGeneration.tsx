@@ -23,86 +23,139 @@ export const useUnifiedPDFGeneration = () => {
     try {
       console.log('Converting image to base64 from Supabase:', imageUrl);
       
-      if (!imageUrl || imageUrl.includes('placeholder')) {
+      // Return placeholder immediately for empty/placeholder images
+      if (!imageUrl || imageUrl.includes('placeholder') || imageUrl.trim() === '') {
         console.log('Using placeholder for empty/placeholder image');
         return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
       }
 
-      // Extract the file path from Supabase storage URL
-      let bucketName = '';
-      let filePath = '';
-      
+      // First try: Use Supabase storage API if it's a Supabase URL
       if (imageUrl.includes('supabase.co/storage/v1/object/public/')) {
-        const urlParts = imageUrl.split('/storage/v1/object/public/');
-        if (urlParts.length > 1) {
-          const pathParts = urlParts[1].split('/');
-          bucketName = pathParts[0];
-          filePath = pathParts.slice(1).join('/');
+        try {
+          const urlParts = imageUrl.split('/storage/v1/object/public/');
+          if (urlParts.length > 1) {
+            const pathParts = urlParts[1].split('/');
+            const bucketName = pathParts[0];
+            const filePath = pathParts.slice(1).join('/');
+
+            console.log('Extracted bucket:', bucketName, 'file path:', filePath);
+
+            if (bucketName && filePath) {
+              const { data, error } = await supabase.storage
+                .from(bucketName)
+                .download(filePath);
+
+              if (!error && data) {
+                console.log('Downloaded blob size:', data.size, 'type:', data.type);
+                
+                // Convert blob to base64
+                const base64 = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const result = reader.result as string;
+                    console.log('Base64 conversion successful, length:', result.length);
+                    resolve(result);
+                  };
+                  reader.onerror = () => {
+                    console.error('FileReader error');
+                    reject(new Error('FileReader failed'));
+                  };
+                  reader.readAsDataURL(data);
+                });
+                
+                return base64;
+              } else {
+                console.error('Supabase storage error:', error);
+              }
+            }
+          }
+        } catch (supabaseError) {
+          console.error('Supabase method failed:', supabaseError);
         }
       }
 
-      console.log('Extracted bucket:', bucketName, 'file path:', filePath);
+      // Second try: Direct fetch with proper error handling and CORS handling
+      console.log('Attempting direct fetch for:', imageUrl);
+      
+      const response = await fetch(imageUrl, {
+        method: 'GET',
+        mode: 'cors', // Try CORS first
+        cache: 'no-cache',
+        headers: {
+          'Accept': 'image/*',
+        },
+      });
 
-      if (bucketName && filePath) {
-        // Use Supabase storage API to download the image
-        const { data, error } = await supabase.storage
-          .from(bucketName)
-          .download(filePath);
-
-        if (error) {
-          console.error('Supabase storage error:', error);
-          throw error;
-        }
-
-        if (data) {
-          console.log('Downloaded blob size:', data.size, 'type:', data.type);
-          
-          // Convert blob to base64
-          return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              console.log('Base64 conversion successful, length:', result.length);
-              resolve(result);
-            };
-            reader.onerror = (error) => {
-              console.error('FileReader error:', error);
-              resolve('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
-            };
-            reader.readAsDataURL(data);
-          });
-        }
-      }
-
-      // Fallback to direct fetch if Supabase method fails
-      const response = await fetch(imageUrl);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const blob = await response.blob();
-      console.log('Fallback fetch - blob size:', blob.size, 'type:', blob.type);
+      console.log('Direct fetch - blob size:', blob.size, 'type:', blob.type);
 
-      return new Promise((resolve) => {
+      // Verify it's actually an image
+      if (!blob.type.startsWith('image/')) {
+        console.warn('Fetched content is not an image, type:', blob.type);
+        throw new Error('Not an image');
+      }
+
+      const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
           const result = reader.result as string;
-          console.log('Fallback base64 conversion successful, length:', result.length);
+          console.log('Direct fetch base64 conversion successful, length:', result.length);
           resolve(result);
         };
-        reader.onerror = (error) => {
-          console.error('Fallback FileReader error:', error);
-          resolve('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
+        reader.onerror = () => {
+          console.error('Direct fetch FileReader error');
+          reject(new Error('FileReader failed'));
         };
         reader.readAsDataURL(blob);
       });
+
+      return base64;
+
     } catch (error) {
       console.error('Error in convertImageToBase64:', error);
+      
+      // Third try: Create a simple colored placeholder based on tile name
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 60;
+        canvas.height = 60;
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+          // Generate a color based on the image URL hash
+          const hash = imageUrl.split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+          }, 0);
+          
+          const hue = Math.abs(hash) % 360;
+          ctx.fillStyle = `hsl(${hue}, 70%, 80%)`;
+          ctx.fillRect(0, 0, 60, 60);
+          
+          // Add a simple tile pattern
+          ctx.strokeStyle = `hsl(${hue}, 70%, 60%)`;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(5, 5, 50, 50);
+          ctx.strokeRect(15, 15, 30, 30);
+          
+          const base64 = canvas.toDataURL('image/png');
+          console.log('Generated colored placeholder');
+          return base64;
+        }
+      } catch (canvasError) {
+        console.error('Canvas placeholder generation failed:', canvasError);
+      }
+      
+      // Final fallback: transparent pixel
       return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
     }
   };
 
-const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
+  const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
     const { quotation_items = [], customer, worker, quotation_number, created_at, notes, wastage_percentage = 0 } = quotation;
     
     // Group items by tile for calculations
@@ -133,10 +186,16 @@ const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
       }
     });
 
-    // Convert all tile images to base64
-    const tileCalculationsWithImages = await Promise.all(
-      Object.entries(tileCalculations).map(async ([tileId, calc]) => {
-        const base64Image = await convertImageToBase64(calc.tile?.image_url || '/placeholder.svg');
+    // Convert all tile images to base64 with better error handling
+    console.log('Starting image conversion for', Object.keys(tileCalculations).length, 'tiles');
+    
+    const imagePromises = Object.entries(tileCalculations).map(async ([tileId, calc]) => {
+      try {
+        const imageUrl = calc.tile?.image_url || '';
+        console.log(`Converting image for tile ${tileId}:`, imageUrl);
+        
+        const base64Image = await convertImageToBase64(imageUrl);
+        
         return {
           tileId,
           calc: {
@@ -144,8 +203,21 @@ const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
             tile_image_base64: base64Image
           }
         };
-      })
-    );
+      } catch (error) {
+        console.error(`Failed to convert image for tile ${tileId}:`, error);
+        return {
+          tileId,
+          calc: {
+            ...calc,
+            tile_image_base64: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
+          }
+        };
+      }
+    });
+
+    // Wait for all images to be processed
+    const tileCalculationsWithImages = await Promise.all(imagePromises);
+    console.log('All images processed');
 
     // Update tileCalculations with base64 images
     tileCalculationsWithImages.forEach(({ tileId, calc }) => {
@@ -343,6 +415,23 @@ const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
             font-weight: bold;
           }
           
+          .tile-image {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            display: block;
+            margin: 0 auto;
+            background-color: #f9f9f9;
+          }
+          
+          .image-cell {
+            text-align: center;
+            padding: 4px;
+            width: 60px;
+          }
+          
           .summary-section {
             margin-top: 15px;
             text-align: right;
@@ -443,23 +532,19 @@ const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
                         <div class="tile-size">Size: ${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>
-                       <td style="text-align: center; padding: 4px;">
-                         ${calc.tile_image_base64 ? `
-                           <img 
-                             src="${calc.tile_image_base64}" 
-                             alt="${tile.name}"
-                             style="
-                               width: ${tile.size_length > tile.size_breadth ? '50px' : '35px'}; 
-                               height: ${tile.size_length > tile.size_breadth ? '35px' : '50px'}; 
-                               object-fit: cover; 
-                               border-radius: 3px; 
-                               border: 1px solid #ddd;
-                               display: block;
-                               margin: 0 auto;
-                             "
-                           />
-                         ` : '-'}
-                       </td>
+                      <td class="image-cell">
+                        ${calc.tile_image_base64 ? `
+                          <img 
+                            src="${calc.tile_image_base64}" 
+                            alt="${tile.name}"
+                            class="tile-image"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                          />
+                          <div style="display: none; width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>
+                        ` : `
+                          <div style="width: 50px; height: 50px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>
+                        `}
+                      </td>
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {
@@ -658,6 +743,7 @@ const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     setIsGenerating(true);
     try {
+      console.log('Starting PDF generation for quotation:', quotation.quotation_number);
       const htmlContent = await generateQuotationHTML(quotation);
       const printWindow = window.open('', '_blank');
       
@@ -674,7 +760,7 @@ const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
       }
     } catch (error: any) {
       console.error('Error generating quotation PDF:', error);
-      toast.error('Failed to generate PDF');
+      toast.error('Failed to generate PDF: ' + (error.message || 'Unknown error'));
     } finally {
       setIsGenerating(false);
     }
