@@ -25,7 +25,16 @@ export const ReferenceNameSearch = ({
 }: ReferenceNameSearchProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const { data: customers = [], isLoading } = useCustomers();
+
+  console.log("ReferenceNameSearch Debug:", {
+    searchTerm,
+    showResults,
+    selectedCustomer,
+    customersCount: customers.length,
+    value
+  });
 
   // Filter customers based on search term - match name exactly like DirectCustomerSearch
   const filteredCustomers = customers.filter((customer) =>
@@ -33,10 +42,7 @@ export const ReferenceNameSearch = ({
     customer.mobile.includes(searchTerm.replace(/\D/g, ''))
   );
 
-  // Find if current value matches an existing customer
-  const selectedCustomer = customers.find(customer => 
-    customer.name.toLowerCase() === value.toLowerCase()
-  );
+  console.log("Filtered customers:", filteredCustomers.length, searchTerm);
 
   // Initialize with current value
   useEffect(() => {
@@ -51,6 +57,11 @@ export const ReferenceNameSearch = ({
     setSearchTerm(capitalizedTerm);
     onValueChange(capitalizedTerm);
     
+    // Clear selected customer when manually typing
+    if (selectedCustomer) {
+      setSelectedCustomer(null);
+    }
+    
     // Show results when typing - same logic as DirectCustomerSearch
     setShowResults(capitalizedTerm.length > 0);
     
@@ -62,6 +73,7 @@ export const ReferenceNameSearch = ({
 
   const handleSelectCustomer = (customer: Customer) => {
     const capitalizedName = capitalizeWords(customer.name);
+    setSelectedCustomer(customer);  // This was missing!
     setSearchTerm("");
     setShowResults(false);
     onValueChange(capitalizedName);
@@ -69,6 +81,7 @@ export const ReferenceNameSearch = ({
   };
 
   const handleClearSelection = () => {
+    setSelectedCustomer(null);  // Clear selected customer
     setSearchTerm("");
     setShowResults(false);
     onValueChange("");
