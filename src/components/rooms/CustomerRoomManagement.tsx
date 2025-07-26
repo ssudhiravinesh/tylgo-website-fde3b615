@@ -312,9 +312,29 @@ document.head.appendChild(styleSheet);
       {selectedCustomerId && (
         <>
           {roomsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+           <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+            <div className="text-center">
+              {/* Tile Loading Animation */}
+              <div style={styles.tilesContainer}>
+                {[...Array(12)].map((_, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...styles.tile,
+                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
+                      animationDelay: `${index * 0.08}s`
+                    }}
+                  />
+                ))}
+              </div>
+              
+              <p style={styles.loadingText}>Loading...</p>
+              
+              <div style={styles.progressBar}>
+                <div style={styles.progressFill}></div>
+              </div>
             </div>
+          </div>
           ) : rooms.length === 0 ? (
             <div className="text-center py-12">
               <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
