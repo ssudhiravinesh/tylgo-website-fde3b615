@@ -13,6 +13,7 @@ import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { WallTileSelectionPage } from "./WallTileSelectionPage";
 import { FloorTilePreview } from "@/components/tiles/FloorTilePreview";
 import { toast } from "sonner";
+import { formatArea, decimalFeetToFeetInches } from "@/utils/unitConversions";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 import { 
   calculateTileRequirements, 
@@ -486,7 +487,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                         <div>
                           <h4 className="font-semibold text-base">{room.name}</h4>
                           <p className="text-sm text-gray-600">
-                            {calculateAreaInSquareFeet(room.length, room.width, room.unit).toFixed(2)} sq ft
+                            {decimalFeetToFeetInches(room.length)} × {decimalFeetToFeetInches(room.width)}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            ({formatArea(calculateAreaInSquareFeet(room.length, room.width, room.unit))})
                           </p>
                         </div>
                           <div className="flex gap-2">
@@ -557,12 +561,15 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                   return (
                     <div key={room.id} className="border rounded-lg p-4 bg-blue-50/50">
                       <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h4 className="font-semibold text-base">{room.name}</h4>
-                          <p className="text-sm text-gray-600">
-                            {calculateAreaInSquareFeet(room.wall_height || 0, room.wall_length || room.length || 0, room.unit).toFixed(2)} sq ft
-                          </p>
-                        </div>
+                         <div>
+                           <h4 className="font-semibold text-base">{room.name}</h4>
+                           <p className="text-sm text-gray-600">
+                             {decimalFeetToFeetInches(room.wall_length || room.length || 0)} × {decimalFeetToFeetInches(room.wall_height || 0)}
+                           </p>
+                           <p className="text-sm text-gray-600">
+                             ({formatArea(calculateAreaInSquareFeet(room.wall_height || 0, room.wall_length || room.length || 0, room.unit))})
+                           </p>
+                         </div>
                         <Button
                           onClick={() => handleConfigureWallTiles(room.id)}
                           className="gap-2"
