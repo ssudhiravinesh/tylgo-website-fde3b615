@@ -341,21 +341,22 @@ const handleInputChange = (field: string, value: string) => {
                    {errors.reference_name && <p className="text-sm text-red-600">{errors.reference_name}</p>}
                  </div>
 
-                 <div className="space-y-2">
-                   <Label htmlFor="reference_mobile_no">Reference Mobile Number</Label>
-                   <Input
-                     id="reference_mobile_no"
-                     type="text"
-                     placeholder="9876543210"
-                     value={formData.reference_mobile_no}
-                     onChange={(e) => handleInputChange("reference_mobile_no", e.target.value.replace(/\D/g, ""))}
-                     maxLength={10}
-                     className={`h-12 border-gray-200 ${errors.reference_mobile_no ? "border-red-500" : ""}`}
-                   />
-                   {errors.reference_mobile_no && (
-                     <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>
-                   )}
-                 </div>
+          <div className="space-y-2">
+            <Label htmlFor="reference_mobile_no">Reference Mobile Number</Label>
+            <Input
+              id="reference_mobile_no"
+              type="text"
+              placeholder="9876543210"
+              value={formData.reference_mobile_no}
+              onChange={(e) => handleInputChange("reference_mobile_no", e.target.value.replace(/\D/g, ""))}
+              maxLength={10}
+              className={`h-12 border-gray-200 ${errors.reference_mobile_no ? "border-red-500" : ""}`}
+              readOnly
+            />
+            {errors.reference_mobile_no && (
+              <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>
+            )}
+          </div>
               </div>
             </div>
 
