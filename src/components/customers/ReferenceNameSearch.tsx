@@ -42,12 +42,12 @@ export const ReferenceNameSearch = ({
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Filter customers - FIXED: Use startsWith for proper matching
+  // Filter customers - Use includes for better matching
   const filteredCustomers = customers.filter((customer) => {
-    if (debouncedSearchTerm.length < 2) return false; // FIXED: 2+ character requirement
+    if (debouncedSearchTerm.length < 2) return false;
     
     const searchLower = debouncedSearchTerm.toLowerCase();
-    return customer.name.toLowerCase().startsWith(searchLower); // FIXED: startsWith instead of includes
+    return customer.name.toLowerCase().includes(searchLower);
   });
 
   // FIXED: Properly sync with external value
@@ -136,8 +136,8 @@ export const ReferenceNameSearch = ({
     }
   };
 
-  // Show results based on debounced search term and 2+ character requirement
-  const shouldShowResults = showResults && debouncedSearchTerm.length >= 2 && filteredCustomers.length > 0;
+  // Show results when typing and there's a search term
+  const shouldShowResults = showResults && debouncedSearchTerm.length >= 2;
 
   return (
     <div className="relative w-full">
@@ -175,19 +175,18 @@ export const ReferenceNameSearch = ({
             />
           </div>
 
-          {/* FIXED: Dropdown shows/hides properly based on matches */}
+          {/* Dropdown with better z-index and background */}
           {shouldShowResults && (
-            <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-80 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+            <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-auto bg-white border border-gray-300 rounded-lg shadow-xl">
               {isLoading ? (
                 <div className="p-4 text-center text-gray-500">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
                   <div className="mt-2">Loading customers...</div>
                 </div>
               ) : filteredCustomers.length === 0 ? (
-                // FIXED: This div will not show when filteredCustomers is empty due to 2+ char requirement
-                // Dropdown automatically disappears when no matches, providing visual feedback
                 <div className="p-4 text-center text-gray-500">
-                  No customers found starting with "{debouncedSearchTerm}"
+                  No customers found matching "{debouncedSearchTerm}"
+                  <div className="text-xs mt-1 text-gray-400">You can still type the name manually</div>
                 </div>
               ) : (
                 <div className="py-2">
