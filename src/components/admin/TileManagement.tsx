@@ -237,7 +237,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       return;
     }
     try {
-      generateTilesPDF(filteredTiles);
+      generateTilesPDF();
     } catch (error) {
       toast.error('Failed to generate PDF. Please try again.');
     }

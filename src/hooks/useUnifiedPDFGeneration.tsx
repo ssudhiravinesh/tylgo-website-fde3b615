@@ -20,11 +20,11 @@ export const useUnifiedPDFGeneration = () => {
         .select(`
           *,
           room:rooms(name,length,width,unit),
-          tile:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
+          tiles:tiles(name,code,price_per_box,pieces_per_box,size_length,size_breadth,image_url)
         `)
         .eq('quotation_id', quotation.id);
 //to debug
-console.log('DEBUG - QuotationItems for layers:', quotationItems?.filter(item => item.tile?.code === '24027'));
+console.log('DEBUG - QuotationItems for layers:', quotationItems);
       if (error) {
         console.error('Error fetching quotation items:', error);
         throw new Error(`Failed to fetch quotation items: ${error.message}`);
@@ -169,7 +169,7 @@ if (quotationItems && quotationItems.length > 0) {
 
     if (!tileRoomGroups.has(groupKey)) {
       tileRoomGroups.set(groupKey, {
-        tile: item.tile,
+        tile: item.tiles,
         room: item.room,
         layers: [],
         baseArea: parseFloat(item.area) || 0, // Area per layer
@@ -205,7 +205,10 @@ if (!tileCalculations[tileId]) {
         tile: group.tile,
         rooms: [],
         totalArea: 0,
+        rawTilesNeeded: 0,
         tilesNeeded: 0,
+        fullBoxes: 0,
+        leftoverTiles: 0,
         boxesNeeded: 0,
         totalPrice: 0,
         quotationItems: []
@@ -327,7 +330,7 @@ const widthInM = (widthInMm / 1000).toFixed(2);
           // version 2.0 rems 
 // nive-sudhir-karthi-varuna
 
-          const roomNamesWithLayers = tileCalculations[tileId].rooms.map(room => {
+          const roomNamesWithLayers = tileCalculations[tileId].rooms.map((room: any) => {
   const layers = room.layers || [];
   const totalArea = room.totalArea || 0;
   
@@ -345,11 +348,11 @@ const widthInM = (widthInMm / 1000).toFixed(2);
           // Generate image cell content
           const imageCell = tile?.image_url ? 
             `<img src="${tile.image_url}" alt="${tile.name || 'Tile'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none';" />` :
-            '<small style="color: #999; font-style: italic;">No image</small>';
+            `<img src="https://onucizagpgwdpcakskat.supabase.co/storage/v1/object/public/tile-images/placeholder.jpg" alt="Placeholder" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" />`;
 
-           const hasMultipleLayers = tileCalculations[tileId].rooms.some(room => room.layers && room.layers.length > 1);
+           const hasMultipleLayers = tileCalculations[tileId].rooms.some((room: any) => room.layers && room.layers.length > 1);
           const areaDisplay = hasMultipleLayers ? 
-            `Total Area: ${formatArea(calc.totalArea)} (includes ${calc.totalArea / calc.totalArea * calc.rooms.length} layers)` : 
+            `Total Area: ${formatArea(calc.totalArea)} (includes layers)` : 
             `Total Area: ${formatArea(calc.totalArea)}`;
           return `
             <tr>
@@ -595,5 +598,14 @@ const widthInM = (widthInMm / 1000).toFixed(2);
     }
   }, []);
 
-  return { generateQuotationPDF };
+  const generateTilesPDF = useCallback(async () => {
+    // Placeholder for tiles PDF generation
+    toast.info('Tiles PDF generation feature coming soon');
+  }, []);
+
+  return { 
+    generateQuotationPDF, 
+    generateTilesPDF,
+    isGenerating: false 
+  };
 };
