@@ -246,7 +246,7 @@ export const prepareQuotationItems = (
     wastagePercentage
   );
 
-  // Floor tiles - use calculations from unified system
+  // Floor tiles - calculate proportional pricing per room
   floorSelections.forEach(fs => {
     const room = rooms.find(r => r.id === fs.roomId);
     const tile = tiles.find(t => t.id === fs.tileId);
@@ -257,14 +257,20 @@ export const prepareQuotationItems = (
     
     // Find the corresponding calculation
     const calc = calculations.find(c => c.tile.id === fs.tileId && !c.isWallTile);
-    const totalPrice = calc ? calc.totalPrice : 0;
+    
+    // Calculate proportional price based on this room's area vs total area for this tile
+    let roomPrice = 0;
+    if (calc && calc.totalArea > 0) {
+      const roomProportion = roomAreaInSqFt / calc.totalArea;
+      roomPrice = calc.totalPrice * roomProportion;
+    }
 
     items.push({
       tile_id: fs.tileId,
       room_id: fs.roomId,
       area: roomAreaInSqFt,
       price_per_box: parseFloat(tile.price_per_box?.toString() || '0'),
-      total_price: totalPrice,
+      total_price: roomPrice,
       // Floor tiles don't have layer numbers
     });
   });
