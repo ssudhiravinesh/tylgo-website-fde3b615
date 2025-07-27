@@ -76,7 +76,7 @@ export const useUnifiedPDFGeneration = () => {
     });
   };
 
-  // Get direct public URL for Supabase images
+  // Get direct public URL for Supabase images - simplified for public bucket
   const getDirectImageUrl = (imageUrl: string): string => {
     if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
       return '';
@@ -87,38 +87,43 @@ export const useUnifiedPDFGeneration = () => {
       return imageUrl;
     }
 
-    // For Supabase URLs, extract bucket and path to create public URL
+    // Since the bucket is public, extract the file path and create direct public URL
     try {
-      let bucketName = '';
       let filePath = '';
       
-      if (imageUrl.includes('/storage/v1/object/public/')) {
-        const parts = imageUrl.split('/storage/v1/object/public/');
+      // Handle different Supabase URL formats
+      if (imageUrl.includes('/storage/v1/object/public/tile-images/')) {
+        // Extract just the file path after tile-images/
+        const parts = imageUrl.split('/storage/v1/object/public/tile-images/');
         if (parts.length === 2) {
-          const [bucket, ...pathParts] = parts[1].split('/');
-          bucketName = bucket;
-          filePath = pathParts.join('/');
+          filePath = parts[1];
         }
-      } else if (imageUrl.includes('/storage/v1/object/sign/')) {
-        const parts = imageUrl.split('/storage/v1/object/sign/');
+      } else if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
+        // Extract from signed URL
+        const parts = imageUrl.split('/storage/v1/object/sign/tile-images/');
         if (parts.length === 2) {
-          const [bucket, ...pathParts] = parts[1].split('/');
-          bucketName = bucket;
-          filePath = pathParts.join('/').split('?')[0];
+          filePath = parts[1].split('?')[0]; // Remove query parameters
+        }
+      } else if (imageUrl.includes('tile-images/')) {
+        // Generic extraction for tile-images bucket
+        const parts = imageUrl.split('tile-images/');
+        if (parts.length === 2) {
+          filePath = parts[1].split('?')[0]; // Remove query parameters
         }
       }
       
-      if (bucketName && filePath) {
+      if (filePath) {
         // Create direct public URL since bucket is public
-        const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-        console.log(`[PDF Generation] Created direct public URL: ${data.publicUrl}`);
+        const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
+        console.log(`[PDF Generation] Direct public URL created: ${data.publicUrl}`);
         return data.publicUrl;
       }
     } catch (error) {
       console.warn(`[PDF Generation] Error processing Supabase URL:`, error);
     }
 
-    return imageUrl; // Fallback to original URL
+    // Fallback to original URL
+    return imageUrl;
   };
 
   const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
@@ -152,14 +157,14 @@ export const useUnifiedPDFGeneration = () => {
       }
     });
 
-    // Process images - get direct URLs instead of converting to base64
+    // Process images - get direct public URLs since bucket is public
     const totalTiles = Object.keys(tileCalculations).length;
-    console.log(`[PDF Generation] Processing ${totalTiles} tile images for direct URL usage...`);
+    console.log(`[PDF Generation] Processing ${totalTiles} tile images for direct public URL usage...`);
 
-    // Process all tile images to get direct URLs
+    // Process all tile images to get direct public URLs
     Object.entries(tileCalculations).forEach(([tileId, calc]) => {
-      const imageUrl = calc.tile?.image_url || '';
-      const directUrl = getDirectImageUrl(imageUrl);
+      const originalImageUrl = calc.tile?.image_url || '';
+      const directUrl = getDirectImageUrl(originalImageUrl);
       
       tileCalculations[tileId] = {
         ...calc,
@@ -167,13 +172,17 @@ export const useUnifiedPDFGeneration = () => {
       };
       
       if (directUrl) {
-        console.log(`[PDF Generation] ✓ Direct URL ready for tile ${calc.tile?.code || tileId}`);
+        console.log(`[PDF Generation] ✓ Direct public URL ready for tile ${calc.tile?.code || tileId}: ${directUrl}`);
       } else {
         console.log(`[PDF Generation] ⚠ No image URL for tile ${calc.tile?.code || tileId}`);
       }
     });
 
-    console.log(`[PDF Generation] All image URLs processed for direct loading`);
+    if (totalTiles > 0) {
+      toast.success(`${totalTiles} tile images ready for PDF generation`);
+    }
+
+    console.log(`[PDF Generation] All image URLs processed - using direct public URLs from tile-images bucket`);
 
     // Calculate requirements for each tile
     Object.values(tileCalculations).forEach((calc: any) => {
@@ -521,12 +530,16 @@ export const useUnifiedPDFGeneration = () => {
                          ${calc.tile_image_direct_url ? `
                            <img 
                              src="${calc.tile_image_direct_url}" 
-                             alt="${tile.name}"
+                             alt="Tile ${tile.code}"
                              class="tile-image"
                              crossorigin="anonymous"
                              loading="eager"
+                             referrerpolicy="no-referrer"
+                             onload="console.log('Image loaded: ${tile.code}')"
+                             onerror="console.error('Image failed: ${tile.code}', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';"
                              style="${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}"
                            />
+                           <div class="no-image-placeholder" style="display: none;">No Image</div>
                          ` : `
                            <div class="no-image-placeholder">No Image</div>
                          `}
