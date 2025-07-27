@@ -136,8 +136,8 @@ export const ReferenceNameSearch = ({
     }
   };
 
-  // Show results when typing and there's a search term
-  const shouldShowResults = showResults && debouncedSearchTerm.length >= 2;
+  // Show results only when there are actual customer matches
+  const shouldShowResults = showResults && debouncedSearchTerm.length >= 2 && (isLoading || filteredCustomers.length > 0);
 
   return (
     <div className="relative w-full">
