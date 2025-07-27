@@ -351,7 +351,6 @@ const handleInputChange = (field: string, value: string) => {
               onChange={(e) => handleInputChange("reference_mobile_no", e.target.value.replace(/\D/g, ""))}
               maxLength={10}
               className={`h-12 border-gray-200 ${errors.reference_mobile_no ? "border-red-500" : ""}`}
-              readOnly
             />
             {errors.reference_mobile_no && (
               <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>

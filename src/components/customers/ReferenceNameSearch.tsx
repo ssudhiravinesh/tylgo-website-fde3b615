@@ -136,8 +136,8 @@ export const ReferenceNameSearch = ({
     }
   };
 
-  // FIXED: Show results based on debounced search term and 2+ character requirement
-  const shouldShowResults = showResults && debouncedSearchTerm.length >= 2;
+  // Show results based on debounced search term and 2+ character requirement
+  const shouldShowResults = showResults && debouncedSearchTerm.length >= 2 && filteredCustomers.length > 0;
 
   return (
     <div className="relative w-full">
