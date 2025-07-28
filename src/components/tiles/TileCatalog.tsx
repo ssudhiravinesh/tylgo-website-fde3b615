@@ -200,6 +200,36 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
     if (isSelectionMode && onTileSelect) {
       onTileSelect(tile.id);
     } else {
+      // Check if we're in tile selection context from room management
+      const selectionContext = sessionStorage.getItem('tileSelectionContext');
+      
+      if (selectionContext) {
+        try {
+          const context = JSON.parse(selectionContext);
+          // Auto-assign tile to room and redirect back
+          const event = new CustomEvent('autoAssignTile', {
+            detail: {
+              tileId: tile.id,
+              roomId: context.roomId,
+              isWallTile: context.isWallTile,
+              customerId: context.customerId
+            }
+          });
+          window.dispatchEvent(event);
+          
+          // Clear the context
+          sessionStorage.removeItem('tileSelectionContext');
+          
+          // Navigate back to tile selection
+          window.dispatchEvent(new CustomEvent('navigateToTileSelection'));
+          
+          toast.success(`Tile "${tile.name}" assigned to room successfully!`);
+          return;
+        } catch (error) {
+          console.error('Error parsing tile selection context:', error);
+        }
+      }
+      
       setSelectedTile(tile);
       setIsDetailsOpen(true);
     }

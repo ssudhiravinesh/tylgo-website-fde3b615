@@ -89,6 +89,32 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     return () => window.removeEventListener('tileSelected', handleTileSelected as EventListener);
   }, [floorTileSelections]);
 
+  // Handle auto-assignment from tile catalog
+  useEffect(() => {
+    const handleAutoAssignTile = (event: CustomEvent) => {
+      const { tileId, roomId, isWallTile } = event.detail;
+      
+      if (isWallTile) {
+        // Handle wall tile assignment (existing logic can be implemented here)
+        console.log('Auto-assigning wall tile:', { tileId, roomId });
+      } else {
+        // Handle floor tile assignment
+        const existingSelection = floorTileSelections.find(
+          fs => fs.roomId === roomId && fs.tileId === tileId
+        );
+        
+        if (existingSelection) {
+          toast.info("This tile is already selected for this room");
+        } else {
+          setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
+        }
+      }
+    };
+
+    window.addEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
+    return () => window.removeEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
+  }, [floorTileSelections]);
+
   useEffect(() => {
     // Only run if we have selections and tiles data, and prevent unnecessary updates
     if (selections.length === 0 && tiles.length === 0) return;
