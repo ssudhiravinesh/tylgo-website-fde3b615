@@ -1,10 +1,11 @@
 // src/components/tiles/TileCatalog.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Search, 
   QrCode, 
@@ -49,6 +50,7 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<Set<string>>(new Set());
+  const gridRef = useRef<HTMLDivElement>(null);
 
   // Enhanced QR scan handler that populates search box
   const handleQRScanned = (tileCode: string) => {
@@ -94,6 +96,18 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
     }
   };
 
+  // Generate alphabet navigation letters
+  const alphabetLetters = useMemo(() => {
+    const letters = new Set<string>();
+    tiles.forEach(tile => {
+      const firstChar = tile.name?.charAt(0).toUpperCase();
+      if (firstChar && /^[A-Z0-9]$/.test(firstChar)) {
+        letters.add(firstChar);
+      }
+    });
+    return Array.from(letters).sort();
+  }, [tiles]);
+
   // Filter and sort tiles
   const filteredAndSortedTiles = useMemo(() => {
     let filtered = tiles.filter(tile => {
@@ -106,7 +120,7 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
       return matchesSearch && matchesPrice;
     });
 
-    // Sort tiles
+    // Sort tiles alphabetically by name (default)
     filtered.sort((a, b) => {
       let aValue: any = a[sortBy as keyof Tile];
       let bValue: any = b[sortBy as keyof Tile];
@@ -123,6 +137,20 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
 
     return filtered;
   }, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder]);
+
+  // Scroll to letter section
+  const scrollToLetter = (letter: string) => {
+    if (!gridRef.current) return;
+    
+    const tileElements = gridRef.current.querySelectorAll('[data-tile-name]');
+    for (const element of tileElements) {
+      const tileName = element.getAttribute('data-tile-name');
+      if (tileName && tileName.charAt(0).toUpperCase() === letter) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        break;
+      }
+    }
+  };
 
   // Simple view toggle component
   const ViewToggle = ({ viewMode, setViewMode }: { viewMode: "grid" | "list", setViewMode: (mode: "grid" | "list") => void }) => (
@@ -367,30 +395,63 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
         </div>
       )}
 
-      {/* Tiles Grid/List */}
+      {/* Tiles Grid/List with Alphabet Navigation */}
       {filteredAndSortedTiles.length === 0 ? (
         <EmptyTileState />
       ) : (
-        <div className={
-          viewMode === "grid" 
-            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-            : "space-y-4"
-        }>
-          {filteredAndSortedTiles.map((tile) => (
-            <TileCard
-              key={tile.id}
-              tile={tile}
-              isSelected={false}
-              isAdmin={false}
-              showAssignButton={false}
-              onTileSelect={() => handleTileClick(tile)}
-              onGenerateQR={() => {}}
-              onDownloadQR={() => {}}
-              onViewDetails={() => handleTileClick(tile)}
-              onAssignClick={() => {}}
-              isGeneratingQR={false}
-            />
-          ))}
+        <div className="flex gap-4">
+          {/* Alphabet Navigation Sidebar */}
+          <div className="hidden lg:block">
+            <Card className="sticky top-4 w-12">
+              <CardContent className="p-2">
+                <ScrollArea className="h-[500px]">
+                  <div className="flex flex-col gap-1">
+                    {alphabetLetters.map((letter) => (
+                      <Button
+                        key={letter}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-xs font-medium hover:bg-primary/10"
+                        onClick={() => scrollToLetter(letter)}
+                        title={`Jump to ${letter}`}
+                      >
+                        {letter}
+                      </Button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tiles Grid/List */}
+          <div className="flex-1">
+            <div 
+              ref={gridRef}
+              className={
+                viewMode === "grid" 
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  : "space-y-4"
+              }
+            >
+              {filteredAndSortedTiles.map((tile) => (
+                <div key={tile.id} data-tile-name={tile.name}>
+                  <TileCard
+                    tile={tile}
+                    isSelected={false}
+                    isAdmin={false}
+                    showAssignButton={false}
+                    onTileSelect={() => handleTileClick(tile)}
+                    onGenerateQR={() => {}}
+                    onDownloadQR={() => {}}
+                    onViewDetails={() => handleTileClick(tile)}
+                    onAssignClick={() => {}}
+                    isGeneratingQR={false}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
