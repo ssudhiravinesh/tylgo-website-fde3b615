@@ -62,6 +62,33 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const floorRooms = rooms.filter(room => room.room_type === "floor");
   const wallRooms = rooms.filter(room => room.room_type === "wall");
 
+  // Handle tile selection from tile catalog
+  useEffect(() => {
+    const handleTileSelected = (event: CustomEvent) => {
+      const { tileId, roomId, isWallTile } = event.detail;
+      
+      if (!isWallTile) {
+        // Floor tile selection
+        const existingSelection = floorTileSelections.find(
+          fs => fs.roomId === roomId && fs.tileId === tileId
+        );
+        
+        if (existingSelection) {
+          toast.error("This tile is already selected for this room");
+        } else {
+          setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
+          toast.success("Floor tile added to room");
+        }
+      } else {
+        // Wall tile selection logic would go here
+        // Similar to existing handleTileSelected logic
+      }
+    };
+
+    window.addEventListener('tileSelected', handleTileSelected as EventListener);
+    return () => window.removeEventListener('tileSelected', handleTileSelected as EventListener);
+  }, [floorTileSelections]);
+
   useEffect(() => {
     // Only run if we have selections and tiles data, and prevent unnecessary updates
     if (selections.length === 0 && tiles.length === 0) return;
@@ -159,8 +186,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   }, [selections, rooms]);
 
   const handleAddFloorTile = (roomId: string) => {
-    setCatalogContext({ roomId, isWallTile: false });
-    setShowTileCatalog(true);
+    // Store the room context for when we return from tile catalog
+    sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
+      roomId, 
+      isWallTile: false,
+      customerId 
+    }));
+    // Navigate to tiles view in dashboard
+    window.dispatchEvent(new CustomEvent('navigateToTiles'));
   };
 
   const handleConfigureWallTiles = (roomId: string) => {

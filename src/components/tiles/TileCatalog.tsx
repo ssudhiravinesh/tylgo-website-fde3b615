@@ -44,7 +44,7 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
-  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortBy, setSortBy] = useState<string>("code");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -96,16 +96,25 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
     }
   };
 
-  // Generate alphabet navigation letters
+  // Generate alphabet navigation based on tile codes (numbers first, then letters)
   const alphabetLetters = useMemo(() => {
-    const letters = new Set<string>();
+    const chars = new Set<string>();
     tiles.forEach(tile => {
-      const firstChar = tile.name?.charAt(0).toUpperCase();
+      const firstChar = tile.code?.charAt(0).toUpperCase();
       if (firstChar && /^[A-Z0-9]$/.test(firstChar)) {
-        letters.add(firstChar);
+        chars.add(firstChar);
       }
     });
-    return Array.from(letters).sort();
+    const sortedChars = Array.from(chars).sort((a, b) => {
+      // Numbers first, then letters
+      const aIsNumber = /^\d$/.test(a);
+      const bIsNumber = /^\d$/.test(b);
+      
+      if (aIsNumber && !bIsNumber) return -1;
+      if (!aIsNumber && bIsNumber) return 1;
+      return a.localeCompare(b);
+    });
+    return sortedChars;
   }, [tiles]);
 
   // Filter and sort tiles
@@ -120,10 +129,24 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
       return matchesSearch && matchesPrice;
     });
 
-    // Sort tiles alphabetically by name (default)
+    // Sort tiles by code (numbers first, then alphabets) when using default sorting
     filtered.sort((a, b) => {
       let aValue: any = a[sortBy as keyof Tile];
       let bValue: any = b[sortBy as keyof Tile];
+      
+      // For code sorting, implement numbers-first logic
+      if (sortBy === 'code') {
+        const aCode = (aValue || '').toString();
+        const bCode = (bValue || '').toString();
+        
+        const aStartsWithNumber = /^\d/.test(aCode);
+        const bStartsWithNumber = /^\d/.test(bCode);
+        
+        if (aStartsWithNumber && !bStartsWithNumber) return sortOrder === "asc" ? -1 : 1;
+        if (!aStartsWithNumber && bStartsWithNumber) return sortOrder === "asc" ? 1 : -1;
+        
+        return sortOrder === "asc" ? aCode.localeCompare(bCode) : bCode.localeCompare(aCode);
+      }
       
       if (typeof aValue === 'string') aValue = aValue.toLowerCase();
       if (typeof bValue === 'string') bValue = bValue.toLowerCase();
@@ -138,14 +161,14 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
     return filtered;
   }, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder]);
 
-  // Scroll to letter section
-  const scrollToLetter = (letter: string) => {
+  // Scroll to character section (based on tile code)
+  const scrollToLetter = (char: string) => {
     if (!gridRef.current) return;
     
-    const tileElements = gridRef.current.querySelectorAll('[data-tile-name]');
+    const tileElements = gridRef.current.querySelectorAll('[data-tile-code]');
     for (const element of tileElements) {
-      const tileName = element.getAttribute('data-tile-name');
-      if (tileName && tileName.charAt(0).toUpperCase() === letter) {
+      const tileCode = element.getAttribute('data-tile-code');
+      if (tileCode && tileCode.charAt(0).toUpperCase() === char) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         break;
       }
@@ -406,16 +429,16 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
               <CardContent className="p-2">
                 <ScrollArea className="h-[500px]">
                   <div className="flex flex-col gap-1">
-                    {alphabetLetters.map((letter) => (
+                    {alphabetLetters.map((char) => (
                       <Button
-                        key={letter}
+                        key={char}
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0 text-xs font-medium hover:bg-primary/10"
-                        onClick={() => scrollToLetter(letter)}
-                        title={`Jump to ${letter}`}
+                        onClick={() => scrollToLetter(char)}
+                        title={`Jump to ${char}`}
                       >
-                        {letter}
+                        {char}
                       </Button>
                     ))}
                   </div>
@@ -435,7 +458,7 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
               }
             >
               {filteredAndSortedTiles.map((tile) => (
-                <div key={tile.id} data-tile-name={tile.name}>
+                <div key={tile.id} data-tile-code={tile.code}>
                   <TileCard
                     tile={tile}
                     isSelected={false}

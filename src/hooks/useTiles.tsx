@@ -23,7 +23,7 @@ const fetchTiles = async (): Promise<Tile[]> => {
   const { data, error } = await supabase
     .from('tiles')
     .select('*')
-    .order('name', { ascending: true }); // Changed to alphabetical order by name
+    .order('code', { ascending: true }); // Order by code (numbers first, then alphabets)
 
   if (error) {
     console.error('Error fetching tiles:', error);

@@ -31,6 +31,25 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [generatingQRTileId, setGeneratingQRTileId] = useState<string | null>(null);
 
+  // Check for tile selection context from room management
+  useEffect(() => {
+    const context = sessionStorage.getItem('tileSelectionContext');
+    if (context) {
+      try {
+        const { roomId, isWallTile, customerId } = JSON.parse(context);
+        // Clear the context to prevent reprocessing
+        sessionStorage.removeItem('tileSelectionContext');
+        
+        // Show a toast message to guide the user
+        toast.info("Select a tile to add to the room. Click on any tile card to select it.", {
+          duration: 5000,
+        });
+      } catch (error) {
+        console.error('Error parsing tile selection context:', error);
+      }
+    }
+  }, []);
+
   const { data: tiles = [], isLoading } = useTiles();
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
@@ -42,6 +61,30 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   );
 
   const handleTileSelect = (tile: Tile) => {
+    // Check if we're in tile selection mode from room management
+    const context = sessionStorage.getItem('tileSelectionContext');
+    if (context) {
+      try {
+        const { roomId, isWallTile, customerId } = JSON.parse(context);
+        // Clear the context
+        sessionStorage.removeItem('tileSelectionContext');
+        
+        // Navigate back to rooms and trigger tile selection
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('tileSelected', { 
+            detail: { tileId: tile.id, roomId, isWallTile, customerId } 
+          }));
+          window.dispatchEvent(new CustomEvent('navigateToRooms'));
+        }, 100);
+        
+        toast.success(`Selected ${tile.name} for the room`);
+        return;
+      } catch (error) {
+        console.error('Error processing tile selection:', error);
+      }
+    }
+    
+    // Normal tile selection behavior
     setSelectedTile(tile);
   };
 
