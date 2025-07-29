@@ -423,12 +423,30 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                 </div>
               ))}
               
-              <div className="border-t pt-4 mt-4">
+              <div className="border-t pt-4 mt-4 space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-800">Grand Total:</span>
-                  <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</span>
+                  <span className="text-lg font-medium text-gray-800">MRP:</span>
+                  <span className="text-lg font-semibold text-gray-800">₹{grandTotal.toLocaleString()}</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                
+                {quotation.discount_percentage && quotation.discount_percentage > 0 && (
+                  <div className="flex justify-between items-center text-red-600">
+                    <span className="text-sm">Discount ({quotation.discount_percentage}%):</span>
+                    <span className="text-sm font-medium">-₹{(quotation.discount_amount || 0).toLocaleString()}</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center border-t pt-2">
+                  <span className="text-lg font-semibold text-gray-800">Grand Total:</span>
+                  <span className="text-xl font-bold text-green-600">
+                    ₹{(quotation.discount_percentage && quotation.discount_percentage > 0 
+                      ? (grandTotal - (quotation.discount_amount || 0)) 
+                      : grandTotal
+                    ).toLocaleString()}
+                  </span>
+                </div>
+                
+                <p className="text-xs text-gray-500">
                   All calculations include {wastagePercentage}% wastage allowance
                 </p>
               </div>
