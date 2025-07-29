@@ -186,6 +186,8 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_id: string
+          discount_amount: number | null
+          discount_percentage: number | null
           id: string
           notes: string | null
           quotation_number: string
@@ -198,6 +200,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           customer_id: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
           id?: string
           notes?: string | null
           quotation_number: string
@@ -210,6 +214,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           customer_id?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
           id?: string
           notes?: string | null
           quotation_number?: string

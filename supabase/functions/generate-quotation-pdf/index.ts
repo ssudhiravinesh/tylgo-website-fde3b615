@@ -11,6 +11,8 @@ interface QuotationData {
   quotation_number: string;
   total_cost: number;
   wastage_percentage: number;
+  discount_percentage?: number;
+  discount_amount?: number;
   notes?: string;
   customer: {
     name: string;
@@ -312,13 +314,19 @@ const generateHTML = (quotation: QuotationData, quotationItems: any[], calculati
         
         <div class="summary">
           <div class="summary-row">
-            <span class="summary-label">Subtotal:</span>
+            <span class="summary-label">MRP:</span>
             <span class="summary-value">₹${calculations.reduce((sum, calc) => sum + calc.totalPrice, 0).toLocaleString('en-IN')}</span>
           </div>
           <div class="summary-row">
             <span class="summary-label">Wastage Applied:</span>
             <span class="summary-value">${quotation.wastage_percentage}%</span>
           </div>
+          ${quotation.discount_percentage && quotation.discount_percentage > 0 ? `
+            <div class="summary-row">
+              <span class="summary-label">Discount (${quotation.discount_percentage}%):</span>
+              <span class="summary-value" style="color: #dc2626;">-₹${(quotation.discount_amount || 0).toLocaleString('en-IN')}</span>
+            </div>
+          ` : ''}
           <div class="summary-row grand-total">
             <span class="summary-label">Grand Total:</span>
             <span class="summary-value">₹${quotation.total_cost.toLocaleString('en-IN')}</span>
