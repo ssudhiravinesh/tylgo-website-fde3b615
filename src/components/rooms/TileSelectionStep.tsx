@@ -26,6 +26,7 @@ import {
 } from "@/utils/tileCalculations";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
+import { useQRScanningContext } from "@/contexts/QRScanningContext";
 
 interface TileSelectionStepProps {
   customerId: string;
@@ -39,6 +40,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
+  const { setCurrentCustomer, setSelectedRoomIds } = useQRScanningContext();
   
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
@@ -238,12 +240,18 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   }, [selections, rooms]);
 
   const handleAddFloorTile = (roomId: string) => {
-    // Store the room context for when we return from tile catalog
+    // Set up context for tile selection
+    const customer = { id: customerId, name: '' }; // We have the ID, name not critical for this flow
+    setCurrentCustomer(customerId, '');
+    setSelectedRoomIds([roomId]);
+    
+    // Store additional context for tile assignment
     sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
       roomId, 
       isWallTile: false,
       customerId 
     }));
+    
     // Navigate to tiles view in dashboard
     window.dispatchEvent(new CustomEvent('navigateToTiles'));
   };
@@ -265,12 +273,17 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       setWallTileSelections(prev => [...prev, wallSelection!]);
     }
 
-    // Store the room context for tile catalog navigation (same as floor tiles)
+    // Set up context for wall tile selection
+    setCurrentCustomer(customerId, '');
+    setSelectedRoomIds([roomId]);
+    
+    // Store additional context for tile assignment
     sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
       roomId, 
       isWallTile: true,
       customerId 
     }));
+    
     // Navigate to tiles view in dashboard
     window.dispatchEvent(new CustomEvent('navigateToTiles'));
   };

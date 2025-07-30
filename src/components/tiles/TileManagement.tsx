@@ -30,6 +30,7 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [generatingQRTileId, setGeneratingQRTileId] = useState<string | null>(null);
+  const [tileSelectionContext, setTileSelectionContext] = useState<{roomId: string, isWallTile: boolean, customerId: string} | null>(null);
 
   // Check for tile selection context from room management
   useEffect(() => {
@@ -37,8 +38,7 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
     if (context) {
       try {
         const { roomId, isWallTile, customerId } = JSON.parse(context);
-        // Clear the context to prevent reprocessing
-        sessionStorage.removeItem('tileSelectionContext');
+        setTileSelectionContext({ roomId, isWallTile, customerId });
         
         // Show a toast message to guide the user
         toast.info("Select a tile to add to the room. Click on any tile card to select it.", {
@@ -62,26 +62,25 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
 
   const handleTileSelect = (tile: Tile) => {
     // Check if we're in tile selection mode from room management
-    const context = sessionStorage.getItem('tileSelectionContext');
-    if (context) {
-      try {
-        const { roomId, isWallTile, customerId } = JSON.parse(context);
-        // Clear the context
-        sessionStorage.removeItem('tileSelectionContext');
-        
-        // Dispatch auto-assign event instead of manual navigation
-        window.dispatchEvent(new CustomEvent('autoAssignTile', { 
-          detail: { tileId: tile.id, roomId, isWallTile, customerId } 
-        }));
-        
-        // Navigate back to rooms
-        window.dispatchEvent(new CustomEvent('navigateToRooms'));
-        
-        toast.success(`Selected ${tile.name} for the room`);
-        return;
-      } catch (error) {
-        console.error('Error processing tile selection:', error);
-      }
+    if (tileSelectionContext) {
+      // Clear the context from storage and state
+      sessionStorage.removeItem('tileSelectionContext');
+      
+      // Dispatch auto-assign event
+      window.dispatchEvent(new CustomEvent('autoAssignTile', { 
+        detail: { 
+          tileId: tile.id, 
+          roomId: tileSelectionContext.roomId, 
+          isWallTile: tileSelectionContext.isWallTile, 
+          customerId: tileSelectionContext.customerId 
+        } 
+      }));
+      
+      // Navigate back to rooms
+      window.dispatchEvent(new CustomEvent('navigateToRooms'));
+      
+      toast.success(`Selected ${tile.name} for the room`);
+      return;
     }
     
     // Normal tile selection behavior
