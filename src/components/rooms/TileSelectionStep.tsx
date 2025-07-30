@@ -95,8 +95,33 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       const { tileId, roomId, isWallTile } = event.detail;
       
       if (isWallTile) {
-        // Handle wall tile assignment (existing logic can be implemented here)
-        console.log('Auto-assigning wall tile:', { tileId, roomId });
+        // Handle wall tile assignment - set as base tile and calculate layers
+        const wallSelection = wallTileSelections.find(ws => ws.roomId === roomId);
+        
+        if (!wallSelection || !wallSelection.baseTileId) {
+          // Setting base tile for the first time
+          calculateWallLayers(roomId, tileId);
+          toast.success("Base wall tile selected and layers calculated");
+        } else {
+          // If base tile already exists, just add a new layer with this tile
+          const newLayerNumber = wallSelection.layers.length + 1;
+          setWallTileSelections(prev =>
+            prev.map(ws =>
+              ws.roomId === roomId
+                ? {
+                    ...ws,
+                    layers: [...ws.layers, {
+                      layerNumber: newLayerNumber,
+                      tileId,
+                      tilesNeeded: ws.layers[0]?.tilesNeeded || 0
+                    }],
+                    totalLayers: newLayerNumber
+                  }
+                : ws
+            )
+          );
+          toast.success(`Wall tile added as layer ${newLayerNumber}`);
+        }
       } else {
         // Handle floor tile assignment
         const existingSelection = floorTileSelections.find(
@@ -107,13 +132,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           toast.info("This tile is already selected for this room");
         } else {
           setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
+          toast.success("Floor tile added to room");
         }
       }
     };
 
     window.addEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
     return () => window.removeEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
-  }, [floorTileSelections]);
+  }, [floorTileSelections, wallTileSelections]);
 
   useEffect(() => {
     // Only run if we have selections and tiles data, and prevent unnecessary updates
@@ -239,8 +265,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       setWallTileSelections(prev => [...prev, wallSelection!]);
     }
 
-    // Open wall tile selection page
-    setShowWallTileSelection({ roomId, room });
+    // Store the room context for tile catalog navigation (same as floor tiles)
+    sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
+      roomId, 
+      isWallTile: true,
+      customerId 
+    }));
+    // Navigate to tiles view in dashboard
+    window.dispatchEvent(new CustomEvent('navigateToTiles'));
   };
 
   const calculateWallLayers = (roomId: string, baseTileId: string) => {

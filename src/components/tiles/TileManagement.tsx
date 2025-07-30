@@ -69,13 +69,13 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
         // Clear the context
         sessionStorage.removeItem('tileSelectionContext');
         
-        // Navigate back to rooms and trigger tile selection
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('tileSelected', { 
-            detail: { tileId: tile.id, roomId, isWallTile, customerId } 
-          }));
-          window.dispatchEvent(new CustomEvent('navigateToRooms'));
-        }, 100);
+        // Dispatch auto-assign event instead of manual navigation
+        window.dispatchEvent(new CustomEvent('autoAssignTile', { 
+          detail: { tileId: tile.id, roomId, isWallTile, customerId } 
+        }));
+        
+        // Navigate back to rooms
+        window.dispatchEvent(new CustomEvent('navigateToRooms'));
         
         toast.success(`Selected ${tile.name} for the room`);
         return;
