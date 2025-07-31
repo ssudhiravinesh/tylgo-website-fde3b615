@@ -35,7 +35,10 @@ interface TileCatalogProps {
 }
 
 export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatalogProps) => {
-  const { data: tiles = [], isLoading: loading, error } = useTiles();
+const { data: tiles, totalCount, isLoading, error, refetch } = useTiles();
+
+console.log(`Received ${tiles.length} tiles out of total ${totalCount}`);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
