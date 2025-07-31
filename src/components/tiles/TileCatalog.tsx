@@ -52,15 +52,31 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
 
 const [alphabeticalIndex, setAlphabeticalIndex] = useState<string>('');
 const [showAlphabetNav, setShowAlphabetNav] = useState(false);
+  
 const getAlphaKey = (tile: Tile): string => {
-  // Prefer code over name if code exists; fallback to name.
   const value = (tile.code || tile.name || '').trim();
-  if (!value) return '#';   // No code and no name fallback
+  if (!value) return '#';  // fallback if nothing exists
   const firstChar = value.charAt(0).toUpperCase();
-  // If it starts with a number, we group under '#'
-  return /^[A-Z]$/.test(firstChar) ? firstChar : '#';
+  if (/[0-9]/.test(firstChar)) return firstChar;     // Individual digit
+  if (/[A-Z]/.test(firstChar)) return firstChar;     // Letter A-Z
+  return '#';  // All other cases (symbols etc.)
 };
 
+const availableKeys = Array.from(
+  new Set(
+    tiles
+      .map(getAlphaKey)
+      .filter(Boolean)
+  )
+);
+
+// Always sort: first digits, then letters, then #
+const numbers = availableKeys.filter((char) => /[0-9]/.test(char)).sort();
+const letters = availableKeys.filter((char) => /[A-Z]/.test(char)).sort();
+const others = availableKeys.filter((char) => !/[0-9A-Z]/.test(char));
+const displayKeys = [...numbers, ...letters, ...others];
+
+  
 const AlphabeticalNavigation = ({
   tiles,
   onLetterClick,
@@ -70,44 +86,37 @@ const AlphabeticalNavigation = ({
   onLetterClick: (letter: string) => void;
   activeLetter: string;
 }) => {
-  // Get unique starting characters (letters/#) from code or name
-  const availableLetters = Array.from(
-    new Set(
-      tiles
-        .map(getAlphaKey)
-        .filter(Boolean)
-    )
-  ).sort();
 
-  // Ensure '#' is at the front if present
-  if (availableLetters.includes('#')) {
-    availableLetters.splice(availableLetters.indexOf('#'), 1);
-    availableLetters.unshift('#');
-  }
+  // Get unique, sorted keys for navigation
+  const availableKeys = Array.from(
+    new Set(
+      tiles.map(getAlphaKey).filter(Boolean)
+    )
+  );
+  const numbers = availableKeys.filter(char => /[0-9]/.test(char)).sort();
+  const letters = availableKeys.filter(char => /[A-Z]/.test(char)).sort();
+  const others = availableKeys.filter(char => !/[0-9A-Z]/.test(char));
+  const displayKeys = [...numbers, ...letters, ...others];
 
   return (
     <div className="bg-white border rounded-lg p-3 mb-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-700">
-          Quick Navigation
-        </span>
-        <Badge variant="outline" className="text-xs">
-          {tiles.length} tiles
-        </Badge>
+        <span className="text-sm font-medium text-gray-700">Quick Navigation</span>
+        <Badge variant="outline" className="text-xs">{tiles.length} tiles</Badge>
       </div>
       <div className="flex flex-wrap gap-1">
         <Button
-          variant={activeLetter === '' ? 'default' : 'outline'}
+          variant={activeLetter === '' ? "default" : "outline"}
           size="sm"
           onClick={() => onLetterClick('')}
           className="h-8 w-12 p-0 text-xs"
         >
           All
         </Button>
-        {availableLetters.map((letter) => (
+        {displayKeys.map(letter => (
           <Button
             key={letter}
-            variant={activeLetter === letter ? 'default' : 'outline'}
+            variant={activeLetter === letter ? "default" : "outline"}
             size="sm"
             onClick={() => onLetterClick(letter)}
             className="h-8 w-8 p-0 text-xs"
@@ -174,12 +183,7 @@ const filteredAndSortedTiles = useMemo(() => {
     const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
     
     // Alphabetical index filtering
-    const matchesAlphabet = !alphabeticalIndex || 
-      (alphabeticalIndex === '#' ? /^\d/.test(tile.name || '') : 
-       tile.name?.charAt(0).toUpperCase() === alphabeticalIndex);
-    
-    return matchesSearch && matchesPrice && matchesAlphabet;
-  });
+const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
 
   // Enhanced sorting - always prioritize alphabetical for name
   filtered.sort((a, b) => {
