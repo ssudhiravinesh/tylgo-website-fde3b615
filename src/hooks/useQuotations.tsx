@@ -3,6 +3,59 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNotification } from '@/contexts/NotificationContext';
 
+const getFinancialYear = (date: Date = new Date()): string => {
+  const month = date.getMonth() + 1; // JavaScript months are 0-indexed
+  const year = date.getFullYear();
+  
+  if (month >= 4) { // April to December
+    return `${year}-${String(year + 1).slice(2)}`;
+  } else { // January to March
+    return `${year - 1}-${String(year).slice(2)}`;
+  }
+};
+
+const getFinancialYearDateRange = (financialYear?: string) => {
+  const fy = financialYear || getFinancialYear();
+  const startYear = parseInt(fy.split('-')[0]);
+  
+  const startDate = new Date(startYear, 3, 1); // April 1st
+  const endDate = new Date(startYear + 1, 2, 31, 23, 59, 59); // March 31st
+  
+  return { startDate, endDate };
+};
+
+export const getNextQuotationNumber = async (): Promise<string> => {
+  try {
+    const currentFY = getFinancialYear();
+    const { startDate, endDate } = getFinancialYearDateRange(currentFY);
+    
+    // Query database for quotations in current financial year
+    const { data: existingQuotations, error } = await supabase
+      .from('quotations')
+      .select('quotation_number')
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
+      .like('quotation_number', `%/${currentFY}`)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching quotations for numbering:', error);
+      throw error;
+    }
+
+    // Calculate next sequential number
+    const nextNumber = (existingQuotations?.length || 0) + 1;
+    const formattedNumber = String(nextNumber).padStart(5, '0');
+    
+    return `${formattedNumber}/${currentFY}`;
+  } catch (error) {
+    console.error('Error generating quotation number:', error);
+    // Fallback to timestamp-based if database query fails
+    const timestamp = Date.now().toString();
+    return `${timestamp}/${getFinancialYear()}`;
+  }
+};
+
 export interface QuotationItem {
   id?: string;
   quotation_id?: string;
