@@ -50,6 +50,67 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<Set<string>>(new Set());
 
+const [alphabeticalIndex, setAlphabeticalIndex] = useState<string>('');
+const [showAlphabetNav, setShowAlphabetNav] = useState(false);
+
+// Alphabetical Navigation Component
+const AlphabeticalNavigation = ({ 
+  tiles, 
+  onLetterClick, 
+  activeLetter 
+}: { 
+  tiles: Tile[], 
+  onLetterClick: (letter: string) => void,
+  activeLetter: string 
+}) => {
+  // Get unique first letters from tile names
+  const availableLetters = Array.from(
+    new Set(
+      tiles
+        .map(tile => tile.name?.charAt(0).toUpperCase() || '#')
+        .filter(letter => letter)
+    )
+  ).sort();
+
+  // Add numbers group if any tiles start with numbers
+  const hasNumbers = tiles.some(tile => /^\d/.test(tile.name || ''));
+  if (hasNumbers && !availableLetters.includes('#')) {
+    availableLetters.unshift('#');
+  }
+
+  return (
+    <div className="bg-white border rounded-lg p-3 mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium text-gray-700">Quick Navigation</span>
+        <Badge variant="outline" className="text-xs">
+          {tiles.length} tiles
+        </Badge>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        <Button
+          variant={activeLetter === '' ? "default" : "outline"}
+          size="sm"
+          onClick={() => onLetterClick('')}
+          className="h-8 w-12 p-0 text-xs"
+        >
+          All
+        </Button>
+        {availableLetters.map(letter => (
+          <Button
+            key={letter}
+            variant={activeLetter === letter ? "default" : "outline"}
+            size="sm"
+            onClick={() => onLetterClick(letter)}
+            className="h-8 w-8 p-0 text-xs"
+          >
+            {letter}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
   // Enhanced QR scan handler that populates search box
   const handleQRScanned = (tileCode: string) => {
     console.log('QR Code scanned:', tileCode);
@@ -93,21 +154,34 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
       }
     }
   };
+  
+// Enhanced filtering and sorting with alphabetical navigation
+const filteredAndSortedTiles = useMemo(() => {
+  let filtered = tiles.filter(tile => {
+    const matchesSearch = 
+      tile.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tile.code?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
+    
+    // Alphabetical index filtering
+    const matchesAlphabet = !alphabeticalIndex || 
+      (alphabeticalIndex === '#' ? /^\d/.test(tile.name || '') : 
+       tile.name?.charAt(0).toUpperCase() === alphabeticalIndex);
+    
+    return matchesSearch && matchesPrice && matchesAlphabet;
+  });
 
-  // Filter and sort tiles
-  const filteredAndSortedTiles = useMemo(() => {
-    let filtered = tiles.filter(tile => {
-      const matchesSearch = 
-        tile.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tile.code?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
-      
-      return matchesSearch && matchesPrice;
-    });
-
-    // Sort tiles
-    filtered.sort((a, b) => {
+  // Enhanced sorting - always prioritize alphabetical for name
+  filtered.sort((a, b) => {
+    if (sortBy === 'name') {
+      // Always sort names alphabetically regardless of sortOrder
+      const aName = (a.name || '').toLowerCase();
+      const bName = (b.name || '').toLowerCase();
+      const result = aName.localeCompare(bName);
+      return sortOrder === "asc" ? result : -result;
+    } else {
+      // Handle other sorting fields
       let aValue: any = a[sortBy as keyof Tile];
       let bValue: any = b[sortBy as keyof Tile];
       
@@ -119,10 +193,12 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
       } else {
         return aValue < bValue ? 1 : -1;
       }
-    });
+    }
+  });
 
-    return filtered;
-  }, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder]);
+  return filtered;
+}, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder, alphabeticalIndex]);
+
 
   // Simple view toggle component
   const ViewToggle = ({ viewMode, setViewMode }: { viewMode: "grid" | "list", setViewMode: (mode: "grid" | "list") => void }) => (
@@ -178,15 +254,17 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
     setCart(newCart);
   };
 
-  const clearFilters = () => {
-    setSearchTerm("");
-    setSelectedCategory("all");
-    setSelectedBrand("all");
-    setPriceRange([0, 1000]);
-    setSortBy("name");
-    setSortOrder("asc");
-    toast.success('Filters cleared');
-  };
+const clearFilters = () => {
+  setSearchTerm("");
+  setSelectedCategory("all");
+  setSelectedBrand("all");
+  setPriceRange([0, 1000]);
+  setSortBy("name"); // Default to name sorting for better alphabetical experience
+  setSortOrder("asc");
+  setAlphabeticalIndex(''); // Clear alphabetical filter
+  toast.success('Filters cleared');
+};
+
 
   const styles = {
   tilesContainer: {
@@ -340,22 +418,45 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
           </div>
         </CardHeader>
       </Card>
+  
+      {/* Alphabetical Navigation */}
+      <AlphabeticalNavigation 
+        tiles={tiles}
+        onLetterClick={setAlphabeticalIndex}
+        activeLetter={alphabeticalIndex}
+      />
 
+      
       {/* Active Filters */}
-      {searchTerm && (
+      {(searchTerm || alphabeticalIndex) && (
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-sm text-gray-500">Active filters:</span>
-          <Badge variant="secondary">
-            Search: {searchTerm}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-4 w-4 p-0 ml-1"
-              onClick={() => setSearchTerm("")}
-            >
-              ×
-            </Button>
-          </Badge>
+          {searchTerm && (
+            <Badge variant="secondary">
+              Search: {searchTerm}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setSearchTerm("")}
+              >
+                ×
+              </Button>
+            </Badge>
+          )}
+          {alphabeticalIndex && (
+            <Badge variant="secondary">
+              Letter: {alphabeticalIndex}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setAlphabeticalIndex("")}
+              >
+                ×
+              </Button>
+            </Badge>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -366,6 +467,7 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
           </Button>
         </div>
       )}
+
 
       {/* Tiles Grid/List */}
       {filteredAndSortedTiles.length === 0 ? (
