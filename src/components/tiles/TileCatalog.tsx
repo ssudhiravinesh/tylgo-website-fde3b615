@@ -29,9 +29,19 @@ import { toast } from "sonner";
 import type { Tile } from "@/hooks/useTiles";
 // import { Html5QRScanner } from "@/components/qr/Html5QRScanner"; // Alternative option
 
+// Add to TileCatalogProps interface
 interface TileCatalogProps {
-  isSelectionMode?: boolean;
-  onTileSelect?: (tileId: string) => void;
+isSelectionMode?: boolean;
+onTileSelect?: (tileId: string) => void;
+// New props for auto-assignment
+autoAssignmentContext?: {
+roomId: string;
+roomName: string;
+isWallTile: boolean;
+layerNumber?: number;
+};
+onAutoAssignment?: (tileId: string) => void;
+onNavigateBack?: () => void;
 }
 
 export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatalogProps) => {
