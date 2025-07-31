@@ -168,26 +168,45 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       });
       setShowTileCatalog(true);
     };
-    const handleAutoAssignTile = (tileId: string) => {
-      if (!catalogContext) return;
-      const { roomId, isWallTile } = catalogContext;
-      if (!isWallTile) {
-        // Floor tile auto-assignment
-        const existingSelection = floorTileSelections.find(
-        fs => fs.roomId === roomId && fs.tileId === tileId
-        );
-        if (existingSelection) {
-          toast.error("This tile is already selected for this room");
-        } else {
-        setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
-        // Auto-save the selection
-        handleSaveSelections();
-        }
-      }
-      // Close catalog and reset context
-      setShowTileCatalog(false);
-      setCatalogContext(null);
-    };
+  
+const handleAutoAssignTile = async (tileId: string) => {
+  if (!catalogContext) return;
+  const { roomId, isWallTile } = catalogContext;
+  
+  if (!isWallTile) {
+    const existingSelection = floorTileSelections.find(
+      fs => fs.roomId === roomId && fs.tileId === tileId
+    );
+    
+    if (existingSelection) {
+      toast.error("This tile is already selected for this room");
+      return;
+    }
+    
+    // Update state
+    const newSelection = { roomId, tileId };
+    setFloorTileSelections(prev => [...prev, newSelection]);
+    
+    try {
+      // Wait for state to update and then save
+      await handleSaveSelections();
+      toast.success("Tile assigned to room successfully!");
+    } catch (error) {
+      console.error("Error saving tile selection:", error);
+      toast.error("Failed to save tile assignment");
+      // Rollback the state change
+      setFloorTileSelections(prev => 
+        prev.filter(fs => !(fs.roomId === roomId && fs.tileId === tileId))
+      );
+      return;
+    }
+  }
+  
+  // Close dialog only after successful save
+  setShowTileCatalog(false);
+  setCatalogContext(null);
+};
+
 
   const handleConfigureWallTiles = (roomId: string) => {
     const room = wallRooms.find(r => r.id === roomId);
