@@ -158,10 +158,36 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     });
   }, [selections, rooms]);
 
-  const handleAddFloorTile = (roomId: string) => {
-    setCatalogContext({ roomId, isWallTile: false });
-    setShowTileCatalog(true);
-  };
+    const handleAddFloorTile = (roomId: string) => {
+      const room = floorRooms.find(r => r.id === roomId);
+      if (!room) return;
+      setCatalogContext({
+        roomId,
+        isWallTile: false,
+        roomName: room.name
+      });
+      setShowTileCatalog(true);
+    };
+    const handleAutoAssignTile = (tileId: string) => {
+      if (!catalogContext) return;
+      const { roomId, isWallTile } = catalogContext;
+      if (!isWallTile) {
+        // Floor tile auto-assignment
+        const existingSelection = floorTileSelections.find(
+        fs => fs.roomId === roomId && fs.tileId === tileId
+        );
+        if (existingSelection) {
+          toast.error("This tile is already selected for this room");
+        } else {
+        setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
+        // Auto-save the selection
+        handleSaveSelections();
+        }
+      }
+      // Close catalog and reset context
+      setShowTileCatalog(false);
+      setCatalogContext(null);
+    };
 
   const handleConfigureWallTiles = (roomId: string) => {
     const room = wallRooms.find(r => r.id === roomId);
