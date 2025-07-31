@@ -18,20 +18,38 @@ export interface Tile {
   updated_at?: string;
 }
 
+//2.0
 const fetchTiles = async (): Promise<Tile[]> => {
-  console.log('Fetching tiles from database...');
-  const { data, error } = await supabase
-    .from('tiles')
-    .select('*')
-    .order('created_at', { ascending: false });
+  console.log('Fetching all tiles from database...');
+  
+  let allTiles: Tile[] = [];
+  let from = 0;
+  const limit = 1000; // Supabase's safe batch size
+  let hasMoreData = true;
 
-  if (error) {
-    console.error('Error fetching tiles:', error);
-    throw error;
+  while (hasMoreData) {
+    const { data, error } = await supabase
+      .from('tiles')
+      .select('*')
+      .range(from, from + limit - 1)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching tiles:', error);
+      throw error;
+    }
+
+    if (data && data.length > 0) {
+      allTiles = [...allTiles, ...data];
+      from += limit;
+      hasMoreData = data.length === limit; // Continue if we got a full batch
+    } else {
+      hasMoreData = false;
+    }
   }
 
-  console.log('Tiles fetched:', data?.length || 0);
-  return data || [];
+  console.log('Total tiles fetched:', allTiles.length);
+  return allTiles;
 };
 
 export const useTiles = () => {
