@@ -170,7 +170,14 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     };
   
 const handleAutoAssignTile = async (tileId: string) => {
-  if (!catalogContext) return;
+  console.log('🔵 handleAutoAssignTile START:', { tileId, catalogContext });
+  
+  if (!catalogContext) {
+    console.error('No catalogContext available');
+    toast.error('Room context not found');
+    return;
+  }
+
   const { roomId, isWallTile } = catalogContext;
   
   if (!isWallTile) {
@@ -182,30 +189,85 @@ const handleAutoAssignTile = async (tileId: string) => {
       toast.error("This tile is already selected for this room");
       return;
     }
-    
-    // Update state
-    const newSelection = { roomId, tileId };
-    setFloorTileSelections(prev => [...prev, newSelection]);
-    
+
     try {
-      // Wait for state to update and then save
-      await handleSaveSelections();
-      toast.success("Tile assigned to room successfully!");
+      const newSelection = { roomId, tileId };
+      console.log('🔵 Adding selection:', newSelection);
+      
+      setFloorTileSelections(prev => {
+        const updated = [...prev, newSelection];
+        console.log('🔵 State updated to:', updated);
+        return updated;
+      });
+      
+      // Create complete selections for saving
+      const updatedFloorSelections = [...floorTileSelections, newSelection];
+      const selectionsToSave = [];
+      
+      updatedFloorSelections.forEach(fs => {
+        selectionsToSave.push({
+          customer_id: customerId,
+          room_id: fs.roomId,
+          tile_id: fs.tileId
+        });
+      });
+
+      wallTileSelections.forEach(ws => {
+        ws.layers.forEach(layer => {
+          selectionsToSave.push({
+            customer_id: customerId,
+            room_id: ws.roomId,
+            tile_id: layer.tileId,
+            layer_number: layer.layerNumber
+          });
+        });
+      });
+
+      console.log('🔵 Calling save mutation with:', selectionsToSave);
+      await saveSelectionsMutation.mutateAsync(selectionsToSave);
+      console.log('✅ Save successful!');
+      
+      const selectedTile = tiles.find(t => t.id === tileId);
+      const tileName = selectedTile?.name || 'Tile';
+      toast.success(`${tileName} assigned to ${catalogContext.roomName} successfully!`);
+      
     } catch (error) {
-      console.error("Error saving tile selection:", error);
-      toast.error("Failed to save tile assignment");
-      // Rollback the state change
-      setFloorTileSelections(prev => 
-        prev.filter(fs => !(fs.roomId === roomId && fs.tileId === tileId))
-      );
+      console.error('❌ Save failed:', error);
+      console.error('❌ Error details:', {
+        message: error?.message,
+        status: error?.status,
+        response: error?.response?.data
+      });
+      
+      console.log('🔄 Rolling back state...');
+      setFloorTileSelections(prev => {
+        const rolledBack = prev.filter(fs => !(fs.roomId === roomId && fs.tileId === tileId));
+        console.log('🔄 State rolled back to:', rolledBack);
+        return rolledBack;
+      });
+      
+      // Show specific error message
+      let errorMessage = "Failed to save tile assignment";
+      if (error?.status === 400) {
+        errorMessage = "Invalid tile selection data";
+      } else if (error?.status === 401) {
+        errorMessage = "Authentication required";
+      } else if (error?.status === 403) {
+        errorMessage = "Permission denied";
+      } else if (error?.status >= 500) {
+        errorMessage = "Server error. Please try again.";
+      }
+      
+      toast.error(errorMessage);
       return;
     }
   }
-  
-  // Close dialog only after successful save
+
+  console.log('🔵 handleAutoAssignTile END - closing dialog');
   setShowTileCatalog(false);
   setCatalogContext(null);
 };
+
 
 
   const handleConfigureWallTiles = (roomId: string) => {
