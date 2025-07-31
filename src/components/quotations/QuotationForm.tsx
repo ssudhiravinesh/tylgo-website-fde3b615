@@ -47,19 +47,7 @@ export const QuotationForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Auto-generate quotation number based on timestamp with better uniqueness
-  const generateQuotationNumber = () => {
-    const now = new Date();
-    const year = now.getFullYear().toString().substr(-2);
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-    // Add a random 4-digit number for extra uniqueness
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `QT${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}${random}`;
-  };
+  const { quotationNumber, isLoading: quotationNumberLoading, error: quotationNumberError, refreshNumber } = useQuotationNumber();
 
   const [quotationNumber] = useState(generateQuotationNumber());
 
@@ -151,12 +139,27 @@ export const QuotationForm = ({
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="quotation-number">Quotation Number</Label>
-              <Input
-                id="quotation-number"
-                value={quotationNumber}
-                readOnly
-                className="bg-gray-50"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="quotation-number"
+                  value={quotationNumber}
+                  readOnly
+                  className="bg-gray-50"
+                  placeholder={quotationNumberLoading ? "Generating..." : ""}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshNumber}
+                  disabled={quotationNumberLoading}
+                >
+                  🔄
+                </Button>
+              </div>
+              {quotationNumberError && (
+                <p className="text-sm text-red-600 mt-1">{quotationNumberError}</p>
+              )}
             </div>
 
             {selectedCustomer && (
