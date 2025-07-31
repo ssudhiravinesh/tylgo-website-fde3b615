@@ -59,58 +59,62 @@ export const QuotationForm = ({
 
   const totalCost = calculateTotal();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user) {
-      toast.error("You must be logged in to create quotations");
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!user) {
+    toast.error("You must be logged in to create quotations");
+    return;
+  }
 
-    if (!customerId) {
-      toast.error("Please select a customer");
-      return;
-    }
+  if (!customerId) {
+    toast.error("Please select a customer");
+    return;
+  }
 
-    if (!selectedRoomsData.length) {
-      toast.error("No room data provided");
-      return;
-    }
+  if (!selectedRoomsData.length) {
+    toast.error("No room data provided");
+    return;
+  }
 
-    setIsSubmitting(true);
+  if (!quotationNumber) {
+    toast.error("Quotation number not generated");
+    return;
+  }
 
-    try {
-      // Prepare quotation items - they're already calculated
-      const quotationItems = selectedRoomsData.map(roomData => ({
-        tile_id: roomData.tile_id,
-        room_id: roomData.room_id,
-        area: roomData.area, // Original area without wastage
-        price_per_box: roomData.price_per_box,
-        total_price: roomData.total_price,
-        layer_number: roomData.layer_number, // Include layer number for wall tiles
-      }));
+  setIsSubmitting(true);
 
-      const quotationData = {
-        quotation_number: quotationNumber,
-        customer_id: customerId,
-        worker_id: user.id,
-        total_cost: totalCost,
-        status: 'draft',
-        notes: notes || undefined,
-        wastage_percentage: wastagePercentage,
-        items: quotationItems,
-      };
+  try {
+    // Prepare quotation items - they're already calculated
+    const quotationItems = selectedRoomsData.map(roomData => ({
+      tile_id: roomData.tile_id,
+      room_id: roomData.room_id,
+      area: roomData.area,
+      price_per_box: roomData.price_per_box,
+      total_price: roomData.total_price,
+      layer_number: roomData.layer_number,
+    }));
 
-      
-      await createQuotationMutation.mutateAsync(quotationData);
-      onSuccess();
-    } catch (error) {
-      
-      toast.error('Failed to create quotation');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    const quotationData = {
+      quotation_number: quotationNumber, // Use the generated sequential number
+      customer_id: customerId,
+      worker_id: user.id,
+      total_cost: totalCost,
+      status: 'draft',
+      notes: notes || undefined,
+      wastage_percentage: wastagePercentage,
+      items: quotationItems,
+    };
+
+    await createQuotationMutation.mutateAsync(quotationData);
+    onSuccess();
+  } catch (error) {
+    console.error('Error creating quotation:', error);
+    toast.error('Failed to create quotation');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const selectedCustomer = customers.find(c => c.id === customerId);
 
