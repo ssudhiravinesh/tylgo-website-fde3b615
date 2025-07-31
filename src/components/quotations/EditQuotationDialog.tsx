@@ -39,32 +39,36 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
     }
   }, [quotation]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!quotation) return;
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!quotation) return;
 
-    try {
-      await updateQuotation({
-        id: quotation.id,
-        quotation_number: quotationNumber,
-        status,
-        notes: notes || undefined,
-        wastage_percentage: wastagePercentage,
-        discount_percentage: discountPercentage,
-        discount_amount: (mrp * discountPercentage) / 100,
-        total_cost: finalTotal,
-      });
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      onClose();
-    } catch (error) {
-      console.error('Error updating quotation:', error);
-      toast.error('Failed to update quotation');
+  // Calculate totals within the function scope
+  const { mrp, finalTotal } = calculateTotals();
+
+  try {
+    await updateQuotation({
+      id: quotation.id,
+      quotation_number: quotationNumber,
+      status,
+      notes: notes || undefined,
+      wastage_percentage: wastagePercentage,
+      discount_percentage: discountPercentage,
+      discount_amount: (mrp * discountPercentage) / 100,
+      total_cost: finalTotal,
+    });
+    
+    if (onSuccess) {
+      onSuccess();
     }
-  };
+    onClose();
+  } catch (error) {
+    console.error('Error updating quotation:', error);
+    toast.error('Failed to update quotation');
+  }
+};
+
 
   const handleClose = () => {
     onClose();
