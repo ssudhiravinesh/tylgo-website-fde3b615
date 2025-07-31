@@ -204,6 +204,14 @@ export const calculateTileRequirements = (
   return Object.values(tileCalculations);
 };
 
+// utils/calculations.ts
+export const calculateDiscount = (mrp: number, discountPercentage: number) => {
+  const discountAmount = (mrp * discountPercentage) / 100;
+  const finalTotal = mrp - discountAmount;
+  return { discountAmount, finalTotal };
+};
+
+
 /**
  * Calculate total cost from tile calculations
  */
