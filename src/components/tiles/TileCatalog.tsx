@@ -46,7 +46,7 @@ console.log(`Received ${tiles.length} tiles out of total ${totalCount}`);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -279,7 +279,7 @@ const clearFilters = () => {
   setSearchTerm("");
   setSelectedCategory("all");
   setSelectedBrand("all");
-  setPriceRange([0, 1000]);
+  setPriceRange([0, 20000]);
   setSortBy("name"); // Default to name sorting for better alphabetical experience
   setSortOrder("asc");
   setAlphabeticalIndex(''); // Clear alphabetical filter
