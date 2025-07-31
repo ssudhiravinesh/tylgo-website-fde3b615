@@ -127,7 +127,9 @@ export interface Quotation {
   total_cost: number;
   status: string;
   notes?: string;
-  wastage_percentage?: number; // Add wastage percentage field
+  wastage_percentage?: number;
+  discount_percentage?: number; // New field
+  discount_amount?: number; // New field
   created_at: string;
   updated_at: string;
   customer?: {
@@ -154,7 +156,9 @@ export interface CreateQuotationData {
   total_cost: number;
   status?: string;
   notes?: string;
-  wastage_percentage?: number; // Add wastage percentage field
+  wastage_percentage?: number;
+  discount_percentage?: number; // New field
+  discount_amount?: number; // New field
   items: Omit<QuotationItem, 'id' | 'quotation_id'>[];
 }
 
@@ -354,21 +358,21 @@ export const useQuotations = (filters?: QuotationFilters) => {
 
   const { playNotificationSound, showSuccessAnimation } = useNotification();
 
-  const createQuotationMutation = useMutation({
-    mutationFn: async (quotationData: CreateQuotationData) => {
-      
-      const { items, ...quotationFields } = quotationData;
+const createQuotationMutation = useMutation({
+  mutationFn: async (quotationData: CreateQuotationData) => {
+    console.log('Creating quotation with data:', quotationData);
+    const { items, ...quotationFields } = quotationData;
       
       // First, create the quotation
-      const { data: quotation, error: quotationError } = await supabase
-        .from('quotations')
-        .insert([quotationFields])
-        .select('*')
-        .single();
+    const { data: quotation, error: quotationError } = await supabase
+      .from('quotations')
+      .insert([quotationFields]) // This now includes discount_percentage and discount_amount
+      .select('*')
+      .single();
 
-      if (quotationError) {
-        throw quotationError;
-      }
+    if (quotationError) {
+      throw quotationError;
+    }
 
       
 
@@ -489,30 +493,29 @@ export const useQuotations = (filters?: QuotationFilters) => {
     },
   });
 
-  const updateQuotationMutation = useMutation({
-    mutationFn: async ({ id, items, ...quotationData }: Partial<Quotation> & { id: string; items?: Omit<QuotationItem, 'quotation_id'>[] }) => {
-      
-      
-      // Store the previous status to check for changes
-      const { data: previousQuotation } = await supabase
-        .from('quotations')
-        .select('status, quotation_number')
-        .eq('id', id)
-        .single();
+const updateQuotationMutation = useMutation({
+  mutationFn: async ({ id, items, ...quotationData }: Partial<Quotation> & { id: string; items?: Omit<QuotationItem, 'quotation_id'>[] }) => {
+    console.log('Updating quotation with discount data:', quotationData);
+    
+    // Store the previous status to check for changes
+    const { data: previousQuotation } = await supabase
+      .from('quotations')
+      .select('status, quotation_number')
+      .eq('id', id)
+      .single();
       
       // Update the quotation
-      const { data: quotation, error: quotationError } = await supabase
-        .from('quotations')
-        .update(quotationData)
-        .eq('id', id)
-        .select('*')
-        .single();
+    const { data: quotation, error: quotationError } = await supabase
+      .from('quotations')
+      .update(quotationData) // This now includes discount_percentage and discount_amount
+      .eq('id', id)
+      .select('*')
+      .single();
 
-      if (quotationError) {
-        
-        throw quotationError;
-      }
-
+    if (quotationError) {
+      console.error('Error updating quotation:', quotationError);
+      throw quotationError;
+    }
       // If items are provided, update them
       if (items) {
         // Delete existing items
