@@ -49,7 +49,7 @@ export const QuotationForm = ({
   // Auto-generate quotation number based on timestamp with better uniqueness
   const { quotationNumber, isLoading: quotationNumberLoading, error: quotationNumberError, refreshNumber } = useQuotationNumber();
 
-  const [quotationNumber] = useState(generateQuotationNumber());
+  // const [quotationNumber] = useState(generateQuotationNumber());
 
   // Calculate total from selected rooms data using pre-calculated prices
   const calculateTotal = () => {
