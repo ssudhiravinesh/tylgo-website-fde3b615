@@ -252,14 +252,31 @@ const filteredAndSortedTiles = useMemo(() => {
   );
 
   // Handle tile click
-  const handleTileClick = (tile: Tile) => {
-    if (isSelectionMode && onTileSelect) {
-      onTileSelect(tile.id);
-    } else {
-      setSelectedTile(tile);
-      setIsDetailsOpen(true);
+const handleTileClick = (tile: Tile) => {
+  // Check if we're in auto-assignment mode
+  if (autoAssignmentContext && onAutoAssignment) {
+    // Auto-assign the tile to the room
+    onAutoAssignment(tile.id);
+    
+    // Show success message with room context
+    toast.success(`${tile.name} assigned to ${autoAssignmentContext.roomName}`);
+    
+    // Navigate back automatically
+    if (onNavigateBack) {
+      onNavigateBack();
     }
-  };
+    return;
+  }
+  
+  // Existing logic for other selection modes
+  if (isSelectionMode && onTileSelect) {
+    onTileSelect(tile.id);
+  } else {
+    setSelectedTile(tile);
+    setIsDetailsOpen(true);
+  }
+};
+
 
   const toggleFavorite = (tileId: string) => {
     const newFavorites = new Set(favorites);
