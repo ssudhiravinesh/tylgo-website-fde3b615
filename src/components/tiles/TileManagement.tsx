@@ -76,8 +76,8 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
         } 
       }));
       
-      // Navigate back to rooms
-      window.dispatchEvent(new CustomEvent('navigateToRooms'));
+      // Navigate back to tile selection step
+      window.dispatchEvent(new CustomEvent('navigateToTileSelection'));
       
       toast.success(`Selected ${tile.name} for the room`);
       return;

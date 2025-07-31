@@ -40,7 +40,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
-  const { setCurrentCustomer, setSelectedRoomIds } = useQRScanningContext();
+  const { setCurrentCustomer, setSelectedRoomIds, clearContext } = useQRScanningContext();
   
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
@@ -91,57 +91,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     return () => window.removeEventListener('tileSelected', handleTileSelected as EventListener);
   }, [floorTileSelections]);
 
-  // Handle auto-assignment from tile catalog
-  useEffect(() => {
-    const handleAutoAssignTile = (event: CustomEvent) => {
-      const { tileId, roomId, isWallTile } = event.detail;
-      
-      if (isWallTile) {
-        // Handle wall tile assignment - set as base tile and calculate layers
-        const wallSelection = wallTileSelections.find(ws => ws.roomId === roomId);
-        
-        if (!wallSelection || !wallSelection.baseTileId) {
-          // Setting base tile for the first time
-          calculateWallLayers(roomId, tileId);
-          toast.success("Base wall tile selected and layers calculated");
-        } else {
-          // If base tile already exists, just add a new layer with this tile
-          const newLayerNumber = wallSelection.layers.length + 1;
-          setWallTileSelections(prev =>
-            prev.map(ws =>
-              ws.roomId === roomId
-                ? {
-                    ...ws,
-                    layers: [...ws.layers, {
-                      layerNumber: newLayerNumber,
-                      tileId,
-                      tilesNeeded: ws.layers[0]?.tilesNeeded || 0
-                    }],
-                    totalLayers: newLayerNumber
-                  }
-                : ws
-            )
-          );
-          toast.success(`Wall tile added as layer ${newLayerNumber}`);
-        }
-      } else {
-        // Handle floor tile assignment
-        const existingSelection = floorTileSelections.find(
-          fs => fs.roomId === roomId && fs.tileId === tileId
-        );
-        
-        if (existingSelection) {
-          toast.info("This tile is already selected for this room");
-        } else {
-          setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
-          toast.success("Floor tile added to room");
-        }
-      }
-    };
-
-    window.addEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
-    return () => window.removeEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
-  }, [floorTileSelections, wallTileSelections]);
 
   useEffect(() => {
     // Only run if we have selections and tiles data, and prevent unnecessary updates
@@ -239,55 +188,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     });
   }, [selections, rooms]);
 
-  const handleAddFloorTile = (roomId: string) => {
-    // Set up context for tile selection
-    const customer = { id: customerId, name: '' }; // We have the ID, name not critical for this flow
-    setCurrentCustomer(customerId, '');
-    setSelectedRoomIds([roomId]);
-    
-    // Store additional context for tile assignment
-    sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
-      roomId, 
-      isWallTile: false,
-      customerId 
-    }));
-    
-    // Navigate to tiles view in dashboard
-    window.dispatchEvent(new CustomEvent('navigateToTiles'));
-  };
-
-  const handleConfigureWallTiles = (roomId: string) => {
-    const room = wallRooms.find(r => r.id === roomId);
-    if (!room) return;
-
-    // Check if wall selection already exists
-    let wallSelection = wallTileSelections.find(ws => ws.roomId === roomId);
-    if (!wallSelection) {
-      // Create new wall selection
-      wallSelection = {
-        roomId,
-        baseTileId: null,
-        layers: [],
-        totalLayers: 0
-      };
-      setWallTileSelections(prev => [...prev, wallSelection!]);
-    }
-
-    // Set up context for wall tile selection
-    setCurrentCustomer(customerId, '');
-    setSelectedRoomIds([roomId]);
-    
-    // Store additional context for tile assignment
-    sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
-      roomId, 
-      isWallTile: true,
-      customerId 
-    }));
-    
-    // Navigate to tiles view in dashboard
-    window.dispatchEvent(new CustomEvent('navigateToTiles'));
-  };
-
   const calculateWallLayers = (roomId: string, baseTileId: string) => {
     const room = wallRooms.find(r => r.id === roomId);
     const baseTile = tiles.find(t => t.id === baseTileId);
@@ -342,6 +242,139 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       )
     );
   };
+
+  const handleSaveSelections = async () => {
+    const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
+    
+    // Floor tile selections
+    floorTileSelections.forEach(fs => {
+      selectionsToSave.push({
+        customer_id: customerId,
+        room_id: fs.roomId,
+        tile_id: fs.tileId
+      });
+    });
+
+    // Wall tile selections
+    wallTileSelections.forEach(ws => {
+      ws.layers.forEach(layer => {
+        selectionsToSave.push({
+          customer_id: customerId,
+          room_id: ws.roomId,
+          tile_id: layer.tileId,
+          layer_number: layer.layerNumber
+        });
+      });
+    });
+
+    try {
+      await saveSelectionsMutation.mutateAsync(selectionsToSave);
+      toast.success("Tile selections saved successfully!");
+    } catch (error) {
+      console.error("Error saving selections:", error);
+      toast.error("Failed to save selections");
+    }
+  };
+
+  // Add event listener for auto tile assignment
+  useEffect(() => {
+    const handleAutoAssignTile = async (event: CustomEvent) => {
+      const { tileId, roomId, isWallTile, customerId: eventCustomerId } = event.detail;
+      
+      if (eventCustomerId !== customerId) return;
+      
+      try {
+        const room = rooms.find(r => r.id === roomId);
+        if (!room) {
+          toast.error("Room not found");
+          return;
+        }
+
+        if (isWallTile) {
+          // For wall tiles, use the same logic as calculateWallLayers
+          calculateWallLayers(roomId, tileId);
+        } else {
+          // For floor tiles - check if already exists
+          const existingSelection = floorTileSelections.find(
+            fs => fs.roomId === roomId && fs.tileId === tileId
+          );
+          
+          if (existingSelection) {
+            toast.info("This tile is already selected for this room");
+          } else {
+            setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
+          }
+        }
+        
+        // Save to database after state updates
+        setTimeout(() => {
+          handleSaveSelections();
+        }, 500);
+        
+        toast.success("Tile added successfully!");
+        clearContext();
+      } catch (error) {
+        console.error('Error auto-assigning tile:', error);
+        toast.error("Failed to add tile");
+      }
+    };
+
+    window.addEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
+    
+    return () => {
+      window.removeEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
+    };
+  }, [rooms, customerId, floorTileSelections, clearContext]);
+
+  const handleAddFloorTile = (roomId: string) => {
+    // Set up context for tile selection
+    const customer = { id: customerId, name: '' }; // We have the ID, name not critical for this flow
+    setCurrentCustomer(customerId, '');
+    setSelectedRoomIds([roomId]);
+    
+    // Store additional context for tile assignment
+    sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
+      roomId, 
+      isWallTile: false,
+      customerId 
+    }));
+    
+    // Navigate to tiles view in dashboard
+    window.dispatchEvent(new CustomEvent('navigateToTiles'));
+  };
+
+  const handleConfigureWallTiles = (roomId: string) => {
+    const room = wallRooms.find(r => r.id === roomId);
+    if (!room) return;
+
+    // Check if wall selection already exists
+    let wallSelection = wallTileSelections.find(ws => ws.roomId === roomId);
+    if (!wallSelection) {
+      // Create new wall selection
+      wallSelection = {
+        roomId,
+        baseTileId: null,
+        layers: [],
+        totalLayers: 0
+      };
+      setWallTileSelections(prev => [...prev, wallSelection!]);
+    }
+
+    // Set up context for wall tile selection
+    setCurrentCustomer(customerId, '');
+    setSelectedRoomIds([roomId]);
+    
+    // Store additional context for tile assignment
+    sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
+      roomId, 
+      isWallTile: true,
+      customerId 
+    }));
+    
+    // Navigate to tiles view in dashboard
+    window.dispatchEvent(new CustomEvent('navigateToTiles'));
+  };
+
 
   const handleTileSelected = (tileId: string) => {
     if (!catalogContext) return;
@@ -438,38 +471,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     toast.success(`Layer ${layerNumber} deleted`);
   };
 
-  const handleSaveSelections = async () => {
-    const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
-    
-    // Floor tile selections
-    floorTileSelections.forEach(fs => {
-      selectionsToSave.push({
-        customer_id: customerId,
-        room_id: fs.roomId,
-        tile_id: fs.tileId
-      });
-    });
-
-    // Wall tile selections
-    wallTileSelections.forEach(ws => {
-      ws.layers.forEach(layer => {
-        selectionsToSave.push({
-          customer_id: customerId,
-          room_id: ws.roomId,
-          tile_id: layer.tileId,
-          layer_number: layer.layerNumber
-        });
-      });
-    });
-
-    try {
-      await saveSelectionsMutation.mutateAsync(selectionsToSave);
-      toast.success("Tile selections saved successfully!");
-    } catch (error) {
-      console.error("Error saving selections:", error);
-      toast.error("Failed to save selections");
-    }
-  };
 
   const getWastagePercentage = (): number => {
     const parsed = parseFloat(wastagePercentage);

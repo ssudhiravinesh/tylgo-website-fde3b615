@@ -37,6 +37,21 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     }
   }, [preSelectedCustomerId]);
 
+  // Listen for navigation to tile selection
+  useEffect(() => {
+    const handleNavigateToTileSelection = () => {
+      if (selectedCustomerId && rooms.length > 0) {
+        setShowTileSelection(true);
+      }
+    };
+
+    window.addEventListener('navigateToTileSelection', handleNavigateToTileSelection);
+    
+    return () => {
+      window.removeEventListener('navigateToTileSelection', handleNavigateToTileSelection);
+    };
+  }, [selectedCustomerId, rooms.length]);
+
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
   const handleEdit = (room: Room) => {
