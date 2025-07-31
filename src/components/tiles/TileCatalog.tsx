@@ -173,7 +173,6 @@ const AlphabeticalNavigation = ({
     }
   };
   
-// Enhanced filtering and sorting with alphabetical navigation
 const filteredAndSortedTiles = useMemo(() => {
   let filtered = tiles.filter(tile => {
     const matchesSearch = 
@@ -183,18 +182,22 @@ const filteredAndSortedTiles = useMemo(() => {
     const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
     
     // Alphabetical index filtering
-const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
+    const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
 
-  // Enhanced sorting - always prioritize alphabetical for name
+    // You may want to include category and brand filters here too:
+    // const matchesCategory = selectedCategory === "all" || tile.category === selectedCategory;
+    // const matchesBrand = selectedBrand === "all" || tile.brand === selectedBrand;
+
+    return matchesSearch && matchesPrice && matchesAlphabet;
+  });  // <-- close the filter here
+
   filtered.sort((a, b) => {
     if (sortBy === 'name') {
-      // Always sort names alphabetically regardless of sortOrder
       const aName = (a.name || '').toLowerCase();
       const bName = (b.name || '').toLowerCase();
       const result = aName.localeCompare(bName);
       return sortOrder === "asc" ? result : -result;
     } else {
-      // Handle other sorting fields
       let aValue: any = a[sortBy as keyof Tile];
       let bValue: any = b[sortBy as keyof Tile];
       
@@ -211,6 +214,7 @@ const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabetical
 
   return filtered;
 }, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder, alphabeticalIndex]);
+
 
 
   // Simple view toggle component
