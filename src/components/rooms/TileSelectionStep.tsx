@@ -820,18 +820,30 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
           </CardContent>
         </Card>
       </div>
-
+      
       <Dialog open={showTileCatalog} onOpenChange={setShowTileCatalog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Select Tiles</DialogTitle>
-          </DialogHeader>
-          <TileCatalog 
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {catalogContext ?
+                `Select Tile for ${catalogContext.roomName}` :
+                'Select Tiles'
+                }
+              </DialogTitle>
+            </DialogHeader>
+          <TileCatalog
             isSelectionMode={true}
             onTileSelect={handleTileSelected}
+            autoAssignmentContext={catalogContext}
+            onAutoAssignment={handleAutoAssignTile}
+            onNavigateBack={() => {
+            setShowTileCatalog(false);
+            setCatalogContext(null);
+            }}
           />
-        </DialogContent>
+          </DialogContent>
       </Dialog>
+
 
       <FloorTilePreview
         isOpen={!!showFloorPreview}
