@@ -30,7 +30,7 @@ const fetchTiles = async (searchTerm?: string): Promise<Tile[]> => {
     .select('*')
     .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
     .order('code', { ascending: true })
-    .limit(50); // Limit results to prevent large fetches
+    .limit(1000); // Limit results to prevent large fetches
 
   if (error) {
     console.error('Error fetching tiles:', error);
