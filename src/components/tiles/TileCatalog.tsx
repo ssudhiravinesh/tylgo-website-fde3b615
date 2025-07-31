@@ -44,7 +44,13 @@ onAutoAssignment?: (tileId: string) => void;
 onNavigateBack?: () => void;
 }
 
-export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatalogProps) => {
+export const TileCatalog = ({ 
+  isSelectionMode = false, 
+  onTileSelect,
+  autoAssignmentContext,     
+  onAutoAssignment,            
+  onNavigateBack             
+}: TileCatalogProps) => {
 const { data: tiles, totalCount, isLoading: loading, error, refetch } = useTiles();
 
 
