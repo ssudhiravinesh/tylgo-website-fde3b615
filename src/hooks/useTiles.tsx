@@ -18,12 +18,19 @@ export interface Tile {
   updated_at?: string;
 }
 
-const fetchTiles = async (): Promise<Tile[]> => {
-  console.log('Fetching tiles from database...');
+const fetchTiles = async (searchTerm?: string): Promise<Tile[]> => {
+  // Only fetch tiles if there's a search term with at least 2 characters
+  if (!searchTerm || searchTerm.trim().length < 2) {
+    return [];
+  }
+
+  console.log('Fetching tiles from database with search term:', searchTerm);
   const { data, error } = await supabase
     .from('tiles')
     .select('*')
-    .order('code', { ascending: true }); // Order by code (numbers first, then alphabets)
+    .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
+    .order('code', { ascending: true })
+    .limit(50); // Limit results to prevent large fetches
 
   if (error) {
     console.error('Error fetching tiles:', error);
@@ -34,9 +41,10 @@ const fetchTiles = async (): Promise<Tile[]> => {
   return data || [];
 };
 
-export const useTiles = () => {
+export const useTiles = (searchTerm?: string) => {
   return useQuery({
-    queryKey: ['tiles'],
-    queryFn: fetchTiles,
+    queryKey: ['tiles', searchTerm],
+    queryFn: () => fetchTiles(searchTerm),
+    enabled: !searchTerm || searchTerm.trim().length >= 2, // Only run query if search term has 2+ characters
   });
 };

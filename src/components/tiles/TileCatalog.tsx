@@ -36,8 +36,8 @@ interface TileCatalogProps {
 }
 
 export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatalogProps) => {
-  const { data: tiles = [], isLoading: loading, error } = useTiles();
   const [searchTerm, setSearchTerm] = useState("");
+  const { data: tiles = [], isLoading: loading, error } = useTiles(searchTerm);
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
@@ -200,36 +200,6 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
     if (isSelectionMode && onTileSelect) {
       onTileSelect(tile.id);
     } else {
-      // Check if we're in tile selection context from room management
-      const selectionContext = sessionStorage.getItem('tileSelectionContext');
-      
-      if (selectionContext) {
-        try {
-          const context = JSON.parse(selectionContext);
-          // Auto-assign tile to room and redirect back
-          const event = new CustomEvent('autoAssignTile', {
-            detail: {
-              tileId: tile.id,
-              roomId: context.roomId,
-              isWallTile: context.isWallTile,
-              customerId: context.customerId
-            }
-          });
-          window.dispatchEvent(event);
-          
-          // Clear the context
-          sessionStorage.removeItem('tileSelectionContext');
-          
-          // Navigate back to tile selection
-          window.dispatchEvent(new CustomEvent('navigateToTileSelection'));
-          
-          toast.success(`Tile "${tile.name}" assigned to room successfully!`);
-          return;
-        } catch (error) {
-          console.error('Error parsing tile selection context:', error);
-        }
-      }
-      
       setSelectedTile(tile);
       setIsDetailsOpen(true);
     }
@@ -449,7 +419,11 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
       )}
 
       {/* Tiles Grid/List with Alphabet Navigation */}
-      {filteredAndSortedTiles.length === 0 ? (
+      {searchTerm.length < 2 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">Enter at least 2 characters to search for tiles</p>
+        </div>
+      ) : filteredAndSortedTiles.length === 0 ? (
         <EmptyTileState />
       ) : (
         <div className="flex gap-4">

@@ -30,27 +30,10 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [generatingQRTileId, setGeneratingQRTileId] = useState<string | null>(null);
-  const [tileSelectionContext, setTileSelectionContext] = useState<{roomId: string, isWallTile: boolean, customerId: string} | null>(null);
+  
 
-  // Check for tile selection context from room management
-  useEffect(() => {
-    const context = sessionStorage.getItem('tileSelectionContext');
-    if (context) {
-      try {
-        const { roomId, isWallTile, customerId } = JSON.parse(context);
-        setTileSelectionContext({ roomId, isWallTile, customerId });
-        
-        // Show a toast message to guide the user
-        toast.info("Select a tile to add to the room. Click on any tile card to select it.", {
-          duration: 5000,
-        });
-      } catch (error) {
-        console.error('Error parsing tile selection context:', error);
-      }
-    }
-  }, []);
 
-  const { data: tiles = [], isLoading } = useTiles();
+  const { data: tiles = [], isLoading } = useTiles(searchTerm);
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
   const generateQRMutation = useGenerateQRForTile();
@@ -61,29 +44,6 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   );
 
   const handleTileSelect = (tile: Tile) => {
-    // Check if we're in tile selection mode from room management
-    if (tileSelectionContext) {
-      // Clear the context from storage and state
-      sessionStorage.removeItem('tileSelectionContext');
-      
-      // Dispatch auto-assign event
-      window.dispatchEvent(new CustomEvent('autoAssignTile', { 
-        detail: { 
-          tileId: tile.id, 
-          roomId: tileSelectionContext.roomId, 
-          isWallTile: tileSelectionContext.isWallTile, 
-          customerId: tileSelectionContext.customerId 
-        } 
-      }));
-      
-      // Navigate back to tile selection step
-      window.dispatchEvent(new CustomEvent('navigateToTileSelection'));
-      
-      toast.success(`Selected ${tile.name} for the room`);
-      return;
-    }
-    
-    // Normal tile selection behavior
     setSelectedTile(tile);
   };
 
@@ -256,6 +216,10 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
             </div>
           </div>
         
+      ) : searchTerm.length < 2 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">Enter at least 2 characters to search for tiles</p>
+        </div>
       ) : filteredTiles.length === 0 ? (
         <EmptyTileState />
       ) : (

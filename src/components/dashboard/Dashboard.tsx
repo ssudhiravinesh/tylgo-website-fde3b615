@@ -42,18 +42,12 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       setActiveView("rooms");
     };
 
-    const handleNavigateToTileSelection = () => {
-      setActiveView("rooms");
-    };
-
     window.addEventListener('navigateToTiles', handleNavigateToTiles);
     window.addEventListener('navigateToRooms', handleNavigateToRooms);
-    window.addEventListener('navigateToTileSelection', handleNavigateToTileSelection);
     
     return () => {
       window.removeEventListener('navigateToTiles', handleNavigateToTiles);
       window.removeEventListener('navigateToRooms', handleNavigateToRooms);
-      window.removeEventListener('navigateToTileSelection', handleNavigateToTileSelection);
     };
   }, []);
 

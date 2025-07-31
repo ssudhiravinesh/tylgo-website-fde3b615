@@ -26,7 +26,7 @@ import {
 } from "@/utils/tileCalculations";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
-import { useQRScanningContext } from "@/contexts/QRScanningContext";
+
 
 interface TileSelectionStepProps {
   customerId: string;
@@ -36,11 +36,11 @@ interface TileSelectionStepProps {
 
 
 export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionStepProps) => {
-  const { data: tiles = [], isLoading: tilesLoading } = useTiles();
+  const { data: tiles = [], isLoading: tilesLoading } = useTiles("");
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
-  const { setCurrentCustomer, setSelectedRoomIds, clearContext } = useQRScanningContext();
+  
   
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
@@ -312,7 +312,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
         }, 500);
         
         toast.success("Tile added successfully!");
-        clearContext();
       } catch (error) {
         console.error('Error auto-assigning tile:', error);
         toast.error("Failed to add tile");
@@ -324,23 +323,11 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     return () => {
       window.removeEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
     };
-  }, [rooms, customerId, floorTileSelections, clearContext]);
+  }, [rooms, customerId, floorTileSelections]);
 
   const handleAddFloorTile = (roomId: string) => {
-    // Set up context for tile selection
-    const customer = { id: customerId, name: '' }; // We have the ID, name not critical for this flow
-    setCurrentCustomer(customerId, '');
-    setSelectedRoomIds([roomId]);
-    
-    // Store additional context for tile assignment
-    sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
-      roomId, 
-      isWallTile: false,
-      customerId 
-    }));
-    
-    // Navigate to tiles view in dashboard
-    window.dispatchEvent(new CustomEvent('navigateToTiles'));
+    setCatalogContext({ roomId, isWallTile: false });
+    setShowTileCatalog(true);
   };
 
   const handleConfigureWallTiles = (roomId: string) => {
@@ -360,19 +347,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       setWallTileSelections(prev => [...prev, wallSelection!]);
     }
 
-    // Set up context for wall tile selection
-    setCurrentCustomer(customerId, '');
-    setSelectedRoomIds([roomId]);
-    
-    // Store additional context for tile assignment
-    sessionStorage.setItem('tileSelectionContext', JSON.stringify({ 
-      roomId, 
-      isWallTile: true,
-      customerId 
-    }));
-    
-    // Navigate to tiles view in dashboard
-    window.dispatchEvent(new CustomEvent('navigateToTiles'));
+    setShowWallTileSelection({ roomId, room });
   };
 
 
