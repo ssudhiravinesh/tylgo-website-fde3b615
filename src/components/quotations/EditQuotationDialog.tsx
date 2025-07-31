@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, FileText, User, Calculator, Percent } from "lucide-react";
 import { useQuotations, type Quotation } from "@/hooks/useQuotations";
 import { toast } from "sonner";
+import { calculateDiscount } from '@/utils/tileCalculations';
+
 
 interface EditQuotationDialogProps {
   isOpen: boolean;
