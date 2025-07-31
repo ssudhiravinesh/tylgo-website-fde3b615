@@ -58,7 +58,18 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     room: Room;
     tile: Tile | null;
   } | null>(null);
+  useEffect(() => {
+    console.log('📊 floorTileSelections changed:', floorTileSelections);
+    console.trace('📊 Stack trace for state change');
+  }, [floorTileSelections]);
 
+  // Step 4: Monitor component mounting/unmounting
+  useEffect(() => {
+    console.log('🟢 TileSelectionStep mounted');
+    return () => {
+      console.log('🔴 TileSelectionStep unmounted');
+    };
+  }, []);
   const floorRooms = rooms.filter(room => room.room_type === "floor");
   const wallRooms = rooms.filter(room => room.room_type === "wall");
 
