@@ -56,6 +56,41 @@ export const getNextQuotationNumber = async (): Promise<string> => {
   }
 };
 
+export const useQuotationNumber = () => {
+  const [quotationNumber, setQuotationNumber] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const generateNumber = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const number = await getNextQuotationNumber();
+      setQuotationNumber(number);
+    } catch (err) {
+      setError('Failed to generate quotation number');
+      console.error('Error generating quotation number:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshNumber = () => {
+    generateNumber();
+  };
+
+  useEffect(() => {
+    generateNumber();
+  }, []);
+
+  return {
+    quotationNumber,
+    isLoading,
+    error,
+    refreshNumber
+  };
+};
+
 export interface QuotationItem {
   id?: string;
   quotation_id?: string;
