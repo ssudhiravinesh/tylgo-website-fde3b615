@@ -37,7 +37,6 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     }
   }, [preSelectedCustomerId]);
 
-
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
   const handleEdit = (room: Room) => {

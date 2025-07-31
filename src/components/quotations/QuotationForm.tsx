@@ -13,7 +13,6 @@ import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
 import { toast } from "sonner";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
-import { supabase } from "@/integrations/supabase/client";
 
 interface QuotationFormProps {
   preSelectedCustomerId?: string;
@@ -47,66 +46,22 @@ export const QuotationForm = ({
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Generate quotation number on component mount
-  useEffect(() => {
-    const initializeQuotationNumber = async () => {
-      const number = await generateQuotationNumber();
-      setQuotationNumber(number);
-    };
-    
-    initializeQuotationNumber();
-  }, []);
-
-  // Generate sequential quotation number with financial year format
-  const generateQuotationNumber = async () => {
-    try {
-      // Get the current financial year (April to March)
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
-      
-      // Determine financial year
-      let startYear, endYear;
-      if (currentMonth >= 4) { // April onwards
-        startYear = currentYear;
-        endYear = currentYear + 1;
-      } else { // January to March
-        startYear = currentYear - 1;
-        endYear = currentYear;
-      }
-      
-      const financialYear = `${startYear}-${endYear.toString().slice(-2)}`;
-      
-      // Get the count of quotations in this financial year
-      const financialYearStart = `${startYear}-04-01`; // April 1st
-      const financialYearEnd = `${endYear}-03-31`; // March 31st
-      
-      const { data: existingQuotations, error } = await supabase
-        .from('quotations')
-        .select('quotation_number')
-        .gte('created_at', financialYearStart)
-        .lte('created_at', financialYearEnd)
-        .order('created_at', { ascending: true });
-      
-      if (error) {
-        console.error('Error fetching quotations for numbering:', error);
-        // Fallback to timestamp-based numbering
-        return `QT${now.getTime()}`;
-      }
-      
-      // Calculate next number
-      const nextNumber = (existingQuotations?.length || 0) + 1;
-      const formattedNumber = nextNumber.toString().padStart(5, '0');
-      
-      return `${formattedNumber}/${financialYear}`;
-    } catch (error) {
-      console.error('Error generating quotation number:', error);
-      // Fallback to timestamp-based numbering
-      return `QT${new Date().getTime()}`;
-    }
+  // Auto-generate quotation number based on timestamp with better uniqueness
+  const generateQuotationNumber = () => {
+    const now = new Date();
+    const year = now.getFullYear().toString().substr(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+    // Add a random 4-digit number for extra uniqueness
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `QT${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}${random}`;
   };
 
-  const [quotationNumber, setQuotationNumber] = useState('');
+  const [quotationNumber] = useState(generateQuotationNumber());
 
   // Calculate total from selected rooms data using pre-calculated prices
   const calculateTotal = () => {

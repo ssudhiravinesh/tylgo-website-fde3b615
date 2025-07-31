@@ -40,8 +40,6 @@ export interface Quotation {
   status: string;
   notes?: string;
   wastage_percentage?: number; // Add wastage percentage field
-  discount_percentage?: number; // Add discount percentage field
-  discount_amount?: number; // Add discount amount field
   created_at: string;
   updated_at: string;
   customer?: {

@@ -26,7 +26,6 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
   const [status, setStatus] = useState("draft");
   const [notes, setNotes] = useState("");
   const [wastagePercentage, setWastagePercentage] = useState(0);
-  const [discountPercentage, setDiscountPercentage] = useState(0);
 
   useEffect(() => {
     if (quotation) {
@@ -34,7 +33,6 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
       setStatus(quotation.status || "draft");
       setNotes(quotation.notes || "");
       setWastagePercentage(quotation.wastage_percentage || 0);
-      setDiscountPercentage(quotation.discount_percentage || 0);
     }
   }, [quotation]);
 
@@ -44,18 +42,12 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
     if (!quotation) return;
 
     try {
-      const discountAmount = (grandTotal * discountPercentage) / 100;
-      const finalTotal = grandTotal - discountAmount;
-      
       await updateQuotation({
         id: quotation.id,
         quotation_number: quotationNumber,
         status,
         notes: notes || undefined,
         wastage_percentage: wastagePercentage,
-        discount_percentage: discountPercentage,
-        discount_amount: discountAmount,
-        total_cost: finalTotal,
       });
       
       if (onSuccess) {
@@ -76,7 +68,6 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
       setStatus(quotation.status || "draft");
       setNotes(quotation.notes || "");
       setWastagePercentage(quotation.wastage_percentage || 0);
-      setDiscountPercentage(quotation.discount_percentage || 0);
     }
   };
 
@@ -124,8 +115,6 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
   };
 
   const { totalBoxes, grandTotal } = calculateTotals();
-  const discountAmount = (grandTotal * discountPercentage) / 100;
-  const finalTotal = grandTotal - discountAmount;
 
   if (!quotation) return null;
 
@@ -225,35 +214,9 @@ export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: E
                     <span className="text-gray-600">Total Boxes:</span>
                     <span className="font-medium">{totalBoxes}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">MRP:</span>
-                    <span className="font-medium">₹{grandTotal.toLocaleString()}</span>
-                  </div>
-                  
-                  <div className="mt-3 space-y-2">
-                    <Label htmlFor="discount">Discount Percentage (%)</Label>
-                    <Input
-                      id="discount"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      value={discountPercentage}
-                      onChange={(e) => setDiscountPercentage(parseFloat(e.target.value) || 0)}
-                      placeholder="Enter discount %"
-                    />
-                  </div>
-                  
-                  {discountPercentage > 0 && (
-                    <div className="flex justify-between items-center text-sm text-red-600">
-                      <span>Discount Amount:</span>
-                      <span className="font-medium">-₹{discountAmount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between items-center border-t pt-2">
-                    <span className="text-gray-700 font-medium">Grand Total:</span>
-                    <span className="font-bold text-lg text-green-600">₹{finalTotal.toLocaleString()}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Grand Total:</span>
+                    <span className="font-bold text-lg text-green-600">₹{grandTotal.toLocaleString()}</span>
                   </div>
                 </div>
 

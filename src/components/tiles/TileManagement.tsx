@@ -30,10 +30,8 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [generatingQRTileId, setGeneratingQRTileId] = useState<string | null>(null);
-  
 
-
-  const { data: tiles = [], isLoading } = useTiles(searchTerm);
+  const { data: tiles = [], isLoading } = useTiles();
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
   const generateQRMutation = useGenerateQRForTile();
@@ -216,10 +214,6 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
             </div>
           </div>
         
-      ) : searchTerm.length < 2 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">Enter at least 2 characters to search for tiles</p>
-        </div>
       ) : filteredTiles.length === 0 ? (
         <EmptyTileState />
       ) : (

@@ -1,11 +1,10 @@
 // src/components/tiles/TileCatalog.tsx
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Search, 
   QrCode, 
@@ -36,21 +35,20 @@ interface TileCatalogProps {
 }
 
 export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatalogProps) => {
+  const { data: tiles = [], isLoading: loading, error } = useTiles();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: tiles = [], isLoading: loading, error } = useTiles(searchTerm);
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
-  const [sortBy, setSortBy] = useState<string>("code");
+  const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<Set<string>>(new Set());
-  const gridRef = useRef<HTMLDivElement>(null);
 
   // Enhanced QR scan handler that populates search box
   const handleQRScanned = (tileCode: string) => {
@@ -96,27 +94,6 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
     }
   };
 
-  // Generate alphabet navigation based on tile codes (numbers first, then letters)
-  const alphabetLetters = useMemo(() => {
-    const chars = new Set<string>();
-    tiles.forEach(tile => {
-      const firstChar = tile.code?.charAt(0).toUpperCase();
-      if (firstChar && /^[A-Z0-9]$/.test(firstChar)) {
-        chars.add(firstChar);
-      }
-    });
-    const sortedChars = Array.from(chars).sort((a, b) => {
-      // Numbers first, then letters
-      const aIsNumber = /^\d$/.test(a);
-      const bIsNumber = /^\d$/.test(b);
-      
-      if (aIsNumber && !bIsNumber) return -1;
-      if (!aIsNumber && bIsNumber) return 1;
-      return a.localeCompare(b);
-    });
-    return sortedChars;
-  }, [tiles]);
-
   // Filter and sort tiles
   const filteredAndSortedTiles = useMemo(() => {
     let filtered = tiles.filter(tile => {
@@ -129,24 +106,10 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
       return matchesSearch && matchesPrice;
     });
 
-    // Sort tiles by code (numbers first, then alphabets) when using default sorting
+    // Sort tiles
     filtered.sort((a, b) => {
       let aValue: any = a[sortBy as keyof Tile];
       let bValue: any = b[sortBy as keyof Tile];
-      
-      // For code sorting, implement numbers-first logic
-      if (sortBy === 'code') {
-        const aCode = (aValue || '').toString();
-        const bCode = (bValue || '').toString();
-        
-        const aStartsWithNumber = /^\d/.test(aCode);
-        const bStartsWithNumber = /^\d/.test(bCode);
-        
-        if (aStartsWithNumber && !bStartsWithNumber) return sortOrder === "asc" ? -1 : 1;
-        if (!aStartsWithNumber && bStartsWithNumber) return sortOrder === "asc" ? 1 : -1;
-        
-        return sortOrder === "asc" ? aCode.localeCompare(bCode) : bCode.localeCompare(aCode);
-      }
       
       if (typeof aValue === 'string') aValue = aValue.toLowerCase();
       if (typeof bValue === 'string') bValue = bValue.toLowerCase();
@@ -160,20 +123,6 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
 
     return filtered;
   }, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder]);
-
-  // Scroll to character section (based on tile code)
-  const scrollToLetter = (char: string) => {
-    if (!gridRef.current) return;
-    
-    const tileElements = gridRef.current.querySelectorAll('[data-tile-code]');
-    for (const element of tileElements) {
-      const tileCode = element.getAttribute('data-tile-code');
-      if (tileCode && tileCode.charAt(0).toUpperCase() === char) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        break;
-      }
-    }
-  };
 
   // Simple view toggle component
   const ViewToggle = ({ viewMode, setViewMode }: { viewMode: "grid" | "list", setViewMode: (mode: "grid" | "list") => void }) => (
@@ -418,67 +367,30 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
         </div>
       )}
 
-      {/* Tiles Grid/List with Alphabet Navigation */}
-      {searchTerm.length < 2 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">Enter at least 2 characters to search for tiles</p>
-        </div>
-      ) : filteredAndSortedTiles.length === 0 ? (
+      {/* Tiles Grid/List */}
+      {filteredAndSortedTiles.length === 0 ? (
         <EmptyTileState />
       ) : (
-        <div className="flex gap-4">
-          {/* Alphabet Navigation Sidebar */}
-          <div className="hidden lg:block">
-            <Card className="sticky top-4 w-12">
-              <CardContent className="p-2">
-                <ScrollArea className="h-[500px]">
-                  <div className="flex flex-col gap-1">
-                    {alphabetLetters.map((char) => (
-                      <Button
-                        key={char}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-xs font-medium hover:bg-primary/10"
-                        onClick={() => scrollToLetter(char)}
-                        title={`Jump to ${char}`}
-                      >
-                        {char}
-                      </Button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Tiles Grid/List */}
-          <div className="flex-1">
-            <div 
-              ref={gridRef}
-              className={
-                viewMode === "grid" 
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                  : "space-y-4"
-              }
-            >
-              {filteredAndSortedTiles.map((tile) => (
-                <div key={tile.id} data-tile-code={tile.code}>
-                  <TileCard
-                    tile={tile}
-                    isSelected={false}
-                    isAdmin={false}
-                    showAssignButton={false}
-                    onTileSelect={() => handleTileClick(tile)}
-                    onGenerateQR={() => {}}
-                    onDownloadQR={() => {}}
-                    onViewDetails={() => handleTileClick(tile)}
-                    onAssignClick={() => {}}
-                    isGeneratingQR={false}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className={
+          viewMode === "grid" 
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            : "space-y-4"
+        }>
+          {filteredAndSortedTiles.map((tile) => (
+            <TileCard
+              key={tile.id}
+              tile={tile}
+              isSelected={false}
+              isAdmin={false}
+              showAssignButton={false}
+              onTileSelect={() => handleTileClick(tile)}
+              onGenerateQR={() => {}}
+              onDownloadQR={() => {}}
+              onViewDetails={() => handleTileClick(tile)}
+              onAssignClick={() => {}}
+              isGeneratingQR={false}
+            />
+          ))}
         </div>
       )}
 

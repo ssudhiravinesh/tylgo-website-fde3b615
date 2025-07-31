@@ -27,7 +27,6 @@ import {
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 
-
 interface TileSelectionStepProps {
   customerId: string;
   rooms: Room[];
@@ -36,11 +35,10 @@ interface TileSelectionStepProps {
 
 
 export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionStepProps) => {
-  const { data: tiles = [], isLoading: tilesLoading } = useTiles("");
+  const { data: tiles = [], isLoading: tilesLoading } = useTiles();
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
-  
   
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
@@ -63,34 +61,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
 
   const floorRooms = rooms.filter(room => room.room_type === "floor");
   const wallRooms = rooms.filter(room => room.room_type === "wall");
-
-  // Handle tile selection from tile catalog
-  useEffect(() => {
-    const handleTileSelected = (event: CustomEvent) => {
-      const { tileId, roomId, isWallTile } = event.detail;
-      
-      if (!isWallTile) {
-        // Floor tile selection
-        const existingSelection = floorTileSelections.find(
-          fs => fs.roomId === roomId && fs.tileId === tileId
-        );
-        
-        if (existingSelection) {
-          toast.error("This tile is already selected for this room");
-        } else {
-          setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
-          toast.success("Floor tile added to room");
-        }
-      } else {
-        // Wall tile selection logic would go here
-        // Similar to existing handleTileSelected logic
-      }
-    };
-
-    window.addEventListener('tileSelected', handleTileSelected as EventListener);
-    return () => window.removeEventListener('tileSelected', handleTileSelected as EventListener);
-  }, [floorTileSelections]);
-
 
   useEffect(() => {
     // Only run if we have selections and tiles data, and prevent unnecessary updates
@@ -188,6 +158,32 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     });
   }, [selections, rooms]);
 
+  const handleAddFloorTile = (roomId: string) => {
+    setCatalogContext({ roomId, isWallTile: false });
+    setShowTileCatalog(true);
+  };
+
+  const handleConfigureWallTiles = (roomId: string) => {
+    const room = wallRooms.find(r => r.id === roomId);
+    if (!room) return;
+
+    // Check if wall selection already exists
+    let wallSelection = wallTileSelections.find(ws => ws.roomId === roomId);
+    if (!wallSelection) {
+      // Create new wall selection
+      wallSelection = {
+        roomId,
+        baseTileId: null,
+        layers: [],
+        totalLayers: 0
+      };
+      setWallTileSelections(prev => [...prev, wallSelection!]);
+    }
+
+    // Open wall tile selection page
+    setShowWallTileSelection({ roomId, room });
+  };
+
   const calculateWallLayers = (roomId: string, baseTileId: string) => {
     const room = wallRooms.find(r => r.id === roomId);
     const baseTile = tiles.find(t => t.id === baseTileId);
@@ -242,114 +238,6 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       )
     );
   };
-
-  const handleSaveSelections = async () => {
-    const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
-    
-    // Floor tile selections
-    floorTileSelections.forEach(fs => {
-      selectionsToSave.push({
-        customer_id: customerId,
-        room_id: fs.roomId,
-        tile_id: fs.tileId
-      });
-    });
-
-    // Wall tile selections
-    wallTileSelections.forEach(ws => {
-      ws.layers.forEach(layer => {
-        selectionsToSave.push({
-          customer_id: customerId,
-          room_id: ws.roomId,
-          tile_id: layer.tileId,
-          layer_number: layer.layerNumber
-        });
-      });
-    });
-
-    try {
-      await saveSelectionsMutation.mutateAsync(selectionsToSave);
-      toast.success("Tile selections saved successfully!");
-    } catch (error) {
-      console.error("Error saving selections:", error);
-      toast.error("Failed to save selections");
-    }
-  };
-
-  // Add event listener for auto tile assignment
-  useEffect(() => {
-    const handleAutoAssignTile = async (event: CustomEvent) => {
-      const { tileId, roomId, isWallTile, customerId: eventCustomerId } = event.detail;
-      
-      if (eventCustomerId !== customerId) return;
-      
-      try {
-        const room = rooms.find(r => r.id === roomId);
-        if (!room) {
-          toast.error("Room not found");
-          return;
-        }
-
-        if (isWallTile) {
-          // For wall tiles, use the same logic as calculateWallLayers
-          calculateWallLayers(roomId, tileId);
-        } else {
-          // For floor tiles - check if already exists
-          const existingSelection = floorTileSelections.find(
-            fs => fs.roomId === roomId && fs.tileId === tileId
-          );
-          
-          if (existingSelection) {
-            toast.info("This tile is already selected for this room");
-          } else {
-            setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
-          }
-        }
-        
-        // Save to database after state updates
-        setTimeout(() => {
-          handleSaveSelections();
-        }, 500);
-        
-        toast.success("Tile added successfully!");
-      } catch (error) {
-        console.error('Error auto-assigning tile:', error);
-        toast.error("Failed to add tile");
-      }
-    };
-
-    window.addEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
-    
-    return () => {
-      window.removeEventListener('autoAssignTile', handleAutoAssignTile as EventListener);
-    };
-  }, [rooms, customerId, floorTileSelections]);
-
-  const handleAddFloorTile = (roomId: string) => {
-    setCatalogContext({ roomId, isWallTile: false });
-    setShowTileCatalog(true);
-  };
-
-  const handleConfigureWallTiles = (roomId: string) => {
-    const room = wallRooms.find(r => r.id === roomId);
-    if (!room) return;
-
-    // Check if wall selection already exists
-    let wallSelection = wallTileSelections.find(ws => ws.roomId === roomId);
-    if (!wallSelection) {
-      // Create new wall selection
-      wallSelection = {
-        roomId,
-        baseTileId: null,
-        layers: [],
-        totalLayers: 0
-      };
-      setWallTileSelections(prev => [...prev, wallSelection!]);
-    }
-
-    setShowWallTileSelection({ roomId, room });
-  };
-
 
   const handleTileSelected = (tileId: string) => {
     if (!catalogContext) return;
@@ -446,6 +334,38 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     toast.success(`Layer ${layerNumber} deleted`);
   };
 
+  const handleSaveSelections = async () => {
+    const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
+    
+    // Floor tile selections
+    floorTileSelections.forEach(fs => {
+      selectionsToSave.push({
+        customer_id: customerId,
+        room_id: fs.roomId,
+        tile_id: fs.tileId
+      });
+    });
+
+    // Wall tile selections
+    wallTileSelections.forEach(ws => {
+      ws.layers.forEach(layer => {
+        selectionsToSave.push({
+          customer_id: customerId,
+          room_id: ws.roomId,
+          tile_id: layer.tileId,
+          layer_number: layer.layerNumber
+        });
+      });
+    });
+
+    try {
+      await saveSelectionsMutation.mutateAsync(selectionsToSave);
+      toast.success("Tile selections saved successfully!");
+    } catch (error) {
+      console.error("Error saving selections:", error);
+      toast.error("Failed to save selections");
+    }
+  };
 
   const getWastagePercentage = (): number => {
     const parsed = parseFloat(wastagePercentage);

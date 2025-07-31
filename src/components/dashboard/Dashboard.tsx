@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { CustomerList } from "@/components/customers/CustomerList";
@@ -32,24 +32,6 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedCustomerForQuote, setSelectedCustomerForQuote] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleNavigateToTiles = () => {
-      setActiveView("tiles");
-    };
-
-    const handleNavigateToRooms = () => {
-      setActiveView("rooms");
-    };
-
-    window.addEventListener('navigateToTiles', handleNavigateToTiles);
-    window.addEventListener('navigateToRooms', handleNavigateToRooms);
-    
-    return () => {
-      window.removeEventListener('navigateToTiles', handleNavigateToTiles);
-      window.removeEventListener('navigateToRooms', handleNavigateToRooms);
-    };
-  }, []);
 
   const handleNewQuote = (customerId: string) => {
     setSelectedCustomerForQuote(customerId);

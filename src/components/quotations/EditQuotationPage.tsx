@@ -55,7 +55,6 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   const [notes, setNotes] = useState("");
   const [wastagePercentage, setWastagePercentage] = useState(0);
   const [customBoxAdjustments, setCustomBoxAdjustments] = useState<{ [tileId: string]: number }>({});
-  const [discountPercentage, setDiscountPercentage] = useState(0);
 
   useEffect(() => {
     if (quotation) {
@@ -63,7 +62,6 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       setStatus(quotation.status || "draft");
       setNotes(quotation.notes || "");
       setWastagePercentage(quotation.wastage_percentage || 0);
-      setDiscountPercentage(quotation.discount_percentage || 0);
       
       // Initialize custom box adjustments from stored data
       const storedAdjustments: { [tileId: string]: number } = {};
@@ -198,9 +196,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   };
 
   const { calculations } = calculateTileRequirements();
-  const mrpTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
-  const discountAmount = mrpTotal * (discountPercentage / 100);
-  const grandTotal = mrpTotal - discountAmount;
+  const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
 
   const adjustBoxes = (tileId: string, delta: number) => {
     setCustomBoxAdjustments(prev => ({
@@ -216,7 +212,6 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         status,
         notes: notes || undefined,
         wastage_percentage: wastagePercentage,
-        discount_percentage: discountPercentage,
         total_cost: grandTotal,
       });
 
@@ -357,42 +352,14 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="discount">Discount Percentage (%)</Label>
-                  <Input
-                    id="discount"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={discountPercentage}
-                    onChange={(e) => setDiscountPercentage(parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="h-4 w-4 text-gray-400" />
                   <span>Created: {new Date(quotation.created_at).toLocaleDateString()}</span>
                 </div>
                 
-                <div className="space-y-2 border-t pt-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">MRP Total:</span>
-                    <span className="font-medium">₹{mrpTotal.toLocaleString()}</span>
-                  </div>
-                  {discountPercentage > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Discount ({discountPercentage}%):</span>
-                      <span className="font-medium text-red-600">-₹{discountAmount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between text-lg font-bold text-green-600 border-t pt-2">
-                    <div className="flex items-center gap-2">
-                      <IndianRupee className="h-5 w-5" />
-                      <span>Grand Total:</span>
-                    </div>
-                    <span>₹{grandTotal.toLocaleString()}</span>
-                  </div>
+                <div className="flex items-center gap-2 text-lg font-bold text-green-600">
+                  <IndianRupee className="h-5 w-5" />
+                  <span>Total: ₹{grandTotal.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -527,18 +494,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 </div>
               ))}
               
-              <div className="border-t pt-4 mt-4 space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600">MRP Total:</span>
-                  <span className="font-medium">₹{mrpTotal.toLocaleString()}</span>
-                </div>
-                {discountPercentage > 0 && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Discount ({discountPercentage}%):</span>
-                    <span className="font-medium text-red-600">-₹{discountAmount.toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center border-t pt-3">
+              <div className="border-t pt-4 mt-4">
+                <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold text-gray-800">Grand Total:</span>
                   <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</span>
                 </div>
