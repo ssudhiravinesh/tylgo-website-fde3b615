@@ -127,7 +127,18 @@ export const useUnifiedPDFGeneration = () => {
   };
 
   const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
-    const { quotation_items = [], customer, worker, quotation_number, created_at, notes, wastage_percentage = 0 } = quotation;
+         const { 
+        quotation_items = [], 
+        customer, 
+        worker, 
+        quotation_number, 
+        created_at, 
+        notes, 
+        wastage_percentage = 0,
+        discount_percentage = 0,
+        discount_amount = 0
+      } = quotation;
+
 
     // Group items by tile for calculations
     const tileCalculations: { [tileId: string]: any } = {};
@@ -199,10 +210,14 @@ export const useUnifiedPDFGeneration = () => {
         }
       }
     });
-
+    
     const calculations = Object.values(tileCalculations);
-    const grandTotal = calculations.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
+    const mrp = calculations.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
+    const discountPercentage = quotation.discount_percentage || 0;
+    const discountAmount = quotation.discount_amount || 0;
+    const finalTotal = mrp - discountAmount;
     const totalBoxes = calculations.reduce((sum: number, calc: any) => sum + calc.boxesNeeded, 0);
+
     const totalTileTypes = Object.keys(tileCalculations).length;
 
     const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
@@ -465,7 +480,7 @@ export const useUnifiedPDFGeneration = () => {
       <body>
         <div class="container">
           <div class="header">
-            <h1 class="company-name">Tile Solutions</h1>
+            <h1 class="company-name">TYLGO</h1>
             <h2 class="document-type">QUOTATION</h2>
           </div>
           
@@ -481,14 +496,18 @@ export const useUnifiedPDFGeneration = () => {
               <p><strong>Mobile:</strong> ${customer?.mobile || '9943568780'}</p>
             </div>
             
-            <div class="details-box">
-              <h3>Quotation Details</h3>
-              <p><strong>Quotation #:</strong> ${quotation_number}</p>
-              <p><strong>Date:</strong> ${new Date(created_at).toLocaleDateString('en-GB')}</p>
-              <p><strong>Status:</strong> ${quotation.status?.toUpperCase() || 'DRAFT'}</p>
-              <p><strong>Created by:</strong> ${worker?.name || 'SAMPLE WORKER'}</p>
-              <p><strong>Wastage:</strong> ${wastage_percentage}%</p>
-            </div>
+           <div class="details-box">
+            <h3>Quotation Details</h3>
+            <p><strong>Quotation #:</strong> ${quotation_number}</p>
+            <p><strong>Date:</strong> ${new Date(created_at).toLocaleDateString('en-GB')}</p>
+            <p><strong>Status:</strong> ${quotation.status?.toUpperCase() || 'DRAFT'}</p>
+            <p><strong>Created by:</strong> ${worker?.name || 'SAMPLE WORKER'}</p>
+            <p><strong>Wastage:</strong> ${wastage_percentage}%</p>
+            ${discountPercentage > 0 ? `
+              <p><strong>Discount:</strong> ${discountPercentage}%</p>
+            ` : ''}
+          </div>
+
           </div>
           
           <div class="table-container">
@@ -564,10 +583,23 @@ export const useUnifiedPDFGeneration = () => {
             </table>
           </div>
           
-          <div class="summary-section">
-            <div class="summary-line">Summary: ${totalTileTypes} tile type(s) | ${totalBoxes} boxes total</div>
-            <div class="total-amount">Total Amount: ₹${grandTotal.toLocaleString()}</div>
+         <div class="summary-section">
+          <div class="summary-line">Summary: ${totalTileTypes} tile type(s) | ${totalBoxes} boxes total</div>
+          <div class="summary-row">
+            <span class="summary-label">MRP (Before Discount):</span>
+            <span class="summary-value">₹${mrp.toLocaleString('en-IN')}</span>
           </div>
+          ${discountPercentage > 0 ? `
+            <div class="summary-row discount-row">
+              <span class="summary-label">Discount (${discountPercentage}%):</span>
+              <span class="summary-value">-₹${discountAmount.toLocaleString('en-IN')}</span>
+            </div>
+          ` : ''}
+          <div class="total-amount">
+            ${discountPercentage > 0 ? 'Final Grand Total:' : 'Total Amount:'} ₹${finalTotal.toLocaleString('en-IN')}
+          </div>
+        </div>
+
           
           <div class="footer-notes">
             <p><strong>Thank you for choosing Tile Solutions!</strong></p>
