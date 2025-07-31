@@ -384,8 +384,9 @@ const clearFilters = () => {
         </div>
         <div className="flex gap-2">
           <Badge variant="outline">
-            {filteredAndSortedTiles.length} tiles
+            {tiles.length} of {totalCount} tiles
           </Badge>
+
           {cart.size > 0 && (
             <Badge variant="default">
               <ShoppingCart className="h-3 w-3 mr-1" />
