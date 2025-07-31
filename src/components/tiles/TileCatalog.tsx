@@ -52,53 +52,62 @@ export const TileCatalog = ({ isSelectionMode = false, onTileSelect }: TileCatal
 
 const [alphabeticalIndex, setAlphabeticalIndex] = useState<string>('');
 const [showAlphabetNav, setShowAlphabetNav] = useState(false);
+const getAlphaKey = (tile: Tile): string => {
+  // Prefer code over name if code exists; fallback to name.
+  const value = (tile.code || tile.name || '').trim();
+  if (!value) return '#';   // No code and no name fallback
+  const firstChar = value.charAt(0).toUpperCase();
+  // If it starts with a number, we group under '#'
+  return /^[A-Z]$/.test(firstChar) ? firstChar : '#';
+};
 
-// Alphabetical Navigation Component
-const AlphabeticalNavigation = ({ 
-  tiles, 
-  onLetterClick, 
-  activeLetter 
-}: { 
-  tiles: Tile[], 
-  onLetterClick: (letter: string) => void,
-  activeLetter: string 
+const AlphabeticalNavigation = ({
+  tiles,
+  onLetterClick,
+  activeLetter,
+}: {
+  tiles: Tile[];
+  onLetterClick: (letter: string) => void;
+  activeLetter: string;
 }) => {
-  // Get unique first letters from tile names
+  // Get unique starting characters (letters/#) from code or name
   const availableLetters = Array.from(
     new Set(
       tiles
-        .map(tile => tile.name?.charAt(0).toUpperCase() || '#')
-        .filter(letter => letter)
+        .map(getAlphaKey)
+        .filter(Boolean)
     )
   ).sort();
 
-  // Add numbers group if any tiles start with numbers
-  const hasNumbers = tiles.some(tile => /^\d/.test(tile.name || ''));
-  if (hasNumbers && !availableLetters.includes('#')) {
+  // Ensure '#' is at the front if present
+  if (availableLetters.includes('#')) {
+    availableLetters.splice(availableLetters.indexOf('#'), 1);
     availableLetters.unshift('#');
   }
 
   return (
     <div className="bg-white border rounded-lg p-3 mb-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-700">Quick Navigation</span>
+        <span className="text-sm font-medium text-gray-700">
+          Quick Navigation
+        </span>
         <Badge variant="outline" className="text-xs">
           {tiles.length} tiles
         </Badge>
       </div>
       <div className="flex flex-wrap gap-1">
         <Button
-          variant={activeLetter === '' ? "default" : "outline"}
+          variant={activeLetter === '' ? 'default' : 'outline'}
           size="sm"
           onClick={() => onLetterClick('')}
           className="h-8 w-12 p-0 text-xs"
         >
           All
         </Button>
-        {availableLetters.map(letter => (
+        {availableLetters.map((letter) => (
           <Button
             key={letter}
-            variant={activeLetter === letter ? "default" : "outline"}
+            variant={activeLetter === letter ? 'default' : 'outline'}
             size="sm"
             onClick={() => onLetterClick(letter)}
             className="h-8 w-8 p-0 text-xs"
