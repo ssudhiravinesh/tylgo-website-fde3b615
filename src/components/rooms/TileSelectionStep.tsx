@@ -426,19 +426,27 @@ const handleAutoAssignTile = async (tileId: string) => {
     toast.success(`Layer ${layerNumber} deleted`);
   };
 
-  const handleSaveSelections = async () => {
-    const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
+  const handleSaveSelections = async (newSelections?: FloorTileSelection[]) => {
+    // Use provided selections or current state
+    const selectionsToUse = newSelections || floorTileSelections;
+    
+    const selectionsToSave: { 
+      customer_id: string; 
+      room_id: string; 
+      tile_id: string; 
+      layer_number?: number 
+    }[] = [];
     
     // Floor tile selections
-    floorTileSelections.forEach(fs => {
+    selectionsToUse.forEach(fs => {
       selectionsToSave.push({
         customer_id: customerId,
         room_id: fs.roomId,
         tile_id: fs.tileId
       });
     });
-
-    // Wall tile selections
+  
+    // Wall tile selections (existing logic)
     wallTileSelections.forEach(ws => {
       ws.layers.forEach(layer => {
         selectionsToSave.push({
@@ -449,13 +457,12 @@ const handleAutoAssignTile = async (tileId: string) => {
         });
       });
     });
-
+  
     try {
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
-      toast.success("Tile selections saved successfully!");
     } catch (error) {
       console.error("Error saving selections:", error);
-      toast.error("Failed to save selections");
+      throw error; // Re-throw for handling in calling function
     }
   };
 
