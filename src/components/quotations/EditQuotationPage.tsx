@@ -54,6 +54,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   const [status, setStatus] = useState("draft");
   const [notes, setNotes] = useState("");
   const [wastagePercentage, setWastagePercentage] = useState(0);
+  const [discountPercentage, setDiscountPercentage] = useState(0);
   const [customBoxAdjustments, setCustomBoxAdjustments] = useState<{ [tileId: string]: number }>({});
 
   useEffect(() => {
@@ -62,6 +63,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       setStatus(quotation.status || "draft");
       setNotes(quotation.notes || "");
       setWastagePercentage(quotation.wastage_percentage || 0);
+      setDiscountPercentage(quotation.discount_percentage || 0);
       
       // Initialize custom box adjustments from stored data
       const storedAdjustments: { [tileId: string]: number } = {};
@@ -196,7 +198,9 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   };
 
   const { calculations } = calculateTileRequirements();
-  const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
+  const mrp = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
+  const discountAmount = (mrp * discountPercentage) / 100;
+  const grandTotal = mrp - discountAmount;
 
   const adjustBoxes = (tileId: string, delta: number) => {
     setCustomBoxAdjustments(prev => ({
@@ -212,6 +216,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         status,
         notes: notes || undefined,
         wastage_percentage: wastagePercentage,
+        discount_percentage: discountPercentage,
+        discount_amount: discountAmount,
         total_cost: grandTotal,
       });
 
@@ -349,6 +355,19 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     step="0.1"
                     value={wastagePercentage}
                     onChange={(e) => setWastagePercentage(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="discount">Discount Percentage (%)</Label>
+                  <Input
+                    id="discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={discountPercentage}
+                    onChange={(e) => setDiscountPercentage(parseFloat(e.target.value) || 0)}
                   />
                 </div>
 
@@ -494,12 +513,46 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 </div>
               ))}
               
-              <div className="border-t pt-4 mt-4">
+              <div className="border-t pt-4 mt-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-800">Grand Total:</span>
+                  <span className="text-lg font-semibold text-gray-800">MRP:</span>
+                  <span className="text-lg font-semibold text-gray-800">₹{mrp.toLocaleString()}</span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Discount:</span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDiscountPercentage(Math.max(0, discountPercentage - 1))}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-sm font-medium min-w-[2rem] text-center">
+                        {discountPercentage}%
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDiscountPercentage(Math.min(100, discountPercentage + 1))}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <span className="text-sm text-red-600">-₹{discountAmount.toLocaleString()}</span>
+                </div>
+                
+                <div className="flex justify-between items-center border-t pt-2">
+                  <span className="text-xl font-bold text-gray-800">Grand Total:</span>
                   <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                
+                <p className="text-xs text-gray-500">
                   All calculations include {wastagePercentage}% wastage allowance
                 </p>
               </div>
