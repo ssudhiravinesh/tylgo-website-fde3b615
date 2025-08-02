@@ -185,8 +185,9 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       });
       setShowTileCatalog(true);
     };
-  
-const { roomId, roomName, isWallTile } = catalogContext;
+
+  if (!catalogContext) return;
+const { roomId, roomName, isWallTile, layerNumber } = catalogContext;
 toast.success(`${tileName} assigned to ${roomName} successfully!`);
   
 const handleAutoAssignTile = async (tileId: string) => {
