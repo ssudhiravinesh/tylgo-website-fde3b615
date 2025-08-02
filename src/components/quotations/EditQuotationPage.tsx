@@ -53,8 +53,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   const [quotationNumber, setQuotationNumber] = useState("");
   const [status, setStatus] = useState("draft");
   const [notes, setNotes] = useState("");
-  const [wastagePercentage, setWastagePercentage] = useState(0);
-  const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [wastagePercentage, setWastagePercentage] = useState<string>("");
+  const [discountPercentage, setDiscountPercentage] = useState<string>("");
   const [customBoxAdjustments, setCustomBoxAdjustments] = useState<{ [tileId: string]: number }>({});
 
   useEffect(() => {
@@ -62,8 +62,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       setQuotationNumber(quotation.quotation_number);
       setStatus(quotation.status || "draft");
       setNotes(quotation.notes || "");
-      setWastagePercentage(quotation.wastage_percentage || 0);
-      setDiscountPercentage(quotation.discount_percentage || 0);
+      setWastagePercentage(quotation.wastage_percentage?.toString() || "");
+      setDiscountPercentage(quotation.discount_percentage?.toString() || "");
       
       // Initialize custom box adjustments from stored data
       const storedAdjustments: { [tileId: string]: number } = {};
@@ -110,7 +110,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
   const calculateTileRequirements = (): { calculations: TileCalculation[]; wastagePercentage: number } => {
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
-    const currentWastagePercentage = wastagePercentage || 0;
+    const currentWastagePercentage = parseFloat(wastagePercentage) || 0;
 
     if (quotationItems && quotationItems.length > 0) {
       quotationItems.forEach((item) => {
@@ -199,7 +199,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
   const { calculations } = calculateTileRequirements();
   const mrp = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
-  const discountAmount = (mrp * discountPercentage) / 100;
+  const discountPercent = parseFloat(discountPercentage) || 0;
+  const discountAmount = (mrp * discountPercent) / 100;
   const grandTotal = mrp - discountAmount;
 
   const adjustBoxes = (tileId: string, delta: number) => {
@@ -215,8 +216,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         quotation_number: quotationNumber,
         status,
         notes: notes || undefined,
-        wastage_percentage: wastagePercentage,
-        discount_percentage: discountPercentage,
+        wastage_percentage: parseFloat(wastagePercentage) || 0,
+        discount_percentage: discountPercent,
         discount_amount: discountAmount,
         total_cost: grandTotal,
       });
@@ -350,11 +351,13 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   <Input
                     id="wastage"
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     min="0"
-                    max="100"
                     step="0.1"
+                    placeholder="0"
                     value={wastagePercentage}
-                    onChange={(e) => setWastagePercentage(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => setWastagePercentage(e.target.value)}
                   />
                 </div>
 
@@ -363,11 +366,14 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   <Input
                     id="discount"
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     min="0"
                     max="100"
                     step="1"
+                    placeholder="0"
                     value={discountPercentage}
-                    onChange={(e) => setDiscountPercentage(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => setDiscountPercentage(e.target.value)}
                   />
                 </div>
 
@@ -402,7 +408,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <Calculator className="h-5 w-5 text-blue-600" />
-            Tile Calculations ({wastagePercentage}% wastage included)
+            Tile Calculations ({parseFloat(wastagePercentage) || 0}% wastage included)
           </CardTitle>
         </CardHeader>
         
@@ -462,7 +468,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                            {calc.fullBoxes !== undefined && calc.leftoverTiles !== undefined && (
                              <span className="text-xs text-gray-500 block">
                                ({calc.fullBoxes} {calc.fullBoxes === 1 ? 'box' : 'boxes'}{calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})
-                               {wastagePercentage > 0 && ` (+${wastagePercentage}% wastage)`}
+                               {parseFloat(wastagePercentage) > 0 && ` (+${parseFloat(wastagePercentage)}% wastage)`}
                              </span>
                            )}
                          </p>
@@ -526,18 +532,24 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setDiscountPercentage(Math.max(0, discountPercentage - 1))}
+                        onClick={() => {
+                          const current = parseFloat(discountPercentage) || 0;
+                          setDiscountPercentage(Math.max(0, current - 1).toString());
+                        }}
                         className="h-6 w-6 p-0"
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
                       <span className="text-sm font-medium min-w-[2rem] text-center">
-                        {discountPercentage}%
+                        {discountPercent}%
                       </span>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setDiscountPercentage(Math.min(100, discountPercentage + 1))}
+                        onClick={() => {
+                          const current = parseFloat(discountPercentage) || 0;
+                          setDiscountPercentage(Math.min(100, current + 1).toString());
+                        }}
                         className="h-6 w-6 p-0"
                       >
                         <Plus className="h-3 w-3" />
@@ -553,7 +565,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 </div>
                 
                 <p className="text-xs text-gray-500">
-                  All calculations include {wastagePercentage}% wastage allowance
+                  All calculations include {parseFloat(wastagePercentage) || 0}% wastage allowance
                 </p>
               </div>
             </div>

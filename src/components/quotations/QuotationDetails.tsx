@@ -164,7 +164,10 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   };
 
   const { calculations, wastagePercentage } = calculateTileRequirements();
-  const grandTotal = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
+  const mrp = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
+  const discountPercentage = quotation.discount_percentage || 0;
+  const discountAmount = quotation.discount_amount || ((mrp * discountPercentage) / 100);
+  const grandTotal = mrp - discountAmount;
 
 
   const handleDownloadPDF = () => {
@@ -295,11 +298,29 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                   <User className="h-4 w-4 text-gray-500" />
                   <span>Created by: {quotation.worker?.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <IndianRupee className="h-4 w-4 text-gray-500" />
-                  <span className="font-bold text-lg text-green-600">
-                    Total: ₹{grandTotal > 0 ? grandTotal.toLocaleString() : (quotation.total_cost || 0).toLocaleString()}
-                  </span>
+                <div className="space-y-2">
+                  {discountPercentage > 0 && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <IndianRupee className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">
+                          MRP: ₹{mrp.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <IndianRupee className="h-4 w-4 text-red-500" />
+                        <span className="text-sm text-red-600">
+                          Discount ({discountPercentage}%): -₹{discountAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <IndianRupee className="h-4 w-4 text-gray-500" />
+                    <span className="font-bold text-lg text-green-600">
+                      Total: ₹{grandTotal > 0 ? grandTotal.toLocaleString() : (quotation.total_cost || 0).toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
