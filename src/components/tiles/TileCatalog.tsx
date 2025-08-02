@@ -6,15 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
-import { 
   Search, 
   QrCode, 
   Filter, 
@@ -29,7 +20,7 @@ import {
   Star,
   Zap
 } from "lucide-react";
-import { useTiles, useAllTiles } from "@/hooks/useTiles";
+import { useTiles } from "@/hooks/useTiles";
 import { TileCard } from "./TileCard";
 import { TileDetailsDialog } from "./TileDetailsDialog";
 import { EmptyTileState } from "./EmptyTileState";
@@ -60,39 +51,12 @@ export const TileCatalog = ({
   onAutoAssignment,            
   onNavigateBack             
 }: TileCatalogProps) => {
-  const [currentPage, setCurrentPage] = useState(1);
+const { data: tiles, totalCount, isLoading: loading, error, refetch } = useTiles();
+
+
+console.log(`Received ${tiles.length} tiles out of total ${totalCount}`);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  
-  // Debounce search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset to first page when searching
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Use paginated tiles with search
-  const { 
-    data: tiles, 
-    totalCount, 
-    isLoading: loading, 
-    error, 
-    refetch,
-    isSearching 
-  } = useTiles({ 
-    page: currentPage, 
-    pageSize: 20, 
-    searchTerm: debouncedSearchTerm 
-  });
-
-  // Use all tiles for alphabetical navigation (when not searching)
-  const { data: allTilesForNav } = useAllTiles();
-  const tilesForNavigation = isSearching ? tiles : allTilesForNav;
-
-  console.log(`Received ${tiles.length} tiles out of total ${totalCount} (Page ${currentPage})`);
-
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
@@ -120,7 +84,7 @@ const getAlphaKey = (tile: Tile): string => {
 
 const availableKeys = Array.from(
   new Set(
-    tilesForNavigation
+    tiles
       .map(getAlphaKey)
       .filter(Boolean)
   )
@@ -199,24 +163,53 @@ const AlphabeticalNavigation = ({
     // Auto-populate the search box with the scanned code
     setSearchTerm(normalizedCode);
     
-    // Note: Tiles will be searched automatically via the search hook
-    toast.success(`Searching for: ${normalizedCode}`);
+    // Find matching tiles
+    const exactMatches = tiles.filter(tile => 
+      tile.code?.toLowerCase() === normalizedCode.toLowerCase() ||
+      tile.name?.toLowerCase().includes(normalizedCode.toLowerCase())
+    );
+    
+    if (exactMatches.length > 0) {
+      // If exactly one match, show details
+      if (exactMatches.length === 1) {
+        setSelectedTile(exactMatches[0]);
+        setIsDetailsOpen(true);
+        toast.success(`Found tile: ${exactMatches[0].name}`);
+      } else {
+        toast.success(`Found ${exactMatches.length} matching tiles`);
+      }
+    } else {
+      // Try partial matches
+      const partialMatches = tiles.filter(tile =>
+        tile.code?.toLowerCase().includes(normalizedCode.toLowerCase()) ||
+        tile.name?.toLowerCase().includes(normalizedCode.toLowerCase())
+      );
+      
+      if (partialMatches.length > 0) {
+        toast.success(`Found ${partialMatches.length} similar tiles`);
+      } else {
+        toast.info(`No tiles found matching "${tileCode}". The search term has been added to help you search manually.`);
+      }
+    }
   };
   
 const filteredAndSortedTiles = useMemo(() => {
   let filtered = tiles.filter(tile => {
-    // Search is already handled by the hook, so we only need to filter by other criteria
+    const matchesSearch = 
+      tile.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tile.code?.toLowerCase().includes(searchTerm.toLowerCase());
+    
     const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
     
-    // Alphabetical index filtering (only when not searching)
-    const matchesAlphabet = isSearching || !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
+    // Alphabetical index filtering
+    const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
 
     // You may want to include category and brand filters here too:
     // const matchesCategory = selectedCategory === "all" || tile.category === selectedCategory;
     // const matchesBrand = selectedBrand === "all" || tile.brand === selectedBrand;
 
-    return matchesPrice && matchesAlphabet;
-  });
+    return matchesSearch && matchesPrice && matchesAlphabet;
+  });  // <-- close the filter here
 
   filtered.sort((a, b) => {
     if (sortBy === 'name') {
@@ -240,7 +233,7 @@ const filteredAndSortedTiles = useMemo(() => {
   });
 
   return filtered;
-}, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder, alphabeticalIndex, isSearching]);
+}, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder, alphabeticalIndex]);
 
 
 
@@ -323,139 +316,7 @@ const clearFilters = () => {
   setSortBy("name"); // Default to name sorting for better alphabetical experience
   setSortOrder("asc");
   setAlphabeticalIndex(''); // Clear alphabetical filter
-  setCurrentPage(1); // Reset pagination
   toast.success('Filters cleared');
-};
-
-// Calculate pagination info
-const totalPages = Math.ceil(totalCount / 20);
-const startIndex = (currentPage - 1) * 20 + 1;
-const endIndex = Math.min(currentPage * 20, totalCount);
-
-// Pagination component
-const PaginationControls = () => {
-  if (isSearching || totalPages <= 1) return null;
-
-  const renderPageNumbers = () => {
-    const pages = [];
-    const maxVisiblePages = 5;
-    
-    if (totalPages <= maxVisiblePages) {
-      // Show all pages if total is small
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(
-          <PaginationItem key={i}>
-            <PaginationLink
-              href="#"
-              isActive={currentPage === i}
-              onClick={(e) => {
-                e.preventDefault();
-                setCurrentPage(i);
-              }}
-            >
-              {i}
-            </PaginationLink>
-          </PaginationItem>
-        );
-      }
-    } else {
-      // Show ellipsis for large page counts
-      if (currentPage > 3) {
-        pages.push(
-          <PaginationItem key={1}>
-            <PaginationLink
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setCurrentPage(1);
-              }}
-            >
-              1
-            </PaginationLink>
-          </PaginationItem>
-        );
-        if (currentPage > 4) {
-          pages.push(<PaginationEllipsis key="ellipsis1" />);
-        }
-      }
-      
-      const start = Math.max(1, currentPage - 1);
-      const end = Math.min(totalPages, currentPage + 1);
-      
-      for (let i = start; i <= end; i++) {
-        pages.push(
-          <PaginationItem key={i}>
-            <PaginationLink
-              href="#"
-              isActive={currentPage === i}
-              onClick={(e) => {
-                e.preventDefault();
-                setCurrentPage(i);
-              }}
-            >
-              {i}
-            </PaginationLink>
-          </PaginationItem>
-        );
-      }
-      
-      if (currentPage < totalPages - 2) {
-        if (currentPage < totalPages - 3) {
-          pages.push(<PaginationEllipsis key="ellipsis2" />);
-        }
-        pages.push(
-          <PaginationItem key={totalPages}>
-            <PaginationLink
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setCurrentPage(totalPages);
-              }}
-            >
-              {totalPages}
-            </PaginationLink>
-          </PaginationItem>
-        );
-      }
-    }
-    
-    return pages;
-  };
-
-  return (
-    <div className="flex items-center justify-between mt-6">
-      <div className="text-sm text-gray-500">
-        Showing {startIndex} to {endIndex} of {totalCount} tiles
-      </div>
-      <Pagination>
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                if (currentPage > 1) setCurrentPage(currentPage - 1);
-              }}
-              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-            />
-          </PaginationItem>
-          
-          {renderPageNumbers()}
-          
-          <PaginationItem>
-            <PaginationNext
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-              }}
-              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-    </div>
-  );
 };
 
 
@@ -557,13 +418,8 @@ const PaginationControls = () => {
         </div>
         <div className="flex gap-2">
           <Badge variant="outline">
-            {isSearching ? `${tiles.length} search results` : `${tiles.length} of ${totalCount} tiles`}
+            {tiles.length} of {totalCount} tiles
           </Badge>
-          {!isSearching && (
-            <Badge variant="secondary">
-              Page {currentPage} of {totalPages}
-            </Badge>
-          )}
 
           {cart.size > 0 && (
             <Badge variant="default">
@@ -618,21 +474,16 @@ const PaginationControls = () => {
         </CardHeader>
       </Card>
   
-      {/* Alphabetical Navigation - Only show when not searching */}
-      {!isSearching && (
-        <AlphabeticalNavigation 
-          tiles={tilesForNavigation}
-          onLetterClick={(letter) => {
-            setAlphabeticalIndex(letter);
-            setCurrentPage(1); // Reset to first page when filtering
-          }}
-          activeLetter={alphabeticalIndex}
-        />
-      )}
+      {/* Alphabetical Navigation */}
+      <AlphabeticalNavigation 
+        tiles={tiles}
+        onLetterClick={setAlphabeticalIndex}
+        activeLetter={alphabeticalIndex}
+      />
 
       
       {/* Active Filters */}
-      {(searchTerm || (!isSearching && alphabeticalIndex)) && (
+      {(searchTerm || alphabeticalIndex) && (
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-sm text-gray-500">Active filters:</span>
           {searchTerm && (
@@ -648,17 +499,14 @@ const PaginationControls = () => {
               </Button>
             </Badge>
           )}
-          {!isSearching && alphabeticalIndex && (
+          {alphabeticalIndex && (
             <Badge variant="secondary">
               Letter: {alphabeticalIndex}
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-4 w-4 p-0 ml-1"
-                onClick={() => {
-                  setAlphabeticalIndex("");
-                  setCurrentPage(1);
-                }}
+                onClick={() => setAlphabeticalIndex("")}
               >
                 ×
               </Button>
@@ -702,9 +550,6 @@ const PaginationControls = () => {
           ))}
         </div>
       )}
-
-      {/* Pagination Controls */}
-      <PaginationControls />
 
       {/* QR Scanner Dialog */}
       <Html5QRScanner

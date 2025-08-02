@@ -80,77 +80,6 @@ export interface Tile {
   updated_at?: string;
 }
 
-interface UseTilesOptions {
-  page?: number;
-  pageSize?: number;
-  searchTerm?: string;
-}
-
-// Function to fetch all tiles for search purposes
-async function fetchAllTilesForSearch(searchTerm: string): Promise<Tile[]> {
-  if (!searchTerm.trim()) return [];
-  
-  console.log(`🔍 Searching across all tiles for: "${searchTerm}"`);
-  
-  const { data, error } = await supabase
-    .from('tiles')
-    .select('*')
-    .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('❌ Error searching tiles:', error);
-    throw error;
-  }
-
-  console.log(`✅ Found ${data?.length || 0} tiles matching search term`);
-  return data || [];
-}
-
-// Function to fetch paginated tiles
-async function fetchPaginatedTiles(page: number, pageSize: number): Promise<{ tiles: Tile[]; totalCount: number }> {
-  console.log(`📄 Fetching page ${page} with ${pageSize} tiles per page`);
-  
-  try {
-    // Get total count
-    const { count, error: countError } = await supabase
-      .from('tiles')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      console.error('❌ Error fetching tile count:', countError);
-      throw countError;
-    }
-
-    const totalCount = count ?? 0;
-    console.log(`📊 Total tiles in database: ${totalCount}`);
-
-    // Calculate offset
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    // Fetch paginated data
-    const { data, error } = await supabase
-      .from('tiles')
-      .select('*')
-      .range(from, to)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('❌ Error fetching paginated tiles:', error);
-      throw error;
-    }
-
-    console.log(`✅ Fetched ${data?.length || 0} tiles for page ${page}`);
-    return { tiles: data || [], totalCount };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error fetching tiles';
-    toast.error(`Failed to load tiles: ${message}`);
-    throw err;
-  }
-}
-
-// Legacy function for backward compatibility - fetches all tiles
 async function fetchTiles(): Promise<{ tiles: Tile[]; totalCount: number }> {
   console.log('🔄 Starting to fetch all tiles with pagination...');
   try {
@@ -222,53 +151,9 @@ async function fetchTiles(): Promise<{ tiles: Tile[]; totalCount: number }> {
   }
 }
 
-export const useTiles = (options: UseTilesOptions = {}) => {
-  const { page = 1, pageSize = 20, searchTerm = '' } = options;
-  
-  // If search term exists, search across all tiles
-  const searchQuery = useQuery({
-    queryKey: ['tiles-search', searchTerm],
-    queryFn: () => fetchAllTilesForSearch(searchTerm),
-    enabled: !!searchTerm.trim(),
-    staleTime: 1000 * 60 * 2, // 2 mins caching for search
-    refetchOnWindowFocus: false,
-  });
-
-  // For paginated tiles (when no search)
-  const paginatedQuery = useQuery({
-    queryKey: ['tiles-paginated', page, pageSize],
-    queryFn: () => fetchPaginatedTiles(page, pageSize),
-    enabled: !searchTerm.trim(),
-    staleTime: 1000 * 60 * 5, // 5 mins caching
-    refetchOnWindowFocus: false,
-  });
-
-  // Return search results if searching, otherwise paginated results
-  if (searchTerm.trim()) {
-    return {
-      data: searchQuery.data ?? [],
-      totalCount: searchQuery.data?.length ?? 0,
-      isLoading: searchQuery.isLoading,
-      error: searchQuery.error,
-      refetch: searchQuery.refetch,
-      isSearching: true,
-    };
-  }
-
-  return {
-    data: paginatedQuery.data?.tiles ?? [],
-    totalCount: paginatedQuery.data?.totalCount ?? 0,
-    isLoading: paginatedQuery.isLoading,
-    error: paginatedQuery.error,
-    refetch: paginatedQuery.refetch,
-    isSearching: false,
-  };
-};
-
-// Legacy hook for components that need all tiles
-export const useAllTiles = () => {
+export const useTiles = () => {
   const query = useQuery({
-    queryKey: ['tiles-all'],
+    queryKey: ['tiles'],
     queryFn: fetchTiles,
     staleTime: 1000 * 60 * 5, // 5 mins caching
     refetchOnWindowFocus: false,
