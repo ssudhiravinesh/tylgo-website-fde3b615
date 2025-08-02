@@ -30,24 +30,35 @@ export const getNextQuotationNumber = async (): Promise<string> => {
     const currentFY = getFinancialYear();
     const { startDate, endDate } = getFinancialYearDateRange(currentFY);
     
-    // Query database for quotations in current financial year
+    // Query database for highest quotation number in current financial year
     const { data: existingQuotations, error } = await supabase
       .from('quotations')
       .select('quotation_number')
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString())
       .like('quotation_number', `%/${currentFY}`)
-      .order('created_at', { ascending: true });
+      .order('quotation_number', { ascending: false })
+      .limit(1);
 
     if (error) {
       console.error('Error fetching quotations for numbering:', error);
       throw error;
     }
 
-    // Calculate next sequential number
-    const nextNumber = (existingQuotations?.length || 0) + 1;
-    const formattedNumber = String(nextNumber).padStart(5, '0');
+    let nextNumber = 1;
     
+    if (existingQuotations && existingQuotations.length > 0) {
+      // Extract the numeric part from the highest quotation number
+      const latestQuotationNumber = existingQuotations[0].quotation_number;
+      const numericPart = latestQuotationNumber.split('/')[0];
+      const lastNumber = parseInt(numericPart, 10);
+      
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1;
+      }
+    }
+    
+    const formattedNumber = String(nextNumber).padStart(5, '0');
     return `${formattedNumber}/${currentFY}`;
   } catch (error) {
     console.error('Error generating quotation number:', error);
