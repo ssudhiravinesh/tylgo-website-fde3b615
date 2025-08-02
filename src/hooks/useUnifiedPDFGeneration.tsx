@@ -168,23 +168,30 @@ export const useUnifiedPDFGeneration = () => {
       }
     });
 
-  // Process images - use placeholder for tiles without images
+  // Process images - use actual tile images or fallback to placeholder
   const totalTiles = Object.keys(tileCalculations).length;
   console.log(`[PDF Generation] Processing ${totalTiles} tile images...`);
 
-  // Process all tile images - use placeholder since database image_url is null
+  // Process all tile images - use actual image_url from database
   Object.entries(tileCalculations).forEach(([tileId, calc]) => {
-    // Since all tiles have null image_url, use a placeholder tile image
-    // Use Supabase public URL directly
-    const { data } = supabase.storage.from('tile-images').getPublicUrl('placeholder-tile.png');
-    const placeholderUrl = data.publicUrl;
+    const tile = calc.tile;
+    let imageUrl = '';
+    
+    if (tile?.image_url && tile.image_url !== 'null' && tile.image_url.trim() !== '') {
+      // Use actual tile image
+      imageUrl = getDirectImageUrl(tile.image_url);
+      console.log(`[PDF Generation] ✓ Using actual image for tile ${tile.code}: ${imageUrl}`);
+    } else {
+      // Fallback to placeholder
+      const { data } = supabase.storage.from('tile-images').getPublicUrl('placeholder-tile.png');
+      imageUrl = data.publicUrl;
+      console.log(`[PDF Generation] ✓ Using placeholder image for tile ${tile?.code || tileId} (no image_url found)`);
+    }
     
     tileCalculations[tileId] = {
       ...calc,
-      tile_image_direct_url: placeholderUrl
+      tile_image_direct_url: imageUrl
     };
-    
-    console.log(`[PDF Generation] ✓ Using placeholder image for tile ${calc.tile?.code || tileId}`);
   });
 
     if (totalTiles > 0) {
