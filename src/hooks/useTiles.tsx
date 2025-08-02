@@ -86,25 +86,51 @@ interface UseTilesOptions {
   searchTerm?: string;
 }
 
-// Function to fetch all tiles for search purposes
-async function fetchAllTilesForSearch(searchTerm: string): Promise<Tile[]> {
-  if (!searchTerm.trim()) return [];
+// Function to fetch paginated search results
+async function fetchPaginatedSearchResults(searchTerm: string, page: number, pageSize: number): Promise<{ tiles: Tile[]; totalCount: number }> {
+  if (!searchTerm.trim()) return { tiles: [], totalCount: 0 };
   
-  console.log(`🔍 Searching across all tiles for: "${searchTerm}"`);
+  console.log(`🔍 Searching across all tiles for: "${searchTerm}" (Page ${page})`);
   
-  const { data, error } = await supabase
-    .from('tiles')
-    .select('*')
-    .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
-    .order('created_at', { ascending: false });
+  try {
+    // Get total count of matching tiles
+    const { count, error: countError } = await supabase
+      .from('tiles')
+      .select('*', { count: 'exact', head: true })
+      .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`);
 
-  if (error) {
-    console.error('❌ Error searching tiles:', error);
-    throw error;
+    if (countError) {
+      console.error('❌ Error fetching search count:', countError);
+      throw countError;
+    }
+
+    const totalCount = count ?? 0;
+    console.log(`📊 Total search results: ${totalCount}`);
+
+    // Calculate offset for pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Fetch paginated search results
+    const { data, error } = await supabase
+      .from('tiles')
+      .select('*')
+      .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
+      .range(from, to)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error searching tiles:', error);
+      throw error;
+    }
+
+    console.log(`✅ Found ${data?.length || 0} tiles for page ${page} of search results`);
+    return { tiles: data || [], totalCount };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error searching tiles';
+    toast.error(`Failed to search tiles: ${message}`);
+    throw err;
   }
-
-  console.log(`✅ Found ${data?.length || 0} tiles matching search term`);
-  return data || [];
 }
 
 // Function to fetch paginated tiles
@@ -225,10 +251,10 @@ async function fetchTiles(): Promise<{ tiles: Tile[]; totalCount: number }> {
 export const useTiles = (options: UseTilesOptions = {}) => {
   const { page = 1, pageSize = 20, searchTerm = '' } = options;
   
-  // If search term exists, search across all tiles
+  // If search term exists, use paginated search
   const searchQuery = useQuery({
-    queryKey: ['tiles-search', searchTerm],
-    queryFn: () => fetchAllTilesForSearch(searchTerm),
+    queryKey: ['tiles-search', searchTerm, page, pageSize],
+    queryFn: () => fetchPaginatedSearchResults(searchTerm, page, pageSize),
     enabled: !!searchTerm.trim(),
     staleTime: 1000 * 60 * 2, // 2 mins caching for search
     refetchOnWindowFocus: false,
@@ -246,8 +272,8 @@ export const useTiles = (options: UseTilesOptions = {}) => {
   // Return search results if searching, otherwise paginated results
   if (searchTerm.trim()) {
     return {
-      data: searchQuery.data ?? [],
-      totalCount: searchQuery.data?.length ?? 0,
+      data: searchQuery.data?.tiles ?? [],
+      totalCount: searchQuery.data?.totalCount ?? 0,
       isLoading: searchQuery.isLoading,
       error: searchQuery.error,
       refetch: searchQuery.refetch,

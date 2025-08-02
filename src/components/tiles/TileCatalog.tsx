@@ -334,7 +334,7 @@ const endIndex = Math.min(currentPage * 20, totalCount);
 
 // Pagination component
 const PaginationControls = () => {
-  if (isSearching || totalPages <= 1) return null;
+  if (totalPages <= 1) return null;
 
   const renderPageNumbers = () => {
     const pages = [];
