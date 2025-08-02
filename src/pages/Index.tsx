@@ -4,14 +4,10 @@ import { Dashboard } from "@/components/dashboard/Dashboard";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignUpForm } from "@/components/auth/SignUpForm";
 import { useAuth } from "@/hooks/useAuth";
-import { useSessionManagement } from "@/hooks/useSessionManagement";
 
 const Index = () => {
   const { user, profile, signOut, loading } = useAuth();
   const [showSignUp, setShowSignUp] = useState(false);
-  
-  // Initialize session management
-  useSessionManagement();
 
   const handleLogoutClick = async () => {
     try {

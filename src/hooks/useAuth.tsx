@@ -3,7 +3,6 @@ import { useState, createContext, useContext, ReactNode, useEffect } from 'react
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import { useStrictSessionManagement } from './useStrictSessionManagement';
 
 interface Profile {
   id: string;
@@ -56,8 +55,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Use session management - now signOut is defined
-  const sessionManagement = useStrictSessionManagement(user, signOut);
 
   useEffect(() => {
     // Listen for auth changes first
@@ -66,16 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
-        
-        // Session creation is handled by useStrictSessionManagement
-        // Just fetch the profile
-        setTimeout(async () => {
-          try {
-            await fetchProfile(session.user.id);
-          } catch (error) {
-            console.error('Error fetching profile after sign in:', error);
-          }
-        }, 100);
+        await fetchProfile(session.user.id);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
