@@ -239,9 +239,9 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
       throw new Error('Image fetch failed');
     }
   } catch {
-    // Fallback to base64
-    finalUrl = await convertImageToBase64(imageUrl);
-    console.warn(`Using base64 for tile ${calc.tile.code}`);
+    // Fallback to placeholder
+    finalUrl = '/placeholder.svg';
+    console.warn(`Using placeholder for tile ${calc.tile.code}`);
   }
 
   tileCalculations[tileId].tile_image_direct_url = finalUrl;
