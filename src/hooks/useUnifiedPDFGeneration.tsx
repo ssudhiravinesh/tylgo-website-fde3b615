@@ -531,7 +531,7 @@ export const useUnifiedPDFGeneration = () => {
                     <tr>
                       <td class="room-cell">
                         ${(() => {
-                          // Group rooms by name to consolidate wall layers
+                          // Group rooms by name to consolidate layers
                           const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
                           
                           calc.rooms.forEach((room: any) => {
@@ -539,17 +539,15 @@ export const useUnifiedPDFGeneration = () => {
                             if (!roomGroups[roomKey]) {
                               roomGroups[roomKey] = { room, layers: [] };
                             }
-                            if (room.layerNumber) {
+                            if (room.layerNumber !== null && room.layerNumber !== undefined) {
                               roomGroups[roomKey].layers.push(room.layerNumber);
                             }
                           });
                           
                           return Object.values(roomGroups).map(({ room, layers }) => {
                             let roomDisplay = `<strong>${room.name}`;
-                            if (calc.isWallTile && layers.length > 0) {
+                            if (layers.length > 0) {
                               roomDisplay += ` (LAYERS: ${layers.sort((a, b) => a - b).join(', ')})`;
-                            } else if (calc.isWallTile) {
-                              roomDisplay += ' FLOOR';
                             }
                             roomDisplay += '</strong>';
                             return roomDisplay;
