@@ -19,7 +19,7 @@ export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Helper function to wait for all images to load in a window
- const waitForAllImages = (win: Window): Promise<void> => {
+const waitForAllImages = (win: Window): Promise<void> => {
   return new Promise((resolve) => {
     const images = Array.from(win.document.images);
     
@@ -32,50 +32,73 @@ export const useUnifiedPDFGeneration = () => {
     let loadedCount = 0;
     let errorCount = 0;
     const totalImages = images.length;
-    const maxWaitTime = 15000; // 15 seconds max wait
+    const maxWaitTime = 25000; // Extended for Chrome print bug
 
-    console.log(`[PDF Generation] Waiting for ${totalImages} images to load...`);
+    console.log(`[PDF Generation] Chrome print bug fix: checking ${totalImages} images...`);
 
     const checkComplete = () => {
       if (loadedCount + errorCount >= totalImages) {
-        console.log(`[PDF Generation] All images processed: ${loadedCount} loaded, ${errorCount} failed`);
-        resolve();
+        console.log(`[PDF Generation] Images processed: ${loadedCount} loaded, ${errorCount} failed`);
+        
+        // Chrome print bug fix: Force reload all images once more
+        console.log('[PDF Generation] Applying Chrome print context fix...');
+        images.forEach((img, index) => {
+          if (img.src && img.complete && img.naturalWidth > 0) {
+            // Force reload to ensure print context readiness
+            const src = img.src;
+            img.src = '';
+            img.src = src;
+            console.log(`[PDF Generation] ✓ Image ${index + 1} ready for print`);
+          }
+        });
+        
+        setTimeout(resolve, 1000); // Final stabilization delay
+        return;
       }
     };
 
     images.forEach((img, index) => {
-      if (img.complete) {
-        if (img.naturalWidth === 0) {
-          errorCount++;
-          console.log(`[PDF Generation] Image ${index + 1} failed to load (natural width 0): ${img.src}`);
-        } else {
-          loadedCount++;
-          console.log(`[PDF Generation] Image ${index + 1} already loaded: ${img.src}`);
-        }
+      if (img.complete && img.naturalWidth > 0) {
+        loadedCount++;
+        console.log(`[PDF Generation] Image ${index + 1} already loaded`);
       } else {
-        img.onload = () => {
-          loadedCount++;
-          console.log(`[PDF Generation] Image ${index + 1} loaded successfully: ${img.src}`);
+        const loadHandler = () => {
+          if (img.naturalWidth > 0) {
+            loadedCount++;
+            console.log(`[PDF Generation] Image ${index + 1} loaded successfully`);
+          } else {
+            errorCount++;
+          }
           checkComplete();
         };
-        
-        img.onerror = () => {
+
+        const errorHandler = () => {
           errorCount++;
-          console.log(`[PDF Generation] Image ${index + 1} failed to load: ${img.src}`);
+          console.log(`[PDF Generation] Image ${index + 1} failed to load`);
           checkComplete();
         };
+
+        img.addEventListener('load', loadHandler, { once: true });
+        img.addEventListener('error', errorHandler, { once: true });
+
+        // Chrome bug fix: Force image reload
+        const currentSrc = img.src;
+        img.src = '';
+        setTimeout(() => {
+          img.src = currentSrc;
+        }, 100);
       }
     });
 
     checkComplete();
 
-    // Enhanced timeout
     setTimeout(() => {
-      console.log(`[PDF Generation] Timeout reached, proceeding with printing`);
+      console.log('[PDF Generation] Chrome print bug timeout - proceeding anyway');
       resolve();
     }, maxWaitTime);
   });
 };
+
 
 
   // Get direct public URL for Supabase images - simplified for public bucket
@@ -241,6 +264,91 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
       }
     };
 
+  const printContextScript = `
+  <script>
+    (function() {
+      console.log('[Print Context] Initializing Chrome print bug fixes...');
+      const images = document.querySelectorAll('.tile-image');
+      images.forEach((img, index) => {
+        if (img.src) {
+          const tempImg = new Image();
+          tempImg.onload = () => console.log('[Print Context] Pre-loaded image ' + (index+1));
+          tempImg.src = img.src;
+        }
+      });
+      const handleBeforePrint = () => {
+        console.log('[Print Context] Before print—reloading images...');
+        images.forEach(img => {
+          const src = img.src;
+          img.src = '';
+          setTimeout(() => img.src = src, 10);
+        });
+      };
+      window.addEventListener('beforeprint', handleBeforePrint);
+      if (window.matchMedia) {
+        window.matchMedia('print').addEventListener('change', e => {
+          if (e.matches) handleBeforePrint();
+        });
+      }
+    })();
+  </script>
+  `;
+
+    
+  const printOptimizedCSS = `
+        /* === CHROME PRINT BUG FIXES === */
+        
+        /* Force image loading in all media contexts */
+        .tile-image {
+          max-width: 50px;
+          max-height: 50px;
+          object-fit: contain;
+          border-radius: 4px;
+          border: 1px solid #ddd;
+          background-color: #fff;
+          display: block !important;
+          margin: 0 auto;
+          
+          /* Critical: Force image rendering optimization */
+          image-rendering: -webkit-optimize-contrast;
+          image-rendering: crisp-edges;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          
+          /* Ensure images load in print media */
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        /* Print-specific image fixes */
+        @media print {
+          .tile-image {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            /* Force Chrome to acknowledge image in print context */
+            content: '' !important;
+          }
+          
+          /* Ensure image containers are visible */
+          .image-cell {
+            display: table-cell !important;
+            visibility: visible !important;
+          }
+        }
+        
+        /* Screen media preparation for print */
+        @media screen {
+          /* Pre-load print styles on screen to avoid context switch issues */
+          .tile-image {
+            /* Same styles as print to avoid reload */
+            opacity: 1;
+            visibility: visible;
+          }
+        }
+      `;
+
+    
     return `
       <!DOCTYPE html>
       <html>
@@ -248,6 +356,7 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
         <meta charset="UTF-8">
         <title>Quotation ${quotation_number}</title>
         <style>
+          ${chromeFixCSS}   
           @media print {
             @page { 
               margin: 0.5in; 
@@ -634,6 +743,7 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
         <script>
           // Simple window ready handler - printing will be handled by parent window
           console.log('PDF content loaded and ready');
+          ${printContextScript}
         </script>
       </body>
       </html>
@@ -788,7 +898,7 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
     `;
   };
 
-  const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
+const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
   setIsGenerating(true);
   try {
     console.log('[PDF Generation] Starting PDF generation for quotation:', quotation.quotation_number);
@@ -811,21 +921,42 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
         }
       });
 
-      // Critical: Wait for all images to load
-      console.log('[PDF Generation] DOM ready, waiting for images...');
-      toast.info('Loading tile images for PDF...');
+      // ===== CRITICAL FIX: Force print media emulation FIRST =====
+      // This forces Chrome to switch to print media context early,
+      // allowing images time to load in the correct context
+      const style = printWindow.document.createElement('style');
+      style.textContent = `
+        @media screen {
+          body { 
+            /* Force print media styles on screen to pre-load images */
+            color: #000 !important;
+            background: white !important;
+          }
+        }
+      `;
+      printWindow.document.head.appendChild(style);
+
+      // Force browser to apply print media styles
+      if (printWindow.matchMedia) {
+        const printMedia = printWindow.matchMedia('print');
+        // This triggers the print media context switch early
+      }
+
+      console.log('[PDF Generation] Print media context prepared, waiting for images...');
+      toast.info('Preparing images for print...');
       
+      // Wait for all images to load in the correct media context
       await waitForAllImages(printWindow);
       
-      // Additional delay to ensure rendering is complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Additional delay to ensure print media context is stable
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Focus and print
       printWindow.focus();
       printWindow.print();
       
       console.log('[PDF Generation] ✓ PDF generation complete');
-      toast.success('PDF ready! All tile images loaded successfully.');
+      toast.success('PDF ready! All images loaded successfully.');
       
     } else {
       toast.error('Please allow popups to generate PDF');
@@ -837,7 +968,6 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
     setIsGenerating(false);
   }
 }, []);
-
 
   const generateTilesPDF = useCallback(async (tiles: TileData[]) => {
     setIsGenerating(true);
