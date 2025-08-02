@@ -34,7 +34,6 @@ interface TileSelectionStepProps {
 }
 interface CatalogContext {
   roomId: string;
-  roomName: string;  // Now properly included
   isWallTile: boolean;
   layerNumber?: number;
 }
@@ -175,19 +174,15 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     });
   }, [selections, rooms, tiles]);
 
-    const handleAddFloorTile = (roomId: string) => {
-      const room = floorRooms.find(r => r.id === roomId);
-      if (!room) return;
-      setCatalogContext({
-        roomId,
-        isWallTile: false,
-        roomName: room.name
-      });
-      setShowTileCatalog(true);
-    };
-  
-const { roomId, roomName, isWallTile } = catalogContext;
-toast.success(`${tileName} assigned to ${roomName} successfully!`);
+const handleAddFloorTile = (roomId: string) => {
+    const room = floorRooms.find(r => r.id === roomId);
+    if (!room) return;
+    setCatalogContext({
+      roomId,
+      isWallTile: false
+    });
+    setShowTileCatalog(true);
+  };
   
 const handleAutoAssignTile = async (tileId: string) => {
   console.log('🔵 handleAutoAssignTile START:', { tileId, catalogContext });
@@ -248,8 +243,10 @@ const handleAutoAssignTile = async (tileId: string) => {
       console.log('✅ Save successful!');
       
       const selectedTile = tiles.find(t => t.id === tileId);
+      const selectedRoom = rooms.find(r => r.id === roomId);
       const tileName = selectedTile?.name || 'Tile';
-      toast.success(`${tileName} assigned to ${catalogContext.roomName} successfully!`);
+      const roomName = selectedRoom?.name || 'Room';
+      toast.success(`${tileName} assigned to ${roomName} successfully!`);
       
     } catch (error) {
       console.error('❌ Save failed:', error);
@@ -909,7 +906,7 @@ const handleAutoAssignTile = async (tileId: string) => {
             {/* Action Buttons */}
             <div className="space-y-2 pt-4 border-t">
               <Button
-                onClick={handleSaveSelections}
+                onClick={() => handleSaveSelections()}
                 disabled={floorTileSelections.length === 0 && wallTileSelections.length === 0}
                 className="w-full"
                 size="lg"
@@ -934,7 +931,7 @@ const handleAutoAssignTile = async (tileId: string) => {
             <DialogHeader>
               <DialogTitle>
                 {catalogContext ?
-                `Select Tile for ${catalogContext.roomName}` :
+                `Select Tile for Room` :
                 'Select Tiles'
                 }
               </DialogTitle>
@@ -942,7 +939,7 @@ const handleAutoAssignTile = async (tileId: string) => {
           <TileCatalog
             isSelectionMode={true}
             onTileSelect={handleTileSelected}
-            autoAssignmentContext={catalogContext}
+            autoAssignmentContext={null}
             onAutoAssignment={handleAutoAssignTile}
             onNavigateBack={() => {
             setShowTileCatalog(false);
