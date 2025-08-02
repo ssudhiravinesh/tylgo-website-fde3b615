@@ -198,7 +198,11 @@ const handleAutoAssignTile = async (tileId: string) => {
     toast.error('Room context not found');
     return;
   }
-
+ if (!catalogContext) {
+    toast.error('Room context not found');
+    return;
+  }
+  
   const { roomId, isWallTile } = catalogContext;
   
   if (!isWallTile) {
@@ -416,7 +420,10 @@ const handleAutoAssignTile = async (tileId: string) => {
 
   const handleTileSelected = (tileId: string) => {
     if (!catalogContext) return;
-
+ if (!catalogContext) {
+    toast.error('Room context not found');
+    return;
+  }
     const { roomId, isWallTile, layerNumber } = catalogContext;
 
     if (!isWallTile) {
