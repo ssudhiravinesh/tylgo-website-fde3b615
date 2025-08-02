@@ -168,26 +168,26 @@ export const useUnifiedPDFGeneration = () => {
 
 // Process all tile images - use actual image_url from database
 // FIXED CODE - Replace the existing problematic code
-Object.entries(tileCalculations).forEach(([tileId, calc]) => {
-  const tile = calc.tile;
-  let imageUrl = '';
-  
-  if (tile?.image_url && tile.image_url !== 'null' && tile.image_url.trim() !== '') {
-    // Use actual tile image with proper URL processing
-    imageUrl = getDirectImageUrl(tile.image_url);
-    console.log(`[PDF Generation] ✓ Using actual image for tile ${tile.code}: ${imageUrl}`);
-  } else {
-    // Fallback to placeholder only if no image exists
-    const { data } = supabase.storage.from('tile-images').getPublicUrl('placeholder-tile.png');
-    imageUrl = data.publicUrl;
-    console.log(`[PDF Generation] ✓ Using placeholder image for tile ${tile?.code || tileId} (no image_url found)`);
+Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
+  let imageUrl = getDirectImageUrl(calc.tile.image_url);
+  let finalUrl: string;
+
+  try {
+    const resp = await fetch(imageUrl, { mode: 'cors' });
+    if (resp.ok) {
+      finalUrl = imageUrl;
+    } else {
+      throw new Error('Image fetch failed');
+    }
+  } catch {
+    // Fallback to base64
+    finalUrl = await convertImageToBase64(imageUrl);
+    console.warn(`Using base64 for tile ${calc.tile.code}`);
   }
-  
-  tileCalculations[tileId] = {
-    ...calc,
-    tile_image_direct_url: imageUrl
-  };
+
+  tileCalculations[tileId].tile_image_direct_url = finalUrl;
 });
+
 
     if (totalTiles > 0) {
       toast.success(`${totalTiles} tile images ready for PDF generation`);
