@@ -28,6 +28,8 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [quickSort, setQuickSort] = useState("all");
   const [filterYear, setFilterYear] = useState<number | null>(null);
   const [filterMonth, setFilterMonth] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   
   // New filter states
   const [selectedWorker, setSelectedWorker] = useState<string>("all");
@@ -60,7 +62,33 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     // State filter
     const matchesState = stateFilter === "all" || (quotation.customer as any)?.state === stateFilter;
     
-    return matchesSearch && matchesWorker && matchesStatus && matchesArea && matchesState;
+    // Date range filter
+    const matchesDateRange = (() => {
+      if (!startDate && !endDate) return true;
+      
+      const quotationDate = new Date(quotation.created_at);
+      const quotationDateOnly = new Date(quotationDate.getFullYear(), quotationDate.getMonth(), quotationDate.getDate());
+      
+      if (startDate && endDate) {
+        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+        return quotationDateOnly >= startDateOnly && quotationDateOnly <= endDateOnly;
+      }
+      
+      if (startDate) {
+        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        return quotationDateOnly >= startDateOnly;
+      }
+      
+      if (endDate) {
+        const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+        return quotationDateOnly <= endDateOnly;
+      }
+      
+      return true;
+    })();
+    
+    return matchesSearch && matchesWorker && matchesStatus && matchesArea && matchesState && matchesDateRange;
   });
 
   const selectedQuotation = selectedQuotationId 
@@ -167,6 +195,11 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setSelectedStatus(status);
   };
 
+  const handleDateRangeChange = (newStartDate: Date | null, newEndDate: Date | null) => {
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+  };
+
   const clearAllFilters = () => {
     setQuickSort("all");
     setFilterYear(null);
@@ -176,6 +209,8 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
     setAreaFilter("");
     setStateFilter("all");
     setSearchTerm("");
+    setStartDate(null);
+    setEndDate(null);
   };
 
   // Helper function to format address
@@ -397,12 +432,15 @@ document.head.appendChild(styleSheet);
           onPreciseFilterChange={handlePreciseFilterChange}
           onWorkerFilterChange={handleWorkerFilterChange}
           onStatusFilterChange={handleStatusFilterChange}
+          onDateRangeChange={handleDateRangeChange}
           onClearFilters={clearAllFilters}
           currentQuickSort={quickSort}
           currentYear={filterYear}
           currentMonth={filterMonth}
           currentWorker={selectedWorker}
           currentStatus={selectedStatus}
+          startDate={startDate}
+          endDate={endDate}
           availableWorkers={uniqueWorkers}
         />
 
