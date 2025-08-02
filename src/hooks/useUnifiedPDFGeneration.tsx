@@ -156,6 +156,42 @@ const waitForAllImages = (win: Window): Promise<void> => {
         discount_amount = 0
       } = quotation;
 
+    // At top of generateQuotationHTML(...)
+const chromeFixCSS = `
+  /* === CHROME PRINT BUG FIXES === */
+  .tile-image {
+    max-width: 50px;
+    max-height: 50px;
+    object-fit: contain;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    display: block !important;
+    margin: 0 auto;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+  @media print {
+    .tile-image {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+    .image-cell {
+      display: table-cell !important;
+      visibility: visible !important;
+    }
+  }
+  @media screen {
+    .tile-image {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+`;
+
 
     // Group items by tile for calculations
     const tileCalculations: { [tileId: string]: any } = {};
