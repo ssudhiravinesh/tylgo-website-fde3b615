@@ -19,112 +19,106 @@ export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Helper function to wait for all images to load in a window
-  const waitForAllImages = (win: Window): Promise<void> => {
-    return new Promise((resolve) => {
-      const images = Array.from(win.document.images);
-      
-      if (images.length === 0) {
-        console.log('[PDF Generation] No images found, proceeding');
+ const waitForAllImages = (win: Window): Promise<void> => {
+  return new Promise((resolve) => {
+    const images = Array.from(win.document.images);
+    
+    if (images.length === 0) {
+      console.log('[PDF Generation] No images found, proceeding');
+      resolve();
+      return;
+    }
+
+    let loadedCount = 0;
+    let errorCount = 0;
+    const totalImages = images.length;
+    const maxWaitTime = 15000; // 15 seconds max wait
+
+    console.log(`[PDF Generation] Waiting for ${totalImages} images to load...`);
+
+    const checkComplete = () => {
+      if (loadedCount + errorCount >= totalImages) {
+        console.log(`[PDF Generation] All images processed: ${loadedCount} loaded, ${errorCount} failed`);
         resolve();
-        return;
       }
+    };
 
-      let loadedCount = 0;
-      let errorCount = 0;
-      const totalImages = images.length;
-
-      console.log(`[PDF Generation] Waiting for ${totalImages} images to load...`);
-
-      const checkComplete = () => {
-        if (loadedCount + errorCount >= totalImages) {
-          console.log(`[PDF Generation] All images processed: ${loadedCount} loaded, ${errorCount} failed`);
-          resolve();
-        }
-      };
-
-      images.forEach((img, index) => {
-        if (img.complete) {
-          if (img.naturalWidth === 0) {
-            errorCount++;
-            console.log(`[PDF Generation] Image ${index + 1} failed to load (natural width 0)`);
-          } else {
-            loadedCount++;
-            console.log(`[PDF Generation] Image ${index + 1} already loaded`);
-          }
+    images.forEach((img, index) => {
+      if (img.complete) {
+        if (img.naturalWidth === 0) {
+          errorCount++;
+          console.log(`[PDF Generation] Image ${index + 1} failed to load (natural width 0): ${img.src}`);
         } else {
-          img.onload = () => {
-            loadedCount++;
-            console.log(`[PDF Generation] Image ${index + 1} loaded successfully`);
-            checkComplete();
-          };
-          
-          img.onerror = () => {
-            errorCount++;
-            console.log(`[PDF Generation] Image ${index + 1} failed to load`);
-            checkComplete();
-          };
+          loadedCount++;
+          console.log(`[PDF Generation] Image ${index + 1} already loaded: ${img.src}`);
         }
-      });
-
-      checkComplete();
-
-      // Fallback timeout
-      setTimeout(() => {
-        console.log(`[PDF Generation] Timeout reached, proceeding with printing`);
-        resolve();
-      }, 10000);
+      } else {
+        img.onload = () => {
+          loadedCount++;
+          console.log(`[PDF Generation] Image ${index + 1} loaded successfully: ${img.src}`);
+          checkComplete();
+        };
+        
+        img.onerror = () => {
+          errorCount++;
+          console.log(`[PDF Generation] Image ${index + 1} failed to load: ${img.src}`);
+          checkComplete();
+        };
+      }
     });
-  };
+
+    checkComplete();
+
+    // Enhanced timeout
+    setTimeout(() => {
+      console.log(`[PDF Generation] Timeout reached, proceeding with printing`);
+      resolve();
+    }, maxWaitTime);
+  });
+};
+
 
   // Get direct public URL for Supabase images - simplified for public bucket
   const getDirectImageUrl = (imageUrl: string): string => {
-    if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
-      return '';
-    }
+  if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
+    return '';
+  }
 
-    // If it's already a direct URL, return as is
-    if (!imageUrl.includes('supabase') && !imageUrl.includes('/storage/v1/object/')) {
-      return imageUrl;
-    }
-
-    // Since the bucket is public, extract the file path and create direct public URL
-    try {
-      let filePath = '';
-      
-      // Handle different Supabase URL formats
-      if (imageUrl.includes('/storage/v1/object/public/tile-images/')) {
-        // Extract just the file path after tile-images/
-        const parts = imageUrl.split('/storage/v1/object/public/tile-images/');
-        if (parts.length === 2) {
-          filePath = parts[1];
-        }
-      } else if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
-        // Extract from signed URL
-        const parts = imageUrl.split('/storage/v1/object/sign/tile-images/');
-        if (parts.length === 2) {
-          filePath = parts[1].split('?')[0]; // Remove query parameters
-        }
-      } else if (imageUrl.includes('tile-images/')) {
-        // Generic extraction for tile-images bucket
-        const parts = imageUrl.split('tile-images/');
-        if (parts.length === 2) {
-          filePath = parts[1].split('?')[0]; // Remove query parameters
-        }
-      }
-      
-      if (filePath) {
-        // Create direct public URL since bucket is public
-        const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
-        console.log(`[PDF Generation] Direct public URL created: ${data.publicUrl}`);
-        return data.publicUrl;
-      }
-    } catch (error) {
-      console.warn(`[PDF Generation] Error processing Supabase URL:`, error);
-    }
-
-    // Fallback to original URL
+  // If it's already a direct public URL, return as is
+  if (imageUrl.includes('/storage/v1/object/public/tile-images/')) {
+    console.log(`[PDF Generation] Direct public URL detected: ${imageUrl}`);
     return imageUrl;
-  };
+  }
+
+  // Handle different Supabase URL formats
+  try {
+    let filePath = '';
+    
+    if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
+      const parts = imageUrl.split('/storage/v1/object/sign/tile-images/');
+      if (parts.length === 2) {
+        filePath = parts[1].split('?')[0];
+      }
+    } else if (imageUrl.includes('tile-images/')) {
+      const parts = imageUrl.split('tile-images/');
+      if (parts.length === 2) {
+        filePath = parts[1].split('?')[0];
+      }
+    }
+    
+    if (filePath) {
+      const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
+      console.log(`[PDF Generation] Processed URL: ${imageUrl} -> ${data.publicUrl}`);
+      return data.publicUrl;
+    }
+  } catch (error) {
+    console.warn(`[PDF Generation] Error processing URL ${imageUrl}:`, error);
+  }
+
+  // Return original URL if processing fails
+  return imageUrl;
+};
+
 
   const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
          const { 
@@ -172,27 +166,28 @@ export const useUnifiedPDFGeneration = () => {
   const totalTiles = Object.keys(tileCalculations).length;
   console.log(`[PDF Generation] Processing ${totalTiles} tile images...`);
 
-  // Process all tile images - use actual image_url from database
-  Object.entries(tileCalculations).forEach(([tileId, calc]) => {
-    const tile = calc.tile;
-    let imageUrl = '';
-    
-    if (tile?.image_url && tile.image_url !== 'null' && tile.image_url.trim() !== '') {
-      // Use actual tile image
-      imageUrl = getDirectImageUrl(tile.image_url);
-      console.log(`[PDF Generation] ✓ Using actual image for tile ${tile.code}: ${imageUrl}`);
-    } else {
-      // Fallback to placeholder
-      const { data } = supabase.storage.from('tile-images').getPublicUrl('placeholder-tile.png');
-      imageUrl = data.publicUrl;
-      console.log(`[PDF Generation] ✓ Using placeholder image for tile ${tile?.code || tileId} (no image_url found)`);
-    }
-    
-    tileCalculations[tileId] = {
-      ...calc,
-      tile_image_direct_url: imageUrl
-    };
-  });
+// Process all tile images - use actual image_url from database
+// FIXED CODE - Replace the existing problematic code
+Object.entries(tileCalculations).forEach(([tileId, calc]) => {
+  const tile = calc.tile;
+  let imageUrl = '';
+  
+  if (tile?.image_url && tile.image_url !== 'null' && tile.image_url.trim() !== '') {
+    // Use actual tile image with proper URL processing
+    imageUrl = getDirectImageUrl(tile.image_url);
+    console.log(`[PDF Generation] ✓ Using actual image for tile ${tile.code}: ${imageUrl}`);
+  } else {
+    // Fallback to placeholder only if no image exists
+    const { data } = supabase.storage.from('tile-images').getPublicUrl('placeholder-tile.png');
+    imageUrl = data.publicUrl;
+    console.log(`[PDF Generation] ✓ Using placeholder image for tile ${tile?.code || tileId} (no image_url found)`);
+  }
+  
+  tileCalculations[tileId] = {
+    ...calc,
+    tile_image_direct_url: imageUrl
+  };
+});
 
     if (totalTiles > 0) {
       toast.success(`${totalTiles} tile images ready for PDF generation`);
@@ -569,24 +564,25 @@ export const useUnifiedPDFGeneration = () => {
                         <div class="tile-size">Size: ${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>
-                       <td class="image-cell">
-                         ${calc.tile_image_direct_url ? `
-                           <img 
-                             src="${calc.tile_image_direct_url}" 
-                             alt="Tile ${tile.code}"
-                             class="tile-image"
-                             crossorigin="anonymous"
-                             loading="eager"
-                             referrerpolicy="no-referrer"
-                             onload="console.log('Image loaded: ${tile.code}')"
-                             onerror="console.error('Image failed: ${tile.code}', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                             style="${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}"
-                           />
-                           <div class="no-image-placeholder" style="display: none;">No Image</div>
-                         ` : `
-                           <div class="no-image-placeholder">No Image</div>
-                         `}
-                       </td>
+                      <td class="image-cell">
+                      ${calc.tile_image_direct_url ? `
+                        <img
+                          src="${calc.tile_image_direct_url}"
+                          alt="Tile ${tile.code}"
+                          class="tile-image"
+                          crossorigin="anonymous"
+                          loading="eager"
+                          referrerpolicy="no-referrer"
+                          onload="console.log('Image loaded: ${tile.code}');"
+                          onerror="console.error('Image failed: ${tile.code}', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                          style="${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}"
+                        />
+                        <div class="no-image-placeholder" style="display: none;">No Image</div>
+                      ` : `
+                        <div class="no-image-placeholder">No Image</div>
+                      `}
+                    </td>
+
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {
@@ -793,55 +789,55 @@ export const useUnifiedPDFGeneration = () => {
   };
 
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
-    setIsGenerating(true);
-    try {
-      console.log('[PDF Generation] Starting PDF generation for quotation:', quotation.quotation_number);
+  setIsGenerating(true);
+  try {
+    console.log('[PDF Generation] Starting PDF generation for quotation:', quotation.quotation_number);
 
-      // Generate HTML with direct image URLs
-      const htmlContent = await generateQuotationHTML(quotation);
+    // Generate HTML with proper image URLs
+    const htmlContent = await generateQuotationHTML(quotation);
+    
+    const printWindow = window.open('', '_blank');
+    
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
       
-      // Open print window and write content
-      const printWindow = window.open('', '_blank');
-      
-      if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        
-        // Wait for DOM to be ready first
-        await new Promise<void>(resolve => {
-          if (printWindow.document.readyState === 'complete') {
-            resolve();
-          } else {
-            printWindow.addEventListener('DOMContentLoaded', () => resolve());
-          }
-        });
+      // Wait for DOM to be ready
+      await new Promise<void>(resolve => {
+        if (printWindow.document.readyState === 'complete') {
+          resolve();
+        } else {
+          printWindow.addEventListener('DOMContentLoaded', () => resolve());
+        }
+      });
 
-        // Wait for all images to load before printing
-        console.log('[PDF Generation] Waiting for all images to load...');
-        toast.info('Loading images for PDF...');
-        
-        await waitForAllImages(printWindow);
-        
-        // Focus and print
-        printWindow.focus();
-        
-        // Small delay to ensure everything is ready
-        setTimeout(() => {
-          printWindow.print();
-          console.log('[PDF Generation] ✓ PDF generation complete - all images loaded');
-          toast.success('PDF ready! All images loaded successfully.');
-        }, 500);
-        
-      } else {
-        toast.error('Please allow popups to generate PDF');
-      }
-    } catch (error: any) {
-      console.error('[PDF Generation] ✗ Error generating PDF:', error);
-      toast.error('Failed to generate PDF: ' + (error.message || 'Unknown error'));
-    } finally {
-      setIsGenerating(false);
+      // Critical: Wait for all images to load
+      console.log('[PDF Generation] DOM ready, waiting for images...');
+      toast.info('Loading tile images for PDF...');
+      
+      await waitForAllImages(printWindow);
+      
+      // Additional delay to ensure rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Focus and print
+      printWindow.focus();
+      printWindow.print();
+      
+      console.log('[PDF Generation] ✓ PDF generation complete');
+      toast.success('PDF ready! All tile images loaded successfully.');
+      
+    } else {
+      toast.error('Please allow popups to generate PDF');
     }
-  }, []);
+  } catch (error: any) {
+    console.error('[PDF Generation] ✗ Error generating PDF:', error);
+    toast.error('Failed to generate PDF: ' + (error.message || 'Unknown error'));
+  } finally {
+    setIsGenerating(false);
+  }
+}, []);
+
 
   const generateTilesPDF = useCallback(async (tiles: TileData[]) => {
     setIsGenerating(true);
