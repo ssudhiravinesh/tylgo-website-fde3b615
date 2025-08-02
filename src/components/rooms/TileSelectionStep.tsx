@@ -32,6 +32,12 @@ interface TileSelectionStepProps {
   rooms: Room[];
   onBack: () => void;
 }
+interface CatalogContext {
+  roomId: string;
+  roomName: string;  // Now properly included
+  isWallTile: boolean;
+  layerNumber?: number;
+}
 
 
 export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionStepProps) => {
@@ -167,7 +173,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       const isEqual = JSON.stringify(prev) === JSON.stringify(wallSelections);
       return isEqual ? prev : wallSelections;
     });
-  }, [selections, rooms]);
+  }, [selections, rooms, tiles]);
 
     const handleAddFloorTile = (roomId: string) => {
       const room = floorRooms.find(r => r.id === roomId);
@@ -179,6 +185,9 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       });
       setShowTileCatalog(true);
     };
+  
+const { roomId, roomName, isWallTile } = catalogContext;
+toast.success(`${tileName} assigned to ${roomName} successfully!`);
   
 const handleAutoAssignTile = async (tileId: string) => {
   console.log('🔵 handleAutoAssignTile START:', { tileId, catalogContext });
