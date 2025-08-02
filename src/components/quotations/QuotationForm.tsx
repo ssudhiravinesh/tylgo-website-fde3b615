@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, User, FileText } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useCreateQuotation } from "@/hooks/useQuotations";
+import { useCreateQuotation, useQuotationNumber } from "@/hooks/useQuotations";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { useTiles } from "@/hooks/useTiles";
