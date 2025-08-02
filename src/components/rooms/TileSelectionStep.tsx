@@ -539,8 +539,10 @@ const handleAutoAssignTile = async (tileId: string) => {
   
     try {
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
+      toast.success("Tile selections saved successfully!");
     } catch (error) {
       console.error("Error saving selections:", error);
+      toast.error("Failed to save selections. Please try again.");
       throw error; // Re-throw for handling in calling function
     }
   };

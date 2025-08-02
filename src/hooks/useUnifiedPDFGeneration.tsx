@@ -530,12 +530,33 @@ export const useUnifiedPDFGeneration = () => {
                   return `
                     <tr>
                       <td class="room-cell">
-                        ${calc.rooms.map((room: any) => `
-                          <strong>${room.name}</strong><br>
-                          (Layers: ${room.layerNumber || 'N/A'})<br>
-                        `).join('')}
-                        Total Area: ${calc.totalArea.toFixed(2)} sq ft
-                        ${calc.rooms.length > 1 ? '<br>(includes 2 layers)' : ''}
+                        ${(() => {
+                          // Group rooms by name to consolidate wall layers
+                          const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
+                          
+                          calc.rooms.forEach((room: any) => {
+                            const roomKey = room.name;
+                            if (!roomGroups[roomKey]) {
+                              roomGroups[roomKey] = { room, layers: [] };
+                            }
+                            if (room.layerNumber) {
+                              roomGroups[roomKey].layers.push(room.layerNumber);
+                            }
+                          });
+                          
+                          return Object.values(roomGroups).map(({ room, layers }) => {
+                            let roomDisplay = `<strong>${room.name}`;
+                            if (calc.isWallTile && layers.length > 0) {
+                              roomDisplay += ` (LAYERS: ${layers.sort((a, b) => a - b).join(', ')})`;
+                            } else if (calc.isWallTile) {
+                              roomDisplay += ' FLOOR';
+                            }
+                            roomDisplay += '</strong>';
+                            return roomDisplay;
+                          }).join('<br>');
+                        })()}
+                        <br>Total Area: ${calc.totalArea.toFixed(2)} sq ft
+                        ${calc.wallLayers && calc.wallLayers.length > 1 ? `<br>(includes ${calc.wallLayers.length} layers)` : ''}
                       </td>
                       <td class="tile-details">
                         <div class="tile-code">Code: ${tile.code}</div>
