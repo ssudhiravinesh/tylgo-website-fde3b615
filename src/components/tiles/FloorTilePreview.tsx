@@ -41,12 +41,17 @@ export const FloorTilePreview = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // High-DPI canvas setup
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    
     const tilesPerRow = 6;
     const tilesPerColumn = 4;
     const tileLength = tile.size_length || 600;
     const tileBreadth = tile.size_breadth || 600;
     const aspectRatio = tileBreadth / tileLength;
-    const baseSize = 120;
+    
+    // Increased base size for better quality
+    const baseSize = 200;
 
     let tileWidth, tileHeight;
     if (aspectRatio > 1) {
@@ -58,8 +63,8 @@ export const FloorTilePreview = ({
     }
 
     // Calculate available space in the dialog (leaving space for header/footer)
-    const maxW = Math.min(window.innerWidth * 0.88, 1200); // Max width
-    const maxH = Math.min(window.innerHeight * 0.7, 800);  // Max height for canvas area
+    const maxW = Math.min(window.innerWidth * 0.88, 1200);
+    const maxH = Math.min(window.innerHeight * 0.7, 800);
     
     // Calculate required canvas size for the grid
     const requiredWidth = tilesPerRow * tileWidth;
@@ -68,13 +73,26 @@ export const FloorTilePreview = ({
     // Calculate scaling factor to fit within available space
     const scaleToFitX = maxW / requiredWidth;
     const scaleToFitY = maxH / requiredHeight;
-    const scaleToFit = Math.min(scaleToFitX, scaleToFitY, 1); // Don't scale up
+    const scaleToFit = Math.min(scaleToFitX, scaleToFitY, 1);
     
-    const canvasWidth = requiredWidth * scaleToFit;
-    const canvasHeight = requiredHeight * scaleToFit;
-
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    // Calculate display dimensions
+    const displayWidth = requiredWidth * scaleToFit;
+    const displayHeight = requiredHeight * scaleToFit;
+    
+    // Set high-DPI canvas dimensions
+    canvas.width = displayWidth * devicePixelRatio;
+    canvas.height = displayHeight * devicePixelRatio;
+    
+    // Scale canvas display size
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    
+    // Scale context for high-DPI
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    
+    // Enable high-quality image rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // Use the scaling factor we calculated
     const scaleX = scaleToFit;
@@ -91,13 +109,36 @@ export const FloorTilePreview = ({
       if (tile.image_url && tile.image_url.trim() !== '') {
         const img = new window.Image();
         img.crossOrigin = "anonymous";
+        
         img.onload = () => {
           try {
             if (img.complete && img.naturalWidth && img.naturalHeight) {
-              ctx.drawImage(img, x, y, tileWidth * scaleX, tileHeight * scaleY);
-              ctx.strokeStyle = '#e5e7eb';
-              ctx.lineWidth = 1;
-              ctx.strokeRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
+              // Create a higher quality image using createImageBitmap if available
+              if (window.createImageBitmap) {
+                createImageBitmap(img, {
+                  resizeWidth: Math.max(tileWidth * scaleX * devicePixelRatio, 256),
+                  resizeHeight: Math.max(tileHeight * scaleY * devicePixelRatio, 256),
+                  resizeQuality: 'high'
+                }).then(bitmap => {
+                  ctx.drawImage(bitmap, x, y, tileWidth * scaleX, tileHeight * scaleY);
+                  ctx.strokeStyle = '#e5e7eb';
+                  ctx.lineWidth = 1 / devicePixelRatio;
+                  ctx.strokeRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
+                  bitmap.close();
+                }).catch(() => {
+                  // Fallback to regular drawImage
+                  ctx.drawImage(img, x, y, tileWidth * scaleX, tileHeight * scaleY);
+                  ctx.strokeStyle = '#e5e7eb';
+                  ctx.lineWidth = 1 / devicePixelRatio;
+                  ctx.strokeRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
+                });
+              } else {
+                // Fallback for browsers without createImageBitmap
+                ctx.drawImage(img, x, y, tileWidth * scaleX, tileHeight * scaleY);
+                ctx.strokeStyle = '#e5e7eb';
+                ctx.lineWidth = 1 / devicePixelRatio;
+                ctx.strokeRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
+              }
             } else {
               drawFallbackTile(x, y);
             }
@@ -106,15 +147,19 @@ export const FloorTilePreview = ({
           }
           loadedImages++;
         };
+        
         img.onerror = () => {
           drawFallbackTile(x, y);
           loadedImages++;
         };
+        
+        // Load timeout fallback
         setTimeout(() => {
           if (!img.complete || img.naturalWidth === 0) {
             drawFallbackTile(x, y);
           }
         }, 5000);
+        
         try {
           img.src = tile.image_url!;
         } catch {
@@ -132,7 +177,7 @@ export const FloorTilePreview = ({
       ctx.fillRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
 
       ctx.strokeStyle = `hsl(${baseHue},50%,65%)`;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1 / devicePixelRatio;
       const grainLines = Math.max(2, Math.floor((tileHeight * scaleY) / 25));
       for (let i = 0; i < grainLines; i++) {
         const lineY = y + (i * tileHeight * scaleY / grainLines) + ((tileHeight * scaleY) / grainLines / 2);
@@ -143,7 +188,7 @@ export const FloorTilePreview = ({
       }
 
       ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 / devicePixelRatio;
       ctx.strokeRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
 
       ctx.fillStyle = '#374151';

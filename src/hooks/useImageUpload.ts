@@ -2,6 +2,63 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Helper function to optimize images for better preview quality
+const optimizeImageForPreview = (file: File): Promise<File> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    img.onload = () => {
+      // Calculate optimal dimensions (max 1024px on longest side for better quality)
+      const maxSize = 1024;
+      let { width, height } = img;
+      
+      if (width > height && width > maxSize) {
+        height = (height * maxSize) / width;
+        width = maxSize;
+      } else if (height > maxSize) {
+        width = (width * maxSize) / height;
+        height = maxSize;
+      }
+      
+      // Set canvas size with device pixel ratio for crisp images
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      canvas.width = width * devicePixelRatio;
+      canvas.height = height * devicePixelRatio;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      
+      if (ctx) {
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw image with high quality
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to high-quality blob
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const optimizedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(optimizedFile);
+          } else {
+            resolve(file); // Fallback to original
+          }
+        }, 'image/jpeg', 0.92); // High quality JPEG
+      } else {
+        resolve(file); // Fallback to original
+      }
+    };
+    
+    img.onerror = () => resolve(file); // Fallback to original
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export const useImageUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
 
@@ -30,10 +87,13 @@ export const useImageUpload = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
+      // Create optimized image for better preview quality
+      const optimizedFile = await optimizeImageForPreview(file);
+      
       // Upload file to Supabase Storage
       const { data, error } = await supabase.storage
         .from('tile-images')
-        .upload(fileName, file, {
+        .upload(fileName, optimizedFile, {
           cacheControl: '3600',
           upsert: false
         });

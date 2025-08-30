@@ -264,6 +264,9 @@ export const WallTileSelectionPage = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // High-DPI canvas setup
+    const devicePixelRatio = window.devicePixelRatio || 1;
+
     const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
     const layerCount = wallSelection.layers.length;
     
@@ -333,18 +336,50 @@ export const WallTileSelectionPage = ({
           try {
             // Ensure image is fully loaded before drawing
             if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-              ctx.drawImage(img, x, y, scaledTileWidth, scaledTileHeight);
-              // Add subtle border
-              ctx.strokeStyle = '#d1d5db';
-              ctx.lineWidth = 1;
-              ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
+              // Use createImageBitmap for better quality if available
+              if (window.createImageBitmap) {
+                createImageBitmap(img, {
+                  resizeWidth: Math.max(scaledTileWidth * devicePixelRatio, 256),
+                  resizeHeight: Math.max(scaledTileHeight * devicePixelRatio, 256),
+                  resizeQuality: 'high'
+                }).then(bitmap => {
+                  ctx.drawImage(bitmap, x, y, scaledTileWidth, scaledTileHeight);
+                  // Add subtle border with device pixel ratio adjustment
+                  ctx.strokeStyle = '#d1d5db';
+                  ctx.lineWidth = 1 / devicePixelRatio;
+                  ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
+                  bitmap.close();
+                  
+                  loadedImages++;
+                  if (loadedImages === totalImages) {
+                    addLayerLabels();
+                  }
+                }).catch(() => {
+                  // Fallback to regular drawImage
+                  ctx.drawImage(img, x, y, scaledTileWidth, scaledTileHeight);
+                  ctx.strokeStyle = '#d1d5db';
+                  ctx.lineWidth = 1 / devicePixelRatio;
+                  ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
+                  
+                  loadedImages++;
+                  if (loadedImages === totalImages) {
+                    addLayerLabels();
+                  }
+                });
+              } else {
+                // Fallback for browsers without createImageBitmap
+                ctx.drawImage(img, x, y, scaledTileWidth, scaledTileHeight);
+                ctx.strokeStyle = '#d1d5db';
+                ctx.lineWidth = 1 / devicePixelRatio;
+                ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
+                
+                loadedImages++;
+                if (loadedImages === totalImages) {
+                  addLayerLabels();
+                }
+              }
             } else {
               drawFallbackTile(x, y, tile, layer);
-            }
-            
-            loadedImages++;
-            if (loadedImages === totalImages) {
-              addLayerLabels();
             }
           } catch (error) {
             console.error('Error drawing image for tile:', tile.code, error);
@@ -383,9 +418,9 @@ export const WallTileSelectionPage = ({
       ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
       ctx.fillRect(x, y, scaledTileWidth, scaledTileHeight);
       
-      // Add border
+      // Add border with device pixel ratio adjustment
       ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 / devicePixelRatio;
       ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
       
       // Add tile code text with better styling - adjust font size based on tile dimensions
