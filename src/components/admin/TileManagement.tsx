@@ -632,6 +632,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Tile Image</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Price Info</TableHead>
@@ -650,6 +651,19 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{tile.name}</TableCell>
+                    <TableCell>
+                      {tile.image_url ? (
+                        <img 
+                          src={tile.image_url} 
+                          alt={tile.name}
+                          className="w-16 h-16 object-cover rounded border border-border"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-muted rounded border border-border flex items-center justify-center">
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {tile.category && (
                         <Badge variant="outline" className="text-xs">
