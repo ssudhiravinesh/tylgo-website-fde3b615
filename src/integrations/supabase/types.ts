@@ -97,6 +97,27 @@ export type Database = {
         }
         Relationships: []
       }
+      quotation_counter: {
+        Row: {
+          current_number: number
+          financial_year: string
+          id: number
+          updated_at: string | null
+        }
+        Insert: {
+          current_number?: number
+          financial_year: string
+          id?: number
+          updated_at?: string | null
+        }
+        Update: {
+          current_number?: number
+          financial_year?: string
+          id?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       quotation_items: {
         Row: {
           area: number
@@ -420,6 +441,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_next_quotation_number: { Args: { fy: string }; Returns: string }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]

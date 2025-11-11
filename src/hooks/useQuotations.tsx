@@ -25,45 +25,30 @@ const getFinancialYearDateRange = (financialYear?: string) => {
   return { startDate, endDate };
 };
 
+// NEW: Atomic quotation number generation using database function
 export const getNextQuotationNumber = async (): Promise<string> => {
   try {
     const currentFY = getFinancialYear();
-    const { startDate, endDate } = getFinancialYearDateRange(currentFY);
     
-    // Query database for highest quotation number in current financial year
-    const { data: existingQuotations, error } = await supabase
-      .from('quotations')
-      .select('quotation_number')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .like('quotation_number', `%/${currentFY}`)
-      .order('quotation_number', { ascending: false })
-      .limit(1);
+    // Call the database function to get next number atomically
+    const { data, error } = await supabase
+      .rpc('get_next_quotation_number', { fy: currentFY });
 
     if (error) {
-      console.error('Error fetching quotations for numbering:', error);
+      console.error('Error generating quotation number:', error);
       throw error;
     }
 
-    let nextNumber = 1;
-    
-    if (existingQuotations && existingQuotations.length > 0) {
-      // Extract the numeric part from the highest quotation number
-      const latestQuotationNumber = existingQuotations[0].quotation_number;
-      const numericPart = latestQuotationNumber.split('/')[0];
-      const lastNumber = parseInt(numericPart, 10);
-      
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1;
-      }
+    if (!data) {
+      throw new Error('No quotation number returned from database');
     }
-    
-    const formattedNumber = String(nextNumber).padStart(5, '0');
-    return `${formattedNumber}/${currentFY}`;
+
+    console.log('Generated quotation number:', data);
+    return data;
   } catch (error) {
-    console.error('Error generating quotation number:', error);
-    // Fallback to timestamp-based if database query fails
-    const timestamp = Date.now().toString();
+    console.error('Error in getNextQuotationNumber:', error);
+    // Fallback: Use timestamp-based number (should rarely happen)
+    const timestamp = Date.now().toString().slice(-5);
     return `${timestamp}/${getFinancialYear()}`;
   }
 };
