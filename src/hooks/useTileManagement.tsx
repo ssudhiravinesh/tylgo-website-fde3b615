@@ -168,32 +168,28 @@ export const useDeleteTile = () => {
 
   return useMutation({
     mutationFn: async (tileId: string) => {
-      console.log('Deleting tile:', tileId);
+      console.log('Soft deleting tile (marking as inactive):', tileId);
       
       const { error } = await supabase
         .from('tiles')
-        .delete()
+        .update({ is_active: false })
         .eq('id', tileId);
 
       if (error) {
-        console.error('Error deleting tile:', error);
+        console.error('Error deactivating tile:', error);
         throw error;
       }
 
-      console.log('Tile deleted successfully');
+      console.log('Tile deactivated successfully');
     },
     onSuccess: () => {
-      console.log('Tile deletion mutation succeeded');
+      console.log('Tile deactivation mutation succeeded');
       queryClient.invalidateQueries({ queryKey: ['tiles'] });
-      toast.success('Tile deleted successfully');
+      toast.success('Tile removed successfully');
     },
     onError: (error: any) => {
-      console.error('Tile deletion mutation failed:', error);
-      if (error.code === '23503') {
-        toast.error('Cannot delete tile: it is being used in quotations');
-      } else {
-        toast.error(error.message || 'Error deleting tile');
-      }
+      console.error('Tile deactivation mutation failed:', error);
+      toast.error(error.message || 'Error removing tile');
     },
   });
 };

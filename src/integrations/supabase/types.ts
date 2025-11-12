@@ -398,6 +398,7 @@ export type Database = {
           created_at: string | null
           id: string
           image_url: string | null
+          is_active: boolean | null
           name: string
           pieces_per_box: number | null
           price_per_box: number | null
@@ -412,6 +413,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean | null
           name: string
           pieces_per_box?: number | null
           price_per_box?: number | null
@@ -426,6 +428,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean | null
           name?: string
           pieces_per_box?: number | null
           price_per_box?: number | null

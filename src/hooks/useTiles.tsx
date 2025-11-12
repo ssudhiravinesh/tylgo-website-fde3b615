@@ -80,13 +80,19 @@ export interface Tile {
   updated_at?: string;
 }
 
-async function fetchTiles(): Promise<{ tiles: Tile[]; totalCount: number }> {
-  console.log('🔄 Starting to fetch all tiles with pagination...');
+async function fetchTiles(includeInactive = false): Promise<{ tiles: Tile[]; totalCount: number }> {
+  console.log('🔄 Starting to fetch all tiles with pagination...', includeInactive ? '(including inactive)' : '(active only)');
   try {
     // Step 1: Get total tile count
-    const { count, error: countError } = await supabase
+    let countQuery = supabase
       .from('tiles')
       .select('*', { count: 'exact', head: true });
+    
+    if (!includeInactive) {
+      countQuery = countQuery.eq('is_active', true);
+    }
+    
+    const { count, error: countError } = await countQuery;
 
     if (countError) {
       console.error('❌ Error fetching tile count:', countError);
@@ -109,11 +115,17 @@ async function fetchTiles(): Promise<{ tiles: Tile[]; totalCount: number }> {
 
     while (hasMore) {
       console.log(`📦 Fetching batch ${batchNum} (rows ${from} to ${from + batchSize - 1})`);
-      const { data, error } = await supabase
+      let dataQuery = supabase
         .from('tiles')
         .select('*')
         .range(from, from + batchSize - 1)
         .order('created_at', { ascending: false });
+      
+      if (!includeInactive) {
+        dataQuery = dataQuery.eq('is_active', true);
+      }
+      
+      const { data, error } = await dataQuery;
 
       if (error) {
         console.error(`❌ Error fetching batch ${batchNum}:`, error);
@@ -151,10 +163,10 @@ async function fetchTiles(): Promise<{ tiles: Tile[]; totalCount: number }> {
   }
 }
 
-export const useTiles = () => {
+export const useTiles = (includeInactive = false) => {
   const query = useQuery({
-    queryKey: ['tiles'],
-    queryFn: fetchTiles,
+    queryKey: ['tiles', includeInactive],
+    queryFn: () => fetchTiles(includeInactive),
     staleTime: 1000 * 60 * 5, // 5 mins caching
     refetchOnWindowFocus: false,
   });
