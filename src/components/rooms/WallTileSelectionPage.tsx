@@ -270,59 +270,38 @@ export const WallTileSelectionPage = ({
     const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
     const layerCount = wallSelection.layers.length;
     
-    // Find all unique tiles used in layers to determine scale
-    const allLayerTiles = wallSelection.layers
-      .map(layer => tiles.find(t => t.id === layer.tileId))
-      .filter(Boolean);
-
-    if (allLayerTiles.length === 0) return;
-
-    // Find max dimensions across all tiles to determine scale factor
-    const maxTileLength = Math.max(...allLayerTiles.map(t => t.size_length || 600));
-    const maxTileBreadth = Math.max(...allLayerTiles.map(t => t.size_breadth || 600));
-
+    // Calculate target canvas width (90% of dialog width)
     const dialogWidth = Math.min(window.innerWidth * 0.95, 1200);
     const targetCanvasWidth = dialogWidth * 0.9;
+    
+    // Calculate tile dimensions based on the first tile's actual size
+    const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
+    if (!firstTile) return;
+    
+    const tileLength = firstTile.size_length || 600;
+    const tileBreadth = firstTile.size_breadth || 600;
+    
+    // Calculate aspect ratio (preserve at all costs)
+    const aspectRatio = tileLength / tileBreadth;
+    
+    // Calculate tile width to fill 90% of dialog width
+    const tileWidth = targetCanvasWidth / tilesPerLayer;
+    
+    // Calculate tile height maintaining aspect ratio
+    const tileHeight = tileWidth / aspectRatio;
+    
+    // Calculate required canvas height
+    const requiredHeight = layerCount * tileHeight;
+    
+    // Apply vertical scaling if needed to fit in viewport
     const maxHeight = window.innerHeight * 0.7;
-
-    // Calculate total physical dimensions needed (in mm)
-    const totalPhysicalWidth = tilesPerLayer * maxTileLength;
-    const totalPhysicalHeight = layerCount * maxTileBreadth;
-
-    // Calculate uniform scale factor (pixels per mm)
-    const scaleX = targetCanvasWidth / totalPhysicalWidth;
-    const scaleY = maxHeight / totalPhysicalHeight;
-    const scale = Math.min(scaleX, scaleY);
-
-    // Calculate per-layer dimensions
-    let maxCanvasWidth = 0;
-    let totalCanvasHeight = 0;
-
-    const layerDimensions = wallSelection.layers.map(layer => {
-      const tile = tiles.find(t => t.id === layer.tileId);
-      if (!tile) return null;
-      
-      const tileLength = tile.size_length || 600;
-      const tileBreadth = tile.size_breadth || 600;
-      
-      const layerWidth = tilesPerLayer * tileLength * scale;
-      const layerHeight = tileBreadth * scale;
-      
-      maxCanvasWidth = Math.max(maxCanvasWidth, layerWidth);
-      
-      return {
-        width: layerWidth,
-        height: layerHeight,
-        tileWidth: tileLength * scale,
-        tileHeight: tileBreadth * scale
-      };
-    }).filter(Boolean);
-
-    totalCanvasHeight = layerDimensions.reduce((sum, dim) => sum + (dim?.height || 0), 0);
-
-    // Final canvas dimensions
-    const canvasWidth = maxCanvasWidth;
-    const canvasHeight = totalCanvasHeight;
+    const verticalScale = Math.min(1.0, maxHeight / requiredHeight);
+    
+    // Final dimensions
+    const canvasWidth = targetCanvasWidth;
+    const canvasHeight = requiredHeight * verticalScale;
+    const scaledTileWidth = tileWidth;
+    const scaledTileHeight = tileHeight * verticalScale;
     
     // High-DPI canvas setup for crisp images
     const setupHighDPICanvas = () => {
@@ -348,7 +327,7 @@ export const WallTileSelectionPage = ({
     let loadedImages = 0;
     const totalImages = sortedLayers.length * tilesPerLayer;
     
-    const drawTile = (x: number, y: number, tile: any, layer: any, width: number, height: number) => {
+    const drawTile = (x: number, y: number, tile: any, layer: any) => {
       if (tile.image_url && tile.image_url.trim() !== '') {
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -360,15 +339,15 @@ export const WallTileSelectionPage = ({
               // Use createImageBitmap for better quality if available
               if (window.createImageBitmap) {
                 createImageBitmap(img, {
-                  resizeWidth: Math.max(width * devicePixelRatio, 256),
-                  resizeHeight: Math.max(height * devicePixelRatio, 256),
+                  resizeWidth: Math.max(scaledTileWidth * devicePixelRatio, 256),
+                  resizeHeight: Math.max(scaledTileHeight * devicePixelRatio, 256),
                   resizeQuality: 'high'
                 }).then(bitmap => {
-                  ctx.drawImage(bitmap, x, y, width, height);
+                  ctx.drawImage(bitmap, x, y, scaledTileWidth, scaledTileHeight);
                   // Add subtle border with device pixel ratio adjustment
                   ctx.strokeStyle = '#d1d5db';
                   ctx.lineWidth = 1 / devicePixelRatio;
-                  ctx.strokeRect(x, y, width, height);
+                  ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
                   bitmap.close();
                   
                   loadedImages++;
@@ -377,10 +356,10 @@ export const WallTileSelectionPage = ({
                   }
                 }).catch(() => {
                   // Fallback to regular drawImage
-                  ctx.drawImage(img, x, y, width, height);
+                  ctx.drawImage(img, x, y, scaledTileWidth, scaledTileHeight);
                   ctx.strokeStyle = '#d1d5db';
                   ctx.lineWidth = 1 / devicePixelRatio;
-                  ctx.strokeRect(x, y, width, height);
+                  ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
                   
                   loadedImages++;
                   if (loadedImages === totalImages) {
@@ -389,10 +368,10 @@ export const WallTileSelectionPage = ({
                 });
               } else {
                 // Fallback for browsers without createImageBitmap
-                ctx.drawImage(img, x, y, width, height);
+                ctx.drawImage(img, x, y, scaledTileWidth, scaledTileHeight);
                 ctx.strokeStyle = '#d1d5db';
                 ctx.lineWidth = 1 / devicePixelRatio;
-                ctx.strokeRect(x, y, width, height);
+                ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
                 
                 loadedImages++;
                 if (loadedImages === totalImages) {
@@ -400,24 +379,24 @@ export const WallTileSelectionPage = ({
                 }
               }
             } else {
-              drawFallbackTile(x, y, tile, layer, width, height);
+              drawFallbackTile(x, y, tile, layer);
             }
           } catch (error) {
             console.error('Error drawing image for tile:', tile.code, error);
-            drawFallbackTile(x, y, tile, layer, width, height);
+            drawFallbackTile(x, y, tile, layer);
           }
         };
         
         img.onerror = (error) => {
           console.error('Failed to load image for tile:', tile.code, tile.image_url, error);
-          drawFallbackTile(x, y, tile, layer, width, height);
+          drawFallbackTile(x, y, tile, layer);
         };
         
         // Add timeout to prevent hanging
         setTimeout(() => {
           if (!img.complete || img.naturalWidth === 0) {
             console.warn('Image loading timeout for tile:', tile.code, tile.image_url);
-            drawFallbackTile(x, y, tile, layer, width, height);
+            drawFallbackTile(x, y, tile, layer);
           }
         }, 5000);
         
@@ -426,44 +405,44 @@ export const WallTileSelectionPage = ({
           img.src = tile.image_url;
         } catch (error) {
           console.error('Error setting image src for tile:', tile.code, error);
-          drawFallbackTile(x, y, tile, layer, width, height);
+          drawFallbackTile(x, y, tile, layer);
         }
       } else {
-        drawFallbackTile(x, y, tile, layer, width, height);
+        drawFallbackTile(x, y, tile, layer);
       }
     };
 
-    const drawFallbackTile = (x: number, y: number, tile: any, layer: any, width: number, height: number) => {
+    const drawFallbackTile = (x: number, y: number, tile: any, layer: any) => {
       // Draw colored rectangle with better styling using actual dimensions
       const hue = (layer.layerNumber * 60) % 360;
       ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
-      ctx.fillRect(x, y, width, height);
+      ctx.fillRect(x, y, scaledTileWidth, scaledTileHeight);
       
       // Add border with device pixel ratio adjustment
       ctx.strokeStyle = '#9ca3af';
       ctx.lineWidth = 2 / devicePixelRatio;
-      ctx.strokeRect(x, y, width, height);
+      ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
       
       // Add tile code text with better styling - adjust font size based on tile dimensions
       ctx.fillStyle = '#374151';
-      const fontSize = Math.min(width, height) * 0.12; // Scale font size with tile size
+      const fontSize = Math.min(scaledTileWidth, scaledTileHeight) * 0.12; // Scale font size with tile size
       ctx.font = `bold ${fontSize}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
       // Break long tile codes into multiple lines for better readability
       const code = tile.code || tile.name || 'Unknown';
-      const maxLength = Math.floor(width / 8); // Adjust max length based on tile width
+      const maxLength = Math.floor(scaledTileWidth / 8); // Adjust max length based on tile width
       
       if (code.length > maxLength) {
         const firstLine = code.substring(0, maxLength);
         const secondLine = code.substring(maxLength, maxLength * 2);
-        ctx.fillText(firstLine, x + width/2, y + height/2 - fontSize/2);
+        ctx.fillText(firstLine, x + scaledTileWidth/2, y + scaledTileHeight/2 - fontSize/2);
         if (secondLine) {
-          ctx.fillText(secondLine, x + width/2, y + height/2 + fontSize/2);
+          ctx.fillText(secondLine, x + scaledTileWidth/2, y + scaledTileHeight/2 + fontSize/2);
         }
       } else {
-        ctx.fillText(code, x + width/2, y + height/2);
+        ctx.fillText(code, x + scaledTileWidth/2, y + scaledTileHeight/2);
       }
       
       loadedImages++;
@@ -479,34 +458,26 @@ export const WallTileSelectionPage = ({
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       
-      let currentY = 0;
       sortedLayers.forEach((layer, layerIndex) => {
-        const layerDim = layerDimensions[layerIndex];
-        if (!layerDim) return;
-        
-        ctx.fillText(`L${layer.layerNumber}`, -8, currentY + layerDim.height/2);
-        currentY += layerDim.height;
+        const y = layerIndex * scaledTileHeight;
+        ctx.fillText(`L${layer.layerNumber}`, -8, y + scaledTileHeight/2);
       });
     };
     
-    // Draw all tiles with per-layer dimensions
-    let currentY = 0;
+    // Draw all tiles with actual dimensions
     sortedLayers.forEach((layer, layerIndex) => {
       const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) {
         console.warn('Tile not found for layer:', layer.layerNumber, 'tileId:', layer.tileId);
         return;
       }
-      
-      const layerDim = layerDimensions[layerIndex];
-      if (!layerDim) return;
+
+      const y = layerIndex * scaledTileHeight;
       
       for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
-        const x = tileIndex * layerDim.tileWidth;
-        drawTile(x, currentY, tile, layer, layerDim.tileWidth, layerDim.tileHeight);
+        const x = tileIndex * scaledTileWidth;
+        drawTile(x, y, tile, layer);
       }
-      
-      currentY += layerDim.height;
     });
   };
 
