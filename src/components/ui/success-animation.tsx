@@ -18,7 +18,7 @@ export const SuccessAnimation = ({ isVisible, onComplete, message, type }: Succe
       const timer = setTimeout(() => {
         setShouldRender(false);
         onComplete();
-      }, 3000);
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [isVisible, onComplete]);
