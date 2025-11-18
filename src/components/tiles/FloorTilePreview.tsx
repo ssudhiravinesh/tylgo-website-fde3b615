@@ -133,22 +133,22 @@ export const FloorTilePreview = ({
                   resizeQuality: 'high'
                 }).then(bitmap => {
                   ctx.drawImage(bitmap, x, y, tileWidth * scaleX, tileHeight * scaleY);
-                  ctx.strokeStyle = '#e5e7eb';
-                  ctx.lineWidth = 1 / devicePixelRatio;
+                  ctx.strokeStyle = '#000000';
+                  ctx.lineWidth = 3 / devicePixelRatio;
                   ctx.strokeRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
                   bitmap.close();
                 }).catch(() => {
                   // Fallback to regular drawImage
                   ctx.drawImage(img, x, y, tileWidth * scaleX, tileHeight * scaleY);
-                  ctx.strokeStyle = '#e5e7eb';
-                  ctx.lineWidth = 1 / devicePixelRatio;
+                  ctx.strokeStyle = '#000000';
+                  ctx.lineWidth = 3 / devicePixelRatio;
                   ctx.strokeRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
                 });
               } else {
                 // Fallback for browsers without createImageBitmap
                 ctx.drawImage(img, x, y, tileWidth * scaleX, tileHeight * scaleY);
-                ctx.strokeStyle = '#e5e7eb';
-                ctx.lineWidth = 1 / devicePixelRatio;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3 / devicePixelRatio;
                 ctx.strokeRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
               }
             } else {
@@ -189,7 +189,7 @@ export const FloorTilePreview = ({
       ctx.fillRect(x, y, tileWidth * scaleX, tileHeight * scaleY);
 
       ctx.strokeStyle = `hsl(${baseHue},50%,65%)`;
-      ctx.lineWidth = 1 / devicePixelRatio;
+      ctx.lineWidth = 3 / devicePixelRatio;
       const grainLines = Math.max(2, Math.floor((tileHeight * scaleY) / 25));
       for (let i = 0; i < grainLines; i++) {
         const lineY = y + (i * tileHeight * scaleY / grainLines) + ((tileHeight * scaleY) / grainLines / 2);
