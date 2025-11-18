@@ -267,9 +267,6 @@ export const WallTileSelectionPage = ({
     // High-DPI canvas setup
     const devicePixelRatio = window.devicePixelRatio || 1;
 
-    const tilesPerLayer = 6; // Fixed to 6 tiles per layer as requested
-    const layerCount = wallSelection.layers.length;
-    
     // Calculate target canvas width (90% of dialog width)
     const dialogWidth = Math.min(window.innerWidth * 0.95, 1200);
     const targetCanvasWidth = dialogWidth * 0.9;
@@ -283,6 +280,20 @@ export const WallTileSelectionPage = ({
     
     // Calculate aspect ratio (preserve at all costs)
     const aspectRatio = tileBreadth / tileLength;
+    
+    // Dynamically set tiles per layer based on tile orientation for better canvas utilization
+    // For vertical tiles (tall), use fewer tiles per layer
+    // For horizontal tiles (wide), use more tiles per layer
+    let tilesPerLayer;
+    if (aspectRatio > 1) {
+      // Vertical tiles (taller than wide): 4 tiles per layer
+      tilesPerLayer = 4;
+    } else {
+      // Horizontal or square tiles: 6 tiles per layer
+      tilesPerLayer = 6;
+    }
+    
+    const layerCount = wallSelection.layers.length;
     
     // Calculate tile width to fill 90% of dialog width
     const tileWidth = targetCanvasWidth / tilesPerLayer;
