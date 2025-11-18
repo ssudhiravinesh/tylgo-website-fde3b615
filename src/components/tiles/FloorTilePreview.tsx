@@ -44,11 +44,23 @@ export const FloorTilePreview = ({
     // High-DPI canvas setup
     const devicePixelRatio = window.devicePixelRatio || 1;
     
-    const tilesPerRow = 6;
-    const tilesPerColumn = 4;
     const tileLength = tile.size_length || 600;
     const tileBreadth = tile.size_breadth || 600;
     const aspectRatio = tileBreadth / tileLength;
+    
+    // Dynamically set grid based on tile orientation for better canvas utilization
+    // For vertical tiles (tall), use more rows and fewer columns
+    // For horizontal tiles (wide), use more columns and fewer rows
+    let tilesPerRow, tilesPerColumn;
+    if (aspectRatio > 1) {
+      // Vertical tiles (taller than wide): 4 columns × 6 rows
+      tilesPerRow = 4;
+      tilesPerColumn = 6;
+    } else {
+      // Horizontal or square tiles: 6 columns × 4 rows
+      tilesPerRow = 6;
+      tilesPerColumn = 4;
+    }
     
     // Increased base size for better quality
     const baseSize = 200;
