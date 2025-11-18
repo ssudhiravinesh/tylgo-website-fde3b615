@@ -743,7 +743,6 @@
 //     </div>
 //   );
 // };
-
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1003,6 +1002,7 @@ export const WallTileSelectionPage = ({
     toast.success("Layers reset to original configuration");
   };
 
+  // === Updated generateWallPreview to match FloorTilePreview exactly ===
   const generateWallPreview = () => {
     if (!canvasRef.current || wallSelection.layers.length === 0) return;
     
@@ -1013,86 +1013,91 @@ export const WallTileSelectionPage = ({
     // High-DPI canvas setup
     const devicePixelRatio = window.devicePixelRatio || 1;
 
-    // 1. Get the tile dimensions
     const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
     if (!firstTile) return;
     
-    // Length is usually Height, Breadth is usually Width
-    const tileLength = firstTile.size_length || 600; 
+    const tileLength = firstTile.size_length || 600;
     const tileBreadth = firstTile.size_breadth || 600;
-    
-    // Calculate Aspect Ratio
     const aspectRatio = tileBreadth / tileLength;
     
-    // 2. Determine Grid Layout based on Aspect Ratio (Match Floor Preview Logic)
-    let tilesPerLayer;
+    // Determine grid density (tiles per row) same as Floor Preview
+    let tilesPerRow;
     if (aspectRatio > 1) {
-      // Horizontal tiles (Wide): Use more columns
-      tilesPerLayer = 6;
+      // Horizontal tiles (Wider): 4 rows x 6 cols logic from floor
+      // Since this is wall (layers), 'rows' are layers. 
+      // We just need "tiles per row" (horizontal count).
+      tilesPerRow = 6; 
     } else {
-      // Vertical tiles (Tall): Use fewer columns to preserve look
-      tilesPerLayer = 4;
+      // Vertical tiles (Taller): 4 columns
+      tilesPerRow = 4;
     }
     
-    // 3. Calculate "Virtual" Pixel Sizes (Base Size Logic)
-    const baseSize = 200;
-    let tileWidth, tileHeight;
+    // Number of layers dictates the vertical count (rows)
+    const tilesPerColumn = wallSelection.layers.length;
 
+    // --- CORE LOGIC FROM FLOOR PREVIEW START ---
+    // Increased base size for better quality
+    const baseSize = 200;
+
+    let tileWidth, tileHeight;
+    // Exact same logic as FloorTilePreview to ensure identical scaling
     if (aspectRatio > 1) {
-      // Wide tile
+      // "Vertical" path in floor preview logic (though aspectRatio > 1 usually means wide)
+      // FloorTilePreview says: if (aspectRatio > 1) { width=base, height=base/ratio }
       tileWidth = baseSize;
       tileHeight = baseSize / aspectRatio;
     } else {
-      // Tall tile (Vertical)
+      // "Horizontal" path in floor preview logic
       tileHeight = baseSize;
       tileWidth = baseSize * aspectRatio;
     }
 
-    const layerCount = wallSelection.layers.length;
-
-    // 4. Calculate Total Wall Dimensions
-    const requiredWidth = tilesPerLayer * tileWidth;
-    const requiredHeight = layerCount * tileHeight;
-
-    // 5. Scale to Fit Dialog Container
-    // Calculate available space in the dialog
-    const maxW = Math.min(window.innerWidth * 0.90, 1200);
-    const maxH = Math.min(window.innerHeight * 0.75, 900);
+    // Calculate available space in the dialog (matching FloorTilePreview dimensions)
+    const maxW = Math.min(window.innerWidth * 0.88, 1200);
+    const maxH = Math.min(window.innerHeight * 0.7, 800);
     
+    // Calculate required canvas size for the grid
+    const requiredWidth = tilesPerRow * tileWidth;
+    const requiredHeight = tilesPerColumn * tileHeight;
+    
+    // Calculate scaling factor to fit within available space
     const scaleToFitX = maxW / requiredWidth;
     const scaleToFitY = maxH / requiredHeight;
-    // Use the smaller scale to ensure it fits entirely
-    const scale = Math.min(scaleToFitX, scaleToFitY, 1);
+    const scaleToFit = Math.min(scaleToFitX, scaleToFitY, 1);
     
-    // Final Display Dimensions
-    const displayWidth = requiredWidth * scale;
-    const displayHeight = requiredHeight * scale;
+    // Calculate display dimensions
+    const displayWidth = requiredWidth * scaleToFit;
+    const displayHeight = requiredHeight * scaleToFit;
     
-    // 6. Set Canvas Properties
+    // Set high-DPI canvas dimensions
     canvas.width = displayWidth * devicePixelRatio;
     canvas.height = displayHeight * devicePixelRatio;
+    
+    // Scale canvas display size
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
     
-    // Scale Context
+    // Scale context for high-DPI
     ctx.scale(devicePixelRatio, devicePixelRatio);
+    
+    // Enable high-quality image rendering
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Clear canvas
-    ctx.fillStyle = '#ffffff';
+    // Use the scaling factor we calculated
+    const scaleX = scaleToFit;
+    const scaleY = scaleToFit;
+    // --- CORE LOGIC FROM FLOOR PREVIEW END ---
+
+    // Clear
+    ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Sort layers by number
-    const sortedLayers = [...wallSelection.layers].sort((a, b) => a.layerNumber - b.layerNumber);
-    
-    let loadedImages = 0;
-    const totalImages = sortedLayers.length * tilesPerLayer;
-    
-    // 7. Helper: Draw Single Tile
+    // Helper to draw one tile
     const drawTile = (x: number, y: number, tile: any, layer: any) => {
-      const scaledTileWidth = tileWidth * scale;
-      const scaledTileHeight = tileHeight * scale;
+      // The width/height to draw on canvas (scaled)
+      const w = tileWidth * scaleX;
+      const h = tileHeight * scaleY;
 
       if (tile.image_url && tile.image_url.trim() !== '') {
         const img = new Image();
@@ -1101,119 +1106,105 @@ export const WallTileSelectionPage = ({
         img.onload = () => {
           try {
             if (img.complete && img.naturalWidth > 0) {
-              // Attempt High Quality Bitmap
               if (window.createImageBitmap) {
                 createImageBitmap(img, {
-                  resizeWidth: Math.max(scaledTileWidth * devicePixelRatio, 256),
-                  resizeHeight: Math.max(scaledTileHeight * devicePixelRatio, 256),
+                  resizeWidth: Math.max(w * devicePixelRatio, 256),
+                  resizeHeight: Math.max(h * devicePixelRatio, 256),
                   resizeQuality: 'high'
                 }).then(bitmap => {
-                  ctx.drawImage(bitmap, x, y, scaledTileWidth, scaledTileHeight);
-                  // Add Border
-                  ctx.strokeStyle = '#d1d5db';
+                  ctx.drawImage(bitmap, x, y, w, h);
+                  ctx.strokeStyle = '#e5e7eb';
                   ctx.lineWidth = 1 / devicePixelRatio;
-                  ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
+                  ctx.strokeRect(x, y, w, h);
                   bitmap.close();
-                  
-                  loadedImages++;
-                  if (loadedImages === totalImages) addLayerLabels(scale);
-                }).catch(() => {
-                  fallbackDraw(img, x, y, scaledTileWidth, scaledTileHeight);
-                });
+                  checkCompletion();
+                }).catch(() => fallbackDraw(img, x, y, w, h));
               } else {
-                fallbackDraw(img, x, y, scaledTileWidth, scaledTileHeight);
+                fallbackDraw(img, x, y, w, h);
               }
             } else {
-              drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
+              drawFallbackTile(x, y, w, h, tile, layer);
             }
-          } catch (error) {
-            drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
+          } catch {
+            drawFallbackTile(x, y, w, h, tile, layer);
           }
         };
         
-        img.onerror = () => {
-          drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
-        };
-        
-        // Timeout safety
+        img.onerror = () => drawFallbackTile(x, y, w, h, tile, layer);
         setTimeout(() => {
-          if (!img.complete || img.naturalWidth === 0) {
-             // Only fallback if not already drawn (simplistic check)
-          }
+            if (!img.complete || img.naturalWidth === 0) drawFallbackTile(x, y, w, h, tile, layer);
         }, 5000);
         
         img.src = tile.image_url;
       } else {
-        drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
+        drawFallbackTile(x, y, w, h, tile, layer);
       }
     };
 
     const fallbackDraw = (img: HTMLImageElement, x: number, y: number, w: number, h: number) => {
        ctx.drawImage(img, x, y, w, h);
-       ctx.strokeStyle = '#d1d5db';
+       ctx.strokeStyle = '#e5e7eb';
        ctx.lineWidth = 1 / devicePixelRatio;
        ctx.strokeRect(x, y, w, h);
-       loadedImages++;
-       if (loadedImages === totalImages) addLayerLabels(scale);
+       checkCompletion();
     };
 
-    const drawFallbackTile = (x: number, y: number, tile: any, layer: any, w: number, h: number) => {
-      const hue = (layer.layerNumber * 60) % 360;
-      ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
+    const drawFallbackTile = (x: number, y: number, w: number, h: number, tile: any, layer: any) => {
+      const baseHue = (layer.layerNumber * 40) % 360;
+      ctx.fillStyle = `hsl(${baseHue},60%,75%)`;
       ctx.fillRect(x, y, w, h);
-      
-      ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 2 / devicePixelRatio;
+
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1 / devicePixelRatio;
       ctx.strokeRect(x, y, w, h);
-      
+
       ctx.fillStyle = '#374151';
       const fontSize = Math.min(w, h) * 0.15;
       ctx.font = `bold ${fontSize}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      const code = tile.code || tile.name || 'Unknown';
+      const code = tile.code || tile.name || 'Tile';
       ctx.fillText(code.substring(0, 8), x + w/2, y + h/2);
-      
-      loadedImages++;
-      if (loadedImages === totalImages) addLayerLabels(scale);
+      checkCompletion();
     };
 
-    const addLayerLabels = (currentScale: number) => {
-      const scaledTileHeight = tileHeight * currentScale;
-      ctx.fillStyle = '#374151';
-      ctx.font = 'bold 14px Arial';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      
-      // Note: This loop assumes we drew layers from top (y=0) to bottom
-      // If you want to reverse stack (Layer 1 at bottom), the drawing loop below needs reversing too.
-      // Keeping consistent with your original order for now:
-      sortedLayers.forEach((layer, layerIndex) => {
-        // If we reverse the drawing order, we must update this Y calculation
-        // For now, keeping standard top-down drawing
-        const y = layerIndex * scaledTileHeight;
-        ctx.fillText(`L${layer.layerNumber}`, -8, y + scaledTileHeight/2);
-      });
+    let loadedImages = 0;
+    const sortedLayers = [...wallSelection.layers].sort((a, b) => a.layerNumber - b.layerNumber);
+    // Total tiles = layers * tilesPerRow
+    const totalImages = sortedLayers.length * tilesPerRow;
+
+    const checkCompletion = () => {
+      loadedImages++;
+      if (loadedImages === totalImages) {
+         addLayerLabels(tileHeight * scaleY);
+      }
     };
-    
-    // 8. Main Draw Loop
-    // NOTE: To make Layer 1 appear at the BOTTOM of the wall (physically correct),
-    // we should iterate backwards or calculate Y from bottom. 
-    // However, to keep it simple and match your exact request "Make it look like Floor Preview" (which is a grid),
-    // I will render them in order, but with the correct Shape.
-    
-    // If you want Layer 1 at the BOTTOM, use this reversed array:
-    const layersToDraw = [...sortedLayers].reverse(); 
-    
-    layersToDraw.forEach((layer, layerIndex) => {
+
+    const addLayerLabels = (scaledH: number) => {
+       ctx.fillStyle = '#374151';
+       ctx.font = 'bold 14px Arial';
+       ctx.textAlign = 'right';
+       ctx.textBaseline = 'middle';
+       // Label layers
+       sortedLayers.forEach((layer, idx) => {
+          // Note: We are drawing from top down (idx 0 at y=0)
+          // To match floor grid visual style, we assume standard grid fill
+          const y = idx * scaledH;
+          ctx.fillText(`L${layer.layerNumber}`, -8, y + scaledH/2);
+       });
+    };
+
+    // --- Draw Loop ---
+    // Iterate layers as rows
+    sortedLayers.forEach((layer, rowIdx) => {
       const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) return;
-
-      const y = layerIndex * (tileHeight * scale);
       
-      for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
-        const x = tileIndex * (tileWidth * scale);
+      const y = rowIdx * (tileHeight * scaleY);
+      
+      for (let colIdx = 0; colIdx < tilesPerRow; colIdx++) {
+        const x = colIdx * (tileWidth * scaleX);
         drawTile(x, y, tile, layer);
       }
     });
@@ -1221,7 +1212,6 @@ export const WallTileSelectionPage = ({
 
   const handlePreview = () => {
     setShowPreview(true);
-    // Generate preview after a short delay to ensure dialog is open
     setTimeout(() => generateWallPreview(), 100);
   };
 
@@ -1434,35 +1424,32 @@ export const WallTileSelectionPage = ({
         onScan={handleQRScan}
       />
 
+      {/* UPDATED PREVIEW DIALOG TO MATCH FLOOR PREVIEW STYLE */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-4">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="text-xl font-semibold">
+        <DialogContent className="max-w-[98vw] w-[98vw] h-[92vh] p-8 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>
               Wall Preview - {wallSelection.layers.length} Layer{wallSelection.layers.length > 1 ? 's' : ''}
             </DialogTitle>
           </DialogHeader>
           
-          <div className="flex-1 flex items-center justify-center min-h-0">
-            <div className="w-full h-full flex items-center justify-center p-4">
-              <div className="border-2 border-gray-200 rounded-lg bg-white shadow-lg flex items-center justify-center p-4 max-w-full max-h-full">
-                <canvas
-                  ref={canvasRef}
-                  className="max-w-full max-h-full block"
-                  style={{ 
-                    imageRendering: 'crisp-edges',
-                    objectFit: 'contain'
-                  }}
-                />
+          <div className="flex justify-center items-center w-full h-full">
+            <div className="flex flex-col items-center justify-center flex-grow w-full h-full">
+              <div className="w-full h-full max-w-full max-h-full p-6">
+                <div className="border rounded-xl overflow-hidden shadow bg-white w-full h-full flex items-center justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-full"
+                    style={{ objectFit: 'contain' }}
+                  />
+                </div>
               </div>
             </div>
           </div>
           
-          <div className="text-sm text-gray-600 text-center pt-4 border-t">
-            <p className="font-medium">
-              Preview shows {tiles.find(t => t.id === wallSelection.layers[0]?.tileId)?.size_breadth! > tiles.find(t => t.id === wallSelection.layers[0]?.tileId)?.size_length! ? '6' : '4'} tiles per layer maintaining actual proportions
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Layers stack from bottom (L1) to top • Auto-scaled for {wallSelection.layers.length} layers
+          <div className="text-sm text-gray-600 text-center mt-4">
+            <p>
+               Preview shows tiles maintaining actual proportions • Auto-scaled for {wallSelection.layers.length} layers
             </p>
           </div>
         </DialogContent>
