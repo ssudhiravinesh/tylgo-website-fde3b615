@@ -282,13 +282,13 @@ export const WallTileSelectionPage = ({
     const tileBreadth = firstTile.size_breadth || 600;
     
     // Calculate aspect ratio (preserve at all costs)
-    const aspectRatio = tileLength / tileBreadth;
+    const aspectRatio = tileBreadth / tileLength;
     
     // Calculate tile width to fill 90% of dialog width
     const tileWidth = targetCanvasWidth / tilesPerLayer;
     
     // Calculate tile height maintaining aspect ratio
-    const tileHeight = tileWidth / aspectRatio;
+    const tileHeight = tileWidth * aspectRatio;
     
     // Calculate required canvas height
     const requiredHeight = layerCount * tileHeight;
