@@ -209,6 +209,44 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       [tileId]: (prev[tileId] || 0) + delta
     }));
   };
+
+  const handleRoundOff = () => {
+    // Check if already rounded
+    if (grandTotal % 100 === 0) {
+      toast.info('Grand total is already rounded to the nearest hundred');
+      return;
+    }
+    
+    // Calculate rounded grand total (round down to nearest 100)
+    const roundedGrandTotal = Math.floor(grandTotal / 100) * 100;
+    
+    // Check if rounding would result in negative or zero
+    if (roundedGrandTotal <= 0) {
+      toast.error('Cannot round off: resulting total would be zero or negative');
+      return;
+    }
+    
+    // Calculate new discount amount needed to achieve the rounded total
+    const newDiscountAmount = mrp - roundedGrandTotal;
+    
+    // Calculate new discount percentage
+    const newDiscountPercentage = (newDiscountAmount / mrp) * 100;
+    
+    // Check if discount would exceed 100%
+    if (newDiscountPercentage > 100) {
+      toast.error('Cannot round off: would result in discount > 100%');
+      return;
+    }
+    
+    // Update the discount percentage
+    setDiscountPercentage(newDiscountPercentage.toFixed(2));
+    
+    // Show success message
+    toast.success(
+      `Rounded ₹${grandTotal.toLocaleString()} → ₹${roundedGrandTotal.toLocaleString()} (Discount: ${newDiscountPercentage.toFixed(2)}%)`
+    );
+  };
+
   const handleSave = async () => {
     try {
       await updateQuotation({
@@ -561,7 +599,22 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 
                 <div className="flex justify-between items-center border-t pt-2">
                   <span className="text-xl font-bold text-gray-800">Grand Total:</span>
-                  <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRoundOff}
+                      disabled={grandTotal <= 0}
+                      className="gap-1 h-8"
+                      title="Round down to nearest hundred"
+                    >
+                      <Calculator className="h-3 w-3" />
+                      Round Off
+                    </Button>
+                    <span className="text-xl font-bold text-green-600">
+                      ₹{grandTotal.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
                 
                 <p className="text-xs text-gray-500">
