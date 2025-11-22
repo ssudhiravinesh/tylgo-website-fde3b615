@@ -40,14 +40,6 @@ export const WorkerCard = ({ worker, onViewQuotations, onResetPassword, onDelete
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onViewQuotations(worker)}
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          View Quotations
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
           onClick={() => onResetPassword(worker)}
         >
           <Key className="h-4 w-4 mr-1" />
