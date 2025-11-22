@@ -1,17 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { FileText, Eye, Key, Trash2, CheckCircle, Clock } from "lucide-react";
 import type { Worker } from "@/hooks/useWorkerData";
-
 interface WorkerCardProps {
   worker: Worker;
   onViewQuotations: (worker: Worker) => void;
   onResetPassword: (worker: Worker) => void;
   onDelete: (worker: Worker) => void;
 }
-
-export const WorkerCard = ({ worker, onViewQuotations, onResetPassword, onDelete }: WorkerCardProps) => {
-  return (
-    <div className="flex items-center justify-between p-4 border rounded-lg">
+export const WorkerCard = ({
+  worker,
+  onViewQuotations,
+  onResetPassword,
+  onDelete
+}: WorkerCardProps) => {
+  return <div className="flex items-center justify-between p-4 border rounded-lg">
       <div className="flex-1">
         <h3 className="font-medium text-gray-800">{worker.name}</h3>
         <p className="text-sm text-gray-600">{worker.email}</p>
@@ -37,32 +39,15 @@ export const WorkerCard = ({ worker, onViewQuotations, onResetPassword, onDelete
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onViewQuotations(worker)}
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          View Quotations
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onResetPassword(worker)}
-        >
+        
+        <Button variant="outline" size="sm" onClick={() => onResetPassword(worker)}>
           <Key className="h-4 w-4 mr-1" />
           Reset Password
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onDelete(worker)}
-          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
+        <Button variant="outline" size="sm" onClick={() => onDelete(worker)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
           <Trash2 className="h-4 w-4 mr-1" />
           Delete
         </Button>
       </div>
-    </div>
-  );
+    </div>;
 };
