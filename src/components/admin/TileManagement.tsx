@@ -701,6 +701,9 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       <div className="flex items-center gap-2">
                         {tile.qr_code_url ? (
                           <>
+                            <Badge variant="outline" className="text-green-600 border-green-200">
+                              Generated
+                            </Badge>
                             <Button
                               variant="outline"
                               size="sm"
