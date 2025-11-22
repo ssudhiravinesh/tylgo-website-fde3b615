@@ -211,18 +211,18 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   };
 
   const handleRoundOff = () => {
-    // Check if already rounded
-    if (grandTotal % 100 === 0) {
-      toast.info('Grand total is already rounded to the nearest hundred');
-      return;
-    }
+    let roundedGrandTotal: number;
     
-    // Calculate rounded grand total (round down to nearest 100)
-    const roundedGrandTotal = Math.floor(grandTotal / 100) * 100;
+    // If already rounded to 100, reduce by another 100
+    // Otherwise, round down to nearest 100
+    if (grandTotal % 100 === 0) {
+      roundedGrandTotal = grandTotal - 100;
+    } else {
+      roundedGrandTotal = Math.floor(grandTotal / 100) * 100;
+    }
     
     // Check if rounding would result in negative or zero
     if (roundedGrandTotal <= 0) {
-      toast.error('Cannot round off: resulting total would be zero or negative');
       return;
     }
     
@@ -234,17 +234,11 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
     
     // Check if discount would exceed 100%
     if (newDiscountPercentage > 100) {
-      toast.error('Cannot round off: would result in discount > 100%');
       return;
     }
     
     // Update the discount percentage
     setDiscountPercentage(newDiscountPercentage.toFixed(2));
-    
-    // Show success message
-    toast.success(
-      `Rounded ₹${grandTotal.toLocaleString()} → ₹${roundedGrandTotal.toLocaleString()} (Discount: ${newDiscountPercentage.toFixed(2)}%)`
-    );
   };
 
   const handleSave = async () => {
