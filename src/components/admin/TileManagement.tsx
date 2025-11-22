@@ -78,7 +78,8 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
   const filteredTiles = tiles.filter(tile =>
     tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tile.code.toLowerCase().includes(searchTerm.toLowerCase())
+    tile.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (tile.category && tile.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Get unique categories for dropdown
@@ -319,7 +320,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search by tile name or code..."
+            placeholder="Search by tile name, code, or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
