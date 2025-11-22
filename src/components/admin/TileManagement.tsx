@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,9 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [categoryInput, setCategoryInput] = useState("");
+  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
+  const categoryInputRef = useRef<HTMLInputElement>(null);
 
   const { data: tiles = [], isLoading } = useTiles();
   const createTileMutation = useCreateTile();
@@ -84,6 +87,11 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
   // Get unique categories for dropdown
   const categories = Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean)));
+  
+  // Filter categories based on current input
+  const filteredCategories = categories.filter(cat => 
+    cat.toLowerCase().includes(categoryInput.toLowerCase())
+  );
   
   // Always show bulk price update button if there are categories
   const shouldShowPriceUpdateButton = categories.length > 0;
@@ -508,29 +516,51 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                    />
                  </div>
 
-                 {/* Category Field */}
-                 <FormField
-                   control={form.control}
-                   name="category"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Category</FormLabel>
-                       <FormControl>
-                         <Input 
-                           {...field} 
-                           placeholder="e.g., Bathroom, Kitchen, Living Room" 
-                           list="categories-list"
-                         />
-                       </FormControl>
-                       <datalist id="categories-list">
-                         {categories.map((category) => (
-                           <option key={category} value={category} />
-                         ))}
-                       </datalist>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
+                  {/* Category Field */}
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem className="relative">
+                        <FormLabel>Category</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field}
+                            ref={categoryInputRef}
+                            placeholder="e.g., Bathroom, Kitchen, Living Room"
+                            onFocus={() => setShowCategorySuggestions(true)}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              setCategoryInput(e.target.value);
+                              setShowCategorySuggestions(true);
+                            }}
+                            onBlur={() => {
+                              // Delay to allow click on suggestion
+                              setTimeout(() => setShowCategorySuggestions(false), 200);
+                            }}
+                          />
+                        </FormControl>
+                        {showCategorySuggestions && filteredCategories.length > 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                            {filteredCategories.map((category) => (
+                              <div
+                                key={category}
+                                className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+                                onClick={() => {
+                                  field.onChange(category);
+                                  setCategoryInput(category);
+                                  setShowCategorySuggestions(false);
+                                }}
+                              >
+                                {category}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                  {/* Image Section */}
                 <div className="space-y-3">
@@ -933,20 +963,41 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                  control={form.control}
                  name="category"
                  render={({ field }) => (
-                   <FormItem>
+                   <FormItem className="relative">
                      <FormLabel>Category</FormLabel>
                      <FormControl>
                        <Input 
-                         {...field} 
-                         placeholder="e.g., Bathroom, Kitchen, Living Room" 
-                         list="categories-list-edit"
+                         {...field}
+                         placeholder="e.g., Bathroom, Kitchen, Living Room"
+                         onFocus={() => setShowCategorySuggestions(true)}
+                         onChange={(e) => {
+                           field.onChange(e);
+                           setCategoryInput(e.target.value);
+                           setShowCategorySuggestions(true);
+                         }}
+                         onBlur={() => {
+                           // Delay to allow click on suggestion
+                           setTimeout(() => setShowCategorySuggestions(false), 200);
+                         }}
                        />
                      </FormControl>
-                     <datalist id="categories-list-edit">
-                       {categories.map((category) => (
-                         <option key={category} value={category} />
-                       ))}
-                     </datalist>
+                     {showCategorySuggestions && filteredCategories.length > 0 && (
+                       <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                         {filteredCategories.map((category) => (
+                           <div
+                             key={category}
+                             className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+                             onClick={() => {
+                               field.onChange(category);
+                               setCategoryInput(category);
+                               setShowCategorySuggestions(false);
+                             }}
+                           >
+                             {category}
+                           </div>
+                         ))}
+                       </div>
+                     )}
                      <FormMessage />
                    </FormItem>
                  )}
