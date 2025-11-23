@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
+// We define Profile based on your schema
 interface Profile {
   id: string;
   name: string;
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Ref to track the current session ID without triggering re-renders
+  // Track the current session token for this specific browser tab
   const currentSessionToken = useRef<string | null>(null);
 
   const signOut = async () => {
@@ -38,6 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const { error } = await supabase.auth.signOut();
       if (error) {
+        // Ignore "session missing" errors as we are signing out anyway
         if (error.message?.includes('session') && error.message?.includes('missing')) {
           setUser(null);
           setProfile(null);
@@ -58,27 +60,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Helper to enforce single session
+  // --- SINGLE SESSION ENFORCEMENT LOGIC ---
   const validateSession = async (userId: string) => {
     try {
       const localToken = sessionStorage.getItem('anuj_session_token');
+      
+      // If we don't have a local token but are logged in, we might be in an invalid state
+      // or it's a fresh page load where we need to re-verify.
       
       const { data, error } = await supabase
         .from('user_sessions')
         .select('session_token')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // Use maybeSingle to avoid 406 errors if no row exists
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error validating session:', error);
         return;
       }
 
-      // If DB has a token but it doesn't match our local one, we are invalid
+      // 1. If no session exists in DB, but user is logged in, something is wrong.
+      // 2. If DB has a token, but it doesn't match our local tab's token, we are the "old" tab.
       if (data && data.session_token !== localToken) {
-        console.log('Session invalid: DB token mismatch. Logging out.');
+        console.log('Session invalid: DB token mismatch. Logging out this tab.');
         await signOut();
-        toast.error('You have been logged out because a new session was started in another tab or device.');
+        toast.error('You have been logged out because you signed in on another device/tab.');
       }
     } catch (err) {
       console.error('Session validation check failed:', err);
@@ -88,26 +94,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     console.log('Auth: Setting up auth state listener');
     
-    // 1. Listen for Supabase Auth changes
+    // 1. Listen for Supabase Auth changes (Login/Logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth: State changed -', event, session?.user?.id);
       
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
-        setTimeout(() => fetchProfile(session.user.id), 0);
         
-        // Check if we have a valid session token in DB matching ours
+        // Immediately check if this session is valid
         validateSession(session.user.id);
         
+        // Fetch profile
+        fetchProfile(session.user.id);
+        
       } else if (event === 'SIGNED_OUT') {
-        console.log('Auth: User signed out');
         setUser(null);
         setProfile(null);
         setLoading(false);
         sessionStorage.removeItem('anuj_session_token');
       } else if (session?.user) {
         setUser(session.user);
-        setTimeout(() => fetchProfile(session.user.id), 0);
+        fetchProfile(session.user.id);
       } else {
         setUser(null);
         setProfile(null);
@@ -115,25 +122,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    // 2. Realtime Subscription for Single Session Enforcement
+    // 2. Realtime Subscription: Watch for "user_sessions" changes
+    // This allows us to instantly logout Tab A when Tab B logs in.
     const channel = supabase.channel('session_enforcement')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: '*', // Listen for inserts/updates
           schema: 'public',
           table: 'user_sessions',
         },
         (payload) => {
-          // Only care about updates for the CURRENT user
+          // Only care if the update is for the currently logged-in user
           if (user && payload.new && (payload.new as any).user_id === user.id) {
             const newDbToken = (payload.new as any).session_token;
             const localToken = sessionStorage.getItem('anuj_session_token');
             
-            // If the token in DB changed to something that isn't what we have, we are old.
+            // If the database says the valid token is X, but we hold Y, we must logout.
             if (newDbToken && newDbToken !== localToken) {
-              console.log('Realtime: Session token changed in DB. We are now invalid.');
-              signOut();
+              console.log('Realtime: Another tab took over the session.');
+              signOut(); 
               toast.error('Session expired. You logged in from another location.');
             }
           }
@@ -141,7 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       )
       .subscribe();
 
-    // 3. Initial Auth Check
+    // 3. Initial Load Check
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -154,6 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           setUser(session.user);
           await fetchProfile(session.user.id);
+          // Check session validity on page reload
           await validateSession(session.user.id);
         } else {
           setLoading(false);
@@ -170,10 +179,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [user?.id]); // Re-run subscription setup when user changes
+  }, [user?.id]); // Re-subscribe if the user ID changes
 
   const fetchProfile = async (userId: string) => {
     try {
+      // It is safe to fetch from 'profiles' for UI display purposes
+      // The real security is handled by RLS on table access
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -181,16 +192,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
-        setLoading(false);
+        // If profile fetch fails, we don't block the app, but user details might be missing
+        console.error("Profile fetch error", error);
         return;
       }
 
       if (data) {
-        setProfile(data);
+        // Cast the string role from DB to our specific union type
+        const typedProfile: Profile = {
+          ...data,
+          role: (data.role === 'admin' || data.role === 'worker') ? data.role : 'worker'
+        };
+        setProfile(typedProfile);
       }
     } catch (error) {
       console.error('Auth: Exception while fetching profile:', error);
-      toast.error('Error loading user profile');
     } finally {
       setLoading(false);
     }
@@ -229,16 +245,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) throw error;
 
-      // --- Single Session Logic Start ---
       if (data.user) {
-        // 1. Generate a new unique session token for this tab/login instance
+        // --- SINGLE SESSION IMPLEMENTATION ---
+        
+        // 1. Generate a random session token for this specific login instance
         const newSessionToken = crypto.randomUUID();
         
-        // 2. Save to sessionStorage (specific to this tab)
+        // 2. Store it in sessionStorage (This dies when the tab is closed)
         sessionStorage.setItem('anuj_session_token', newSessionToken);
         currentSessionToken.current = newSessionToken;
 
-        // 3. Update the database to say "This is the only valid token now"
+        // 3. Update the database: "This user's ONLY valid token is now [newSessionToken]"
+        // This effectively invalidates any other active tokens in other tabs/browsers
         const { error: sessionError } = await supabase
           .from('user_sessions')
           .upsert({ 
@@ -248,11 +266,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }, { onConflict: 'user_id' });
 
         if (sessionError) {
-          console.error('Failed to register session:', sessionError);
-          // We don't block login, but single session might be flaky if this fails
+          console.error('Failed to register session token:', sessionError);
+          // We proceed, but single-session enforcement might be flaky for this login
         }
       }
-      // --- Single Session Logic End ---
       
       toast.success('Signed in successfully!');
       return { user: data.user };
