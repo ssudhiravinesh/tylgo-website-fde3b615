@@ -140,9 +140,10 @@ export const useUnifiedPDFGeneration = () => {
       }
     };
 
+    // UPDATED CSS: Changed 'body' selector to '.pdf-container'
     const styles = `
       <style>
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; line-height: 1.4; color: #000; margin: 0; padding: 20px; background: white; }
+        .pdf-container { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; line-height: 1.4; color: #000; padding: 20px; background: white; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
         .company-name { font-size: 24px; font-weight: bold; color: #2563eb; margin: 0; }
         .document-type { font-size: 16px; color: #666; margin: 5px 0 0 0; font-weight: normal; }
@@ -167,9 +168,9 @@ export const useUnifiedPDFGeneration = () => {
       </style>
     `;
 
-    // HTML Construction (Same as before)
+    // Wrapped content in .pdf-container
     return `
-      <div class="container">
+      <div class="pdf-container">
         ${styles}
         <div class="header">
           <h1 class="company-name">TYLGO</h1>
@@ -282,9 +283,10 @@ export const useUnifiedPDFGeneration = () => {
       return { ...tile, imageSrc: base64Data || directUrl };
     }));
 
+    // UPDATED CSS
     const styles = `
       <style>
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; color: #000; padding: 20px; background: white; }
+        .pdf-container { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; color: #000; padding: 20px; background: white; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
         .report-title { font-size: 20px; font-weight: bold; color: #1f2937; margin-bottom: 5px; }
         .report-info { font-size: 12px; color: #6b7280; margin-bottom: 20px; text-align: center; }
@@ -297,7 +299,7 @@ export const useUnifiedPDFGeneration = () => {
     `;
 
     return `
-      <div class="container">
+      <div class="pdf-container">
         ${styles}
         <div class="header">
           <h1 class="report-title">Tiles Inventory Report</h1>
@@ -336,14 +338,14 @@ export const useUnifiedPDFGeneration = () => {
       const container = document.createElement('div');
       container.innerHTML = htmlContent;
       
-      // === FIX FOR BLANK PDF ===
-      // Position element at 0,0 but hide it BEHIND the app using z-index
-      container.style.position = 'absolute';
-      container.style.left = '0px';
+      // === FIX FOR BLANK PDF: OFF-SCREEN RIGHT ===
+      container.style.position = 'fixed';
+      container.style.left = '100vw'; // Off-screen to the right (safer than negative left)
       container.style.top = '0px';
-      container.style.zIndex = '-9999';
       container.style.width = '800px'; 
-      container.style.backgroundColor = 'white'; // Force white background
+      container.style.backgroundColor = 'white'; // Ensure background is white
+      container.style.zIndex = '9999'; // High z-index to ensure it "renders" even if off-screen
+      
       document.body.appendChild(container);
 
       const options = {
@@ -355,14 +357,14 @@ export const useUnifiedPDFGeneration = () => {
           useCORS: true, 
           allowTaint: true, 
           logging: false,
-          scrollY: 0 // Force scroll to top
+          scrollY: 0,
+          windowWidth: 800 // Force canvas to recognize 800px width
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
       await html2pdf().set(options).from(container).save();
 
-      // Small delay before cleanup to ensure capture is done
       setTimeout(() => {
         if (document.body.contains(container)) document.body.removeChild(container);
       }, 500);
@@ -387,19 +389,20 @@ export const useUnifiedPDFGeneration = () => {
       container.innerHTML = htmlContent;
       
       // === FIX FOR BLANK PDF ===
-      container.style.position = 'absolute';
-      container.style.left = '0px';
+      container.style.position = 'fixed';
+      container.style.left = '100vw';
       container.style.top = '0px';
-      container.style.zIndex = '-9999';
       container.style.width = '800px';
       container.style.backgroundColor = 'white';
+      container.style.zIndex = '9999';
+
       document.body.appendChild(container);
 
       const options = {
         margin: [10, 10, 10, 10],
         filename: `Tiles_Inventory_${new Date().toISOString().slice(0,10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, allowTaint: true, scrollY: 0 },
+        html2canvas: { scale: 2, useCORS: true, allowTaint: true, scrollY: 0, windowWidth: 800 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
