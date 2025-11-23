@@ -30,7 +30,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Ref to track the current session ID locally without triggering re-renders
   const currentSessionToken = useRef<string | null>(null);
 
-  // CRITICAL FIX: A "Lock" to prevent validation from running while we are still processing a login
+  // === CRITICAL FIX: THE LOGIN LOCK ===
+  // This prevents the auth listener from kicking you out while 
+  // the signIn function is still setting up your session.
   const isLoggingIn = useRef(false);
 
   const signOut = async () => {
@@ -43,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 2. Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
+        // Ignore "session missing" errors as we are signing out anyway
         if (error.message?.includes('session') && error.message?.includes('missing')) {
           setUser(null);
           setProfile(null);
@@ -65,8 +68,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // --- SINGLE SESSION ENFORCEMENT LOGIC ---
   const validateSession = async (userId: string) => {
-    // CRITICAL FIX: If we are in the middle of a login action, DO NOT check validity yet.
-    // The signIn function will handle the setup.
+    // FIX: If we are actively logging in, SKIP validation. 
+    // We trust signIn() to set the token correctly.
     if (isLoggingIn.current) {
       console.log('Auth: Skipping validation during active login process');
       return;
@@ -75,13 +78,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const localToken = sessionStorage.getItem('anuj_session_token');
       
-      // If we don't have a local token, but we are not logging in, it's a suspicious state.
-      // However, to prevent loops on fresh loads, we might want to be lenient or check DB.
-      if (!localToken) {
-        // Optional: You could force logout here if you want strict enforcement on refresh
-        // For now, we rely on the DB check below.
-      }
-
       const { data, error } = await supabase
         .from('user_sessions')
         .select('session_token')
@@ -93,9 +89,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // LOGIC:
+      // Logic:
       // 1. If DB has a token (data exists)
-      // 2. AND that token does NOT match what is in our browser (localToken)
+      // 2. AND that token does NOT match our local storage token
       // 3. THEN -> We are the "old" tab. Logout.
       if (data && data.session_token && data.session_token !== localToken) {
         console.log('Session invalid: DB token mismatch. Logging out this tab.');
@@ -117,9 +113,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         
-        // Check validity (Will be skipped if isLoggingIn.current is true)
+        // Immediately check if this session is valid (Skipped if isLoggingIn is true)
         validateSession(session.user.id);
         
+        // Fetch profile details
         fetchProfile(session.user.id);
         
       } else if (event === 'SIGNED_OUT') {
@@ -153,8 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const newDbToken = (payload.new as any).session_token;
             const localToken = sessionStorage.getItem('anuj_session_token');
             
-            // CRITICAL: If I am the one logging in (isLoggingIn=true), ignore this event.
-            // I am the one causing the event!
+            // FIX: If *I* am the one logging in, ignore this event (I caused it!)
             if (isLoggingIn.current) return;
 
             // If the database says the valid token is X, but we hold Y, we must logout.
@@ -168,7 +164,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       )
       .subscribe();
 
-    // 3. Initial Load Check
+    // 3. Initial Load Check & Self-Healing
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -181,7 +177,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           setUser(session.user);
           await fetchProfile(session.user.id);
-          // Check session validity on page reload
+
+          // === SELF HEALING ===
+          // If we have a Supabase user but NO local session token (e.g., after a hard refresh or weird state),
+          // we should claim the session instead of dying.
+          let localToken = sessionStorage.getItem('anuj_session_token');
+          if (!localToken) {
+             console.log("Auth: Restoring lost session token...");
+             const newToken = crypto.randomUUID();
+             sessionStorage.setItem('anuj_session_token', newToken);
+             currentSessionToken.current = newToken;
+             
+             // Update DB to say "I am the captain now"
+             await supabase.from('user_sessions').upsert({
+                user_id: session.user.id,
+                session_token: newToken,
+                last_active: new Date().toISOString()
+             });
+          }
+
+          // Check session validity
           await validateSession(session.user.id);
         } else {
           setLoading(false);
@@ -198,7 +213,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [user?.id]); 
+  }, [user?.id]); // Re-subscribe if the user ID changes
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -255,7 +270,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       
       // 1. LOCK: Tell the system we are performing a login
-      // This prevents the auth listener from kicking us out before we finish setup
       isLoggingIn.current = true;
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -271,7 +285,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // 2. Generate a random session token for this specific login instance
         const newSessionToken = crypto.randomUUID();
         
-        // 3. Store it in sessionStorage
+        // 3. Store it in sessionStorage (This dies when the tab is closed)
         sessionStorage.setItem('anuj_session_token', newSessionToken);
         currentSessionToken.current = newSessionToken;
 
@@ -297,8 +311,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     } finally {
       // 5. UNLOCK: Login complete, validation checks can resume
-      isLoggingIn.current = false;
-      setLoading(false);
+      // We add a small delay to ensure DB writes have propagated
+      setTimeout(() => {
+        isLoggingIn.current = false;
+        setLoading(false);
+      }, 500);
     }
   };
 
