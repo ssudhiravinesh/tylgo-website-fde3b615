@@ -27,19 +27,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Track the current session token for this specific browser tab
+  // Ref to track the current session ID locally without triggering re-renders
   const currentSessionToken = useRef<string | null>(null);
+
+  // CRITICAL FIX: A "Lock" to prevent validation from running while we are still processing a login
+  const isLoggingIn = useRef(false);
 
   const signOut = async () => {
     try {
       setLoading(true);
-      // Clear local session tracking
+      // 1. Clear local session tracking immediately
       sessionStorage.removeItem('anuj_session_token');
       currentSessionToken.current = null;
 
+      // 2. Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
-        // Ignore "session missing" errors as we are signing out anyway
         if (error.message?.includes('session') && error.message?.includes('missing')) {
           setUser(null);
           setProfile(null);
@@ -62,26 +65,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // --- SINGLE SESSION ENFORCEMENT LOGIC ---
   const validateSession = async (userId: string) => {
+    // CRITICAL FIX: If we are in the middle of a login action, DO NOT check validity yet.
+    // The signIn function will handle the setup.
+    if (isLoggingIn.current) {
+      console.log('Auth: Skipping validation during active login process');
+      return;
+    }
+
     try {
       const localToken = sessionStorage.getItem('anuj_session_token');
       
-      // If we don't have a local token but are logged in, we might be in an invalid state
-      // or it's a fresh page load where we need to re-verify.
-      
+      // If we don't have a local token, but we are not logging in, it's a suspicious state.
+      // However, to prevent loops on fresh loads, we might want to be lenient or check DB.
+      if (!localToken) {
+        // Optional: You could force logout here if you want strict enforcement on refresh
+        // For now, we rely on the DB check below.
+      }
+
       const { data, error } = await supabase
         .from('user_sessions')
         .select('session_token')
         .eq('user_id', userId)
-        .maybeSingle(); // Use maybeSingle to avoid 406 errors if no row exists
+        .maybeSingle(); 
 
       if (error) {
         console.error('Error validating session:', error);
         return;
       }
 
-      // 1. If no session exists in DB, but user is logged in, something is wrong.
-      // 2. If DB has a token, but it doesn't match our local tab's token, we are the "old" tab.
-      if (data && data.session_token !== localToken) {
+      // LOGIC:
+      // 1. If DB has a token (data exists)
+      // 2. AND that token does NOT match what is in our browser (localToken)
+      // 3. THEN -> We are the "old" tab. Logout.
+      if (data && data.session_token && data.session_token !== localToken) {
         console.log('Session invalid: DB token mismatch. Logging out this tab.');
         await signOut();
         toast.error('You have been logged out because you signed in on another device/tab.');
@@ -101,10 +117,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         
-        // Immediately check if this session is valid
+        // Check validity (Will be skipped if isLoggingIn.current is true)
         validateSession(session.user.id);
         
-        // Fetch profile
         fetchProfile(session.user.id);
         
       } else if (event === 'SIGNED_OUT') {
@@ -138,6 +153,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const newDbToken = (payload.new as any).session_token;
             const localToken = sessionStorage.getItem('anuj_session_token');
             
+            // CRITICAL: If I am the one logging in (isLoggingIn=true), ignore this event.
+            // I am the one causing the event!
+            if (isLoggingIn.current) return;
+
             // If the database says the valid token is X, but we hold Y, we must logout.
             if (newDbToken && newDbToken !== localToken) {
               console.log('Realtime: Another tab took over the session.');
@@ -179,12 +198,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [user?.id]); // Re-subscribe if the user ID changes
+  }, [user?.id]); 
 
   const fetchProfile = async (userId: string) => {
     try {
-      // It is safe to fetch from 'profiles' for UI display purposes
-      // The real security is handled by RLS on table access
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -192,13 +209,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
-        // If profile fetch fails, we don't block the app, but user details might be missing
         console.error("Profile fetch error", error);
         return;
       }
 
       if (data) {
-        // Cast the string role from DB to our specific union type
         const typedProfile: Profile = {
           ...data,
           role: (data.role === 'admin' || data.role === 'worker') ? data.role : 'worker'
@@ -238,6 +253,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      
+      // 1. LOCK: Tell the system we are performing a login
+      // This prevents the auth listener from kicking us out before we finish setup
+      isLoggingIn.current = true;
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -248,15 +268,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (data.user) {
         // --- SINGLE SESSION IMPLEMENTATION ---
         
-        // 1. Generate a random session token for this specific login instance
+        // 2. Generate a random session token for this specific login instance
         const newSessionToken = crypto.randomUUID();
         
-        // 2. Store it in sessionStorage (This dies when the tab is closed)
+        // 3. Store it in sessionStorage
         sessionStorage.setItem('anuj_session_token', newSessionToken);
         currentSessionToken.current = newSessionToken;
 
-        // 3. Update the database: "This user's ONLY valid token is now [newSessionToken]"
-        // This effectively invalidates any other active tokens in other tabs/browsers
+        // 4. Update the database
         const { error: sessionError } = await supabase
           .from('user_sessions')
           .upsert({ 
@@ -267,7 +286,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (sessionError) {
           console.error('Failed to register session token:', sessionError);
-          // We proceed, but single-session enforcement might be flaky for this login
         }
       }
       
@@ -278,6 +296,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast.error(error.message || 'Error signing in');
       throw error;
     } finally {
+      // 5. UNLOCK: Login complete, validation checks can resume
+      isLoggingIn.current = false;
       setLoading(false);
     }
   };
