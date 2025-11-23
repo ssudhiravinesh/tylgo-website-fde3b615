@@ -19,179 +19,176 @@ export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Helper function to wait for all images to load in a window
-const waitForAllImages = (win: Window): Promise<void> => {
-  return new Promise((resolve) => {
-    const images = Array.from(win.document.images);
-    
-    if (images.length === 0) {
-      console.log('[PDF Generation] No images found, proceeding');
-      resolve();
-      return;
-    }
-
-    let loadedCount = 0;
-    let errorCount = 0;
-    const totalImages = images.length;
-    const maxWaitTime = 25000; // Extended for Chrome print bug
-
-    console.log(`[PDF Generation] Chrome print bug fix: checking ${totalImages} images...`);
-
-    const checkComplete = () => {
-      if (loadedCount + errorCount >= totalImages) {
-        console.log(`[PDF Generation] Images processed: ${loadedCount} loaded, ${errorCount} failed`);
-        
-        // Chrome print bug fix: Force reload all images once more
-        console.log('[PDF Generation] Applying Chrome print context fix...');
-        images.forEach((img, index) => {
-          if (img.src && img.complete && img.naturalWidth > 0) {
-            // Force reload to ensure print context readiness
-            const src = img.src;
-            img.src = '';
-            img.src = src;
-            console.log(`[PDF Generation] ✓ Image ${index + 1} ready for print`);
-          }
-        });
-        
-        setTimeout(resolve, 1000); // Final stabilization delay
+  const waitForAllImages = (win: Window): Promise<void> => {
+    return new Promise((resolve) => {
+      const images = Array.from(win.document.images);
+      
+      if (images.length === 0) {
+        console.log('[PDF Generation] No images found, proceeding');
+        resolve();
         return;
       }
-    };
 
-    images.forEach((img, index) => {
-      if (img.complete && img.naturalWidth > 0) {
-        loadedCount++;
-        console.log(`[PDF Generation] Image ${index + 1} already loaded`);
-      } else {
-        const loadHandler = () => {
-          if (img.naturalWidth > 0) {
-            loadedCount++;
-            console.log(`[PDF Generation] Image ${index + 1} loaded successfully`);
-          } else {
+      let loadedCount = 0;
+      let errorCount = 0;
+      const totalImages = images.length;
+      const maxWaitTime = 25000; // Extended for Chrome print bug
+
+      console.log(`[PDF Generation] Chrome print bug fix: checking ${totalImages} images...`);
+
+      const checkComplete = () => {
+        if (loadedCount + errorCount >= totalImages) {
+          console.log(`[PDF Generation] Images processed: ${loadedCount} loaded, ${errorCount} failed`);
+          
+          // Chrome print bug fix: Force reload all images once more
+          console.log('[PDF Generation] Applying Chrome print context fix...');
+          images.forEach((img, index) => {
+            if (img.src && img.complete && img.naturalWidth > 0) {
+              // Force reload to ensure print context readiness
+              const src = img.src;
+              img.src = '';
+              img.src = src;
+              console.log(`[PDF Generation] ✓ Image ${index + 1} ready for print`);
+            }
+          });
+          
+          setTimeout(resolve, 1000); // Final stabilization delay
+          return;
+        }
+      };
+
+      images.forEach((img, index) => {
+        if (img.complete && img.naturalWidth > 0) {
+          loadedCount++;
+          console.log(`[PDF Generation] Image ${index + 1} already loaded`);
+        } else {
+          const loadHandler = () => {
+            if (img.naturalWidth > 0) {
+              loadedCount++;
+              console.log(`[PDF Generation] Image ${index + 1} loaded successfully`);
+            } else {
+              errorCount++;
+            }
+            checkComplete();
+          };
+
+          const errorHandler = () => {
             errorCount++;
-          }
-          checkComplete();
-        };
+            console.log(`[PDF Generation] Image ${index + 1} failed to load`);
+            checkComplete();
+          };
 
-        const errorHandler = () => {
-          errorCount++;
-          console.log(`[PDF Generation] Image ${index + 1} failed to load`);
-          checkComplete();
-        };
+          img.addEventListener('load', loadHandler, { once: true });
+          img.addEventListener('error', errorHandler, { once: true });
 
-        img.addEventListener('load', loadHandler, { once: true });
-        img.addEventListener('error', errorHandler, { once: true });
+          // Chrome bug fix: Force image reload
+          const currentSrc = img.src;
+          img.src = '';
+          setTimeout(() => {
+            img.src = currentSrc;
+          }, 100);
+        }
+      });
 
-        // Chrome bug fix: Force image reload
-        const currentSrc = img.src;
-        img.src = '';
-        setTimeout(() => {
-          img.src = currentSrc;
-        }, 100);
-      }
+      checkComplete();
+
+      setTimeout(() => {
+        console.log('[PDF Generation] Chrome print bug timeout - proceeding anyway');
+        resolve();
+      }, maxWaitTime);
     });
-
-    checkComplete();
-
-    setTimeout(() => {
-      console.log('[PDF Generation] Chrome print bug timeout - proceeding anyway');
-      resolve();
-    }, maxWaitTime);
-  });
-};
-
-
+  };
 
   // Get direct public URL for Supabase images - simplified for public bucket
-  const getDirectImageUrl = (imageUrl: string): string => {
-  if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
-    return '';
-  }
+  const getDirectImageUrl = (imageUrl: string | null | undefined): string => {
+    if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
+      return '';
+    }
 
-  // If it's already a direct public URL, return as is
-  if (imageUrl.includes('/storage/v1/object/public/tile-images/')) {
-    console.log(`[PDF Generation] Direct public URL detected: ${imageUrl}`);
+    // If it's already a direct public URL, return as is
+    if (imageUrl.includes('/storage/v1/object/public/tile-images/')) {
+      // console.log(`[PDF Generation] Direct public URL detected: ${imageUrl}`);
+      return imageUrl;
+    }
+
+    // Handle different Supabase URL formats
+    try {
+      let filePath = '';
+      
+      if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
+        const parts = imageUrl.split('/storage/v1/object/sign/tile-images/');
+        if (parts.length === 2) {
+          filePath = parts[1].split('?')[0];
+        }
+      } else if (imageUrl.includes('tile-images/')) {
+        const parts = imageUrl.split('tile-images/');
+        if (parts.length === 2) {
+          filePath = parts[1].split('?')[0];
+        }
+      }
+      
+      if (filePath) {
+        const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
+        // console.log(`[PDF Generation] Processed URL: ${imageUrl} -> ${data.publicUrl}`);
+        return data.publicUrl;
+      }
+    } catch (error) {
+      console.warn(`[PDF Generation] Error processing URL ${imageUrl}:`, error);
+    }
+
+    // Return original URL if processing fails
     return imageUrl;
-  }
-
-  // Handle different Supabase URL formats
-  try {
-    let filePath = '';
-    
-    if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
-      const parts = imageUrl.split('/storage/v1/object/sign/tile-images/');
-      if (parts.length === 2) {
-        filePath = parts[1].split('?')[0];
-      }
-    } else if (imageUrl.includes('tile-images/')) {
-      const parts = imageUrl.split('tile-images/');
-      if (parts.length === 2) {
-        filePath = parts[1].split('?')[0];
-      }
-    }
-    
-    if (filePath) {
-      const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
-      console.log(`[PDF Generation] Processed URL: ${imageUrl} -> ${data.publicUrl}`);
-      return data.publicUrl;
-    }
-  } catch (error) {
-    console.warn(`[PDF Generation] Error processing URL ${imageUrl}:`, error);
-  }
-
-  // Return original URL if processing fails
-  return imageUrl;
-};
+  };
 
 
   const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
-         const { 
-        quotation_items = [], 
-        customer, 
-        worker, 
-        quotation_number, 
-        created_at, 
-        notes, 
-        wastage_percentage = 0,
-        discount_percentage = 0,
-        discount_amount = 0
-      } = quotation;
+    const { 
+      quotation_items = [], 
+      customer, 
+      worker, 
+      quotation_number, 
+      created_at, 
+      notes, 
+      wastage_percentage = 0,
+      discount_percentage = 0,
+      discount_amount = 0
+    } = quotation;
 
     // At top of generateQuotationHTML(...)
-const chromeFixCSS = `
-  /* === CHROME PRINT BUG FIXES === */
-  .tile-image {
-    max-width: 50px;
-    max-height: 50px;
-    object-fit: contain;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-    background-color: #fff;
-    display: block !important;
-    margin: 0 auto;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-  }
-  @media print {
-    .tile-image {
-      display: block !important;
-      visibility: visible !important;
-      opacity: 1 !important;
-    }
-    .image-cell {
-      display: table-cell !important;
-      visibility: visible !important;
-    }
-  }
-  @media screen {
-    .tile-image {
-      opacity: 1;
-      visibility: visible;
-    }
-  }
-`;
-
+    const chromeFixCSS = `
+      /* === CHROME PRINT BUG FIXES === */
+      .tile-image {
+        max-width: 50px;
+        max-height: 50px;
+        object-fit: contain;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        background-color: #fff;
+        display: block !important;
+        margin: 0 auto;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+      }
+      @media print {
+        .tile-image {
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+        .image-cell {
+          display: table-cell !important;
+          visibility: visible !important;
+        }
+      }
+      @media screen {
+        .tile-image {
+          opacity: 1;
+          visibility: visible;
+        }
+      }
+    `;
 
     // Group items by tile for calculations
     const tileCalculations: { [tileId: string]: any } = {};
@@ -221,35 +218,41 @@ const chromeFixCSS = `
       }
     });
 
-  // Process images - use actual tile images or fallback to placeholder
-  const totalTiles = Object.keys(tileCalculations).length;
-  console.log(`[PDF Generation] Processing ${totalTiles} tile images...`);
+    // Process images - use actual tile images or fallback to placeholder
+    const totalTiles = Object.keys(tileCalculations).length;
+    console.log(`[PDF Generation] Processing ${totalTiles} tile images...`);
 
-// Process all tile images - use actual image_url from database
-// FIXED CODE - Replace the existing problematic code
-Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
-  let imageUrl = getDirectImageUrl(calc.tile.image_url);
-  let finalUrl: string;
+    // FIXED CODE: Using Promise.all to correctly await async image checks
+    await Promise.all(
+      Object.entries(tileCalculations).map(async ([tileId, calc]) => {
+        let imageUrl = getDirectImageUrl(calc.tile.image_url);
+        let finalUrl: string;
 
-  try {
-    const resp = await fetch(imageUrl, { mode: 'cors' });
-    if (resp.ok) {
-      finalUrl = imageUrl;
-    } else {
-      throw new Error('Image fetch failed');
-    }
-  } catch {
-    // Use fallback placeholder image
-    finalUrl = imageUrl;
-    console.warn(`Using fallback for tile ${calc.tile.code}`);
-  }
+        // If no image URL exists, don't even try to fetch
+        if (!imageUrl) {
+          tileCalculations[tileId].tile_image_direct_url = null;
+          return;
+        }
 
-  tileCalculations[tileId].tile_image_direct_url = finalUrl;
-});
+        try {
+          const resp = await fetch(imageUrl, { mode: 'cors' });
+          if (resp.ok) {
+            finalUrl = imageUrl;
+          } else {
+            throw new Error('Image fetch failed');
+          }
+        } catch (err) {
+          // Use fallback if fetch fails (though we'll handle null url in HTML)
+          finalUrl = imageUrl; 
+          console.warn(`Using fallback logic for tile ${calc.tile.code}`);
+        }
 
+        tileCalculations[tileId].tile_image_direct_url = finalUrl;
+      })
+    );
 
     if (totalTiles > 0) {
-      toast.success(`${totalTiles} tile images ready for PDF generation`);
+      toast.success(`${totalTiles} tile images processed for PDF`);
     }
 
     console.log(`[PDF Generation] All image URLs processed - using direct public URLs from tile-images bucket`);
@@ -274,9 +277,7 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
     
     const calculations = Object.values(tileCalculations);
     const mrp = calculations.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
-    const discountPercentage = quotation.discount_percentage || 0;
-    const discountAmount = quotation.discount_amount || 0;
-    const finalTotal = mrp - discountAmount;
+    const finalTotal = mrp - discount_amount;
     const totalBoxes = calculations.reduce((sum: number, calc: any) => sum + calc.boxesNeeded, 0);
 
     const totalTileTypes = Object.keys(tileCalculations).length;
@@ -392,7 +393,7 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
         <meta charset="UTF-8">
         <title>Quotation ${quotation_number}</title>
         <style>
-          ${chromeFixCSS}   
+          ${chromeFixCSS}    
           @media print {
             @page { 
               margin: 0.5in; 
@@ -650,8 +651,8 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
             <p><strong>Status:</strong> ${quotation.status?.toUpperCase() || 'DRAFT'}</p>
             <p><strong>Created by:</strong> ${worker?.name || 'SAMPLE WORKER'}</p>
             <p><strong>Wastage:</strong> ${wastage_percentage}%</p>
-            ${discountPercentage > 0 ? `
-              <p><strong>Discount:</strong> ${discountPercentage}%</p>
+            ${discount_percentage > 0 ? `
+              <p><strong>Discount:</strong> ${discount_percentage}%</p>
             ` : ''}
           </div>
 
@@ -756,14 +757,14 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
             <span class="summary-label">MRP (Before Discount):</span>
             <span class="summary-value">₹${mrp.toLocaleString('en-IN')}</span>
           </div>
-          ${discountPercentage > 0 ? `
+          ${discount_percentage > 0 ? `
             <div class="summary-row discount-row">
-              <span class="summary-label">Discount (${discountPercentage}%):</span>
-              <span class="summary-value">-₹${discountAmount.toLocaleString('en-IN')}</span>
+              <span class="summary-label">Discount (${discount_percentage}%):</span>
+              <span class="summary-value">-₹${discount_amount.toLocaleString('en-IN')}</span>
             </div>
           ` : ''}
           <div class="total-amount">
-            ${discountPercentage > 0 ? 'Final Grand Total:' : 'Total Amount:'} ₹${finalTotal.toLocaleString('en-IN')}
+            ${discount_percentage > 0 ? 'Final Grand Total:' : 'Total Amount:'} ₹${finalTotal.toLocaleString('en-IN')}
           </div>
         </div>
 
