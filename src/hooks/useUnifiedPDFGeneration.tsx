@@ -20,21 +20,17 @@ interface TileData {
 export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Helper: Convert an image URL to a Base64 string
+  // === IMAGE PROXY LOADER ===
   const urlToBase64 = async (url: string): Promise<string | null> => {
     try {
       if (!url) return null;
-
-      // 1. Use a CORS Proxy to bypass Supabase's missing headers
-      // This acts as a "middleman" that adds the permission headers for us
+      // Use proxy to avoid CORS blocks
       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-
-      const response = await fetch(proxyUrl);
       
-      if (!response.ok) throw new Error(`Failed to fetch: ${response.statusText}`);
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error('Proxy fetch failed');
       
       const blob = await response.blob();
-      
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -42,26 +38,16 @@ export const useUnifiedPDFGeneration = () => {
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.warn('[PDF Image Error] Proxy failed, trying direct...', error);
-      // Fallback: Try direct fetch (might work if browser cached it previously)
-      try {
-          const response = await fetch(url, { mode: 'no-cors' }); // 'no-cors' is opaque, but html2canvas might accept it
-          // actually no-cors returns opaque response which cant be blobbed. 
-          // Just return null if proxy fails.
-          return null; 
-      } catch (e) { return null; }
+      console.warn('Proxy image load failed', error);
+      return null;
     }
   };
 
-
   // Get direct public URL for Supabase images
   const getDirectImageUrl = (imageUrl: string | null | undefined): string => {
-    if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
-      return '';
-    }
-    if (imageUrl.includes('/storage/v1/object/public/tile-images/')) {
-      return imageUrl;
-    }
+    if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') return '';
+    if (imageUrl.startsWith('http')) return imageUrl;
+
     try {
       let filePath = '';
       if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
@@ -71,6 +57,7 @@ export const useUnifiedPDFGeneration = () => {
         const parts = imageUrl.split('tile-images/');
         if (parts.length === 2) filePath = parts[1].split('?')[0];
       }
+      
       if (filePath) {
         const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
         return data.publicUrl;
@@ -83,47 +70,30 @@ export const useUnifiedPDFGeneration = () => {
 
   const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
     const { 
-      quotation_items = [], 
-      customer, 
-      worker, 
-      quotation_number, 
-      created_at, 
-      wastage_percentage = 0,
-      discount_percentage = 0,
-      discount_amount = 0
+      quotation_items = [], customer, worker, quotation_number, created_at, 
+      wastage_percentage = 0, discount_percentage = 0, discount_amount = 0
     } = quotation;
 
-    // Group items by tile for calculations
+    // --- Calculation Logic ---
     const tileCalculations: { [tileId: string]: any } = {};
-
     quotation_items.forEach((item: any) => {
       const tileId = item.tile_id;
       if (!tileCalculations[tileId] && item.tile) {
         tileCalculations[tileId] = {
-          tile: item.tile,
-          rooms: [],
-          totalArea: 0,
-          tilesNeeded: 0,
-          boxesNeeded: 0,
-          totalPrice: 0,
-          customBoxAdjustment: item.custom_boxes || 0
+          tile: item.tile, rooms: [], totalArea: 0, tilesNeeded: 0, 
+          boxesNeeded: 0, totalPrice: 0, customBoxAdjustment: item.custom_boxes || 0
         };
       }
       if (item.room && tileCalculations[tileId]) {
         const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
         tileCalculations[tileId].rooms.push({
-          name: item.room.name,
-          area: roomAreaInSqFt,
-          layerNumber: item.layer_number
+          name: item.room.name, area: roomAreaInSqFt, layerNumber: item.layer_number
         });
         tileCalculations[tileId].totalArea += roomAreaInSqFt;
       }
     });
 
-    const totalTiles = Object.keys(tileCalculations).length;
-    console.log(`[PDF Generation] Processing ${totalTiles} tile images...`);
-
-    // 1. PRE-PROCESS IMAGES: Convert all URLs to Base64 Data
+    // Process Images
     await Promise.all(
       Object.entries(tileCalculations).map(async ([tileId, calc]) => {
         const directUrl = getDirectImageUrl(calc.tile.image_url);
@@ -131,13 +101,12 @@ export const useUnifiedPDFGeneration = () => {
           tileCalculations[tileId].tile_image_src = null;
           return;
         }
-        // Convert to Base64
         const base64Data = await urlToBase64(directUrl);
         tileCalculations[tileId].tile_image_src = base64Data || directUrl;
       })
     );
 
-    // Calculate requirements
+    // Calculate Totals
     Object.values(tileCalculations).forEach((calc: any) => {
       const tile = calc.tile;
       if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
@@ -157,8 +126,6 @@ export const useUnifiedPDFGeneration = () => {
     const calculations = Object.values(tileCalculations);
     const mrp = calculations.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
     const finalTotal = mrp - discount_amount;
-    const totalBoxes = calculations.reduce((sum: number, calc: any) => sum + calc.boxesNeeded, 0);
-    const totalTileTypes = Object.keys(tileCalculations).length;
 
     const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
       if (!sizeLength || !sizeBreadth) return 'N/A';
@@ -173,7 +140,6 @@ export const useUnifiedPDFGeneration = () => {
       }
     };
 
-    // CSS embedded directly for html2pdf
     const styles = `
       <style>
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; line-height: 1.4; color: #000; margin: 0; padding: 20px; background: white; }
@@ -192,17 +158,8 @@ export const useUnifiedPDFGeneration = () => {
         .room-cell, .tile-details { text-align: left; font-size: 10px; }
         .tile-code { font-weight: bold; color: #000; }
         .price-cell { text-align: right; font-weight: bold; }
-        
-        /* Image styling for PDF */
         .image-cell { padding: 4px; width: 60px; }
-        .tile-image {
-          width: 50px;
-          height: 50px;
-          object-fit: contain;
-          display: block;
-          margin: 0 auto;
-        }
-        
+        .tile-image { width: 50px; height: 50px; object-fit: contain; display: block; margin: 0 auto; }
         .summary-section { margin-top: 15px; text-align: right; }
         .total-amount { font-size: 16px; font-weight: bold; color: #2563eb; border-top: 2px solid #2563eb; padding-top: 5px; margin-top: 10px; }
         .footer-notes { margin-top: 30px; font-size: 10px; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 15px; }
@@ -210,6 +167,7 @@ export const useUnifiedPDFGeneration = () => {
       </style>
     `;
 
+    // HTML Construction (Same as before)
     return `
       <div class="container">
         ${styles}
@@ -217,12 +175,10 @@ export const useUnifiedPDFGeneration = () => {
           <h1 class="company-name">TYLGO</h1>
           <h2 class="document-type">QUOTATION</h2>
         </div>
-        
         <div class="meta-info">
           <span>${new Date().toLocaleDateString('en-GB')}, ${new Date().toLocaleTimeString('en-US', { hour12: true })}</span>
           <span>Quotation ${quotation_number}</span>
         </div>
-        
         <div class="details-section">
           <div class="details-box">
             <h3>Customer Details</h3>
@@ -239,7 +195,6 @@ export const useUnifiedPDFGeneration = () => {
             ${discount_percentage > 0 ? `<p><strong>Discount:</strong> ${discount_percentage}%</p>` : ''}
           </div>
         </div>
-        
         <div class="table-container">
           <table>
             <thead>
@@ -283,11 +238,7 @@ export const useUnifiedPDFGeneration = () => {
                       <div class="tile-size">${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                     </td>
                     <td class="image-cell">
-                      ${calc.tile_image_src ? `
-                        <img src="${calc.tile_image_src}" class="tile-image" />
-                      ` : `
-                        <span style="font-size:9px;color:#999;">No Image</span>
-                      `}
+                      ${calc.tile_image_src ? `<img src="${calc.tile_image_src}" class="tile-image" alt="Tile" />` : `<span style="font-size:9px;color:#999;">No Image</span>`}
                     </td>
                     <td>
                       ${calc.tilesNeeded}<br>
@@ -302,7 +253,6 @@ export const useUnifiedPDFGeneration = () => {
             </tbody>
           </table>
         </div>
-        
         <div class="summary-section page-break">
           <div class="summary-row">
             <span class="summary-label">MRP:</span>
@@ -314,11 +264,8 @@ export const useUnifiedPDFGeneration = () => {
               <span class="summary-value">-₹${discount_amount.toLocaleString('en-IN')}</span>
             </div>
           ` : ''}
-          <div class="total-amount">
-            Total: ₹${finalTotal.toLocaleString('en-IN')}
-          </div>
+          <div class="total-amount">Total: ₹${finalTotal.toLocaleString('en-IN')}</div>
         </div>
-        
         <div class="footer-notes page-break">
           <p><strong>Thank you for choosing Tile Solutions!</strong></p>
           <p>This quotation is valid for 30 days from the date of issue.</p>
@@ -327,15 +274,11 @@ export const useUnifiedPDFGeneration = () => {
     `;
   };
 
-  // === NEW: TILES REPORT HTML GENERATOR ===
   const generateTilesHTML = async (tiles: TileData[]): Promise<string> => {
-    // 1. Pre-process images for tiles report
     const tilesWithImages = await Promise.all(tiles.map(async (tile) => {
       const directUrl = getDirectImageUrl(tile.image_url);
       let base64Data = null;
-      if (directUrl) {
-        base64Data = await urlToBase64(directUrl);
-      }
+      if (directUrl) base64Data = await urlToBase64(directUrl);
       return { ...tile, imageSrc: base64Data || directUrl };
     }));
 
@@ -363,24 +306,14 @@ export const useUnifiedPDFGeneration = () => {
             <br/>Total Tiles: ${tiles.length}
           </div>
         </div>
-        
         <table>
           <thead>
-            <tr>
-              <th width="15%">Image</th>
-              <th width="20%">Code</th>
-              <th width="25%">Name</th>
-              <th width="15%">Category</th>
-              <th width="15%">Size</th>
-              <th width="10%">Price</th>
-            </tr>
+            <tr><th width="15%">Image</th><th width="20%">Code</th><th width="25%">Name</th><th width="15%">Category</th><th width="15%">Size</th><th width="10%">Price</th></tr>
           </thead>
           <tbody>
             ${tilesWithImages.map(tile => `
               <tr class="page-break">
-                <td>
-                  ${tile.imageSrc ? `<img src="${tile.imageSrc}" class="tile-image" />` : '-'}
-                </td>
+                <td>${tile.imageSrc ? `<img src="${tile.imageSrc}" class="tile-image" />` : '-'}</td>
                 <td><strong>${tile.code}</strong></td>
                 <td>${tile.name}</td>
                 <td>${tile.category || 'N/A'}</td>
@@ -394,34 +327,46 @@ export const useUnifiedPDFGeneration = () => {
     `;
   };
 
-  // === DIRECT DOWNLOAD PDF GENERATION FOR QUOTATIONS ===
   const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     setIsGenerating(true);
     try {
-      console.log('[PDF Generation] Starting Quotation PDF...');
       toast.info('Generating PDF...');
-
       const htmlContent = await generateQuotationHTML(quotation);
       
       const container = document.createElement('div');
       container.innerHTML = htmlContent;
+      
+      // === FIX FOR BLANK PDF ===
+      // Position element at 0,0 but hide it BEHIND the app using z-index
       container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      container.style.top = '0';
+      container.style.left = '0px';
+      container.style.top = '0px';
+      container.style.zIndex = '-9999';
       container.style.width = '800px'; 
+      container.style.backgroundColor = 'white'; // Force white background
       document.body.appendChild(container);
 
       const options = {
         margin: [10, 10, 10, 10], 
         filename: `Quotation-${quotation.quotation_number}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: true },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          allowTaint: true, 
+          logging: false,
+          scrollY: 0 // Force scroll to top
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
       await html2pdf().set(options).from(container).save();
 
-      document.body.removeChild(container);
+      // Small delay before cleanup to ensure capture is done
+      setTimeout(() => {
+        if (document.body.contains(container)) document.body.removeChild(container);
+      }, 500);
+      
       toast.success('PDF downloaded successfully!');
 
     } catch (error: any) {
@@ -432,40 +377,39 @@ export const useUnifiedPDFGeneration = () => {
     }
   }, []);
 
-  // === DIRECT DOWNLOAD PDF GENERATION FOR TILES ===
   const generateTilesPDF = useCallback(async (tiles: TileData[]) => {
     setIsGenerating(true);
     try {
-      console.log('[PDF Generation] Starting Tiles PDF...');
       toast.info('Generating Inventory Report...');
-
-      // 1. Generate HTML with Base64 images
       const htmlContent = await generateTilesHTML(tiles);
 
-      // 2. Create container
       const container = document.createElement('div');
       container.innerHTML = htmlContent;
+      
+      // === FIX FOR BLANK PDF ===
       container.style.position = 'absolute';
-      container.style.left = '-9999px';
+      container.style.left = '0px';
+      container.style.top = '0px';
+      container.style.zIndex = '-9999';
       container.style.width = '800px';
+      container.style.backgroundColor = 'white';
       document.body.appendChild(container);
 
-      // 3. Set options
       const options = {
         margin: [10, 10, 10, 10],
         filename: `Tiles_Inventory_${new Date().toISOString().slice(0,10)}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, allowTaint: true, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
-      // 4. Save
       await html2pdf().set(options).from(container).save();
 
-      // 5. Cleanup
-      document.body.removeChild(container);
+      setTimeout(() => {
+        if (document.body.contains(container)) document.body.removeChild(container);
+      }, 500);
+      
       toast.success('Inventory Report downloaded successfully!');
-
     } catch (error: any) {
       console.error('Error generating tiles PDF:', error);
       toast.error('Failed to generate PDF');
@@ -474,12 +418,7 @@ export const useUnifiedPDFGeneration = () => {
     }
   }, []);
 
-  return {
-    generateQuotationPDF,
-    generateTilesPDF,
-    isGenerating
-  };
+  return { generateQuotationPDF, generateTilesPDF, isGenerating };
 };
 
-// For backward compatibility
 export const useServerPDFGeneration = useUnifiedPDFGeneration;
