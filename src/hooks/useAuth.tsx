@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
+// We define Profile based on your schema
 interface Profile {
   id: string;
   name: string;
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Ref to track the current session ID without triggering re-renders
+  // Track the current session token for this specific browser tab
   const currentSessionToken = useRef<string | null>(null);
 
   const signOut = async () => {
@@ -38,6 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const { error } = await supabase.auth.signOut();
       if (error) {
+        // Ignore "session missing" errors as we are signing out anyway
         if (error.message?.includes('session') && error.message?.includes('missing')) {
           setUser(null);
           setProfile(null);
@@ -63,23 +65,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     console.log('Auth: Setting up auth state listener');
     
-    // 1. Listen for Supabase Auth changes
+    // 1. Listen for Supabase Auth changes (Login/Logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth: State changed -', event, session?.user?.id);
       
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
-        setTimeout(() => fetchProfile(session.user.id), 0);
         
       } else if (event === 'SIGNED_OUT') {
-        console.log('Auth: User signed out');
         setUser(null);
         setProfile(null);
         setLoading(false);
         sessionStorage.removeItem('anuj_session_token');
       } else if (session?.user) {
         setUser(session.user);
-        setTimeout(() => fetchProfile(session.user.id), 0);
+        fetchProfile(session.user.id);
       } else {
         setUser(null);
         setProfile(null);
@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Realtime subscription removed - will be reimplemented with proper single-session
 
-    // 3. Initial Auth Check
+    // 3. Initial Load Check
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -116,10 +116,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user?.id]); // Re-run subscription setup when user changes
+  }, [user?.id]); // Re-subscribe if the user ID changes
 
   const fetchProfile = async (userId: string) => {
     try {
+      // It is safe to fetch from 'profiles' for UI display purposes
+      // The real security is handled by RLS on table access
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -127,16 +129,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
-        setLoading(false);
+        // If profile fetch fails, we don't block the app, but user details might be missing
+        console.error("Profile fetch error", error);
         return;
       }
 
       if (data) {
-        setProfile(data);
+        // Cast the string role from DB to our specific union type
+        const typedProfile: Profile = {
+          ...data,
+          role: (data.role === 'admin' || data.role === 'worker') ? data.role : 'worker'
+        };
+        setProfile(typedProfile);
       }
     } catch (error) {
       console.error('Auth: Exception while fetching profile:', error);
-      toast.error('Error loading user profile');
     } finally {
       setLoading(false);
     }
