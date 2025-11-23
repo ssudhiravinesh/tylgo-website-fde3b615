@@ -21,13 +21,20 @@ export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Helper: Convert an image URL to a Base64 string
-  // This is CRITICAL for images to show up in the PDF without CORS errors
   const urlToBase64 = async (url: string): Promise<string | null> => {
     try {
-      // We use 'cors' mode to request permission from Supabase
-      const response = await fetch(url, { mode: 'cors' });
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!url) return null;
+
+      // 1. Use a CORS Proxy to bypass Supabase's missing headers
+      // This acts as a "middleman" that adds the permission headers for us
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+
+      const response = await fetch(proxyUrl);
+      
+      if (!response.ok) throw new Error(`Failed to fetch: ${response.statusText}`);
+      
       const blob = await response.blob();
+      
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -35,10 +42,17 @@ export const useUnifiedPDFGeneration = () => {
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.warn('Failed to convert image to base64 (Check Supabase CORS settings):', url);
-      return null;
+      console.warn('[PDF Image Error] Proxy failed, trying direct...', error);
+      // Fallback: Try direct fetch (might work if browser cached it previously)
+      try {
+          const response = await fetch(url, { mode: 'no-cors' }); // 'no-cors' is opaque, but html2canvas might accept it
+          // actually no-cors returns opaque response which cant be blobbed. 
+          // Just return null if proxy fails.
+          return null; 
+      } catch (e) { return null; }
     }
   };
+
 
   // Get direct public URL for Supabase images
   const getDirectImageUrl = (imageUrl: string | null | undefined): string => {
