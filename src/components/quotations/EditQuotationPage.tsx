@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Calculator, Package, Layers, Save, Minus, Plus } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Calculator, Package, Layers, Save, Minus, Plus, ArrowDown } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
 import { useQuotations, type Quotation } from "@/hooks/useQuotations";
 import { useQuotationItems, useUpdateQuotationItem } from "@/hooks/useQuotationItems";
@@ -209,6 +209,34 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       [tileId]: (prev[tileId] || 0) + delta
     }));
   };
+
+  // --- NEW FEATURE: Round Off Logic ---
+  const handleRoundOff = () => {
+    if (mrp === 0) return;
+
+    // Calculate the target rounded number (floor to nearest 100)
+    let targetTotal = Math.floor(grandTotal / 100) * 100;
+
+    // If the current total is already rounded (or effectively rounded due to float precision),
+    // we assume the user wants to go down another step (e.g., 69000 -> 68900)
+    if (Math.abs(grandTotal - targetTotal) < 1) {
+      targetTotal -= 100;
+    }
+
+    // Ensure we don't drop below zero
+    if (targetTotal < 0) targetTotal = 0;
+
+    // Back-calculate the required discount percentage to hit this exact target
+    // Formula: Target = MRP - (MRP * Discount% / 100)
+    // Derived: Discount% = (1 - Target/MRP) * 100
+    const newDiscountPercentage = ((1 - (targetTotal / mrp)) * 100);
+    
+    // Update state. We use toFixed(4) to ensure precision when the UI recalculates it,
+    // so the Grand Total hits the integer mark exactly.
+    setDiscountPercentage(newDiscountPercentage.toFixed(4));
+  };
+  // ------------------------------------
+
   const handleSave = async () => {
     try {
       await updateQuotation({
@@ -370,7 +398,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     pattern="[0-9]*"
                     min="0"
                     max="100"
-                    step="1"
+                    step="0.01" // Changed step to allow finer precision for round-off
                     placeholder="0"
                     value={discountPercentage}
                     onChange={(e) => setDiscountPercentage(e.target.value)}
@@ -384,7 +412,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 
                 <div className="flex items-center gap-2 text-lg font-bold text-green-600">
                   <IndianRupee className="h-5 w-5" />
-                  <span>Total: ₹{grandTotal.toLocaleString()}</span>
+                  <span>Total: ₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
               </div>
             </div>
@@ -449,7 +477,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                       </p>
                     </div>
                   </div>
-                
+                  
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="flex items-center gap-2">
                       <Layers className="h-4 w-4 text-gray-400" />
@@ -462,16 +490,16 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     <div className="flex items-center gap-2">
                       <Calculator className="h-4 w-4 text-green-600" />
                       <div>
-                         <p className="text-gray-600">Tiles Required</p>
-                         <p className="font-medium text-green-600">
-                           {calc.rawTilesNeeded || calc.tilesNeeded} tiles
-                           {calc.fullBoxes !== undefined && calc.leftoverTiles !== undefined && (
+                          <p className="text-gray-600">Tiles Required</p>
+                          <p className="font-medium text-green-600">
+                            {calc.rawTilesNeeded || calc.tilesNeeded} tiles
+                            {calc.fullBoxes !== undefined && calc.leftoverTiles !== undefined && (
                              <span className="text-xs text-gray-500 block">
                                ({calc.fullBoxes} {calc.fullBoxes === 1 ? 'box' : 'boxes'}{calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})
                                {parseFloat(wastagePercentage) > 0 && ` (+${parseFloat(wastagePercentage)}% wastage)`}
                              </span>
-                           )}
-                         </p>
+                            )}
+                          </p>
                       </div>
                     </div>
                     
@@ -502,7 +530,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                         </div>
                         {calc.customBoxes !== 0 && (
                           <p className="text-xs text-orange-600">
-                            {calc.customBoxes > 0 ? '+' : ''}{calc.customBoxes} manual adjustment
+                            {calc.customBoxes && calc.customBoxes > 0 ? '+' : ''}{calc.customBoxes} manual adjustment
                           </p>
                         )}
                       </div>
@@ -541,7 +569,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                         <Minus className="h-3 w-3" />
                       </Button>
                       <span className="text-sm font-medium min-w-[2rem] text-center">
-                        {discountPercent}%
+                        {parseFloat(discountPercentage || "0").toFixed(1)}%
                       </span>
                       <Button
                         size="sm"
@@ -556,12 +584,25 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                       </Button>
                     </div>
                   </div>
-                  <span className="text-sm text-red-600">-₹{discountAmount.toLocaleString()}</span>
+                  <span className="text-sm text-red-600">-₹{discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
                 
                 <div className="flex justify-between items-center border-t pt-2">
-                  <span className="text-xl font-bold text-gray-800">Grand Total:</span>
-                  <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl font-bold text-gray-800">Grand Total:</span>
+                    {/* NEW ROUND OFF BUTTON */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRoundOff}
+                        className="h-7 text-xs text-gray-600 hover:text-blue-600 border-gray-300 gap-1"
+                        title="Round down to nearest hundred"
+                    >
+                        <ArrowDown className="h-3 w-3" />
+                        Round Off
+                    </Button>
+                  </div>
+                  <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
                 
                 <p className="text-xs text-gray-500">
