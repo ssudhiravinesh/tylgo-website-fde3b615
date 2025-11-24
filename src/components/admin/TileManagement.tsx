@@ -676,10 +676,8 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                 const pricePerSqFt = calculatePricePerSqFt(tile);
                 return (
                   <TableRow key={tile.id}>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-mono">
-                        {tile.code}
-                      </Badge>
+                    <TableCell className="font-mono">
+                      {tile.code}
                     </TableCell>
                     <TableCell className="font-medium">{tile.name}</TableCell>
                     <TableCell>
