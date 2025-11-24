@@ -19,6 +19,7 @@ import { useExcelExport } from "@/hooks/useExcelExport";
 import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { DownloadCatalogueDialog } from "@/components/tiles/DownloadCatalogueDialog"; 
 import * as z from "zod";
 
 const tileSchema = z.object({
@@ -54,6 +55,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
+  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
   const categoryInputRef = useRef<HTMLInputElement>(null);
 
   const { data: tiles = [], isLoading } = useTiles();
@@ -240,27 +242,51 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     }
   };
 
-  const handleDownloadTilesPDF = () => {
-    if (filteredTiles.length === 0) {
-      toast.error('No tiles to download');
+ const handleDownloadTilesPDF = (category?: string) => {
+    let tilesToExport = tiles;
+
+    if (category && category !== "all") {
+      tilesToExport = tiles.filter(
+        (t) => t.category?.toLowerCase() === category.toLowerCase()
+      );
+    }
+
+    if (tilesToExport.length === 0) {
+      toast.error("No tiles found to download");
       return;
     }
+
     try {
-      generateTilesPDF(filteredTiles);
+      generateTilesPDF(tilesToExport);
+      setIsDownloadDialogOpen(false); 
+      toast.success("PDF generated successfully");
     } catch (error) {
-      toast.error('Failed to generate PDF. Please try again.');
+      console.error(error);
+      toast.error("Failed to generate PDF. Please try again.");
     }
   };
 
-  const handleDownloadTilesExcel = () => {
-    if (filteredTiles.length === 0) {
-      toast.error('No tiles to download');
+  const handleDownloadTilesExcel = (category?: string) => {
+    let tilesToExport = tiles;
+
+    if (category && category !== "all") {
+      tilesToExport = tiles.filter(
+        (t) => t.category?.toLowerCase() === category.toLowerCase()
+      );
+    }
+    
+    if (tilesToExport.length === 0) {
+      toast.error("No tiles found to download");
       return;
     }
+
     try {
-      exportTilesToExcel(filteredTiles);
+      exportTilesToExcel(tilesToExport);
+      setIsDownloadDialogOpen(false); 
+      toast.success("Excel file downloaded successfully");
     } catch (error) {
-      toast.error('Failed to generate Excel file. Please try again.');
+      console.error(error);
+      toast.error("Failed to generate Excel file. Please try again.");
     }
   };
 
@@ -346,32 +372,22 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
             </Button>
           )}
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                Download
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-white border shadow-lg">
-              <DropdownMenuItem 
-                onClick={handleDownloadTilesPDF}
-                disabled={isPDFGenerating}
-                className="gap-2 cursor-pointer hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4" />
-                {isPDFGenerating ? 'Generating PDF...' : 'Download as PDF'}
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleDownloadTilesExcel}
-                className="gap-2 cursor-pointer hover:bg-gray-50"
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Download as Excel
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => setIsDownloadDialogOpen(true)}
+          >
+            <Download className="h-4 w-4" />
+            Download Catalogue
+          </Button>
+
+          <DownloadCatalogueDialog 
+            isOpen={isDownloadDialogOpen}
+            onClose={() => setIsDownloadDialogOpen(false)}
+            onDownloadPDF={handleDownloadTilesPDF}
+            onDownloadExcel={handleDownloadTilesExcel}
+            isGenerating={isPDFGenerating} 
+          />
           
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
