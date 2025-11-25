@@ -793,9 +793,6 @@ const handleAutoAssignTile = async (tileId: string) => {
                                 </span>
                               </div>
                           </div>
-                          <div className="bg-white p-3 rounded-lg border">
-                            <p className="text-sm text-gray-600">Click Configure to manage layers and tiles</p>
-                          </div>
                         </div>
                       ) : (
                         <p className="text-sm text-gray-500 italic">No wall tiles configured</p>
