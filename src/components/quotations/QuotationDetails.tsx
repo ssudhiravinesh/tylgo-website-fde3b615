@@ -50,23 +50,9 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
     }
   };
 
-  const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
-    if (!sizeLength || !sizeBreadth) return 'N/A';
-    
-    const lengthInMm = sizeLength;
-    const widthInMm = sizeBreadth;
-    
-    if (lengthInMm >= 1000 || widthInMm >= 1000) {
-      const lengthInM = (lengthInMm / 1000).toFixed(2);
-      const widthInM = (widthInMm / 1000).toFixed(2);
-      return `${lengthInM} × ${widthInM} m`;
-    } else if (lengthInMm >= 100 || widthInMm >= 100) {
-      const lengthInCm = (lengthInMm / 10).toFixed(1);
-      const widthInCm = (widthInMm / 10).toFixed(1);
-      return `${lengthInCm} × ${widthInCm} cm`;
-    } else {
-      return `${lengthInMm} × ${widthInMm} mm`;
-    }
+ const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
+      if (!sizeLength || !sizeBreadth) return 'N/A';
+      return `${sizeLength} × ${sizeBreadth} mm`;
   };
 
   // Use quotation items from the dedicated hook for accurate calculations
@@ -406,16 +392,9 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                         })()}
                       </div>
                       </div>
-                    {(() => {
-                      const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
-                        if (!sizeLength || !sizeBreadth) return 'N/A';
-                        return `${sizeLength} × ${sizeBreadth} mm`;
-                      };
-
                       <p className="text-xs text-gray-500">
                         Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
                       </p>
-                        })()}
                     </div>
                   
                   <div className="grid grid-cols-2 gap-3 text-sm">
