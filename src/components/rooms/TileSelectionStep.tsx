@@ -139,8 +139,13 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
               tileLengthInRoomUnit = baseTile.size_breadth || 0;
             }
             
+            // FIX: Area-Based Calculation for initial load as well
             if (tileHeightInRoomUnit > 0 && tileLengthInRoomUnit > 0) {
-              tilesNeeded = Math.ceil(wallLength / tileLengthInRoomUnit);
+               const totalArea = wallHeight * wallLength;
+               const tileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
+               const totalTiles = Math.ceil(totalArea / tileArea);
+               const layerCount = Math.max(1, Math.ceil(wallHeight / tileHeightInRoomUnit));
+               tilesNeeded = totalTiles / layerCount;
             }
           }
           
@@ -379,17 +384,35 @@ const handleAutoAssignTile = async (tileId: string) => {
       tileLengthInRoomUnit = baseTile.size_breadth || 0;
     }
 
-    const layerCount = Math.ceil(wallHeight / tileHeightInRoomUnit);
-    const tilesPerLayer = Math.ceil(wallLength / tileLengthInRoomUnit);
+    // -------------------------------------------------------------
+    // FIX: Area-Based Calculation Logic (Updated for Consistency)
+    // -------------------------------------------------------------
 
-    console.log('Wall calculation:', {
+    // 1. Calculate Grand Total based on Area
+    const totalWallArea = wallHeight * wallLength;
+    const singleTileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
+    
+    if (singleTileArea <= 0) {
+      console.error("Invalid tile dimensions");
+      return;
+    }
+
+    const grandTotalTilesNeeded = Math.ceil(totalWallArea / singleTileArea);
+
+    // 2. Calculate Visual Layers
+    const layerCount = Math.max(1, Math.ceil(wallHeight / tileHeightInRoomUnit));
+
+    // 3. Distribute Grand Total
+    const tilesPerLayer = grandTotalTilesNeeded / layerCount;
+
+    console.log('Wall calculation (Area-Based):', {
       wallHeight,
       wallLength,
-      tileHeightInRoomUnit,
-      tileLengthInRoomUnit,
+      totalWallArea,
+      singleTileArea,
+      grandTotalTilesNeeded,
       layerCount,
-      tilesPerLayer,
-      totalTilesNeeded: layerCount * tilesPerLayer
+      tilesPerLayer
     });
 
     const layers: WallTileLayer[] = [];
@@ -761,7 +784,7 @@ const handleAutoAssignTile = async (tileId: string) => {
                   return (
                     <div key={room.id} className="border rounded-lg p-4 bg-blue-50/50">
                       <div className="flex items-center justify-between mb-3">
-                         <div>
+                          <div>
                            <h4 className="font-semibold text-base">{room.name}</h4>
                            <p className="text-sm text-gray-600">
                              {decimalFeetToFeetInches(room.wall_length || room.length || 0)} × {decimalFeetToFeetInches(room.wall_height || 0)}
@@ -769,7 +792,7 @@ const handleAutoAssignTile = async (tileId: string) => {
                            <p className="text-sm text-gray-600">
                              ({formatArea(calculateAreaInSquareFeet(room.wall_height || 0, room.wall_length || room.length || 0, room.unit))})
                            </p>
-                         </div>
+                          </div>
                         <Button
                           onClick={() => handleConfigureWallTiles(room.id)}
                           className="gap-2"
@@ -789,7 +812,7 @@ const handleAutoAssignTile = async (tileId: string) => {
                               <div className="bg-white p-2 rounded border">
                                  <span className="text-gray-500">Total Tiles:</span>
                                  <span className="font-semibold ml-2">
-                                   {wallSelection.layers.reduce((sum, layer) => sum + layer.tilesNeeded, 0)}
+                                   {wallSelection.layers.reduce((sum, layer) => sum + layer.tilesNeeded, 0).toFixed(0)}
                                 </span>
                               </div>
                           </div>
@@ -935,7 +958,7 @@ const handleAutoAssignTile = async (tileId: string) => {
                 }
               </DialogTitle>
             </DialogHeader>
-          <TileCatalog
+          <TileCatalog 
             isSelectionMode={true}
             onTileSelect={handleTileSelected}
             autoAssignmentContext={null}
