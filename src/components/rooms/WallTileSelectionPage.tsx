@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw, Eye, QrCode } from "lucide-react";
-import { useTiles } from "@/hooks/useTiles";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { Html5QRScanner } from "@/components/qr/Html5QRScanner";
 import { toast } from "sonner";
@@ -67,15 +66,36 @@ export const WallTileSelectionPage = ({
       tileLengthInRoomUnit = baseTile.size_breadth || 0;
     }
 
-    const layerCount = Math.ceil(wallHeight / tileHeightInRoomUnit);
-    const tilesPerLayer = Math.ceil(wallLength / tileLengthInRoomUnit);
+    // -------------------------------------------------------------
+    // FIX: Area-Based Calculation Logic (No Double Rounding)
+    // -------------------------------------------------------------
+
+    // 1. Calculate Grand Total based on Area
+    const totalWallArea = wallHeight * wallLength;
+    const singleTileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
+    
+    // Safety check to avoid division by zero
+    if (singleTileArea <= 0) {
+      console.error("Invalid tile dimensions");
+      return;
+    }
+
+    const grandTotalTilesNeeded = Math.ceil(totalWallArea / singleTileArea);
+
+    // 2. Calculate Visual Layers (Rows)
+    // We still need layers for visual representation and different tile assignments
+    const layerCount = Math.max(1, Math.ceil(wallHeight / tileHeightInRoomUnit));
+
+    // 3. Distribute Grand Total across Layers
+    // Instead of rounding per row, we use the precise fraction so the sum is exact.
+    const tilesPerLayer = grandTotalTilesNeeded / layerCount;
 
     const layers: WallTileLayer[] = [];
     for (let i = 1; i <= layerCount; i++) {
       layers.push({
         layerNumber: i,
         tileId: baseTileId,
-        tilesNeeded: tilesPerLayer
+        tilesNeeded: tilesPerLayer // This might be a float (e.g. 12.75), which is correct for pricing
       });
     }
 
@@ -594,7 +614,7 @@ export const WallTileSelectionPage = ({
                           <p className="font-medium truncate">{tile.name}</p>
                           <p className="text-sm text-gray-500">{tile.code}</p>
                           <p className="text-xs text-gray-400">
-                            {layer.tilesNeeded} tiles needed
+                            {layer.tilesNeeded.toFixed(2)} tiles needed
                           </p>
                         </div>
                         
