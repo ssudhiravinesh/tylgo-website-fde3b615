@@ -359,28 +359,63 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                       <h4 className="font-semibold text-gray-800">{calc.tile.name}</h4>
                       <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
                       <div className="text-xs text-gray-500">
-                        <p>
-                          Rooms: {calc.rooms.map(r => r.name).join(', ')}
-                        </p>
                         {(() => {
-                          // Get layer information for this tile from quotation items
+                          // 1. Get all items associated with this specific tile
                           const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
-                          const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
+                      
+                          // 2. Group layers by Room Name using a Map to preserve order and uniqueness
+                          const roomLayerMap = new Map<string, number[]>();
+                      
+                          tileItems.forEach(item => {
+                            const roomName = item.room?.name;
+                            if (!roomName) return;
+                      
+                            if (!roomLayerMap.has(roomName)) {
+                              roomLayerMap.set(roomName, []);
+                            }
+                      
+                            // Add layer if it exists and isn't already in the list for this room
+                            if (item.layer_number !== null && item.layer_number !== undefined) {
+                              const layers = roomLayerMap.get(roomName);
+                              if (layers && !layers.includes(item.layer_number)) {
+                                layers.push(item.layer_number);
+                              }
+                            }
+                          });
+                      
+                          // 3. Extract the ordered lists
+                          const uniqueRoomNames = Array.from(roomLayerMap.keys());
                           
-                          if (layerNumbers.length > 0) {
-                            return (
-                              <p>
-                                Layers: {layerNumbers.sort((a, b) => a - b).join(', ')}
-                              </p>
-                            );
-                          }
-                          return null;
+                          // Create the layer string groups corresponding to the room order
+                          // Example: "(4, 5, 6, 7), (8, 9, 10, 11)"
+                          const layerGroups = uniqueRoomNames.map(name => {
+                            const layers = roomLayerMap.get(name)?.sort((a, b) => a - b) || [];
+                            return layers.length > 0 ? `(${layers.join(', ')})` : null;
+                          }).filter(Boolean); // Remove nulls if a room has no layers
+                      
+                          return (
+                            <>
+                              {uniqueRoomNames.length > 0 && (
+                                <p>Rooms: {uniqueRoomNames.join(', ')}</p>
+                              )}
+                              {layerGroups.length > 0 && (
+                                <p>Layers: {layerGroups.join(', ')}</p>
+                              )}
+                            </>
+                          );
                         })()}
                       </div>
                       </div>
+                    {(() => {
+                      const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
+                        if (!sizeLength || !sizeBreadth) return 'N/A';
+                        return `${sizeLength} × ${sizeBreadth} mm`;
+                      };
+
                       <p className="text-xs text-gray-500">
                         Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
                       </p>
+                        })()}
                     </div>
                   
                   <div className="grid grid-cols-2 gap-3 text-sm">
