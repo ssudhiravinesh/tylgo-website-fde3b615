@@ -63,6 +63,13 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     room: Room;
     tile: Tile | null;
   } | null>(null);
+
+  // Helper to format dimensions
+  const formatTileDim = (l?: number, b?: number) => {
+    if (!l || !b) return "";
+    return `${l} × ${b} mm`;
+  };
+
   useEffect(() => {
     console.log('📊 floorTileSelections changed:', floorTileSelections);
     console.trace('📊 Stack trace for state change');
@@ -744,7 +751,12 @@ const handleAutoAssignTile = async (tileId: string) => {
                             return tile ? (
                               <div key={`${fs.roomId}-${fs.tileId}-${index}`} className="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
                                 <div>
-                                  <p className="font-semibold">{tile.name}</p>
+                                  <div className="flex items-center gap-2">
+                                     <p className="font-semibold">{tile.name}</p>
+                                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                        {formatTileDim(tile.size_length, tile.size_breadth)}
+                                     </span>
+                                  </div>
                                   <p className="text-sm text-gray-600">{tile.code}</p>
                                 </div>
                                 <Button
@@ -816,6 +828,35 @@ const handleAutoAssignTile = async (tileId: string) => {
                                 </span>
                               </div>
                           </div>
+
+                          {/* List Unique Tiles for Wall Room */}
+                          {(() => {
+                            const uniqueTileIds = Array.from(new Set(wallSelection.layers.map(l => l.tileId)));
+                            const uniqueTiles = uniqueTileIds.map(id => tiles.find(t => t.id === id)).filter(Boolean);
+
+                            if (uniqueTiles.length > 0) {
+                              return (
+                                <div className="mt-3 pt-3 border-t border-blue-200/50 space-y-2">
+                                  <p className="text-xs font-medium text-blue-800 mb-2">Selected Tiles:</p>
+                                  {uniqueTiles.map(tile => (tile &&
+                                    <div key={tile.id} className="bg-white p-2 rounded border border-blue-100 flex justify-between items-center">
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                           <span className="font-medium text-sm">{tile.name}</span>
+                                           <span className="text-xs text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
+                                              {formatTileDim(tile.size_length, tile.size_breadth)}
+                                           </span>
+                                        </div>
+                                        <p className="text-xs text-gray-500">{tile.code}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+
                         </div>
                       ) : (
                         <p className="text-sm text-gray-500 italic">No wall tiles configured</p>
