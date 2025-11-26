@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus, Eye, Check, PlusSquare } from "lucide-react";
+import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus, Eye, Check, PlusSquare, Ruler } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
@@ -170,6 +170,60 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       return isEqual ? prev : wallSelections;
     });
   }, [selections, rooms, tiles]);
+
+  // --- Helper for displaying multi-shape dimensions ---
+  const renderRoomDimensions = (room: Room) => {
+    const formatVal = (val: number | string) => {
+      if (room.unit === 'feet') return decimalFeetToFeetInches(Number(val));
+      return `${val} ${room.unit}`;
+    };
+
+    // 1. Check for Multi-Shape Data
+    if (room.measurements && room.measurements.length > 0) {
+      return (
+        <div className="space-y-1 mt-1">
+          <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
+             <Layers className="h-3 w-3" />
+             <span>{room.measurements.length} Shapes</span>
+          </div>
+          <div className="space-y-1 max-h-24 overflow-y-auto pr-1 bg-gray-50 rounded border border-gray-100 p-1.5">
+            {room.measurements.map((m, idx) => (
+              <div key={idx} className="flex justify-between text-xs border-b border-dashed border-gray-200 last:border-0 pb-0.5 last:pb-0">
+                <span className="text-gray-500 mr-2">#{idx + 1}:</span>
+                <span className="font-mono font-medium text-gray-700">
+                  {formatVal(m.length)} × {formatVal(m.width)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 font-medium mt-1">
+            Total: {formatArea(calculateAreaInSquareFeet(
+              room.room_type === 'wall' ? (room.wall_length || 0) : (room.length || 0),
+              room.room_type === 'wall' ? (room.wall_height || 0) : (room.width || 0),
+              room.unit
+            ))}
+          </p>
+        </div>
+      );
+    }
+
+    // 2. Fallback for Legacy Data
+    const isFloor = room.room_type === "floor";
+    const length = isFloor ? room.length : room.wall_length;
+    const width = isFloor ? room.width : room.wall_height;
+
+    return (
+      <div>
+        <p className="text-sm text-gray-600">
+          {decimalFeetToFeetInches(length || 0)} × {decimalFeetToFeetInches(width || 0)}
+        </p>
+        <p className="text-xs text-gray-500">
+          ({formatArea(calculateAreaInSquareFeet(length || 0, width || 0, room.unit))})
+        </p>
+      </div>
+    );
+  };
+
 
   // --- Multi-Select Handlers ---
 
@@ -713,12 +767,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
 
                           <div>
                             <h4 className="font-semibold text-base text-gray-800">{room.name}</h4>
-                            <p className="text-sm text-gray-600">
-                              {decimalFeetToFeetInches(room.length)} × {decimalFeetToFeetInches(room.width)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              ({formatArea(calculateAreaInSquareFeet(room.length, room.width, room.unit))})
-                            </p>
+                            
+                            {/* UPDATED: Use renderRoomDimensions for detailed multi-shape display */}
+                            {renderRoomDimensions(room)}
+
                           </div>
                         </div>
 
@@ -789,12 +841,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                       <div className="flex items-center justify-between mb-3">
                           <div>
                            <h4 className="font-semibold text-base">{room.name}</h4>
-                           <p className="text-sm text-gray-600">
-                             {decimalFeetToFeetInches(room.wall_length || room.length || 0)} × {decimalFeetToFeetInches(room.wall_height || 0)}
-                           </p>
-                           <p className="text-sm text-gray-600">
-                             ({formatArea(calculateAreaInSquareFeet(room.wall_height || 0, room.wall_length || room.length || 0, room.unit))})
-                           </p>
+
+                           {/* UPDATED: Use renderRoomDimensions for detailed multi-shape display */}
+                           {renderRoomDimensions(room)}
+                           
                           </div>
                         <Button
                           onClick={() => handleConfigureWallTiles(room.id)}
