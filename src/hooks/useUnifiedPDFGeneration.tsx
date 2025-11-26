@@ -702,15 +702,15 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                           return Object.values(roomGroups).map(({ room, layers }) => {
                             let roomDisplay = `<strong>${room.name}</strong>`;
                             
-                            // ADDED: Multi-Shape Dimensions Support
-                            if (room.measurements && room.measurements.length > 0) {
+                            // ADDED: Multi-Shape Dimensions Support & Wall Room Fix
+                            if (room.measurements && Array.isArray(room.measurements) && room.measurements.length > 0) {
                                 roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
                                 room.measurements.forEach((m: any, idx: number) => {
                                      roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${m.length} × ${m.width} ${room.unit}</div>`;
                                 });
                                 roomDisplay += `</div>`;
                             } else {
-                                // Legacy Fallback: Correctly handle Wall dimensions
+                                // Legacy Fallback
                                 const isWall = room.room_type === 'wall';
                                 const l = isWall ? (room.wall_length || 0) : (room.length || 0);
                                 const w = isWall ? (room.wall_height || 0) : (room.width || 0);
