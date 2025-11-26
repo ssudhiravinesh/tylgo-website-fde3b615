@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FeetInchInput } from "@/components/ui/feet-inches-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
-import { Plus, Trash2, Ruler } from "lucide-react";
+import { Plus, Trash2, Ruler, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import type { Room } from "@/hooks/useRooms";
 
 const DEFAULT_ROOM_OPTIONS = [
@@ -50,15 +51,50 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Autocomplete States
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [dbRoomNames, setDbRoomNames] = useState<string[]>([]);
+  const [isFetchingNames, setIsFetchingNames] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const createRoomMutation = useCreateRoom();
   const updateRoomMutation = useUpdateRoom();
+
+  // Fetch room names from DB on mount
+  useEffect(() => {
+    const fetchRoomNames = async () => {
+      setIsFetchingNames(true);
+      try {
+        const { data, error } = await supabase
+          .from('rooms')
+          .select('name')
+          .order('name');
+        
+        if (error) throw error;
+
+        if (data) {
+          const uniqueNames = Array.from(new Set(data.map(r => r.name.toUpperCase()))).filter(Boolean);
+          setDbRoomNames(uniqueNames);
+        }
+      } catch (error) {
+        console.error('Error fetching room names:', error);
+      } finally {
+        setIsFetchingNames(false);
+      }
+    };
+
+    fetchRoomNames();
+  }, []);
+
+  // Combine Default + DB options
+  const getAllOptions = () => {
+    return Array.from(new Set([...DEFAULT_ROOM_OPTIONS, ...dbRoomNames])).sort();
+  };
 
   useEffect(() => {
     if (room) {
@@ -155,11 +191,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     try {
       const totalArea = calculateTotalArea();
       
-      // STRATEGY:
-      // 1. Save individual shapes in 'measurements' (JSONB) for the UI.
-      // 2. Save the Aggregated Total Area in 'length'/'width' for Tile Calculations.
-      //    We set Width=1 and Length=TotalArea so that (L*W) = TotalArea.
-      
       const finalLength = totalArea; 
       const finalWidth = 1; 
 
@@ -213,7 +244,8 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     setFormData(prev => ({ ...prev, [field]: processedValue }));
     
     if (field === "name") {
-      const filtered = DEFAULT_ROOM_OPTIONS.filter(option =>
+      const allOptions = getAllOptions();
+      const filtered = allOptions.filter(option =>
         option.includes(processedValue)
       );
       setFilteredOptions(filtered);
@@ -236,7 +268,8 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
   // Event Handlers for autocomplete
   const handleInputFocus = () => {
     if (formData.name.length > 0) {
-      const filtered = DEFAULT_ROOM_OPTIONS.filter(option =>
+      const allOptions = getAllOptions();
+      const filtered = allOptions.filter(option =>
         option.includes(formData.name)
       );
       setFilteredOptions(filtered);
@@ -395,6 +428,12 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 disabled={isLoading}
                 required
               />
+              
+              {isFetchingNames && (
+                <div className="absolute right-2 top-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                </div>
+              )}
               
               {showSuggestions && filteredOptions.length > 0 && (
                 <div 
