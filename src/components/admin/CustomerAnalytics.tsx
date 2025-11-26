@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, User, FileText, Calendar, IndianRupee } from "lucide-react";
+import { ArrowLeft, User, FileText, Calendar, IndianRupee, Briefcase, Star } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useQuotations } from "@/hooks/useQuotations";
 import { useTiles } from "@/hooks/useTiles";
@@ -19,13 +19,18 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
   const [topCustomers, setTopCustomers] = useState<Array<{name: string; totalValue: number}>>([]);
   const [conversionRate, setConversionRate] = useState(0);
   const [popularTiles, setPopularTiles] = useState<Array<{name: string; usage: number}>>([]);
+  const [topWorker, setTopWorker] = useState<{name: string; closed: number; total: number} | null>(null);
 
   useEffect(() => {
     if (customers.length > 0 && quotations.length > 0) {
       // Calculate top customers by total quotation value
       const customerValues: { [customerId: string]: { name: string; totalValue: number } } = {};
       
+      // Calculate worker performance
+      const workerStats: { [name: string]: { closed: number; total: number } } = {};
+
       quotations.forEach(quotation => {
+        // Customer Stats
         const customerId = quotation.customer_id;
         const customer = customers.find(c => c.id === customerId);
         const value = quotation.total_cost || 0;
@@ -36,6 +41,16 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
           }
           customerValues[customerId].totalValue += value;
         }
+
+        // Worker Stats
+        const workerName = quotation.worker?.name || 'Unknown';
+        if (!workerStats[workerName]) {
+          workerStats[workerName] = { closed: 0, total: 0 };
+        }
+        workerStats[workerName].total += 1;
+        if (quotation.status === 'approved') {
+          workerStats[workerName].closed += 1;
+        }
       });
       
       const sortedCustomers = Object.values(customerValues)
@@ -44,6 +59,19 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
       
       setTopCustomers(sortedCustomers);
       
+      // Determine Top Worker
+      let bestWorker = null;
+      let maxClosed = -1;
+
+      Object.entries(workerStats).forEach(([name, stats]) => {
+        // Prioritize closed deals, break ties with total quotations
+        if (stats.closed > maxClosed || (stats.closed === maxClosed && stats.total > (bestWorker?.total || 0))) {
+          maxClosed = stats.closed;
+          bestWorker = { name, ...stats };
+        }
+      });
+      setTopWorker(bestWorker);
+
       // Calculate conversion rate
       const approvedQuotations = quotations.filter(q => q.status === 'approved' || q.status === 'closed').length;
       const totalQuotations = quotations.length;
@@ -266,7 +294,7 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
           </CardContent>
         </Card>
 
-        {/* Performance Metrics */}
+        {/* Performance Metrics - Updated with Top Worker */}
         <Card className="border-gray-200 bg-gradient-to-br from-blue-50 to-blue-100">
           <CardHeader>
             <CardTitle className="text-lg">Performance Metrics</CardTitle>
@@ -289,7 +317,30 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
                   {quotations.filter(q => q.status === 'approved').length}
                 </span>
               </div>
-              <div className="flex justify-between items-center">
+              
+              {/* New Top Worker Section */}
+              {topWorker && topWorker.name !== 'Unknown' && (
+                <div className="mt-4 pt-4 border-t border-blue-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                    <span className="text-sm font-semibold text-gray-700">Star Performer</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 bg-blue-200 rounded-full flex items-center justify-center">
+                        <Briefcase className="h-3 w-3 text-blue-700" />
+                      </div>
+                      <span className="text-sm font-medium text-blue-900">{topWorker.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-green-700">{topWorker.closed} Closed</div>
+                      <div className="text-xs text-gray-500">{topWorker.total} Total Quotes</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-2 border-t border-blue-200">
                 <span className="text-sm text-gray-600">Avg. Deal Value</span>
                 <span className="text-xl font-bold text-purple-600">
                   {formatCurrency(
