@@ -7,30 +7,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FeetInchInput } from "@/components/ui/feet-inches-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
+import { Plus, Trash2, Ruler } from "lucide-react";
 import type { Room } from "@/hooks/useRooms";
 
 const DEFAULT_ROOM_OPTIONS = [
-  "HALL FLOOR",
-  "HALL WALL", 
-  "BATHROOM FLOOR",
-  "BATHROOM WALL",
-  "KITCHEN WALL",
-  "KITCHEN FLOOR",
-  "BEDROOM WALL",
-  "BEDROOM FLOOR",
-  "STORE WALL",
-  "STORE FLOOR",
-  "GARAGE WALL", 
-  "GARAGE FLOOR",
-  "LIVING ROOM WALL",
-  "LIVING ROOM FLOOR",
-  "DINING ROOM FLOOR",
-  "DINING ROOM WALL",
-  "TOILET FLOOR",
-  "TOILET WALL",
-  "BALCONY FLOOR",
-  "BALCONY WALL"
+  "HALL FLOOR", "HALL WALL", 
+  "BATHROOM FLOOR", "BATHROOM WALL",
+  "KITCHEN WALL", "KITCHEN FLOOR",
+  "BEDROOM WALL", "BEDROOM FLOOR",
+  "STORE WALL", "STORE FLOOR",
+  "GARAGE WALL", "GARAGE FLOOR",
+  "LIVING ROOM WALL", "LIVING ROOM FLOOR",
+  "DINING ROOM FLOOR", "DINING ROOM WALL",
+  "TOILET FLOOR", "TOILET WALL",
+  "BALCONY FLOOR", "BALCONY WALL"
 ];
+
+// Define the shape of a single measurement row
+interface MeasurementSet {
+  id: number;
+  length: string; 
+  width: string;  
+}
 
 interface RoomFormDialogProps {
   isOpen: boolean;
@@ -40,15 +38,17 @@ interface RoomFormDialogProps {
 }
 
 export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDialogProps) => {
+  // State for the dynamic list of measurements
+  const [measurements, setMeasurements] = useState<MeasurementSet[]>([
+    { id: 1, length: "", width: "" }
+  ]);
+
   const [formData, setFormData] = useState({
     name: "",
-    length: "",
-    width: "",
     unit: "feet" as "metre" | "inches" | "mm" | "feet",
     room_type: "floor" as "floor" | "wall",
-    wall_height: "",
-    wall_length: ""
   });
+
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
@@ -64,26 +64,69 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     if (room) {
       setFormData({
         name: room.name,
-        length: room.length.toString(),
-        width: room.width.toString(),
         unit: room.unit,
         room_type: room.room_type,
-        wall_height: room.wall_height?.toString() || "",
-        wall_length: room.wall_length?.toString() || ""
       });
+      
+      // PERSISTENCE LOGIC:
+      // 1. Try to load from the new 'measurements' JSON column
+      if (room.measurements && Array.isArray(room.measurements) && room.measurements.length > 0) {
+        setMeasurements(room.measurements);
+      } 
+      // 2. Fallback for legacy data: Load from the single length/width columns
+      else {
+        const legacyLength = room.room_type === "wall" ? room.wall_length : room.length;
+        const legacyWidth = room.room_type === "wall" ? room.wall_height : room.width;
+        
+        setMeasurements([{ 
+           id: 1, 
+           length: legacyLength?.toString() || "", 
+           width: legacyWidth?.toString() || "" 
+        }]);
+      }
     } else {
+      // Reset for new room
       setFormData({
         name: "",
-        length: "",
-        width: "",
         unit: "feet",
         room_type: "floor",
-        wall_height: "",
-        wall_length: ""
       });
+      setMeasurements([{ id: Date.now(), length: "", width: "" }]);
     }
-  }, [room]);
+  }, [room, isOpen]);
 
+  // --- Dynamic Measurement Handlers ---
+
+  const addMeasurementSet = () => {
+    setMeasurements(prev => [
+      ...prev, 
+      { id: Date.now(), length: "", width: "" } // Unique ID
+    ]);
+  };
+
+  const removeMeasurementSet = (id: number) => {
+    if (measurements.length === 1) return; 
+    setMeasurements(prev => prev.filter(m => m.id !== id));
+  };
+
+  const updateMeasurement = (id: number, field: 'length' | 'width', value: string) => {
+    setMeasurements(prev => prev.map(m => 
+      m.id === id ? { ...m, [field]: value } : m
+    ));
+  };
+
+  // --- Area Calculation Helper ---
+  const calculateTotalArea = () => {
+    let totalArea = 0;
+    measurements.forEach(m => {
+      const l = parseFloat(m.length) || 0;
+      const w = parseFloat(m.width) || 0;
+      totalArea += (l * w);
+    });
+    return totalArea;
+  };
+
+  // --- Submission Handler ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -97,54 +140,41 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       return;
     }
 
-    let length = 0;
-    let width = 0;
-    let wall_height = 0;
-    let wall_length = 0;
-
-    if (formData.room_type === "floor") {
-      length = parseFloat(formData.length);
-      width = parseFloat(formData.width);
-      
-      if (isNaN(length) || length <= 0) {
-        toast.error("Please enter a valid length");
+    // Validate all inputs
+    for (const m of measurements) {
+      const l = parseFloat(m.length);
+      const w = parseFloat(m.width);
+      if (isNaN(l) || l <= 0 || isNaN(w) || w <= 0) {
+        toast.error("All dimensions must be valid numbers greater than 0");
         return;
       }
-      if (isNaN(width) || width <= 0) {
-        toast.error("Please enter a valid width");
-        return;
-      }
-    } else {
-      // For wall rooms, we use wall_height and wall_length
-      wall_height = parseFloat(formData.wall_height);
-      wall_length = parseFloat(formData.wall_length);
-      
-      if (isNaN(wall_height) || wall_height <= 0) {
-        toast.error("Please enter a valid wall height");
-        return;
-      }
-      if (isNaN(wall_length) || wall_length <= 0) {
-        toast.error("Please enter a valid wall length");
-        return;
-      }
-      
-      // For wall rooms, set length to wall_length and width to 0
-      length = wall_length;
-      width = 0;
     }
 
     setIsLoading(true);
 
     try {
+      const totalArea = calculateTotalArea();
+      
+      // STRATEGY:
+      // 1. Save individual shapes in 'measurements' (JSONB) for the UI.
+      // 2. Save the Aggregated Total Area in 'length'/'width' for Tile Calculations.
+      //    We set Width=1 and Length=TotalArea so that (L*W) = TotalArea.
+      
+      const finalLength = totalArea; 
+      const finalWidth = 1; 
+
       const roomData = {
-        name: formData.name.trim(),
+        name: formData.name.trim().toUpperCase(),
         customer_id: customerId,
-        length,
-        width,
+        // For Tile Calculation Logic (Aggregated)
+        length: formData.room_type === "floor" ? finalLength : 0,
+        width: formData.room_type === "floor" ? finalWidth : 0,
+        wall_length: formData.room_type === "wall" ? finalLength : undefined,
+        wall_height: formData.room_type === "wall" ? finalWidth : undefined,
+        // For UI Persistence (Detailed)
+        measurements: measurements, 
         unit: formData.unit,
         room_type: formData.room_type,
-        wall_height: formData.room_type === "wall" ? wall_height : undefined,
-        wall_length: formData.room_type === "wall" ? wall_length : undefined,
       };
 
       if (room) {
@@ -177,20 +207,21 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     }
   };
 
+  // --- Autocomplete Logic ---
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const processedValue = field === "name" ? value.toUpperCase() : value;
+    setFormData(prev => ({ ...prev, [field]: processedValue }));
     
-    // Handle room name autocomplete
     if (field === "name") {
       const filtered = DEFAULT_ROOM_OPTIONS.filter(option =>
-        option.toLowerCase().includes(value.toLowerCase())
+        option.includes(processedValue)
       );
       setFilteredOptions(filtered);
-      setShowSuggestions(value.length > 0 && filtered.length > 0);
+      setShowSuggestions(processedValue.length > 0 && filtered.length > 0);
       setSelectedSuggestionIndex(-1);
     }
   };
-
+  
   const handleSuggestionClick = (suggestion: string) => {
     const roomType = suggestion.toLowerCase().includes('wall') ? 'wall' : 
                     suggestion.toLowerCase().includes('floor') ? 'floor' : 
@@ -202,110 +233,137 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     inputRef.current?.focus();
   };
 
+  // Event Handlers for autocomplete
   const handleInputFocus = () => {
     if (formData.name.length > 0) {
       const filtered = DEFAULT_ROOM_OPTIONS.filter(option =>
-        option.toLowerCase().includes(formData.name.toLowerCase())
+        option.includes(formData.name)
       );
       setFilteredOptions(filtered);
       setShowSuggestions(filtered.length > 0);
-      setSelectedSuggestionIndex(-1);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!showSuggestions || filteredOptions.length === 0) return;
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev => {
-          const nextIndex = prev < filteredOptions.length - 1 ? prev + 1 : 0;
-          // Scroll to selected item
-          setTimeout(() => {
-            const selectedElement = suggestionsRef.current?.children[nextIndex] as HTMLElement;
-            selectedElement?.scrollIntoView({ block: 'nearest' });
-          }, 0);
-          return nextIndex;
-        });
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev => {
-          const nextIndex = prev > 0 ? prev - 1 : filteredOptions.length - 1;
-          // Scroll to selected item
-          setTimeout(() => {
-            const selectedElement = suggestionsRef.current?.children[nextIndex] as HTMLElement;
-            selectedElement?.scrollIntoView({ block: 'nearest' });
-          }, 0);
-          return nextIndex;
-        });
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < filteredOptions.length) {
-          handleSuggestionClick(filteredOptions[selectedSuggestionIndex]);
-        }
-        break;
-      case 'Escape':
-        setShowSuggestions(false);
-        setSelectedSuggestionIndex(-1);
-        break;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : filteredOptions.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedSuggestionIndex >= 0) handleSuggestionClick(filteredOptions[selectedSuggestionIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
     }
   };
 
-  const handleInputBlur = (e: React.FocusEvent) => {
-    // Delay hiding suggestions to allow for suggestion clicks
-    setTimeout(() => {
-      if (!suggestionsRef.current?.contains(document.activeElement)) {
-        setShowSuggestions(false);
-      }
-    }, 150);
-  };
-
-  // Close suggestions when clicking outside
+  const handleInputBlur = () => { setTimeout(() => setShowSuggestions(false), 150); };
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        inputRef.current && !inputRef.current.contains(event.target as Node) &&
-        suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)
-      ) {
+      if (inputRef.current && !inputRef.current.contains(event.target as Node) &&
+          suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const renderDimensionInput = (field: "length" | "width" | "wall_height" | "wall_length", label: string) => {
-    if (formData.unit === "feet") {
-      return (
-        <div className="space-y-1">
-          <FeetInchInput
-            value={formData[field]}
-            onChange={(value) => handleInputChange(field, value)}
-            placeholder="20 5"
-            disabled={isLoading}
-          />
-          <div className="text-xs text-gray-500">
-            Enter feet and inches separated by space (e.g., "20 5" for 20 feet 5 inches)
-          </div>
-        </div>
-      );
-    }
+
+  // --- UI Renderers ---
+
+  const renderMeasurementSets = () => {
+    const labelL = formData.room_type === 'wall' ? 'Wall Length' : 'Length';
+    const labelW = formData.room_type === 'wall' ? 'Wall Height' : 'Width';
 
     return (
-      <Input
-        type="text"
-        inputMode="decimal"
-        pattern="[0-9]*\.?[0-9]*"
-        value={formData[field]}
-        onChange={(e) => handleInputChange(field, e.target.value)}
-        placeholder="0.00"
-        disabled={isLoading}
-        required
-      />
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+           <Label>Dimensions</Label>
+           <span className="text-xs text-gray-500">
+             {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
+           </span>
+        </div>
+        
+        {measurements.map((m, index) => (
+          <div key={m.id} className="flex items-end gap-2 bg-gray-50 p-2 rounded-md border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex-1 space-y-1">
+              <span className="text-xs font-medium text-gray-500">
+                {index + 1}. {labelL}
+              </span>
+              {formData.unit === "feet" ? (
+                <FeetInchInput
+                  value={m.length}
+                  onChange={(val) => updateMeasurement(m.id, 'length', val)}
+                  placeholder="10 0"
+                  disabled={isLoading}
+                />
+              ) : (
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={m.length}
+                  onChange={(e) => updateMeasurement(m.id, 'length', e.target.value)}
+                  placeholder="0.00"
+                  disabled={isLoading}
+                />
+              )}
+            </div>
+
+            <div className="flex-1 space-y-1">
+              <span className="text-xs font-medium text-gray-500">
+                {index + 1}. {labelW}
+              </span>
+              {formData.unit === "feet" ? (
+                <FeetInchInput
+                  value={m.width}
+                  onChange={(val) => updateMeasurement(m.id, 'width', val)}
+                  placeholder="10 0"
+                  disabled={isLoading}
+                />
+              ) : (
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={m.width}
+                  onChange={(e) => updateMeasurement(m.id, 'width', e.target.value)}
+                  placeholder="0.00"
+                  disabled={isLoading}
+                />
+              )}
+            </div>
+
+            {/* Only show delete button if there is more than 1 measurement */}
+            {measurements.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="mb-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 h-10 w-10 shrink-0"
+                onClick={() => removeMeasurementSet(m.id)}
+                title="Remove shape"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        ))}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addMeasurementSet}
+          className="w-full gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+        >
+          <Plus className="h-4 w-4" />
+          Add Another Shape
+        </Button>
+      </div>
     );
   };
 
@@ -319,6 +377,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Room Name Input */}
           <div className="space-y-2 relative">
             <Label htmlFor="name">Room Name *</Label>
             <div className="relative">
@@ -326,14 +385,13 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 ref={inputRef}
                 id="name"
                 type="text"
-                inputMode="text"
                 autoComplete="off"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
-                placeholder="e.g., Living Room, Bedroom"
+                placeholder="e.g., LIVING ROOM"
                 disabled={isLoading}
                 required
               />
@@ -353,8 +411,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                           : 'hover:bg-accent hover:text-accent-foreground'
                       }`}
                       onClick={() => handleSuggestionClick(option)}
-                      onMouseDown={(e) => e.preventDefault()} // Prevent input blur
-                      onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                      onMouseDown={(e) => e.preventDefault()}
                     >
                       {option}
                     </button>
@@ -364,11 +421,12 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </div>
           </div>
 
+          {/* Room Type Select */}
           <div className="space-y-2">
             <Label htmlFor="room-type">Room Type *</Label>
             <Select 
               value={formData.room_type} 
-              onValueChange={(value: "floor" | "wall") => handleInputChange("room_type", value)}
+              onValueChange={(value: "floor" | "wall") => setFormData(prev => ({ ...prev, room_type: value }))}
               disabled={isLoading}
             >
               <SelectTrigger>
@@ -381,11 +439,12 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Select>
           </div>
 
+          {/* Unit Select */}
           <div className="space-y-2">
             <Label htmlFor="unit">Measurement Unit *</Label>
             <Select 
               value={formData.unit} 
-              onValueChange={(value: "metre" | "inches" | "mm" | "feet") => handleInputChange("unit", value)}
+              onValueChange={(value: any) => setFormData(prev => ({ ...prev, unit: value }))}
               disabled={isLoading}
             >
               <SelectTrigger>
@@ -400,55 +459,26 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Select>
           </div>
 
-          {formData.room_type === "floor" ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="length">
-                  Length * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
-                </Label>
-                {renderDimensionInput("length", "Length")}
-              </div>
+          {/* Dynamic Measurement Sets */}
+          {renderMeasurementSets()}
 
-              <div className="space-y-2">
-                <Label htmlFor="width">
-                  Width * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
-                </Label>  
-                {renderDimensionInput("width", "Width")}
-              </div>
+          {/* Total Area Display */}
+          <div className={`p-3 rounded-lg border ${formData.room_type === 'floor' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+            <div className="flex justify-between items-center text-sm">
+              <span className="font-medium flex items-center gap-2">
+                <Ruler className="h-4 w-4" />
+                Total Calculated Area:
+              </span>
+              <span className="font-bold text-lg">
+                {calculateTotalArea().toFixed(2)} {formData.unit}²
+              </span>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="wall_length">
-                  Wall Length * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
-                </Label>
-                {renderDimensionInput("wall_length", "Length")}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="wall_height">
-                  Wall Height * {formData.unit === "feet" && <span className="text-xs text-gray-500">(feet inches)</span>}
-                </Label>
-                {renderDimensionInput("wall_height", "Height")}
-              </div>
-            </div>
-          )}
-
-          {formData.room_type === "floor" && formData.length && formData.width && (
-            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-              <div className="text-sm text-green-700">
-                <p><strong>Floor Area:</strong> {(parseFloat(formData.length || "0") * parseFloat(formData.width || "0")).toFixed(2)} {formData.unit}²</p>
-              </div>
-            </div>
-          )}
-
-          {formData.room_type === "wall" && formData.wall_height && formData.wall_length && (
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="text-sm text-blue-700">
-                <p><strong>Wall Area:</strong> {(parseFloat(formData.wall_height || "0") * parseFloat(formData.wall_length || "0")).toFixed(2)} {formData.unit}²</p>
-              </div>
-            </div>
-          )}
+            {measurements.length > 1 && (
+              <p className="text-xs mt-1 opacity-80">
+                Calculated from {measurements.length} shape segments
+              </p>
+            )}
+          </div>
 
           <div className="flex justify-end gap-3 pt-4">
             <Button
@@ -461,12 +491,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Button>
             <Button
               type="submit"
-              disabled={
-                isLoading || 
-                !formData.name.trim() || 
-                (formData.room_type === "floor" && (!formData.length || !formData.width)) ||
-                (formData.room_type === "wall" && (!formData.wall_height || !formData.wall_length))
-              }
+              disabled={isLoading || !formData.name.trim() || calculateTotalArea() <= 0}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? "Saving..." : room ? "Update Room" : "Create Room"}
