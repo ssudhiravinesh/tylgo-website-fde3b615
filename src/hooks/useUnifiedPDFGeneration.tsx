@@ -222,7 +222,8 @@ const chromeFixCSS = `
           wall_length: item.room.wall_length,
           wall_height: item.room.wall_height,
           unit: item.room.unit,
-          room_type: item.room.room_type
+          room_type: item.room.room_type,
+          measurements: item.room.measurements // Capture multi-shape measurements
         });
         tileCalculations[tileId].totalArea += roomAreaInSqFt;
       }
@@ -701,15 +702,25 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                           return Object.values(roomGroups).map(({ room, layers }) => {
                             let roomDisplay = `<strong>${room.name}</strong>`;
                             
-                            // ADDED: Dimensions Display logic
-                            const dims = room.room_type === 'wall' 
-                              ? `${room.wall_length || 0} × ${room.wall_height || 0} ${room.unit}`
-                              : `${room.length || 0} × ${room.width || 0} ${room.unit}`;
-                            
-                            roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+                            // ADDED: Multi-Shape Dimensions Support
+                            if (room.measurements && room.measurements.length > 0) {
+                                roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
+                                room.measurements.forEach((m: any, idx: number) => {
+                                     roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${m.length} × ${m.width} ${room.unit}</div>`;
+                                });
+                                roomDisplay += `</div>`;
+                            } else {
+                                // Legacy Fallback: Correctly handle Wall dimensions
+                                const isWall = room.room_type === 'wall';
+                                const l = isWall ? (room.wall_length || 0) : (room.length || 0);
+                                const w = isWall ? (room.wall_height || 0) : (room.width || 0);
+                                
+                                const dims = `${l} × ${w} ${room.unit}`;
+                                roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+                            }
 
                             if (layers.length > 0) {
-                              roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a, b) => a - b).join(', ')})</span>`;
+                              roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
                             }
                             
                             return roomDisplay;
