@@ -194,48 +194,57 @@ const AlphabeticalNavigation = ({
   };
   
 const filteredAndSortedTiles = useMemo(() => {
-  let filtered = tiles.filter(tile => {
-    const matchesSearch = 
-      tile.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tile.code?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
-    
-    // Alphabetical index filtering
-    const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
+    // 1. FILTERING
+    let filtered = tiles.filter(tile => {
+      const term = searchTerm.toLowerCase();
+      const name = (tile.name || '').toLowerCase();
+      const code = (tile.code || '').toLowerCase();
 
-    // You may want to include category and brand filters here too:
-    // const matchesCategory = selectedCategory === "all" || tile.category === selectedCategory;
-    // const matchesBrand = selectedBrand === "all" || tile.brand === selectedBrand;
-
-    return matchesSearch && matchesPrice && matchesAlphabet;
-  });  // <-- close the filter here
-
-  filtered.sort((a, b) => {
-    if (sortBy === 'name') {
-      const aName = (a.name || '').toLowerCase();
-      const bName = (b.name || '').toLowerCase();
-      const result = aName.localeCompare(bName);
-      return sortOrder === "asc" ? result : -result;
-    } else {
-      let aValue: any = a[sortBy as keyof Tile];
-      let bValue: any = b[sortBy as keyof Tile];
+      const matchesSearch = name.includes(term) || code.includes(term);
       
-      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-      
-      if (sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
+      const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
+
+      const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
+      return matchesSearch && matchesPrice && matchesAlphabet;
+    });
+
+    // 2. SORTING
+    filtered.sort((a, b) => {
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const aName = (a.name || '').toLowerCase();
+        const aCode = (a.code || '').toLowerCase();
+        const bName = (b.name || '').toLowerCase();
+        const bCode = (b.code || '').toLowerCase();
+        const aStartsWith = aName.startsWith(term) || aCode.startsWith(term);
+        const bStartsWith = bName.startsWith(term) || bCode.startsWith(term);
+        if (aStartsWith && !bStartsWith) return -1;
+        if (!aStartsWith && bStartsWith) return 1;
       }
-    }
-  });
 
-  return filtered;
-}, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder, alphabeticalIndex]);
+      // --- STANDARD SORT: User Selected Criteria (Name, Price, etc.) ---
+      if (sortBy === 'name') {
+        const aName = (a.name || '').toLowerCase();
+        const bName = (b.name || '').toLowerCase();
+        const result = aName.localeCompare(bName);
+        return sortOrder === "asc" ? result : -result;
+      } else {
+        let aValue: any = a[sortBy as keyof Tile];
+        let bValue: any = b[sortBy as keyof Tile];
+        
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+        
+        if (sortOrder === "asc") {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
+      }
+    });
 
-
+    return filtered;
+  }, [tiles, searchTerm, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder, alphabeticalIndex]);
 
   // Simple view toggle component
   const ViewToggle = ({ viewMode, setViewMode }: { viewMode: "grid" | "list", setViewMode: (mode: "grid" | "list") => void }) => (
