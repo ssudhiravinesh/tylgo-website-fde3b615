@@ -215,7 +215,14 @@ const chromeFixCSS = `
         tileCalculations[tileId].rooms.push({
           name: item.room.name,
           area: roomAreaInSqFt,
-          layerNumber: item.layer_number
+          layerNumber: item.layer_number,
+          // Capture dimensions for display
+          length: item.room.length,
+          width: item.room.width,
+          wall_length: item.room.wall_length,
+          wall_height: item.room.wall_height,
+          unit: item.room.unit,
+          room_type: item.room.room_type
         });
         tileCalculations[tileId].totalArea += roomAreaInSqFt;
       }
@@ -692,16 +699,27 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                           });
                           
                           return Object.values(roomGroups).map(({ room, layers }) => {
-                            let roomDisplay = `<strong>${room.name}`;
+                            let roomDisplay = `<strong>${room.name}</strong>`;
+                            
+                            // ADDED: Dimensions Display logic
+                            const dims = room.room_type === 'wall' 
+                              ? `${room.wall_length || 0} × ${room.wall_height || 0} ${room.unit}`
+                              : `${room.length || 0} × ${room.width || 0} ${room.unit}`;
+                            
+                            roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+
                             if (layers.length > 0) {
-                              roomDisplay += ` (LAYERS: ${layers.sort((a, b) => a - b).join(', ')})`;
+                              roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a, b) => a - b).join(', ')})</span>`;
                             }
-                            roomDisplay += '</strong>';
+                            
                             return roomDisplay;
-                          }).join('<br>');
+                          }).join('<br><br>');
                         })()}
-                        <br>Total Area: ${calc.totalArea.toFixed(2)} sq ft
-                        ${calc.wallLayers && calc.wallLayers.length > 1 ? `<br>(includes ${calc.wallLayers.length} layers)` : ''}
+                        <br><br>
+                        <span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block;">
+                          Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong>
+                        </span>
+                        ${calc.wallLayers && calc.wallLayers.length > 1 ? `<span style="font-size: 9px; color: #888;">(includes ${calc.wallLayers.length} layers)</span>` : ''}
                       </td>
                       <td class="tile-details">
                         <div class="tile-code">Code: ${tile.code}</div>
