@@ -402,7 +402,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {room ? "Edit Room" : "Add New Room"}
