@@ -169,7 +169,8 @@ const deleteRoomTileSelection = async (roomId: string, tileId: string): Promise<
     .from('room_tile_selections')
     .delete()
     .eq('room_id', roomId)
-    .eq('tile_id', tileId);
+    .eq('tile_id', tileId)
+    .is('layer_number', null); // Only delete floor tiles (layer_number is NULL for floor tiles)
 
   if (error) {
     console.error('Error deleting room tile selection:', error);
