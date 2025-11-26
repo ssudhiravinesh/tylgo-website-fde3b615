@@ -712,7 +712,8 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                             } else {
                                 // Legacy Fallback
                                 const isWall = room.room_type === 'wall';
-                                const l = isWall ? (room.wall_length || 0) : (room.length || 0);
+                                // FIX: Explicitly use wall dimensions if it's a wall room
+                                const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
                                 const w = isWall ? (room.wall_height || 0) : (room.width || 0);
                                 
                                 const dims = `${l} × ${w} ${room.unit}`;
