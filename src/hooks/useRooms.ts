@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface MeasurementSet {
+  id: number;
+  length: string;
+  width: string;
+}
+
 export interface Room {
   id: string;
   name: string;
