@@ -356,7 +356,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
           <Input
             placeholder="Search by tile name, code, or category..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
             className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -546,8 +546,9 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                             placeholder="e.g., Bathroom, Kitchen, Living Room"
                             onFocus={() => setShowCategorySuggestions(true)}
                             onChange={(e) => {
-                              field.onChange(e);
-                              setCategoryInput(e.target.value);
+                              const upperValue = e.target.value.toUpperCase();
+                              field.onChange(upperValue);
+                              setCategoryInput(upperValue);
                               setShowCategorySuggestions(true);
                             }}
                             onBlur={() => {
@@ -854,19 +855,24 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tile Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="e.g., Marble Classic White" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+               <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tile Name</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="e.g., MARBLE CLASSIC WHITE" 
+                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        value={field.value}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               </div>
 
               {/* Size and Pricing Row */}
