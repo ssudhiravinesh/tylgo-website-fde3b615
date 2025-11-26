@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Calendar, Edit, Trash2 } from "lucide-react";
+import { Home, Plus, Calendar, Edit, Trash2, Layers, Ruler, Calculator } from "lucide-react";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { toast } from "sonner";
@@ -40,6 +39,63 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setEditingRoom(null);
+  };
+
+  const calculateArea = (room: Room) => {
+    if (room.room_type === "wall") {
+      return ((room.wall_height || 0) * (room.wall_length || 0)).toFixed(2);
+    }
+    return (room.length * room.width).toFixed(2);
+  };
+
+  // Helper to render dimensions correctly (handling both Multi-Shape and Legacy)
+  const renderRoomDimensions = (room: Room) => {
+    // 1. Check for Multi-Shape Data
+    if (room.measurements && room.measurements.length > 0) {
+      return (
+        <div className="space-y-2 bg-gray-50 p-2 rounded-md border border-gray-100">
+          <div className="flex items-center justify-between mb-1">
+             <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+               <Layers className="h-3 w-3" />
+               Dimensions ({room.measurements.length} Shapes)
+             </span>
+          </div>
+          <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
+            {room.measurements.map((m, idx) => (
+              <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1 last:pb-0 border-dashed">
+                <span className="text-gray-600 text-xs">Shape {idx + 1}:</span>
+                <span className="font-mono text-xs font-medium text-gray-700">
+                  {m.length} × {m.width} {room.unit}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // 2. Fallback for Legacy Data
+    const isFloor = room.room_type === "floor";
+    const l = isFloor ? room.length : room.wall_length;
+    const w = isFloor ? room.width : room.wall_height;
+    const lLabel = isFloor ? "Length" : "Length";
+    const wLabel = isFloor ? "Width" : "Height";
+
+    return (
+      <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded border border-dashed border-gray-200">
+        <div className="flex items-center gap-1">
+          <Ruler className="h-3 w-3 text-gray-400" />
+          <span className="text-gray-500 text-xs">{lLabel}:</span>
+        </div>
+        <span className="font-medium text-right">{l} {room.unit}</span>
+        
+        <div className="flex items-center gap-1">
+          <Ruler className="h-3 w-3 text-gray-400" />
+          <span className="text-gray-500 text-xs">{wLabel}:</span>
+        </div>
+        <span className="font-medium text-right">{w} {room.unit}</span>
+      </div>
+    );
   };
 
   const styles = {
@@ -190,9 +246,25 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
                   Created: {new Date(room.created_at).toLocaleDateString()}
                 </div>
                 
-                <Badge variant="outline" className="w-fit">
+                <Badge variant="outline" className="w-fit mb-2">
                   Room ID: {room.id.slice(0, 8)}...
                 </Badge>
+
+                {/* Dimensions Display */}
+                {renderRoomDimensions(room)}
+
+                <div className="pt-2 border-t border-gray-100 mt-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-1">
+                      <Calculator className="h-3 w-3 text-green-600" />
+                      <span className="text-gray-600">Total Area:</span>
+                    </div>
+                    <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                      {calculateArea(room)} {room.unit}²
+                    </Badge>
+                  </div>
+                </div>
+
               </CardContent>
             </Card>
           ))}
