@@ -91,27 +91,28 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
   const renderRoomDimensions = (room: Room) => {
     // 1. Check for Multi-Shape Data
     if (room.measurements && room.measurements.length > 0) {
-      return (
-        <div className="space-y-2 bg-gray-50 p-2 rounded-md border border-gray-100">
-          <div className="flex items-center justify-between mb-1">
-             <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
-               <Layers className="h-3 w-3" />
-               Dimensions ({room.measurements.length} Shapes)
-             </span>
-          </div>
-          <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
-            {room.measurements.map((m, idx) => (
-              <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1 last:pb-0 border-dashed">
-                <span className="text-gray-600 text-xs">Shape {idx + 1}:</span>
-                <span className="font-mono text-xs font-medium text-gray-700">
-                  {m.length} × {m.width} {room.unit}
-                </span>
-              </div>
-            ))}
-          </div>
+    return (
+      <div className="space-y-2 bg-gray-50 p-2 rounded-md border border-gray-100">
+        <div className="flex items-center justify-between mb-1">
+           <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+             <Layers className="h-3 w-3" />
+             Dimensions ({room.measurements.length} Shapes)
+           </span>
         </div>
-      );
-    }
+        <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
+          {room.measurements.map((m, idx) => (
+            <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1 last:pb-0 border-dashed">
+              <span className="text-gray-600 text-xs">Shape {idx + 1}:</span>
+              {/* FIXED: Applied formatting logic here */}
+              <span className="text-xs font-medium" style={{ fontFamily: "'Manrope', sans-serif", color: "black" }}>
+                {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
     // 2. Fallback for Legacy Data
     const isFloor = room.room_type === "floor";
