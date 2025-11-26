@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft } from "lucide-react";
+import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft, Layers } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
@@ -67,6 +67,8 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
   };
 
   const calculateArea = (room: Room) => {
+    // If using the new aggregation logic, the length holds the total area and width is 1
+    // But for legacy rooms, we calculate L * W
     if (room.room_type === "wall") {
       return ((room.wall_height || 0) * (room.wall_length || 0)).toFixed(2);
     }
@@ -85,77 +87,127 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     setShowTileSelection(false);
   };
 
-const styles = {
-  tilesContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 20px)',
-    gridTemplateRows: 'repeat(3, 20px)',
-    gap: '8px',
-    justifyContent: 'center',
-    marginBottom: '24px',
-  },
-  tile: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '4px',
-    animation: 'tileAnimation 1.2s ease-in-out infinite',
-  },
-  tileBlue: {
-    backgroundColor: '#3B82F6',
-  },
-  tileBeige: {
-    backgroundColor: '#F5F5DC',
-  },
-  tileLight: {
-    backgroundColor: '#93C5FD',
-  },
-  loadingText: {
-    color: '#6B7280',
-    fontSize: '16px',
-    fontWeight: '500',
-    marginBottom: '16px',
-  },
-  progressBar: {
-    width: '200px',
-    height: '4px',
-    backgroundColor: '#E5E7EB',
-    borderRadius: '2px',
-    overflow: 'hidden',
-    margin: '0 auto',
-  },
-  progressFill: {
-    height: '100%',
-    width: '100%',
-    background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
-    backgroundSize: '200% 100%',
-    animation: 'progressFlow 2s linear infinite',
-  },
-};
+  // Helper to render dimensions correctly (handling both Multi-Shape and Legacy)
+  const renderRoomDimensions = (room: Room) => {
+    // 1. Check for Multi-Shape Data
+    if (room.measurements && room.measurements.length > 0) {
+      return (
+        <div className="space-y-2 bg-gray-50 p-2 rounded-md border border-gray-100">
+          <div className="flex items-center justify-between mb-1">
+             <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+               <Layers className="h-3 w-3" />
+               Dimensions ({room.measurements.length} Shapes)
+             </span>
+          </div>
+          <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
+            {room.measurements.map((m, idx) => (
+              <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1 last:pb-0 border-dashed">
+                <span className="text-gray-600 text-xs">Shape {idx + 1}:</span>
+                <span className="font-mono text-xs font-medium text-gray-700">
+                  {m.length} × {m.width} {room.unit}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
 
-// Add keyframe animations using a style tag
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-  @keyframes tileAnimation {
-    0%, 80%, 100% {
-      transform: scale(1) rotate(0deg);
-      opacity: 0.7;
+    // 2. Fallback for Legacy Data
+    const isFloor = room.room_type === "floor";
+    const l = isFloor ? room.length : room.wall_length;
+    const w = isFloor ? room.width : room.wall_height;
+    const lLabel = isFloor ? "Length" : "Length";
+    const wLabel = isFloor ? "Width" : "Height";
+
+    return (
+      <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded border border-dashed border-gray-200">
+        <div className="flex items-center gap-1">
+          <Ruler className="h-3 w-3 text-gray-400" />
+          <span className="text-gray-500 text-xs">{lLabel}:</span>
+        </div>
+        <span className="font-medium text-right">{l} {room.unit}</span>
+        
+        <div className="flex items-center gap-1">
+          <Ruler className="h-3 w-3 text-gray-400" />
+          <span className="text-gray-500 text-xs">{wLabel}:</span>
+        </div>
+        <span className="font-medium text-right">{w} {room.unit}</span>
+      </div>
+    );
+  };
+
+  const styles = {
+    tilesContainer: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 20px)',
+      gridTemplateRows: 'repeat(3, 20px)',
+      gap: '8px',
+      justifyContent: 'center',
+      marginBottom: '24px',
+    },
+    tile: {
+      width: '20px',
+      height: '20px',
+      borderRadius: '4px',
+      animation: 'tileAnimation 1.2s ease-in-out infinite',
+    },
+    tileBlue: {
+      backgroundColor: '#3B82F6',
+    },
+    tileBeige: {
+      backgroundColor: '#F5F5DC',
+    },
+    tileLight: {
+      backgroundColor: '#93C5FD',
+    },
+    loadingText: {
+      color: '#6B7280',
+      fontSize: '16px',
+      fontWeight: '500',
+      marginBottom: '16px',
+    },
+    progressBar: {
+      width: '200px',
+      height: '4px',
+      backgroundColor: '#E5E7EB',
+      borderRadius: '2px',
+      overflow: 'hidden',
+      margin: '0 auto',
+    },
+    progressFill: {
+      height: '100%',
+      width: '100%',
+      background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
+      backgroundSize: '200% 100%',
+      animation: 'progressFlow 2s linear infinite',
+    },
+  };
+
+  // Add keyframe animations using a style tag
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = `
+    @keyframes tileAnimation {
+      0%, 80%, 100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 0.7;
+      }
+      40% {
+        transform: scale(1.2) rotate(180deg);
+        opacity: 1;
+      }
     }
-    40% {
-      transform: scale(1.2) rotate(180deg);
-      opacity: 1;
+    
+    @keyframes progressFlow {
+      0% {
+        background-position: -200% 0;
+      }
+      100% {
+        background-position: 200% 0;
+      }
     }
-  }
-  
-  @keyframes progressFlow {
-    0% {
-      background-position: -200% 0;
-    }
-    100% {
-      background-position: 200% 0;
-    }
-  }
-`;
-document.head.appendChild(styleSheet);
+  `;
+  document.head.appendChild(styleSheet);
 
   
   if (customersLoading) {
@@ -288,7 +340,7 @@ document.head.appendChild(styleSheet);
             )}
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button
+            <Button 
               onClick={() => setIsFormOpen(true)}
               className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
             >
@@ -296,7 +348,7 @@ document.head.appendChild(styleSheet);
               Add Room
             </Button>
             {rooms.length > 0 && (
-              <Button
+              <Button 
                 onClick={handleProceedToTileSelection}
                 className="gap-2 bg-green-600 hover:bg-green-700 text-white"
               >
@@ -314,7 +366,6 @@ document.head.appendChild(styleSheet);
           {roomsLoading ? (
            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
             <div className="text-center">
-              {/* Tile Loading Animation */}
               <div style={styles.tilesContainer}>
                 {[...Array(12)].map((_, index) => (
                   <div
@@ -327,9 +378,7 @@ document.head.appendChild(styleSheet);
                   />
                 ))}
               </div>
-              
               <p style={styles.loadingText}>Loading...</p>
-              
               <div style={styles.progressBar}>
                 <div style={styles.progressFill}></div>
               </div>
@@ -340,7 +389,7 @@ document.head.appendChild(styleSheet);
               <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-600 mb-2">No rooms found</h3>
               <p className="text-gray-500 mb-4">Add the first room for this customer</p>
-              <Button
+              <Button 
                 onClick={() => setIsFormOpen(true)}
                 className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
               >
@@ -389,45 +438,19 @@ document.head.appendChild(styleSheet);
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {room.room_type === "floor" ? (
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex items-center gap-1">
-                          <Ruler className="h-3 w-3 text-gray-500" />
-                          <span className="text-gray-600">Length:</span>
-                        </div>
-                        <span className="font-medium">{room.length} {room.unit}</span>
-                        
-                        <div className="flex items-center gap-1">
-                          <Ruler className="h-3 w-3 text-gray-500" />
-                          <span className="text-gray-600">Width:</span>
-                        </div>
-                        <span className="font-medium">{room.width} {room.unit}</span>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex items-center gap-1">
-                          <Ruler className="h-3 w-3 text-gray-500" />
-                          <span className="text-gray-600">Height:</span>
-                        </div>
-                        <span className="font-medium">{room.wall_height || 0} {room.unit}</span>
-                        
-                        <div className="flex items-center gap-1">
-                          <Ruler className="h-3 w-3 text-gray-500" />
-                          <span className="text-gray-600">Length:</span>
-                        </div>
-                        <span className="font-medium">{room.wall_length || 0} {room.unit}</span>
-                      </div>
-                    )}
+                    
+                    {/* Dynamic Dimension Rendering */}
+                    {renderRoomDimensions(room)}
                     
                     <div className="pt-2 border-t border-gray-100">
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-1">
                           <Calculator className="h-3 w-3 text-green-600" />
                           <span className="text-gray-600">
-                            {room.room_type === "floor" ? "Floor Area:" : "Wall Area:"}
+                            {room.room_type === "floor" ? "Total Floor Area:" : "Total Wall Area:"}
                           </span>
                         </div>
-                        <Badge variant="outline" className="text-green-600 border-green-200">
+                        <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
                           {calculateArea(room)} {room.unit}²
                         </Badge>
                       </div>
