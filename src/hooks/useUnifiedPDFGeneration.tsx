@@ -206,25 +206,49 @@ export const useUnifiedPDFGeneration = () => {
       if (item.room && tileCalculations[tileId]) {
         const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
         
-        // --- FIX START: ROBUST DATA PARSING ---
-        // 1. Try to find measurements in various locations
-        let rawMeasurements = item.measurements || item.room.measurements || [];
-        
-        // 2. If it's a JSON string (common in Supabase), parse it
-        if (typeof rawMeasurements === 'string') {
-          try {
-            rawMeasurements = JSON.parse(rawMeasurements);
-          } catch (e) {
-            console.warn('Failed to parse measurements JSON', e);
-            rawMeasurements = [];
-          }
-        }
-        
-        // 3. Ensure it's an array
-        if (!Array.isArray(rawMeasurements)) {
-          rawMeasurements = [];
-        }
-        // --- FIX END ---
+// --- FIX START: ROBUST DISPLAY LOGIC ---
+                            if (room.measurements && room.measurements.length > 0) {
+                                // CASE 1: Multi-Shape Display
+                                roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
+                                room.measurements.forEach((m: any, idx: number) => {
+                                     // Handle both camelCase and snake_case keys
+                                     const len = parseFloat(m.length || m.size_length || 0);
+                                     const wid = parseFloat(m.width || m.breadth || m.size_breadth || 0);
+                                     
+                                     // Only display if both dimensions are valid and greater than 0
+                                     if (len > 0 && wid > 0) {
+                                       roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${len} × ${wid} ${room.unit || 'ft'}</div>`;
+                                     }
+                                });
+                                roomDisplay += `</div>`;
+                            } else {
+                                // CASE 2: Single Shape (Legacy/Simple Rooms)
+                                const isWall = room.room_type === 'wall';
+                                
+                                // Get dimensions based on room type
+                                let l = 0;
+                                let w = 0;
+                                
+                                if (isWall) {
+                                    // For walls: use wall_length and wall_height
+                                    l = parseFloat(room.wall_length || 0);
+                                    w = parseFloat(room.wall_height || 0);
+                                } else {
+                                    // For floors: use length and width
+                                    l = parseFloat(room.length || 0);
+                                    w = parseFloat(room.width || 0);
+                                }
+                                
+                                // Check if this is a "total area" placeholder (width/height = 0 or 1)
+                                const isPlaceholder = w <= 1 || l <= 1;
+                                
+                                // Only show dimensions if both are valid and not a placeholder
+                                if (!isPlaceholder && l > 0 && w > 0) {
+                                    const dims = `${l} × ${w} ${room.unit || 'ft'}`;
+                                    roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+                                }
+                            }
+                            // --- FIX END ---
 
         tileCalculations[tileId].rooms.push({
           name: item.room.name,
