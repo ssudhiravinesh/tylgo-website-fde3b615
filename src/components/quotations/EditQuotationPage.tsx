@@ -236,7 +236,10 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
     setDiscountPercentage(newDiscountPercentage.toFixed(4));
   };
   // ------------------------------------
-
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.select();
+  };
+  
   const handleSave = async () => {
     try {
       await updateQuotation({
@@ -380,13 +383,15 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     id="wastage"
                     type="number"
                     inputMode="numeric"
-                    pattern="[0-9]*"
                     min="0"
+                    max="15" // UPDATED: Upper bound 15
                     step="0.1"
                     placeholder="0"
                     value={wastagePercentage}
                     onChange={(e) => setWastagePercentage(e.target.value)}
+                    onFocus={handleInputFocus} // UPDATED: Select all on focus
                   />
+                  <p className="text-[10px] text-gray-400 mt-1">Max: 15%</p>
                 </div>
 
                 <div>
@@ -395,16 +400,16 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     id="discount"
                     type="number"
                     inputMode="numeric"
-                    pattern="[0-9]*"
                     min="0"
-                    max="100"
-                    step="0.01" // Changed step to allow finer precision for round-off
+                    max="100" // UPDATED: Upper bound 100
+                    step="0.01"
                     placeholder="0"
                     value={discountPercentage}
                     onChange={(e) => setDiscountPercentage(e.target.value)}
+                    onFocus={handleInputFocus} // UPDATED: Select all on focus
                   />
                 </div>
-
+                
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="h-4 w-4 text-gray-400" />
                   <span>Created: {new Date(quotation.created_at).toLocaleDateString()}</span>
