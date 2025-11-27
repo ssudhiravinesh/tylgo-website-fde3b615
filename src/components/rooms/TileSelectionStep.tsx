@@ -170,7 +170,10 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       return isEqual ? prev : wallSelections;
     });
   }, [selections, rooms, tiles]);
-
+  
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.select();
+  };
   // --- Helper for displaying multi-shape dimensions ---
   const renderRoomDimensions = (room: Room) => {
     const formatVal = (val: number | string) => {
@@ -943,17 +946,21 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
                   </Label>
                   <Input
                     id="wastage"
-                    type="text"
+                    type="number" // UPDATED: Changed to number
+                    inputMode="numeric"
+                    min="0"
+                    max="15"
+                    step="0.1"
                     value={wastagePercentage}
                     onChange={(e) => {
                       const value = e.target.value;
-                      if (/^\d*\.?\d*$/.test(value)) {
-                        const numValue = parseFloat(value);
-                        if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 15)) {
-                          setWastagePercentage(value);
-                        }
+                      // Keep validation to ensure strictly 0-15 range
+                      const numValue = parseFloat(value);
+                      if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 15)) {
+                        setWastagePercentage(value);
                       }
                     }}
+                    onFocus={handleInputFocus} // UPDATED: Select all on focus
                     placeholder="Enter 0-15"
                     className="text-center"
                   />
