@@ -19,179 +19,171 @@ export const useUnifiedPDFGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Helper function to wait for all images to load in a window
-const waitForAllImages = (win: Window): Promise<void> => {
-  return new Promise((resolve) => {
-    const images = Array.from(win.document.images);
-    
-    if (images.length === 0) {
-      console.log('[PDF Generation] No images found, proceeding');
-      resolve();
-      return;
-    }
-
-    let loadedCount = 0;
-    let errorCount = 0;
-    const totalImages = images.length;
-    const maxWaitTime = 25000; // Extended for Chrome print bug
-
-    console.log(`[PDF Generation] Chrome print bug fix: checking ${totalImages} images...`);
-
-    const checkComplete = () => {
-      if (loadedCount + errorCount >= totalImages) {
-        console.log(`[PDF Generation] Images processed: ${loadedCount} loaded, ${errorCount} failed`);
-        
-        // Chrome print bug fix: Force reload all images once more
-        console.log('[PDF Generation] Applying Chrome print context fix...');
-        images.forEach((img, index) => {
-          if (img.src && img.complete && img.naturalWidth > 0) {
-            // Force reload to ensure print context readiness
-            const src = img.src;
-            img.src = '';
-            img.src = src;
-            console.log(`[PDF Generation] ✓ Image ${index + 1} ready for print`);
-          }
-        });
-        
-        setTimeout(resolve, 1000); // Final stabilization delay
+  const waitForAllImages = (win: Window): Promise<void> => {
+    return new Promise((resolve) => {
+      const images = Array.from(win.document.images);
+      
+      if (images.length === 0) {
+        console.log('[PDF Generation] No images found, proceeding');
+        resolve();
         return;
       }
-    };
 
-    images.forEach((img, index) => {
-      if (img.complete && img.naturalWidth > 0) {
-        loadedCount++;
-        console.log(`[PDF Generation] Image ${index + 1} already loaded`);
-      } else {
-        const loadHandler = () => {
-          if (img.naturalWidth > 0) {
-            loadedCount++;
-            console.log(`[PDF Generation] Image ${index + 1} loaded successfully`);
-          } else {
+      let loadedCount = 0;
+      let errorCount = 0;
+      const totalImages = images.length;
+      const maxWaitTime = 25000; // Extended for Chrome print bug
+
+      console.log(`[PDF Generation] Chrome print bug fix: checking ${totalImages} images...`);
+
+      const checkComplete = () => {
+        if (loadedCount + errorCount >= totalImages) {
+          console.log(`[PDF Generation] Images processed: ${loadedCount} loaded, ${errorCount} failed`);
+          
+          // Chrome print bug fix: Force reload all images once more
+          console.log('[PDF Generation] Applying Chrome print context fix...');
+          images.forEach((img, index) => {
+            if (img.src && img.complete && img.naturalWidth > 0) {
+              // Force reload to ensure print context readiness
+              const src = img.src;
+              img.src = '';
+              img.src = src;
+              console.log(`[PDF Generation] ✓ Image ${index + 1} ready for print`);
+            }
+          });
+          
+          setTimeout(resolve, 1000); // Final stabilization delay
+          return;
+        }
+      };
+
+      images.forEach((img, index) => {
+        if (img.complete && img.naturalWidth > 0) {
+          loadedCount++;
+          console.log(`[PDF Generation] Image ${index + 1} already loaded`);
+        } else {
+          const loadHandler = () => {
+            if (img.naturalWidth > 0) {
+              loadedCount++;
+              console.log(`[PDF Generation] Image ${index + 1} loaded successfully`);
+            } else {
+              errorCount++;
+            }
+            checkComplete();
+          };
+
+          const errorHandler = () => {
             errorCount++;
-          }
-          checkComplete();
-        };
+            console.log(`[PDF Generation] Image ${index + 1} failed to load`);
+            checkComplete();
+          };
 
-        const errorHandler = () => {
-          errorCount++;
-          console.log(`[PDF Generation] Image ${index + 1} failed to load`);
-          checkComplete();
-        };
+          img.addEventListener('load', loadHandler, { once: true });
+          img.addEventListener('error', errorHandler, { once: true });
 
-        img.addEventListener('load', loadHandler, { once: true });
-        img.addEventListener('error', errorHandler, { once: true });
+          // Chrome bug fix: Force image reload
+          const currentSrc = img.src;
+          img.src = '';
+          setTimeout(() => {
+            img.src = currentSrc;
+          }, 100);
+        }
+      });
 
-        // Chrome bug fix: Force image reload
-        const currentSrc = img.src;
-        img.src = '';
-        setTimeout(() => {
-          img.src = currentSrc;
-        }, 100);
-      }
+      checkComplete();
+
+      setTimeout(() => {
+        console.log('[PDF Generation] Chrome print bug timeout - proceeding anyway');
+        resolve();
+      }, maxWaitTime);
     });
-
-    checkComplete();
-
-    setTimeout(() => {
-      console.log('[PDF Generation] Chrome print bug timeout - proceeding anyway');
-      resolve();
-    }, maxWaitTime);
-  });
-};
-
-
+  };
 
   // Get direct public URL for Supabase images - simplified for public bucket
   const getDirectImageUrl = (imageUrl: string): string => {
-  if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
-    return '';
-  }
+    if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null' || imageUrl === 'undefined') {
+      return '';
+    }
 
-  // If it's already a direct public URL, return as is
-  if (imageUrl.includes('/storage/v1/object/public/tile-images/')) {
-    console.log(`[PDF Generation] Direct public URL detected: ${imageUrl}`);
+    // If it's already a direct public URL, return as is
+    if (imageUrl.includes('/storage/v1/object/public/tile-images/')) {
+      return imageUrl;
+    }
+
+    // Handle different Supabase URL formats
+    try {
+      let filePath = '';
+      
+      if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
+        const parts = imageUrl.split('/storage/v1/object/sign/tile-images/');
+        if (parts.length === 2) {
+          filePath = parts[1].split('?')[0];
+        }
+      } else if (imageUrl.includes('tile-images/')) {
+        const parts = imageUrl.split('tile-images/');
+        if (parts.length === 2) {
+          filePath = parts[1].split('?')[0];
+        }
+      }
+      
+      if (filePath) {
+        const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
+        return data.publicUrl;
+      }
+    } catch (error) {
+      console.warn(`[PDF Generation] Error processing URL ${imageUrl}:`, error);
+    }
+
+    // Return original URL if processing fails
     return imageUrl;
-  }
-
-  // Handle different Supabase URL formats
-  try {
-    let filePath = '';
-    
-    if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
-      const parts = imageUrl.split('/storage/v1/object/sign/tile-images/');
-      if (parts.length === 2) {
-        filePath = parts[1].split('?')[0];
-      }
-    } else if (imageUrl.includes('tile-images/')) {
-      const parts = imageUrl.split('tile-images/');
-      if (parts.length === 2) {
-        filePath = parts[1].split('?')[0];
-      }
-    }
-    
-    if (filePath) {
-      const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
-      console.log(`[PDF Generation] Processed URL: ${imageUrl} -> ${data.publicUrl}`);
-      return data.publicUrl;
-    }
-  } catch (error) {
-    console.warn(`[PDF Generation] Error processing URL ${imageUrl}:`, error);
-  }
-
-  // Return original URL if processing fails
-  return imageUrl;
-};
-
+  };
 
   const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
-         const { 
-        quotation_items = [], 
-        customer, 
-        worker, 
-        quotation_number, 
-        created_at, 
-        notes, 
-        wastage_percentage = 0,
-        discount_percentage = 0,
-        discount_amount = 0
-      } = quotation;
+    const { 
+      quotation_items = [], 
+      customer, 
+      worker, 
+      quotation_number, 
+      created_at, 
+      wastage_percentage = 0,
+      discount_percentage = 0,
+      discount_amount = 0
+    } = quotation;
 
-    // At top of generateQuotationHTML(...)
-const chromeFixCSS = `
-  /* === CHROME PRINT BUG FIXES === */
-  .tile-image {
-    max-width: 50px;
-    max-height: 50px;
-    object-fit: contain;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-    background-color: #fff;
-    display: block !important;
-    margin: 0 auto;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-  }
-  @media print {
-    .tile-image {
-      display: block !important;
-      visibility: visible !important;
-      opacity: 1 !important;
-    }
-    .image-cell {
-      display: table-cell !important;
-      visibility: visible !important;
-    }
-  }
-  @media screen {
-    .tile-image {
-      opacity: 1;
-      visibility: visible;
-    }
-  }
-`;
-
+    const chromeFixCSS = `
+      /* === CHROME PRINT BUG FIXES === */
+      .tile-image {
+        max-width: 50px;
+        max-height: 50px;
+        object-fit: contain;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        background-color: #fff;
+        display: block !important;
+        margin: 0 auto;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+      }
+      @media print {
+        .tile-image {
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+        .image-cell {
+          display: table-cell !important;
+          visibility: visible !important;
+        }
+      }
+      @media screen {
+        .tile-image {
+          opacity: 1;
+          visibility: visible;
+        }
+      }
+    `;
 
     // Group items by tile for calculations
     const tileCalculations: { [tileId: string]: any } = {};
@@ -229,38 +221,26 @@ const chromeFixCSS = `
       }
     });
 
-  // Process images - use actual tile images or fallback to placeholder
-  const totalTiles = Object.keys(tileCalculations).length;
-  console.log(`[PDF Generation] Processing ${totalTiles} tile images...`);
+    // Process images
+    const totalTiles = Object.keys(tileCalculations).length;
+    
+    Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
+      let imageUrl = getDirectImageUrl(calc.tile.image_url);
+      let finalUrl: string;
 
-// Process all tile images - use actual image_url from database
-// FIXED CODE - Replace the existing problematic code
-Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
-  let imageUrl = getDirectImageUrl(calc.tile.image_url);
-  let finalUrl: string;
+      try {
+        const resp = await fetch(imageUrl, { mode: 'cors' });
+        if (resp.ok) {
+          finalUrl = imageUrl;
+        } else {
+          throw new Error('Image fetch failed');
+        }
+      } catch {
+        finalUrl = imageUrl;
+      }
 
-  try {
-    const resp = await fetch(imageUrl, { mode: 'cors' });
-    if (resp.ok) {
-      finalUrl = imageUrl;
-    } else {
-      throw new Error('Image fetch failed');
-    }
-  } catch {
-    // Use fallback placeholder image
-    finalUrl = imageUrl;
-    console.warn(`Using fallback for tile ${calc.tile.code}`);
-  }
-
-  tileCalculations[tileId].tile_image_direct_url = finalUrl;
-});
-
-
-    if (totalTiles > 0) {
-      toast.success(`${totalTiles} tile images ready for PDF generation`);
-    }
-
-    console.log(`[PDF Generation] All image URLs processed - using direct public URLs from tile-images bucket`);
+      tileCalculations[tileId].tile_image_direct_url = finalUrl;
+    });
 
     // Calculate requirements for each tile
     Object.values(tileCalculations).forEach((calc: any) => {
@@ -282,11 +262,8 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
     
     const calculations = Object.values(tileCalculations);
     const mrp = calculations.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
-    const discountPercentage = quotation.discount_percentage || 0;
-    const discountAmount = quotation.discount_amount || 0;
     const finalTotal = mrp - discountAmount;
     const totalBoxes = calculations.reduce((sum: number, calc: any) => sum + calc.boxesNeeded, 0);
-
     const totalTileTypes = Object.keys(tileCalculations).length;
 
     const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
@@ -308,91 +285,35 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
       }
     };
 
-  const printContextScript = `
-  <script>
-    (function() {
-      console.log('[Print Context] Initializing Chrome print bug fixes...');
-      const images = document.querySelectorAll('.tile-image');
-      images.forEach((img, index) => {
-        if (img.src) {
-          const tempImg = new Image();
-          tempImg.onload = () => console.log('[Print Context] Pre-loaded image ' + (index+1));
-          tempImg.src = img.src;
-        }
-      });
-      const handleBeforePrint = () => {
-        console.log('[Print Context] Before print—reloading images...');
-        images.forEach(img => {
-          const src = img.src;
-          img.src = '';
-          setTimeout(() => img.src = src, 10);
-        });
-      };
-      window.addEventListener('beforeprint', handleBeforePrint);
-      if (window.matchMedia) {
-        window.matchMedia('print').addEventListener('change', e => {
-          if (e.matches) handleBeforePrint();
-        });
-      }
-    })();
-  </script>
-  `;
+    const printContextScript = `
+      <script>
+        (function() {
+          console.log('[Print Context] Initializing Chrome print bug fixes...');
+          const images = document.querySelectorAll('.tile-image');
+          images.forEach((img, index) => {
+            if (img.src) {
+              const tempImg = new Image();
+              tempImg.src = img.src;
+            }
+          });
+          const handleBeforePrint = () => {
+            console.log('[Print Context] Before print—reloading images...');
+            images.forEach(img => {
+              const src = img.src;
+              img.src = '';
+              setTimeout(() => img.src = src, 10);
+            });
+          };
+          window.addEventListener('beforeprint', handleBeforePrint);
+          if (window.matchMedia) {
+            window.matchMedia('print').addEventListener('change', e => {
+              if (e.matches) handleBeforePrint();
+            });
+          }
+        })();
+      </script>
+    `;
 
-    
-  const printOptimizedCSS = `
-        /* === CHROME PRINT BUG FIXES === */
-        
-        /* Force image loading in all media contexts */
-        .tile-image {
-          max-width: 50px;
-          max-height: 50px;
-          object-fit: contain;
-          border-radius: 4px;
-          border: 1px solid #ddd;
-          background-color: #fff;
-          display: block !important;
-          margin: 0 auto;
-          
-          /* Critical: Force image rendering optimization */
-          image-rendering: -webkit-optimize-contrast;
-          image-rendering: crisp-edges;
-          -webkit-backface-visibility: hidden;
-          backface-visibility: hidden;
-          
-          /* Ensure images load in print media */
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        
-        /* Print-specific image fixes */
-        @media print {
-          .tile-image {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            /* Force Chrome to acknowledge image in print context */
-            content: '' !important;
-          }
-          
-          /* Ensure image containers are visible */
-          .image-cell {
-            display: table-cell !important;
-            visibility: visible !important;
-          }
-        }
-        
-        /* Screen media preparation for print */
-        @media screen {
-          /* Pre-load print styles on screen to avoid context switch issues */
-          .tile-image {
-            /* Same styles as print to avoid reload */
-            opacity: 1;
-            visibility: visible;
-          }
-        }
-      `;
-
-    
     return `
       <!DOCTYPE html>
       <html>
@@ -560,7 +481,6 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
             background-color: #fff;
             display: block;
             margin: 0 auto;
-            /* Enhanced image rendering for PDFs */
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges;
             -webkit-backface-visibility: hidden;
@@ -618,18 +538,6 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
             color: #e11d48;
             font-weight: bold;
           }
-          
-          /* Image loading states */
-          .image-loading {
-            opacity: 0.5;
-            filter: blur(1px);
-          }
-          
-          .image-loaded {
-            opacity: 1;
-            filter: none;
-            transition: opacity 0.3s ease, filter 0.3s ease;
-          }
         </style>
       </head>
       <body>
@@ -686,7 +594,6 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                     <tr>
                       <td class="room-cell">
                         ${(() => {
-                          // Group rooms by name to consolidate layers
                           const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
                           
                           calc.rooms.forEach((room: any) => {
@@ -702,23 +609,37 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                           return Object.values(roomGroups).map(({ room, layers }) => {
                             let roomDisplay = `<strong>${room.name}</strong>`;
                             
-                            // ADDED: Multi-Shape Dimensions Support & Wall Room Fix
-                            if (room.measurements && room.measurements.length > 0) {
-                                roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
+                            // === REPLACED LOGIC START: Multi-Shape & Correct Wall/Floor Dims ===
+                            if (room.measurements && Array.isArray(room.measurements) && room.measurements.length > 0) {
+                                // 1. Multi-Shape Display (Matching roomManagement logic)
+                                roomDisplay += `<div style="margin-top: 4px; padding-left: 0;">`;
+                                roomDisplay += `<div style="font-size: 9px; color: #666; margin-bottom: 2px;">Dimensions (${room.measurements.length} Shapes):</div>`;
                                 room.measurements.forEach((m: any, idx: number) => {
-                                     roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${m.length} × ${m.width} sq ${room.unit}</div>`;
+                                     // Ensure we parse floats safely
+                                     const len = parseFloat(m.length || 0).toFixed(2);
+                                     const wid = parseFloat(m.width || 0).toFixed(2);
+                                     roomDisplay += `<div style="color: #000; font-size: 9px; font-family: sans-serif;">Shape ${idx + 1}: <strong>${len} × ${wid} ${room.unit}</strong></div>`;
                                 });
                                 roomDisplay += `</div>`;
                             } else {
-                                // Legacy Fallback
+                                // 2. Legacy Fallback (Matching roomManagement logic)
+                                // In roomManagement: isFloor = room_type === 'floor'. 
+                                // Here we check 'wall' to determine if we should use wall_length/height.
                                 const isWall = room.room_type === 'wall';
-                                // FIX: Explicitly use wall dimensions if it's a wall room
-                                const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
+                                
+                                // Logic: If Wall, use wall_length/height. If Floor/Other, use length/width.
+                                const l = isWall ? (room.wall_length || 0) : (room.length || 0);
                                 const w = isWall ? (room.wall_height || 0) : (room.width || 0);
                                 
-                                const dims = `${l} × ${w} ${room.unit}`;
-                                roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+                                const lLabel = isWall ? "Length" : "Length";
+                                const wLabel = isWall ? "Height" : "Width";
+
+                                roomDisplay += `<div style="margin-top: 4px; font-size: 9px; color: #555;">`;
+                                roomDisplay += `<div>${lLabel}: <strong>${parseFloat(l.toString()).toFixed(2)} ${room.unit}</strong></div>`;
+                                roomDisplay += `<div>${wLabel}: <strong>${parseFloat(w.toString()).toFixed(2)} ${room.unit}</strong></div>`;
+                                roomDisplay += `</div>`;
                             }
+                            // === REPLACED LOGIC END ===
 
                             if (layers.length > 0) {
                               roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
@@ -731,7 +652,6 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                         <span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block;">
                           Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong>
                         </span>
-                        ${calc.wallLayers && calc.wallLayers.length > 1 ? `<span style="font-size: 9px; color: #888;">(includes ${calc.wallLayers.length} layers)</span>` : ''}
                       </td>
                       <td class="tile-details">
                         <div class="tile-code">Code: ${tile.code}</div>
@@ -748,8 +668,7 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                           crossorigin="anonymous"
                           loading="eager"
                           referrerpolicy="no-referrer"
-                          onload="console.log('Image loaded: ${tile.code}');"
-                          onerror="console.error('Image failed: ${tile.code}', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                           style="${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}"
                         />
                         <div class="no-image-placeholder" style="display: none;">No Image</div>
@@ -807,7 +726,6 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
         </div>
         
         <script>
-          // Simple window ready handler - printing will be handled by parent window
           console.log('PDF content loaded and ready');
           ${printContextScript}
         </script>
@@ -964,76 +882,65 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
     `;
   };
 
-const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
-  setIsGenerating(true);
-  try {
-    console.log('[PDF Generation] Starting PDF generation for quotation:', quotation.quotation_number);
+  const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
+    setIsGenerating(true);
+    try {
+      console.log('[PDF Generation] Starting PDF generation for quotation:', quotation.quotation_number);
 
-    // Generate HTML with proper image URLs
-    const htmlContent = await generateQuotationHTML(quotation);
-    
-    const printWindow = window.open('', '_blank');
-    
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      const htmlContent = await generateQuotationHTML(quotation);
       
-      // Wait for DOM to be ready
-      await new Promise<void>(resolve => {
-        if (printWindow.document.readyState === 'complete') {
-          resolve();
-        } else {
-          printWindow.addEventListener('DOMContentLoaded', () => resolve());
-        }
-      });
-
-      // ===== CRITICAL FIX: Force print media emulation FIRST =====
-      // This forces Chrome to switch to print media context early,
-      // allowing images time to load in the correct context
-      const style = printWindow.document.createElement('style');
-      style.textContent = `
-        @media screen {
-          body { 
-            /* Force print media styles on screen to pre-load images */
-            color: #000 !important;
-            background: white !important;
+      const printWindow = window.open('', '_blank');
+      
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        await new Promise<void>(resolve => {
+          if (printWindow.document.readyState === 'complete') {
+            resolve();
+          } else {
+            printWindow.addEventListener('DOMContentLoaded', () => resolve());
           }
+        });
+
+        const style = printWindow.document.createElement('style');
+        style.textContent = `
+          @media screen {
+            body { 
+              color: #000 !important;
+              background: white !important;
+            }
+          }
+        `;
+        printWindow.document.head.appendChild(style);
+
+        if (printWindow.matchMedia) {
+          const printMedia = printWindow.matchMedia('print');
         }
-      `;
-      printWindow.document.head.appendChild(style);
 
-      // Force browser to apply print media styles
-      if (printWindow.matchMedia) {
-        const printMedia = printWindow.matchMedia('print');
-        // This triggers the print media context switch early
+        console.log('[PDF Generation] Print media context prepared, waiting for images...');
+        toast.info('Preparing images for print...');
+        
+        await waitForAllImages(printWindow);
+        
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        printWindow.focus();
+        printWindow.print();
+        
+        console.log('[PDF Generation] ✓ PDF generation complete');
+        toast.success('PDF ready! All images loaded successfully.');
+        
+      } else {
+        toast.error('Please allow popups to generate PDF');
       }
-
-      console.log('[PDF Generation] Print media context prepared, waiting for images...');
-      toast.info('Preparing images for print...');
-      
-      // Wait for all images to load in the correct media context
-      await waitForAllImages(printWindow);
-      
-      // Additional delay to ensure print media context is stable
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Focus and print
-      printWindow.focus();
-      printWindow.print();
-      
-      console.log('[PDF Generation] ✓ PDF generation complete');
-      toast.success('PDF ready! All images loaded successfully.');
-      
-    } else {
-      toast.error('Please allow popups to generate PDF');
+    } catch (error: any) {
+      console.error('[PDF Generation] ✗ Error generating PDF:', error);
+      toast.error('Failed to generate PDF: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsGenerating(false);
     }
-  } catch (error: any) {
-    console.error('[PDF Generation] ✗ Error generating PDF:', error);
-    toast.error('Failed to generate PDF: ' + (error.message || 'Unknown error'));
-  } finally {
-    setIsGenerating(false);
-  }
-}, []);
+  }, []);
 
   const generateTilesPDF = useCallback(async (tiles: TileData[]) => {
     setIsGenerating(true);
@@ -1062,6 +969,3 @@ const generateQuotationPDF = useCallback(async (quotation: Quotation) => {
     isGenerating
   };
 };
-
-// For backward compatibility
-export const useServerPDFGeneration = useUnifiedPDFGeneration;
