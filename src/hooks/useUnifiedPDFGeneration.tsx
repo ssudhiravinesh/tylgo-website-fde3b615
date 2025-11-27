@@ -703,10 +703,10 @@ Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
                             let roomDisplay = `<strong>${room.name}</strong>`;
                             
                             // ADDED: Multi-Shape Dimensions Support & Wall Room Fix
-                            if (room.measurements && Array.isArray(room.measurements) && room.measurements.length > 0) {
+                            if (room.measurements && room.measurements.length > 0) {
                                 roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
                                 room.measurements.forEach((m: any, idx: number) => {
-                                     roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${m.length} × ${m.width} ${room.unit}</div>`;
+                                     roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${m.length} × ${m.width} sq ${room.unit}</div>`;
                                 });
                                 roomDisplay += `</div>`;
                             } else {
