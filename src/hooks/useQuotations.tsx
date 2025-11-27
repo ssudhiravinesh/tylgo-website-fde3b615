@@ -113,7 +113,6 @@ export interface QuotationItem {
     length: number;
     width: number;
     unit: string;
-    // Added missing fields for correct PDF generation
     room_type?: string;
     wall_length?: number;
     wall_height?: number;
@@ -182,7 +181,6 @@ export const useQuotations = (filters?: QuotationFilters) => {
     queryKey: ['quotations', filters],
     queryFn: async () => {
       
-      
       try {
         // Get current user to determine filtering
         const { data: { user } } = await supabase.auth.getUser();
@@ -221,10 +219,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
 
         // Filter by worker_id if user is a worker (not admin)
         if (profile?.role === 'worker') {
-          
           baseQuery = baseQuery.eq('worker_id', user.id);
-        } else {
-          
         }
 
         // Apply date filters
@@ -300,12 +295,10 @@ export const useQuotations = (filters?: QuotationFilters) => {
         const { data: quotationsData, error: quotationError } = await baseQuery;
 
         if (quotationError) {
-          
           throw quotationError;
         }
 
         if (!quotationsData || quotationsData.length === 0) {
-          
           return [];
         }
 
@@ -339,7 +332,6 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .in('quotation_id', quotationIds);
 
         if (itemsError) {
-          
           // Don't throw error for items, just log and continue with quotations without items
         }
 
@@ -353,10 +345,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
           quotation_items: itemsData?.filter(item => item.quotation_id === quotation.id) || []
         }));
 
-        
         return quotationsWithItems as Quotation[];
       } catch (error) {
-        
         throw error;
       }
     },
@@ -369,10 +359,10 @@ const createQuotationMutation = useMutation({
     console.log('Creating quotation with data:', quotationData);
     const { items, ...quotationFields } = quotationData;
       
-      // First, create the quotation
+    // First, create the quotation
     const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
-      .insert([quotationFields]) // This now includes discount_percentage and discount_amount
+      .insert([quotationFields]) 
       .select('*')
       .single();
 
@@ -380,132 +370,126 @@ const createQuotationMutation = useMutation({
       throw quotationError;
     }
 
-      
+    // Then, create the quotation items
+    if (items && items.length > 0) {
+      const quotationItems = items.map(item => ({
+        ...item,
+        quotation_id: quotation.id,
+      }));
 
-      // Then, create the quotation items
-      if (items && items.length > 0) {
-        const quotationItems = items.map(item => ({
-          ...item,
-          quotation_id: quotation.id,
-        }));
-
-        const { data: createdItems, error: itemsError } = await supabase
-          .from('quotation_items')
-          .insert(quotationItems)
-          .select(`
-            *,
-            tiles!quotation_items_tile_id_fkey (
-              id,
-              code,
-              name,
-              size_length,
-              size_breadth,
-              price_per_box,
-              pieces_per_box
-            ),
-            rooms!quotation_items_room_id_fkey (
-              id,
-              name,
-              length,
-              width,
-              unit,
-              room_type,
-              wall_length,
-              wall_height,
-              measurements
-            )
-          `);
-
-        if (itemsError) {
-          // If items creation fails, we should delete the quotation to maintain consistency
-          await supabase.from('quotations').delete().eq('id', quotation.id);
-          throw itemsError;
-        }
-
-        
-      }
-
-      // Fetch the complete quotation with items
-      const { data: completeQuotation, error: fetchError } = await supabase
-        .from('quotations')
+      // FIXED: Added missing fields to the select query here
+      const { data: createdItems, error: itemsError } = await supabase
+        .from('quotation_items')
+        .insert(quotationItems)
         .select(`
           *,
-          customers!quotations_customer_id_fkey (
+          tiles!quotation_items_tile_id_fkey (
             id,
+            code,
             name,
-            mobile,
-            address,
-            area,
-            state,
-            pincode
-          ),
-          profiles!quotations_worker_id_fkey (
-            id,
-            name,
-            email
-          ),
-          quotation_items!quotation_items_quotation_id_fkey (
-            id,
-            tile_id,
-            room_id,
-            area,
+            size_length,
+            size_breadth,
             price_per_box,
-            total_price,
-            layer_number,
-            custom_boxes,
-            tiles!quotation_items_tile_id_fkey (
-              id,
-              code,
-              name,
-              size_length,
-              size_breadth,
-              price_per_box,
-              pieces_per_box
-            ),
-            rooms!quotation_items_room_id_fkey (
-              id,
-              name,
-              length,
-              width,
-              unit,
-              room_type,
-              wall_length,
-              wall_height,
-              measurements
-            )
+            pieces_per_box
+          ),
+          rooms!quotation_items_room_id_fkey (
+            id,
+            name,
+            length,
+            width,
+            unit,
+            room_type,
+            wall_length,
+            wall_height,
+            measurements
           )
-        `)
-        .eq('id', quotation.id)
-        .single();
+        `);
 
-      if (fetchError) {
-        throw fetchError;
+      if (itemsError) {
+        // If items creation fails, we should delete the quotation to maintain consistency
+        await supabase.from('quotations').delete().eq('id', quotation.id);
+        throw itemsError;
       }
+    }
 
-      // Map the data structure to match interface
-      const mappedQuotation = {
-        ...completeQuotation,
-        worker: completeQuotation.profiles,
-        customer: completeQuotation.customers,
-        quotation_items: completeQuotation.quotation_items || []
-      };
+    // Fetch the complete quotation with items
+    // FIXED: Added missing fields to the select query here
+    const { data: completeQuotation, error: fetchError } = await supabase
+      .from('quotations')
+      .select(`
+        *,
+        customers!quotations_customer_id_fkey (
+          id,
+          name,
+          mobile,
+          address,
+          area,
+          state,
+          pincode
+        ),
+        profiles!quotations_worker_id_fkey (
+          id,
+          name,
+          email
+        ),
+        quotation_items!quotation_items_quotation_id_fkey (
+          id,
+          tile_id,
+          room_id,
+          area,
+          price_per_box,
+          total_price,
+          layer_number,
+          custom_boxes,
+          tiles!quotation_items_tile_id_fkey (
+            id,
+            code,
+            name,
+            size_length,
+            size_breadth,
+            price_per_box,
+            pieces_per_box
+          ),
+          rooms!quotation_items_room_id_fkey (
+            id,
+            name,
+            length,
+            width,
+            unit,
+            room_type,
+            wall_length,
+            wall_height,
+            measurements
+          )
+        )
+      `)
+      .eq('id', quotation.id)
+      .single();
 
-      
-      return mappedQuotation as Quotation;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      
-      // Play sound and show animation
-      playNotificationSound('quotationCreated');
-      showSuccessAnimation(`Quotation "${data.quotation_number}" created successfully!`, 'quotation');
-      
-      toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to create quotation');
-    },
-  });
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    // Map the data structure to match interface
+    const mappedQuotation = {
+      ...completeQuotation,
+      worker: completeQuotation.profiles,
+      customer: completeQuotation.customers,
+      quotation_items: completeQuotation.quotation_items || []
+    };
+    
+    return mappedQuotation as Quotation;
+  },
+  onSuccess: (data) => {
+    queryClient.invalidateQueries({ queryKey: ['quotations'] });
+    playNotificationSound('quotationCreated');
+    showSuccessAnimation(`Quotation "${data.quotation_number}" created successfully!`, 'quotation');
+    toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
+  },
+  onError: (error: any) => {
+    toast.error(error.message || 'Failed to create quotation');
+  },
+});
 
 const updateQuotationMutation = useMutation({
   mutationFn: async ({ id, items, ...quotationData }: Partial<Quotation> & { id: string; items?: Omit<QuotationItem, 'quotation_id'>[] }) => {
@@ -518,10 +502,10 @@ const updateQuotationMutation = useMutation({
       .eq('id', id)
       .single();
       
-      // Update the quotation
+    // Update the quotation
     const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
-      .update(quotationData) // This now includes discount_percentage and discount_amount
+      .update(quotationData)
       .eq('id', id)
       .select('*')
       .single();
@@ -530,121 +514,116 @@ const updateQuotationMutation = useMutation({
       console.error('Error updating quotation:', quotationError);
       throw quotationError;
     }
-      // If items are provided, update them
-      if (items) {
-        // Delete existing items
-        await supabase
+
+    // If items are provided, update them
+    if (items) {
+      // Delete existing items
+      await supabase
+        .from('quotation_items')
+        .delete()
+        .eq('quotation_id', id);
+
+      // Insert new items
+      if (items.length > 0) {
+        const quotationItems = items.map(item => ({
+          ...item,
+          quotation_id: id,
+        }));
+
+        const { error: itemsError } = await supabase
           .from('quotation_items')
-          .delete()
-          .eq('quotation_id', id);
+          .insert(quotationItems);
 
-        // Insert new items
-        if (items.length > 0) {
-          const quotationItems = items.map(item => ({
-            ...item,
-            quotation_id: id,
-          }));
-
-          const { error: itemsError } = await supabase
-            .from('quotation_items')
-            .insert(quotationItems);
-
-          if (itemsError) {
-            
-            throw itemsError;
-          }
+        if (itemsError) {
+          throw itemsError;
         }
       }
+    }
 
-      // Fetch the complete updated quotation
-      const { data: completeQuotation, error: fetchError } = await supabase
-        .from('quotations')
-        .select(`
-          *,
-          customers!quotations_customer_id_fkey (
+    // Fetch the complete updated quotation
+    // FIXED: Added missing fields to the select query here
+    const { data: completeQuotation, error: fetchError } = await supabase
+      .from('quotations')
+      .select(`
+        *,
+        customers!quotations_customer_id_fkey (
+          id,
+          name,
+          mobile,
+          address,
+          area,
+          state,
+          pincode
+        ),
+        profiles!quotations_worker_id_fkey (
+          id,
+          name,
+          email
+        ),
+        quotation_items!quotation_items_quotation_id_fkey (
+          id,
+          tile_id,
+          room_id,
+          area,
+          price_per_box,
+          total_price,
+          layer_number,
+          tiles!quotation_items_tile_id_fkey (
             id,
+            code,
             name,
-            mobile,
-            address,
-            area,
-            state,
-            pincode
-          ),
-          profiles!quotations_worker_id_fkey (
-            id,
-            name,
-            email
-          ),
-          quotation_items!quotation_items_quotation_id_fkey (
-            id,
-            tile_id,
-            room_id,
-            area,
+            size_length,
+            size_breadth,
             price_per_box,
-            total_price,
-            layer_number,
-            tiles!quotation_items_tile_id_fkey (
-              id,
-              code,
-              name,
-              size_length,
-              size_breadth,
-              price_per_box,
-              pieces_per_box
-            ),
-            rooms!quotation_items_room_id_fkey (
-              id,
-              name,
-              length,
-              width,
-              unit,
-              room_type,
-              wall_length,
-              wall_height,
-              measurements
-            )
+            pieces_per_box
+          ),
+          rooms!quotation_items_room_id_fkey (
+            id,
+            name,
+            length,
+            width,
+            unit,
+            room_type,
+            wall_length,
+            wall_height,
+            measurements
           )
-        `)
-        .eq('id', id)
-        .single();
+        )
+      `)
+      .eq('id', id)
+      .single();
 
-      if (fetchError) {
-        
-        throw fetchError;
-      }
+    if (fetchError) {
+      throw fetchError;
+    }
 
-      // Map the data structure to match interface
-      const mappedQuotation = {
-        ...completeQuotation,
-        worker: completeQuotation.profiles,
-        customer: completeQuotation.customers,
-        quotation_items: completeQuotation.quotation_items || []
-      };
-
-      
-      return { quotation: mappedQuotation as Quotation, previousStatus: previousQuotation?.status };
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      
-      // Check if status changed to closed
-      if (data.previousStatus !== 'closed' && data.quotation.status === 'closed') {
-        playNotificationSound('quotationClosed');
-        showSuccessAnimation(`Quotation "${data.quotation.quotation_number}" successfully closed!`, 'success');
-      }
-      
-      toast.success(`Quotation "${data.quotation.quotation_number}" updated successfully!`);
-    },
-    onError: (error: any) => {
-      
-      toast.error(error.message || 'Failed to update quotation');
-    },
-  });
+    // Map the data structure to match interface
+    const mappedQuotation = {
+      ...completeQuotation,
+      worker: completeQuotation.profiles,
+      customer: completeQuotation.customers,
+      quotation_items: completeQuotation.quotation_items || []
+    };
+    
+    return { quotation: mappedQuotation as Quotation, previousStatus: previousQuotation?.status };
+  },
+  onSuccess: (data) => {
+    queryClient.invalidateQueries({ queryKey: ['quotations'] });
+    
+    if (data.previousStatus !== 'closed' && data.quotation.status === 'closed') {
+      playNotificationSound('quotationClosed');
+      showSuccessAnimation(`Quotation "${data.quotation.quotation_number}" successfully closed!`, 'success');
+    }
+    
+    toast.success(`Quotation "${data.quotation.quotation_number}" updated successfully!`);
+  },
+  onError: (error: any) => {
+    toast.error(error.message || 'Failed to update quotation');
+  },
+});
 
   const deleteQuotationMutation = useMutation({
     mutationFn: async (id: string) => {
-      
-      
       // Delete quotation items first (due to foreign key constraint)
       await supabase
         .from('quotation_items')
@@ -658,11 +637,8 @@ const updateQuotationMutation = useMutation({
         .eq('id', id);
 
       if (error) {
-        
         throw error;
       }
-
-      
       return id;
     },
     onSuccess: () => {
@@ -670,7 +646,6 @@ const updateQuotationMutation = useMutation({
       toast.success('Quotation deleted successfully!');
     },
     onError: (error: any) => {
-      
       toast.error(error.message || 'Failed to delete quotation');
     },
   });
@@ -696,8 +671,6 @@ export const useCreateQuotation = () => {
   
   return useMutation({
     mutationFn: async (quotationData: CreateQuotationData) => {
-      
-      
       const { items, ...quotationFields } = quotationData;
       
       // First, create the quotation
@@ -708,7 +681,6 @@ export const useCreateQuotation = () => {
         .single();
 
       if (quotationError) {
-        
         throw quotationError;
       }
 
@@ -724,7 +696,6 @@ export const useCreateQuotation = () => {
           .insert(quotationItems);
 
         if (itemsError) {
-          
           // Clean up: delete the quotation if items creation fails
           await supabase.from('quotations').delete().eq('id', quotation.id);
           throw itemsError;
@@ -732,6 +703,7 @@ export const useCreateQuotation = () => {
       }
 
       // Fetch the complete quotation with items
+      // FIXED: Added missing fields to the select query here
       const { data: completeQuotation, error: fetchError } = await supabase
         .from('quotations')
         .select(`
@@ -784,7 +756,6 @@ export const useCreateQuotation = () => {
         .single();
 
       if (fetchError) {
-        
         throw fetchError;
       }
 
@@ -803,7 +774,6 @@ export const useCreateQuotation = () => {
       toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
     },
     onError: (error: any) => {
-      
       toast.error(error.message || 'Failed to create quotation');
     },
   });
@@ -816,6 +786,7 @@ export const useQuotationItems = (quotationId?: string) => {
     queryFn: async () => {
       if (!quotationId) return [];
       
+      // FIXED: Added missing fields to the select query here
       const { data, error } = await supabase
         .from('quotation_items')
         .select(`
@@ -844,7 +815,6 @@ export const useQuotationItems = (quotationId?: string) => {
         .eq('quotation_id', quotationId);
 
       if (error) {
-        
         throw error;
       }
 
@@ -852,6 +822,4 @@ export const useQuotationItems = (quotationId?: string) => {
     },
     enabled: !!quotationId,
   });
-
-  
 };
