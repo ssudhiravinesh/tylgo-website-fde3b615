@@ -146,8 +146,9 @@ export const useUnifiedPDFGeneration = () => {
       quotation_number, 
       created_at, 
       wastage_percentage = 0,
-      discount_percentage = 0,
-      discount_amount = 0
+      // Fix: Alias these to camelCase to match usage in template
+      discount_percentage: discountPercentage = 0,
+      discount_amount: discountAmount = 0
     } = quotation;
 
     const chromeFixCSS = `
@@ -609,28 +610,22 @@ export const useUnifiedPDFGeneration = () => {
                           return Object.values(roomGroups).map(({ room, layers }) => {
                             let roomDisplay = `<strong>${room.name}</strong>`;
                             
-                            // === REPLACED LOGIC START: Multi-Shape & Correct Wall/Floor Dims ===
+                            // === Multi-Shape & Correct Wall/Floor Dims ===
                             if (room.measurements && Array.isArray(room.measurements) && room.measurements.length > 0) {
-                                // 1. Multi-Shape Display (Matching roomManagement logic)
+                                // 1. Multi-Shape Display
                                 roomDisplay += `<div style="margin-top: 4px; padding-left: 0;">`;
                                 roomDisplay += `<div style="font-size: 9px; color: #666; margin-bottom: 2px;">Dimensions (${room.measurements.length} Shapes):</div>`;
                                 room.measurements.forEach((m: any, idx: number) => {
-                                     // Ensure we parse floats safely
                                      const len = parseFloat(m.length || 0).toFixed(2);
                                      const wid = parseFloat(m.width || 0).toFixed(2);
                                      roomDisplay += `<div style="color: #000; font-size: 9px; font-family: sans-serif;">Shape ${idx + 1}: <strong>${len} × ${wid} ${room.unit}</strong></div>`;
                                 });
                                 roomDisplay += `</div>`;
                             } else {
-                                // 2. Legacy Fallback (Matching roomManagement logic)
-                                // In roomManagement: isFloor = room_type === 'floor'. 
-                                // Here we check 'wall' to determine if we should use wall_length/height.
+                                // 2. Legacy Fallback
                                 const isWall = room.room_type === 'wall';
-                                
-                                // Logic: If Wall, use wall_length/height. If Floor/Other, use length/width.
                                 const l = isWall ? (room.wall_length || 0) : (room.length || 0);
                                 const w = isWall ? (room.wall_height || 0) : (room.width || 0);
-                                
                                 const lLabel = isWall ? "Length" : "Length";
                                 const wLabel = isWall ? "Height" : "Width";
 
@@ -639,7 +634,6 @@ export const useUnifiedPDFGeneration = () => {
                                 roomDisplay += `<div>${wLabel}: <strong>${parseFloat(w.toString()).toFixed(2)} ${room.unit}</strong></div>`;
                                 roomDisplay += `</div>`;
                             }
-                            // === REPLACED LOGIC END ===
 
                             if (layers.length > 0) {
                               roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
