@@ -113,6 +113,11 @@ export interface QuotationItem {
     length: number;
     width: number;
     unit: string;
+    // Added missing fields for correct PDF generation
+    room_type?: string;
+    wall_length?: number;
+    wall_height?: number;
+    measurements?: any[];
   };
 }
 
@@ -324,7 +329,11 @@ export const useQuotations = (filters?: QuotationFilters) => {
               name,
               length,
               width,
-              unit
+              unit,
+              room_type,
+              wall_length,
+              wall_height,
+              measurements
             )
           `)
           .in('quotation_id', quotationIds);
@@ -399,7 +408,11 @@ const createQuotationMutation = useMutation({
               name,
               length,
               width,
-              unit
+              unit,
+              room_type,
+              wall_length,
+              wall_height,
+              measurements
             )
           `);
 
@@ -454,7 +467,11 @@ const createQuotationMutation = useMutation({
               name,
               length,
               width,
-              unit
+              unit,
+              room_type,
+              wall_length,
+              wall_height,
+              measurements
             )
           )
         `)
@@ -580,7 +597,11 @@ const updateQuotationMutation = useMutation({
               name,
               length,
               width,
-              unit
+              unit,
+              room_type,
+              wall_length,
+              wall_height,
+              measurements
             )
           )
         `)
@@ -751,7 +772,11 @@ export const useCreateQuotation = () => {
               name,
               length,
               width,
-              unit
+              unit,
+              room_type,
+              wall_length,
+              wall_height,
+              measurements
             )
           )
         `)
@@ -809,7 +834,11 @@ export const useQuotationItems = (quotationId?: string) => {
             name,
             length,
             width,
-            unit
+            unit,
+            room_type,
+            wall_length,
+            wall_height,
+            measurements
           )
         `)
         .eq('quotation_id', quotationId);
