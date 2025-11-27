@@ -205,18 +205,38 @@ export const useUnifiedPDFGeneration = () => {
       
       if (item.room && tileCalculations[tileId]) {
         const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
+        
+        // --- FIX START: ROBUST DATA PARSING ---
+        // 1. Try to find measurements in various locations
+        let rawMeasurements = item.measurements || item.room.measurements || [];
+        
+        // 2. If it's a JSON string (common in Supabase), parse it
+        if (typeof rawMeasurements === 'string') {
+          try {
+            rawMeasurements = JSON.parse(rawMeasurements);
+          } catch (e) {
+            console.warn('Failed to parse measurements JSON', e);
+            rawMeasurements = [];
+          }
+        }
+        
+        // 3. Ensure it's an array
+        if (!Array.isArray(rawMeasurements)) {
+          rawMeasurements = [];
+        }
+        // --- FIX END ---
+
         tileCalculations[tileId].rooms.push({
           name: item.room.name,
           area: roomAreaInSqFt,
           layerNumber: item.layer_number,
-          // Capture dimensions for display
           length: item.room.length,
           width: item.room.width,
           wall_length: item.room.wall_length,
           wall_height: item.room.wall_height,
           unit: item.room.unit,
           room_type: item.room.room_type,
-          measurements: item.room.measurements // Capture multi-shape measurements
+          measurements: rawMeasurements // Pass the clean array
         });
         tileCalculations[tileId].totalArea += roomAreaInSqFt;
       }
@@ -591,10 +611,11 @@ export const useUnifiedPDFGeneration = () => {
                 ${calculations.map((calc: any) => {
                   const tile = calc.tile;
                   
-                  return `
+                 return `
                     <tr>
                       <td class="room-cell">
                         ${(() => {
+                          // Group rooms by name to consolidate layers
                           const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
                           
                           calc.rooms.forEach((room: any) => {
@@ -605,35 +626,43 @@ export const useUnifiedPDFGeneration = () => {
                             if (room.layerNumber !== null && room.layerNumber !== undefined) {
                               roomGroups[roomKey].layers.push(room.layerNumber);
                             }
+                            // If the grouped room doesn't have measurements but this one does, update it
+                            if ((!roomGroups[roomKey].room.measurements?.length) && room.measurements?.length > 0) {
+                               roomGroups[roomKey].room.measurements = room.measurements;
+                            }
                           });
                           
                           return Object.values(roomGroups).map(({ room, layers }) => {
                             let roomDisplay = `<strong>${room.name}</strong>`;
                             
-                            // === Multi-Shape & Correct Wall/Floor Dims ===
-                            if (room.measurements && Array.isArray(room.measurements) && room.measurements.length > 0) {
-                                // 1. Multi-Shape Display
-                                roomDisplay += `<div style="margin-top: 4px; padding-left: 0;">`;
-                                roomDisplay += `<div style="font-size: 9px; color: #666; margin-bottom: 2px;">Dimensions (${room.measurements.length} Shapes):</div>`;
+                            // --- FIX START: DISPLAY LOGIC ---
+                            if (room.measurements && room.measurements.length > 0) {
+                                // CASE 1: Multi-Shape Display
+                                roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
                                 room.measurements.forEach((m: any, idx: number) => {
-                                     const len = parseFloat(m.length || 0).toFixed(2);
-                                     const wid = parseFloat(m.width || 0).toFixed(2);
-                                     roomDisplay += `<div style="color: #000; font-size: 9px; font-family: sans-serif;">Shape ${idx + 1}: <strong>${len} × ${wid} ${room.unit}</strong></div>`;
+                                     // Handle both camelCase and snake_case keys
+                                     const len = m.length || m.size_length || 0;
+                                     const wid = m.width || m.breadth || m.size_breadth || 0;
+                                     roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${len} × ${wid} ${room.unit || 'ft'}</div>`;
                                 });
                                 roomDisplay += `</div>`;
                             } else {
-                                // 2. Legacy Fallback
+                                // CASE 2: Single Shape (Legacy)
                                 const isWall = room.room_type === 'wall';
-                                const l = isWall ? (room.wall_length || 0) : (room.length || 0);
-                                const w = isWall ? (room.wall_height || 0) : (room.width || 0);
-                                const lLabel = isWall ? "Length" : "Length";
-                                const wLabel = isWall ? "Height" : "Width";
-
-                                roomDisplay += `<div style="margin-top: 4px; font-size: 9px; color: #555;">`;
-                                roomDisplay += `<div>${lLabel}: <strong>${parseFloat(l.toString()).toFixed(2)} ${room.unit}</strong></div>`;
-                                roomDisplay += `<div>${wLabel}: <strong>${parseFloat(w.toString()).toFixed(2)} ${room.unit}</strong></div>`;
-                                roomDisplay += `</div>`;
+                                // Determine correct dimensions based on room type
+                                const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
+                                const w = isWall ? (room.wall_height || room.width || 0) : (room.width || 0);
+                                
+                                // HACK FIX: If Width is 1 and Length equals Area, it's a "Total Area" room. 
+                                // Do NOT show dimensions in this case to avoid "337 x 1".
+                                const isAreaHack = w === 1 || w === '1';
+                                
+                                if (!isAreaHack && l > 0 && w > 0) {
+                                    const dims = `${l} × ${w} ${room.unit || 'ft'}`;
+                                    roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+                                }
                             }
+                            // --- FIX END ---
 
                             if (layers.length > 0) {
                               roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
@@ -661,16 +690,12 @@ export const useUnifiedPDFGeneration = () => {
                           class="tile-image"
                           crossorigin="anonymous"
                           loading="eager"
-                          referrerpolicy="no-referrer"
-                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                           style="${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}"
                         />
-                        <div class="no-image-placeholder" style="display: none;">No Image</div>
                       ` : `
                         <div class="no-image-placeholder">No Image</div>
                       `}
                     </td>
-
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {
