@@ -219,7 +219,7 @@ export default function LandingPage() {
                         Join the waiting list or schedule a demo to see how Tylgo can help your business grow.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-                        <a href="mailto:hello@tylgo.com" className="w-full bg-white text-blue-600 font-bold py-4 px-8 rounded-xl hover:bg-blue-50 transition-colors">
+                        <a href="mailto:sudhiravinesh@gmail.com" className="w-full bg-white text-blue-600 font-bold py-4 px-8 rounded-xl hover:bg-blue-50 transition-colors">
                             Contact Sales
                         </a>
                     </div>
