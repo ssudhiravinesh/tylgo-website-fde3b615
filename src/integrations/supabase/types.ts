@@ -27,6 +27,7 @@ export type Database = {
           pincode: string | null
           reference_mobile_no: string | null
           reference_name: string | null
+          showroom_id: string | null
           state: string | null
           updated_at: string | null
         }
@@ -42,6 +43,7 @@ export type Database = {
           pincode?: string | null
           reference_mobile_no?: string | null
           reference_name?: string | null
+          showroom_id?: string | null
           state?: string | null
           updated_at?: string | null
         }
@@ -57,6 +59,7 @@ export type Database = {
           pincode?: string | null
           reference_mobile_no?: string | null
           reference_name?: string | null
+          showroom_id?: string | null
           state?: string | null
           updated_at?: string | null
         }
@@ -68,6 +71,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "customers_showroom_id_fkey"
+            columns: ["showroom_id"]
+            isOneToOne: false
+            referencedRelation: "showrooms"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -77,6 +87,7 @@ export type Database = {
           id: string
           name: string
           role: Database["public"]["Enums"]["user_role"]
+          showroom_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -85,6 +96,7 @@ export type Database = {
           id: string
           name: string
           role?: Database["public"]["Enums"]["user_role"]
+          showroom_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -93,9 +105,18 @@ export type Database = {
           id?: string
           name?: string
           role?: Database["public"]["Enums"]["user_role"]
+          showroom_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_showroom_id_fkey"
+            columns: ["showroom_id"]
+            isOneToOne: false
+            referencedRelation: "showrooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quotation_counter: {
         Row: {
@@ -128,6 +149,7 @@ export type Database = {
           price_per_box: number
           quotation_id: string
           room_id: string
+          showroom_id: string | null
           tile_id: string
           total_price: number
         }
@@ -140,6 +162,7 @@ export type Database = {
           price_per_box: number
           quotation_id: string
           room_id: string
+          showroom_id?: string | null
           tile_id: string
           total_price: number
         }
@@ -152,6 +175,7 @@ export type Database = {
           price_per_box?: number
           quotation_id?: string
           room_id?: string
+          showroom_id?: string | null
           tile_id?: string
           total_price?: number
         }
@@ -192,6 +216,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "quotation_items_showroom_id_fkey"
+            columns: ["showroom_id"]
+            isOneToOne: false
+            referencedRelation: "showrooms"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotation_items_tile_id_fkey"
             columns: ["tile_id"]
             isOneToOne: false
@@ -209,6 +240,7 @@ export type Database = {
           id: string
           notes: string | null
           quotation_number: string
+          showroom_id: string | null
           status: string | null
           total_cost: number | null
           updated_at: string | null
@@ -223,6 +255,7 @@ export type Database = {
           id?: string
           notes?: string | null
           quotation_number: string
+          showroom_id?: string | null
           status?: string | null
           total_cost?: number | null
           updated_at?: string | null
@@ -237,6 +270,7 @@ export type Database = {
           id?: string
           notes?: string | null
           quotation_number?: string
+          showroom_id?: string | null
           status?: string | null
           total_cost?: number | null
           updated_at?: string | null
@@ -259,6 +293,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "quotations_showroom_id_fkey"
+            columns: ["showroom_id"]
+            isOneToOne: false
+            referencedRelation: "showrooms"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotations_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
@@ -274,6 +315,7 @@ export type Database = {
           id: string
           layer_number: number | null
           room_id: string
+          showroom_id: string | null
           tile_id: string
         }
         Insert: {
@@ -282,6 +324,7 @@ export type Database = {
           id?: string
           layer_number?: number | null
           room_id: string
+          showroom_id?: string | null
           tile_id: string
         }
         Update: {
@@ -290,6 +333,7 @@ export type Database = {
           id?: string
           layer_number?: number | null
           room_id?: string
+          showroom_id?: string | null
           tile_id?: string
         }
         Relationships: [
@@ -329,6 +373,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "room_tile_selections_showroom_id_fkey"
+            columns: ["showroom_id"]
+            isOneToOne: false
+            referencedRelation: "showrooms"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "room_tile_selections_tile_id_fkey"
             columns: ["tile_id"]
             isOneToOne: false
@@ -346,6 +397,7 @@ export type Database = {
           measurements: Json | null
           name: string
           room_type: string
+          showroom_id: string | null
           unit: string
           wall_height: number | null
           wall_length: number | null
@@ -359,6 +411,7 @@ export type Database = {
           measurements?: Json | null
           name: string
           room_type?: string
+          showroom_id?: string | null
           unit?: string
           wall_height?: number | null
           wall_length?: number | null
@@ -372,6 +425,7 @@ export type Database = {
           measurements?: Json | null
           name?: string
           room_type?: string
+          showroom_id?: string | null
           unit?: string
           wall_height?: number | null
           wall_length?: number | null
@@ -392,7 +446,35 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "rooms_showroom_id_fkey"
+            columns: ["showroom_id"]
+            isOneToOne: false
+            referencedRelation: "showrooms"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      showrooms: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          subdomain: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          subdomain: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          subdomain?: string
+        }
+        Relationships: []
       }
       tiles: {
         Row: {
@@ -406,6 +488,7 @@ export type Database = {
           pieces_per_box: number | null
           price_per_box: number | null
           qr_code_url: string | null
+          showroom_id: string | null
           size_breadth: number
           size_length: number
           updated_at: string | null
@@ -421,6 +504,7 @@ export type Database = {
           pieces_per_box?: number | null
           price_per_box?: number | null
           qr_code_url?: string | null
+          showroom_id?: string | null
           size_breadth: number
           size_length: number
           updated_at?: string | null
@@ -436,11 +520,20 @@ export type Database = {
           pieces_per_box?: number | null
           price_per_box?: number | null
           qr_code_url?: string | null
+          showroom_id?: string | null
           size_breadth?: number
           size_length?: number
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tiles_showroom_id_fkey"
+            columns: ["showroom_id"]
+            isOneToOne: false
+            referencedRelation: "showrooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -500,6 +593,7 @@ export type Database = {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_user_showroom_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
