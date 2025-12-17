@@ -75,15 +75,16 @@ serve(async (req) => {
       });
     }
     
-    // Check if the requesting user is an admin
+    // Check if the requesting user is an admin and get their showroom_id
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('role')
+      .select('role, showroom_id')
       .eq('id', user.id)
       .single();
     
     console.log('Profile check:', {
       role: profile?.role,
+      showroom_id: profile?.showroom_id,
       error: profileError?.message
     });
     
@@ -98,6 +99,8 @@ serve(async (req) => {
         }
       });
     }
+
+    const adminShowroomId = profile.showroom_id;
     
     // Parse the request body
     const body = await req.json();
@@ -165,13 +168,15 @@ serve(async (req) => {
     }
     
     // Create the worker account using admin privileges
-    console.log('Creating worker account for:', email);
+    // Include the admin's showroom_id in the user metadata
+    console.log('Creating worker account for:', email, 'in showroom:', adminShowroomId);
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       user_metadata: {
         name,
-        role: 'worker'
+        role: 'worker',
+        showroom_id: adminShowroomId
       },
       email_confirm: true // Auto-confirm email
     });
@@ -204,14 +209,16 @@ serve(async (req) => {
     console.log('User created successfully:', authData.user.id);
     
     // Create profile record using UPSERT to handle duplicates gracefully
-    console.log('Creating profile for user:', authData.user.id);
+    // Include the admin's showroom_id so the worker belongs to the same showroom
+    console.log('Creating profile for user:', authData.user.id, 'with showroom:', adminShowroomId);
     const { error: profileInsertError } = await supabaseAdmin
       .from('profiles')
       .upsert({
         id: authData.user.id,
         name,
         email,
-        role: 'worker'
+        role: 'worker',
+        showroom_id: adminShowroomId
       }, {
         onConflict: 'id',
         ignoreDuplicates: false

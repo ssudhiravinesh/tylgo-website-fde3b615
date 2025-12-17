@@ -42,6 +42,11 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   const allStates = getAllStates();
 
 
+  // Helper function to capitalize words
+  const capitalizeWords = (str: string): string => {
+    return str.replace(/\b\w/g, char => char.toUpperCase());
+  };
+
   const handleInputChange = (field: string, value: string) => {
     const isTextField = ["name", "reference_name", "area", "state"].includes(field);
 
@@ -64,14 +69,15 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
   };
-  // const handleInputBlur = (field: string) => {
-  //   if (["name", "reference_name", "area"].includes(field)) {
-  //     setFormData(prev => ({
-  //       ...prev,
-  //       [field]: capitalizeWords(prev[field]),
-  //     }));
-  //   }
-  // };
+
+  const handleInputBlur = (field: string) => {
+    if (["name", "reference_name", "area"].includes(field)) {
+      setFormData(prev => ({
+        ...prev,
+        [field]: capitalizeWords(prev[field as keyof typeof prev]),
+      }));
+    }
+  };
 
   const handleCustomerFound = (customer: Customer | null) => {
     if (customer) {

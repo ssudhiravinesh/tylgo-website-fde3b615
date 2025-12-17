@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNotification } from '@/contexts/NotificationContext';
+import { getShowroomId } from './useShowroom';
 
 export interface Customer {
   id: string;
@@ -16,6 +17,7 @@ export interface Customer {
   reference_name?: string;
   reference_mobile_no?: string;
   attended_by?: string;
+  showroom_id?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -68,11 +70,18 @@ export const useCustomers = () => {
       if (!user) {
         throw new Error('User not authenticated');
       }
+
+      // Get showroom_id
+      const showroom_id = await getShowroomId();
+      if (!showroom_id) {
+        throw new Error('No showroom assigned to user');
+      }
       
-      // Add attended_by field to the customer data
+      // Add attended_by and showroom_id to the customer data
       const customerWithAttendee = {
         ...customerData,
-        attended_by: user.id
+        attended_by: user.id,
+        showroom_id
       };
       
       const { data, error } = await supabase
@@ -172,18 +181,23 @@ export const useCreateCustomer = () => {
   
   return useMutation({
     mutationFn: async (customerData: CreateCustomerData) => {
-      
-      
       // Get current user ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
       }
+
+      // Get showroom_id
+      const showroom_id = await getShowroomId();
+      if (!showroom_id) {
+        throw new Error('No showroom assigned to user');
+      }
       
-      // Add attended_by field to the customer data
+      // Add attended_by and showroom_id to the customer data
       const customerWithAttendee = {
         ...customerData,
-        attended_by: user.id
+        attended_by: user.id,
+        showroom_id
       };
       
       const { data, error } = await supabase
@@ -193,11 +207,9 @@ export const useCreateCustomer = () => {
         .single();
 
       if (error) {
-        
         throw error;
       }
 
-      
       return data as Customer;
     },
     onSuccess: (data) => {
@@ -210,7 +222,6 @@ export const useCreateCustomer = () => {
       toast.success(`Customer "${data.name}" created successfully!`);
     },
     onError: (error: any) => {
-      
       toast.error(error.message || 'Failed to create customer');
     },
   });

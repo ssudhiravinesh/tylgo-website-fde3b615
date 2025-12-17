@@ -9,13 +9,14 @@ interface Profile {
   name: string;
   email: string;
   role: 'admin' | 'worker';
+  showroom_id?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string, role: 'admin' | 'worker') => Promise<void>;
+  signUp: (email: string, password: string, name: string, role: 'admin' | 'worker', showroomId?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ user: User | null }>;
   signOut: () => Promise<void>;
 }
@@ -153,10 +154,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, role: 'admin' | 'worker') => {
+  const signUp = async (email: string, password: string, name: string, role: 'admin' | 'worker', showroomId?: string) => {
     try {
       setLoading(true);
       
+      // For first admin signup, use the default showroom if no showroomId provided
+      const showroom_id = showroomId || '00000000-0000-0000-0000-000000000001';
       
       const { error } = await supabase.auth.signUp({
         email,
@@ -165,7 +168,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
             name,
-            role
+            role,
+            showroom_id
           }
         }
       });
