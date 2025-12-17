@@ -343,6 +343,7 @@ export type Database = {
           customer_id: string | null
           id: string
           length: number
+          measurements: Json | null
           name: string
           room_type: string
           unit: string
@@ -355,6 +356,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           length?: number
+          measurements?: Json | null
           name: string
           room_type?: string
           unit?: string
@@ -367,6 +369,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           length?: number
+          measurements?: Json | null
           name?: string
           room_type?: string
           unit?: string
