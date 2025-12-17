@@ -9,7 +9,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "worker";
+  role: "admin" | "worker" | "super_admin";
 }
 
 interface HeaderProps {
@@ -34,11 +34,11 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
             >
               <Menu className="h-5 w-5" />
             </Button>
-<h1 className="text-xl font-semibold text-gray-800">
-  TYL
-  <span style={{ color: "#2563eb", fontWeight: "bold" }}>G</span>
-  O
-</h1>
+            <h1 className="text-xl font-semibold text-gray-800">
+              TYL
+              <span style={{ color: "#2563eb", fontWeight: "bold" }}>G</span>
+              O
+            </h1>
 
 
 
@@ -54,13 +54,13 @@ export const Header = ({ user, onLogout, onToggleSidebar }: HeaderProps) => {
                   {user.role}
                 </Badge>
               </div>
-              
+
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowLogoutDialog(true)}
                 className="p-2 text-gray-600 hover:text-red-600"
-              > 
+              >
                 <LogOut className="h-4 w-4" />
                 Logout
               </Button>

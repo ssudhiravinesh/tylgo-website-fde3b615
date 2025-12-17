@@ -46,25 +46,46 @@ export const useCustomers = () => {
   } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
-      
-      const { data, error } = await supabase
+      const showroom_id = await getShowroomId();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      let isSuperAdmin = false;
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (profile?.role === 'super_admin') {
+          isSuperAdmin = true;
+        }
+      }
+
+      let query = supabase
         .from('customers')
         .select('*')
         .order('created_at', { ascending: false });
 
+      if (showroom_id && !isSuperAdmin) {
+        query = query.eq('showroom_id', showroom_id);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
-        
+
         throw error;
       }
 
-      
+
       return data as Customer[];
     },
   });
 
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: CreateCustomerData) => {
-      
+
       // Get current user ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -76,14 +97,14 @@ export const useCustomers = () => {
       if (!showroom_id) {
         throw new Error('No showroom assigned to user');
       }
-      
+
       // Add attended_by and showroom_id to the customer data
       const customerWithAttendee = {
         ...customerData,
         attended_by: user.id,
         showroom_id
       };
-      
+
       const { data, error } = await supabase
         .from('customers')
         .insert([customerWithAttendee])
@@ -107,7 +128,7 @@ export const useCustomers = () => {
 
   const updateCustomerMutation = useMutation({
     mutationFn: async ({ id, ...customerData }: Partial<Customer> & { id: string }) => {
-      
+
       const { data, error } = await supabase
         .from('customers')
         .update(customerData)
@@ -116,11 +137,11 @@ export const useCustomers = () => {
         .single();
 
       if (error) {
-        
+
         throw error;
       }
 
-      
+
       return data as Customer;
     },
     onSuccess: (data) => {
@@ -128,25 +149,25 @@ export const useCustomers = () => {
       toast.success(`Customer "${data.name}" updated successfully!`);
     },
     onError: (error: any) => {
-      
+
       toast.error(error.message || 'Failed to update customer');
     },
   });
 
   const deleteCustomerMutation = useMutation({
     mutationFn: async (id: string) => {
-      
+
       const { error } = await supabase
         .from('customers')
         .delete()
         .eq('id', id);
 
       if (error) {
-        
+
         throw error;
       }
 
-      
+
       return id;
     },
     onSuccess: () => {
@@ -154,7 +175,7 @@ export const useCustomers = () => {
       toast.success('Customer deleted successfully!');
     },
     onError: (error: any) => {
-      
+
       toast.error(error.message || 'Failed to delete customer');
     },
   });
@@ -178,7 +199,7 @@ export const useCustomers = () => {
 export const useCreateCustomer = () => {
   const queryClient = useQueryClient();
   const { playNotificationSound, showSuccessAnimation } = useNotification();
-  
+
   return useMutation({
     mutationFn: async (customerData: CreateCustomerData) => {
       // Get current user ID
@@ -192,14 +213,14 @@ export const useCreateCustomer = () => {
       if (!showroom_id) {
         throw new Error('No showroom assigned to user');
       }
-      
+
       // Add attended_by and showroom_id to the customer data
       const customerWithAttendee = {
         ...customerData,
         attended_by: user.id,
         showroom_id
       };
-      
+
       const { data, error } = await supabase
         .from('customers')
         .insert([customerWithAttendee])
@@ -214,11 +235,11 @@ export const useCreateCustomer = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      
+
       // Play sound and show animation
       playNotificationSound('customerCreated');
       showSuccessAnimation(`Customer "${data.name}" created successfully!`, 'customer');
-      
+
       toast.success(`Customer "${data.name}" created successfully!`);
     },
     onError: (error: any) => {

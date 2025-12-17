@@ -50,12 +50,34 @@ export interface RoomTileSelection {
 
 const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
   if (!customerId) return [];
-  
-  const { data, error } = await supabase
+
+  // Get showroom_id to ensure we only fetch rooms for the current showroom
+  const showroom_id = await getShowroomId();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  let isSuperAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (profile?.role === 'super_admin') {
+      isSuperAdmin = true;
+    }
+  }
+
+  let query = supabase
     .from('rooms')
     .select('*')
     .eq('customer_id', customerId)
     .order('name');
+
+  if (showroom_id && !isSuperAdmin) {
+    query = query.eq('showroom_id', showroom_id);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching rooms:', error);
@@ -96,7 +118,7 @@ const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
 
 const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
   const { id, ...updates } = roomData;
-  
+
   const { data, error } = await supabase
     .from('rooms')
     .update(updates)
@@ -153,11 +175,33 @@ const deleteRoom = async (roomId: string): Promise<void> => {
 
 const fetchRoomTileSelections = async (customerId: string): Promise<RoomTileSelection[]> => {
   if (!customerId) return [];
-  
-  const { data, error } = await supabase
+
+  // Get showroom_id
+  const showroom_id = await getShowroomId();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  let isSuperAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (profile?.role === 'super_admin') {
+      isSuperAdmin = true;
+    }
+  }
+
+  let query = supabase
     .from('room_tile_selections')
     .select('*')
     .eq('customer_id', customerId);
+
+  if (showroom_id && !isSuperAdmin) {
+    query = query.eq('showroom_id', showroom_id);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching room tile selections:', error);
@@ -213,7 +257,7 @@ export const useRoomsByCustomer = (customerId: string) => {
 
 export const useCreateRoom = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: createRoom,
     onSuccess: (data) => {
@@ -224,7 +268,7 @@ export const useCreateRoom = () => {
 
 export const useUpdateRoom = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: updateRoom,
     onSuccess: (data) => {
@@ -235,7 +279,7 @@ export const useUpdateRoom = () => {
 
 export const useDeleteRoom = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: deleteRoom,
     onSuccess: () => {
@@ -256,7 +300,7 @@ export const useRoomTileSelections = (customerId: string) => {
 
 export const useSaveRoomTileSelections = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: saveRoomTileSelections,
     onSuccess: (_, variables) => {
@@ -269,9 +313,9 @@ export const useSaveRoomTileSelections = () => {
 
 export const useDeleteRoomTileSelection = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ roomId, tileId }: { roomId: string; tileId: string }) => 
+    mutationFn: ({ roomId, tileId }: { roomId: string; tileId: string }) =>
       deleteRoomTileSelection(roomId, tileId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });

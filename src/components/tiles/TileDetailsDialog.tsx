@@ -11,7 +11,7 @@ interface TileDetailsDialogProps {
   tile: Tile | null;
   isOpen: boolean;
   onClose: () => void;
-  userRole: "admin" | "worker";
+  userRole: "admin" | "worker" | "super_admin";
 }
 
 export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetailsDialogProps) => {
@@ -44,10 +44,10 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
 
   const formatTileSize = () => {
     if (!tile.size_length || !tile.size_breadth) return 'N/A';
-    
+
     const lengthInMm = tile.size_length;
     const widthInMm = tile.size_breadth;
-    
+
     if (lengthInMm >= 1000 || widthInMm >= 1000) {
       const lengthInM = (lengthInMm / 1000).toFixed(2);
       const widthInM = (widthInMm / 1000).toFixed(2);
@@ -65,7 +65,7 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
     if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
       return 0;
     }
-    
+
     const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
     const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
     return tile.price_per_box / areaPerBoxSqFt;
@@ -93,8 +93,8 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
           {/* Tile Image */}
           <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
             {tile.image_url ? (
-              <img 
-                src={tile.image_url} 
+              <img
+                src={tile.image_url}
                 alt={tile.name}
                 className="w-full h-full object-cover rounded-lg"
               />
@@ -158,7 +158,7 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
           </div>
 
           {/* QR Code Section - Only for admin */}
-          {userRole === "admin" && (
+          {(userRole === "admin" || userRole === "super_admin") && (
             <div className="border-t pt-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">QR Code</span>
@@ -187,8 +187,8 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
               </div>
               {tile.qr_code_url && (
                 <div className="mt-2 p-2 bg-gray-50 rounded text-center">
-                  <img 
-                    src={tile.qr_code_url} 
+                  <img
+                    src={tile.qr_code_url}
                     alt={`QR Code for ${tile.code}`}
                     className="w-24 h-24 mx-auto"
                   />

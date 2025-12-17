@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getShowroomId } from './useShowroom';
 
 export interface Worker {
   id: string;
@@ -24,12 +25,21 @@ export interface QuotationStats {
 
 const fetchWorkers = async (): Promise<Worker[]> => {
   console.log('Fetching workers...');
-  
-  // First get all profiles with role 'worker'
-  const { data: profiles, error: profilesError } = await supabase
+
+  // Get showroom_id
+  const showroom_id = await getShowroomId();
+
+  let query = supabase
     .from('profiles')
     .select('*')
     .eq('role', 'worker');
+
+  if (showroom_id) {
+    query = query.eq('showroom_id', showroom_id);
+  }
+
+  // First get all profiles with role 'worker'
+  const { data: profiles, error: profilesError } = await query;
 
   if (profilesError) {
     console.error('Error fetching worker profiles:', profilesError);
@@ -50,7 +60,7 @@ const fetchWorkers = async (): Promise<Worker[]> => {
   // Count quotations per worker by status
   const quotationStatsMap = quotations?.reduce((acc, quotation) => {
     const workerId = quotation.worker_id;
-    
+
     if (!acc[workerId]) {
       acc[workerId] = {
         total: 0,
@@ -58,15 +68,15 @@ const fetchWorkers = async (): Promise<Worker[]> => {
         pending: 0,
       };
     }
-    
+
     acc[workerId].total += 1;
-    
+
     if (quotation.status === 'approved') {
       acc[workerId].approved += 1;
     } else if (quotation.status === 'pending') {
       acc[workerId].pending += 1;
     }
-    
+
     return acc;
   }, {} as Record<string, { total: number; approved: number; pending: number }>) || {};
 
@@ -84,8 +94,10 @@ const fetchWorkers = async (): Promise<Worker[]> => {
 
 const fetchQuotationStats = async (): Promise<QuotationStats> => {
   console.log('Fetching quotation stats...');
-  
-  const { data: quotations, error } = await supabase
+
+  const showroom_id = await getShowroomId();
+
+  let query = supabase
     .from('quotations')
     .select(`
       id,
@@ -93,6 +105,12 @@ const fetchQuotationStats = async (): Promise<QuotationStats> => {
       status,
       worker:profiles(name)
     `);
+
+  if (showroom_id) {
+    query = query.eq('showroom_id', showroom_id);
+  }
+
+  const { data: quotations, error } = await query;
 
   if (error) {
     console.error('Error fetching quotation stats:', error);
@@ -106,7 +124,7 @@ const fetchQuotationStats = async (): Promise<QuotationStats> => {
   const workerStatsMap = quotations?.reduce((acc, quotation) => {
     const workerId = quotation.worker_id;
     const workerName = (quotation.worker as any)?.name || 'Unknown';
-    
+
     if (!acc[workerId]) {
       acc[workerId] = {
         worker_id: workerId,

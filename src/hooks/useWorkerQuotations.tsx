@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getShowroomId } from './useShowroom';
 
 export interface WorkerQuotation {
   id: string;
@@ -23,9 +24,12 @@ export const useWorkerQuotations = () => {
 
   const fetchWorkerQuotations = async (workerId: string) => {
     console.log('Fetching quotations for worker:', workerId);
-    
+
     try {
-      const { data, error } = await supabase
+      // Get showroom_id
+      const showroom_id = await getShowroomId();
+
+      let query = supabase
         .from('quotations')
         .select(`
           *,
@@ -34,13 +38,19 @@ export const useWorkerQuotations = () => {
         .eq('worker_id', workerId)
         .order('created_at', { ascending: false });
 
+      if (showroom_id) {
+        query = query.eq('showroom_id', showroom_id);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
         console.error('Error fetching worker quotations:', error);
         throw error;
       }
 
       console.log('Worker quotations fetched:', data);
-      
+
       // Type cast and handle RLS restrictions
       const typedQuotations: WorkerQuotation[] = (data || []).map((quotation: any) => {
         // Handle potential RLS restrictions on customer data
@@ -50,7 +60,7 @@ export const useWorkerQuotations = () => {
         } else {
           customerData = { name: 'Restricted', mobile: 'N/A' };
         }
-        
+
         return {
           id: quotation.id,
           quotation_number: quotation.quotation_number,
@@ -65,7 +75,7 @@ export const useWorkerQuotations = () => {
           customer: customerData
         };
       });
-      
+
       setWorkerQuotations(typedQuotations);
     } catch (error) {
       console.error('Error fetching worker quotations:', error);

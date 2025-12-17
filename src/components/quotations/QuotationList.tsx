@@ -12,7 +12,7 @@ import { QuotationActionButtons } from "./QuotationActionButtons";
 import { QuotationFilters } from "./QuotationFilters";
 
 interface QuotationListProps {
-  userRole: "admin" | "worker";
+  userRole: "admin" | "worker" | "super_admin";
 }
 
 type ViewMode = "list" | "create" | "details" | "edit";
@@ -23,75 +23,75 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedQuotationForAction, setSelectedQuotationForAction] = useState<string | null>(null);
-  
+
   // Date filter states
   const [quickSort, setQuickSort] = useState("all");
   const [filterYear, setFilterYear] = useState<number | null>(null);
   const [filterMonth, setFilterMonth] = useState<number | null>(null);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-  
+
   // New filter states
   const [selectedWorker, setSelectedWorker] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [viewMode, setViewMode] = useState<'list' | 'card'>('card');
   const [areaFilter, setAreaFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("all");
-  
+
   const { data: quotations = [], isLoading, refetch, deleteQuotation, isDeleting } = useQuotations({
     quickSort,
     year: filterYear,
     month: filterMonth
   });
-  
+
   const filteredQuotations = quotations.filter(quotation => {
     // Text search filter
     const matchesSearch = quotation.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       quotation.quotation_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       quotation.customer?.mobile.includes(searchTerm);
-    
+
     // Worker filter
     const matchesWorker = selectedWorker === "all" || quotation.worker_id === selectedWorker;
-    
+
     // Status filter
     const matchesStatus = selectedStatus === "all" || quotation.status === selectedStatus;
-    
+
     // Area filter
     const matchesArea = !areaFilter || (quotation.customer as any)?.area?.toLowerCase().includes(areaFilter.toLowerCase());
-    
+
     // State filter
     const matchesState = stateFilter === "all" || (quotation.customer as any)?.state === stateFilter;
-    
+
     // Date range filter
     const matchesDateRange = (() => {
       if (!startDate && !endDate) return true;
-      
+
       const quotationDate = new Date(quotation.created_at);
       const quotationDateOnly = new Date(quotationDate.getFullYear(), quotationDate.getMonth(), quotationDate.getDate());
-      
+
       if (startDate && endDate) {
         const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
         const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
         return quotationDateOnly >= startDateOnly && quotationDateOnly <= endDateOnly;
       }
-      
+
       if (startDate) {
         const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
         return quotationDateOnly >= startDateOnly;
       }
-      
+
       if (endDate) {
         const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
         return quotationDateOnly <= endDateOnly;
       }
-      
+
       return true;
     })();
-    
+
     return matchesSearch && matchesWorker && matchesStatus && matchesArea && matchesState && matchesDateRange;
   });
 
-  const selectedQuotation = selectedQuotationId 
+  const selectedQuotation = selectedQuotationId
     ? quotations.find(q => q.id === selectedQuotationId)
     : null;
 
@@ -140,26 +140,26 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   };
 
   const handleDelete = (quotationId: string) => {
-    
+
     setSelectedQuotationForAction(quotationId);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
     if (selectedQuotationForAction) {
-      
-      
+
+
       try {
         await deleteQuotation(selectedQuotationForAction);
-        
+
         setDeleteDialogOpen(false);
         setSelectedQuotationForAction(null);
       } catch (error) {
-        
+
         // Dialog will stay open to show the error and allow retry
       }
     } else {
-      
+
     }
   };
 
@@ -216,69 +216,69 @@ export const QuotationList = ({ userRole }: QuotationListProps) => {
   // Helper function to format address
   const formatAddress = (customer: any) => {
     if (!customer) return "-";
-    
+
     const parts = [];
     if (customer.area) parts.push(customer.area);
     if (customer.state) parts.push(customer.state);
-    
+
     let formatted = parts.join(", ");
     if (customer.pincode) {
       formatted += formatted ? ` - ${customer.pincode}` : customer.pincode;
     }
-    
+
     return formatted || "-";
   };
-// styles or loading state
+  // styles or loading state
   const styles = {
-  tilesContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 20px)',
-    gridTemplateRows: 'repeat(3, 20px)',
-    gap: '8px',
-    justifyContent: 'center',
-    marginBottom: '24px',
-  },
-  tile: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '4px',
-    animation: 'tileAnimation 1.2s ease-in-out infinite',
-  },
-  tileBlue: {
-    backgroundColor: '#3B82F6',
-  },
-  tileBeige: {
-    backgroundColor: '#F5F5DC',
-  },
-  tileLight: {
-    backgroundColor: '#93C5FD',
-  },
-  loadingText: {
-    color: '#6B7280',
-    fontSize: '16px',
-    fontWeight: '500',
-    marginBottom: '16px',
-  },
-  progressBar: {
-    width: '200px',
-    height: '4px',
-    backgroundColor: '#E5E7EB',
-    borderRadius: '2px',
-    overflow: 'hidden',
-    margin: '0 auto',
-  },
-  progressFill: {
-    height: '100%',
-    width: '100%',
-    background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
-    backgroundSize: '200% 100%',
-    animation: 'progressFlow 2s linear infinite',
-  },
-};
+    tilesContainer: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 20px)',
+      gridTemplateRows: 'repeat(3, 20px)',
+      gap: '8px',
+      justifyContent: 'center',
+      marginBottom: '24px',
+    },
+    tile: {
+      width: '20px',
+      height: '20px',
+      borderRadius: '4px',
+      animation: 'tileAnimation 1.2s ease-in-out infinite',
+    },
+    tileBlue: {
+      backgroundColor: '#3B82F6',
+    },
+    tileBeige: {
+      backgroundColor: '#F5F5DC',
+    },
+    tileLight: {
+      backgroundColor: '#93C5FD',
+    },
+    loadingText: {
+      color: '#6B7280',
+      fontSize: '16px',
+      fontWeight: '500',
+      marginBottom: '16px',
+    },
+    progressBar: {
+      width: '200px',
+      height: '4px',
+      backgroundColor: '#E5E7EB',
+      borderRadius: '2px',
+      overflow: 'hidden',
+      margin: '0 auto',
+    },
+    progressFill: {
+      height: '100%',
+      width: '100%',
+      background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
+      backgroundSize: '200% 100%',
+      animation: 'progressFlow 2s linear infinite',
+    },
+  };
 
-// Add keyframe animations using a style tag
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
+  // Add keyframe animations using a style tag
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = `
   @keyframes tileAnimation {
     0%, 80%, 100% {
       transform: scale(1) rotate(0deg);
@@ -299,7 +299,7 @@ styleSheet.textContent = `
     }
   }
 `;
-document.head.appendChild(styleSheet);
+  document.head.appendChild(styleSheet);
   // Get unique areas and states from customers
   const uniqueAreas = Array.from(new Set(quotations.map(q => (q.customer as any)?.area).filter(Boolean)));
   const uniqueStates = Array.from(new Set(quotations.map(q => (q.customer as any)?.state).filter(Boolean)));
@@ -323,34 +323,34 @@ document.head.appendChild(styleSheet);
     );
   }
 
-///
+  ///
   if (isLoading) {
-        return (
-          <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-              {/* Tile Loading Animation */}
-              <div style={styles.tilesContainer}>
-                {[...Array(12)].map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      ...styles.tile,
-                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                      animationDelay: `${index * 0.08}s`
-                    }}
-                  />
-                ))}
-              </div>
-              
-              <p style={styles.loadingText}>Loading...</p>
-              
-              <div style={styles.progressBar}>
-                <div style={styles.progressFill}></div>
-              </div>
-            </div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          {/* Tile Loading Animation */}
+          <div style={styles.tilesContainer}>
+            {[...Array(12)].map((_, index) => (
+              <div
+                key={index}
+                style={{
+                  ...styles.tile,
+                  ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
+                  animationDelay: `${index * 0.08}s`
+                }}
+              />
+            ))}
           </div>
-        );
-      }
+
+          <p style={styles.loadingText}>Loading...</p>
+
+          <div style={styles.progressBar}>
+            <div style={styles.progressFill}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -392,22 +392,20 @@ document.head.appendChild(styleSheet);
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${
-                  viewMode === 'list' 
-                    ? 'bg-blue-600 text-white' 
+                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${viewMode === 'list'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 <LayoutList className="h-4 w-4" />
                 <span className="text-sm">List</span>
               </button>
               <button
                 onClick={() => setViewMode('card')}
-                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${
-                  viewMode === 'card' 
-                    ? 'bg-blue-600 text-white' 
+                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${viewMode === 'card'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 <LayoutGrid className="h-4 w-4" />
                 <span className="text-sm">Card</span>
@@ -457,7 +455,7 @@ document.head.appendChild(styleSheet);
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center">
@@ -471,7 +469,7 @@ document.head.appendChild(styleSheet);
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center">
@@ -486,21 +484,21 @@ document.head.appendChild(styleSheet);
             </CardContent>
           </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <FileText className="h-8 w-8 text-red-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Closed</p>
-                <p className="text-2xl font-bold">
-                  {filteredQuotations.filter(q => q.status === 'closed').length}
-                </p>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center">
+                <FileText className="h-8 w-8 text-red-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Closed</p>
+                  <p className="text-2xl font-bold">
+                    {filteredQuotations.filter(q => q.status === 'closed').length}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-          
+
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center">
@@ -592,7 +590,7 @@ document.head.appendChild(styleSheet);
                     </Badge>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <User className="h-4 w-4 text-blue-500" />
@@ -601,30 +599,30 @@ document.head.appendChild(styleSheet);
                       <span className="text-gray-500 ml-2">{quotation.customer?.mobile}</span>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
                     <span className="line-clamp-2">
                       {formatAddress(quotation.customer)}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="h-4 w-4 text-gray-400" />
                     {new Date(quotation.created_at).toLocaleDateString()}
                   </div>
-                  
+
                   <div className="flex items-center gap-2 text-lg font-bold text-green-600">
                     <IndianRupee className="h-5 w-5" />
                     {(quotation.total_cost || 0).toLocaleString()}
                   </div>
-                  
+
                   <div className="pt-2 border-t border-gray-100">
                     <p className="text-xs text-gray-500">
                       Created by: <span className="font-medium text-gray-700">{quotation.worker?.name}</span>
                     </p>
                   </div>
-                  
+
                   <QuotationActionButtons
                     onView={() => handleViewDetails(quotation.id)}
                     onEdit={() => handleEdit(quotation.id)}
@@ -642,13 +640,13 @@ document.head.appendChild(styleSheet);
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-600 mb-2">No quotations found</h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm || selectedWorker !== "all" || selectedStatus !== "all" || areaFilter || stateFilter !== "all" ? 
-                "Try adjusting your search terms or filters" : 
+              {searchTerm || selectedWorker !== "all" || selectedStatus !== "all" || areaFilter || stateFilter !== "all" ?
+                "Try adjusting your search terms or filters" :
                 "No quotations have been created yet"
               }
             </p>
             {(!searchTerm && selectedWorker === "all" && selectedStatus === "all" && !areaFilter && stateFilter === "all") ? null : (
-              <Button 
+              <Button
                 onClick={clearAllFilters}
                 variant="outline"
                 className="mr-2"

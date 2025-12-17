@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { 
-  Users, 
-  UserPlus, 
-  Grid3X3, 
-  FileText, 
+import {
+  Users,
+  UserPlus,
+  Grid3X3,
+  FileText,
   Settings,
   Home
 } from "lucide-react";
@@ -14,21 +14,21 @@ interface SidebarProps {
   isOpen: boolean;
   activeView: ActiveView;
   onViewChange: (view: ActiveView) => void;
-  userRole: "admin" | "worker";
+  userRole: "admin" | "worker" | "super_admin";
 }
 
 const sidebarItems = [
-  { id: "customers" as ActiveView, label: "Customers", icon: Users, roles: ["admin", "worker"] },
+  { id: "customers" as ActiveView, label: "Customers", icon: Users, roles: ["admin", "worker", "super_admin"] },
   { id: "add-customer" as ActiveView, label: "Add Customer", icon: UserPlus, roles: ["worker"] },
   { id: "rooms" as ActiveView, label: "Rooms", icon: Home, roles: ["worker"] },
   { id: "tiles" as ActiveView, label: "Tile Catalog", icon: Grid3X3, roles: ["worker"] },
-  { id: "quotations" as ActiveView, label: "Quotations", icon: FileText, roles: ["admin", "worker"] },
-  { id: "admin" as ActiveView, label: "Admin Panel", icon: Settings, roles: ["admin"] },
+  { id: "quotations" as ActiveView, label: "Quotations", icon: FileText, roles: ["admin", "worker", "super_admin"] },
+  { id: "admin" as ActiveView, label: "Admin Panel", icon: Settings, roles: ["admin", "super_admin"] },
 ];
 
 export const Sidebar = ({ isOpen, activeView, onViewChange, userRole }: SidebarProps) => {
   const filteredItems = sidebarItems.filter(item => item.roles.includes(userRole));
-  
+
   return (
     <aside className={cn(
       "bg-white border-r border-gray-200 transition-all duration-300 flex flex-col",
@@ -36,7 +36,7 @@ export const Sidebar = ({ isOpen, activeView, onViewChange, userRole }: SidebarP
       isOpen && "shadow-lg lg:shadow-none"
     )}>
       <div className={cn(
-        "p-4 flex-1", 
+        "p-4 flex-1",
         isOpen && "overflow-visible",
         // Hide content completely on small screens when sidebar is closed
         !isOpen && "hidden lg:block"
@@ -45,7 +45,7 @@ export const Sidebar = ({ isOpen, activeView, onViewChange, userRole }: SidebarP
           {filteredItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
-            
+
             return (
               <Button
                 key={item.id}

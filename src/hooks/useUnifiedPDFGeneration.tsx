@@ -22,80 +22,21 @@ export const useUnifiedPDFGeneration = () => {
   const waitForAllImages = (win: Window): Promise<void> => {
     return new Promise((resolve) => {
       const images = Array.from(win.document.images);
-      
+
       if (images.length === 0) {
-        console.log('[PDF Generation] No images found, proceeding');
         resolve();
         return;
       }
 
-      let loadedCount = 0;
-      let errorCount = 0;
-      const totalImages = images.length;
-      const maxWaitTime = 25000; // Extended for Chrome print bug
-
-      console.log(`[PDF Generation] Chrome print bug fix: checking ${totalImages} images...`);
-
-      const checkComplete = () => {
-        if (loadedCount + errorCount >= totalImages) {
-          console.log(`[PDF Generation] Images processed: ${loadedCount} loaded, ${errorCount} failed`);
-          
-          // Chrome print bug fix: Force reload all images once more
-          console.log('[PDF Generation] Applying Chrome print context fix...');
-          images.forEach((img, index) => {
-            if (img.src && img.complete && img.naturalWidth > 0) {
-              // Force reload to ensure print context readiness
-              const src = img.src;
-              img.src = '';
-              img.src = src;
-              console.log(`[PDF Generation] ✓ Image ${index + 1} ready for print`);
-            }
-          });
-          
-          setTimeout(resolve, 1000); // Final stabilization delay
-          return;
-        }
-      };
-
-      images.forEach((img, index) => {
-        if (img.complete && img.naturalWidth > 0) {
-          loadedCount++;
-          console.log(`[PDF Generation] Image ${index + 1} already loaded`);
-        } else {
-          const loadHandler = () => {
-            if (img.naturalWidth > 0) {
-              loadedCount++;
-              console.log(`[PDF Generation] Image ${index + 1} loaded successfully`);
-            } else {
-              errorCount++;
-            }
-            checkComplete();
-          };
-
-          const errorHandler = () => {
-            errorCount++;
-            console.log(`[PDF Generation] Image ${index + 1} failed to load`);
-            checkComplete();
-          };
-
-          img.addEventListener('load', loadHandler, { once: true });
-          img.addEventListener('error', errorHandler, { once: true });
-
-          // Chrome bug fix: Force image reload
-          const currentSrc = img.src;
-          img.src = '';
-          setTimeout(() => {
-            img.src = currentSrc;
-          }, 100);
-        }
+      const promises = images.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise<void>(r => {
+          img.onload = () => r();
+          img.onerror = () => r();
+        });
       });
 
-      checkComplete();
-
-      setTimeout(() => {
-        console.log('[PDF Generation] Chrome print bug timeout - proceeding anyway');
-        resolve();
-      }, maxWaitTime);
+      Promise.all(promises).then(() => resolve());
     });
   };
 
@@ -113,7 +54,7 @@ export const useUnifiedPDFGeneration = () => {
     // Handle different Supabase URL formats
     try {
       let filePath = '';
-      
+
       if (imageUrl.includes('/storage/v1/object/sign/tile-images/')) {
         const parts = imageUrl.split('/storage/v1/object/sign/tile-images/');
         if (parts.length === 2) {
@@ -125,7 +66,7 @@ export const useUnifiedPDFGeneration = () => {
           filePath = parts[1].split('?')[0];
         }
       }
-      
+
       if (filePath) {
         const { data } = supabase.storage.from('tile-images').getPublicUrl(filePath);
         return data.publicUrl;
@@ -138,131 +79,87 @@ export const useUnifiedPDFGeneration = () => {
     return imageUrl;
   };
 
-  const generateQuotationHTML = async (quotation: Quotation): Promise<string> => {
-    const { 
-      quotation_items = [], 
-      customer, 
-      worker, 
-      quotation_number, 
-      created_at, 
+
+  // Helper to convert URL to Base64
+  const urlToBase64 = async (url: string): Promise<string> => {
+    try {
+      const response = await fetch(url, { mode: 'cors' });
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.warn('[PDF Generation] Failed to convert image to base64:', error);
+      return '';
+    }
+  };
+
+  const generateQuotationHTML = async (quotation: Quotation) => {
+    const {
+      quotation_number,
+      customer,
+      worker,
       wastage_percentage = 0,
-      // Fix: Alias these to camelCase to match usage in template
       discount_percentage: discountPercentage = 0,
-      discount_amount: discountAmount = 0
+      discount_amount: discountAmount = 0,
+      created_at,
+      quotation_items = []
     } = quotation;
 
-    const chromeFixCSS = `
-      /* === CHROME PRINT BUG FIXES === */
-      .tile-image {
-        max-width: 50px;
-        max-height: 50px;
-        object-fit: contain;
-        border-radius: 4px;
-        border: 1px solid #ddd;
-        background-color: #fff;
-        display: block !important;
-        margin: 0 auto;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
-      }
-      @media print {
-        .tile-image {
-          display: block !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-        }
-        .image-cell {
-          display: table-cell !important;
-          visibility: visible !important;
-        }
-      }
-      @media screen {
-        .tile-image {
-          opacity: 1;
-          visibility: visible;
-        }
-      }
-    `;
+    const chromeFixCSS = ''; // Placeholder for any specific Chrome print CSS fixes
 
-    // Group items by tile for calculations
-    const tileCalculations: { [tileId: string]: any } = {};
+    // Calculate tile requirements
+    const tileCalculations: Record<string, any> = {};
 
-// ... inside generateQuotationHTML ...
+    quotation_items.forEach((item) => {
+      if (!item.tile_id || !item.tile) return;
 
-    quotation_items.forEach((item: any) => {
       const tileId = item.tile_id;
-      if (!tileCalculations[tileId] && item.tile) {
+      if (!tileCalculations[tileId]) {
         tileCalculations[tileId] = {
           tile: item.tile,
-          rooms: [],
           totalArea: 0,
-          tilesNeeded: 0,
-          boxesNeeded: 0,
-          totalPrice: 0,
-          customBoxAdjustment: item.custom_boxes || 0
+          customBoxAdjustment: 0,
+          rooms: []
         };
       }
-      
-      if (item.room && tileCalculations[tileId]) {
-        const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
-        
-        // --- FIX: ROBUST DATA PARSING ---
-        // 1. Try to find measurements in various locations
-        let rawMeasurements = item.measurements || item.room.measurements || [];
-        
-        // 2. If it's a JSON string (common in Supabase), parse it
-        if (typeof rawMeasurements === 'string') {
-          try {
-            rawMeasurements = JSON.parse(rawMeasurements);
-          } catch (e) {
-            console.warn('Failed to parse measurements JSON', e);
-            rawMeasurements = [];
-          }
-        }
-        
-        // 3. Ensure it's an array
-        if (!Array.isArray(rawMeasurements)) {
-          rawMeasurements = [];
-        }
 
+      tileCalculations[tileId].totalArea += Number(item.area || 0);
+      tileCalculations[tileId].customBoxAdjustment += Number(item.custom_boxes || 0);
+
+      if (item.room) {
         tileCalculations[tileId].rooms.push({
-          name: item.room.name,
-          area: roomAreaInSqFt,
+          ...item.room,
           layerNumber: item.layer_number,
-          length: item.room.length,
-          width: item.room.width,
-          wall_length: item.room.wall_length,
-          wall_height: item.room.wall_height,
-          unit: item.room.unit,
-          room_type: item.room.room_type,
-          measurements: rawMeasurements // Pass the clean array for the HTML step to use later
+          measurements: item.room.measurements
         });
-        tileCalculations[tileId].totalArea += roomAreaInSqFt;
       }
     });
 
     // Process images
     const totalTiles = Object.keys(tileCalculations).length;
-    
-    Object.entries(tileCalculations).forEach(async ([tileId, calc]) => {
-      let imageUrl = getDirectImageUrl(calc.tile.image_url);
-      let finalUrl: string;
 
-      try {
-        const resp = await fetch(imageUrl, { mode: 'cors' });
-        if (resp.ok) {
+    // Fix: Use Promise.all to wait for all async operations to complete
+    await Promise.all(Object.entries(tileCalculations).map(async ([tileId, calc]) => {
+      let imageUrl = getDirectImageUrl(calc.tile.image_url);
+      let finalUrl: string = '';
+
+      if (imageUrl) {
+        try {
+          // Convert to base64 for reliable PDF rendering
+          finalUrl = await urlToBase64(imageUrl);
+        } catch (e) {
+          console.warn(`[PDF Generation] Error processing image for tile ${tileId}`, e);
+          // Fallback to original URL if base64 conversion fails
           finalUrl = imageUrl;
-        } else {
-          throw new Error('Image fetch failed');
         }
-      } catch {
-        finalUrl = imageUrl;
       }
 
       tileCalculations[tileId].tile_image_direct_url = finalUrl;
-    });
+    }));
 
     // Calculate requirements for each tile
     Object.values(tileCalculations).forEach((calc: any) => {
@@ -271,7 +168,7 @@ export const useUnifiedPDFGeneration = () => {
         const tileLengthFt = (tile.size_length || 0) / 304.8;
         const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
         const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-        
+
         if (tileAreaSqFt > 0) {
           const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
           calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastage_percentage / 100)));
@@ -281,7 +178,7 @@ export const useUnifiedPDFGeneration = () => {
         }
       }
     });
-    
+
     const calculations = Object.values(tileCalculations);
     const mrp = calculations.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
     const finalTotal = mrp - discountAmount;
@@ -290,10 +187,10 @@ export const useUnifiedPDFGeneration = () => {
 
     const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
       if (!sizeLength || !sizeBreadth) return 'N/A';
-      
+
       const lengthInMm = sizeLength;
       const widthInMm = sizeBreadth;
-      
+
       if (lengthInMm >= 1000 || widthInMm >= 1000) {
         const lengthInM = (lengthInMm / 1000).toFixed(1);
         const widthInM = (widthInMm / 1000).toFixed(1);
@@ -307,34 +204,6 @@ export const useUnifiedPDFGeneration = () => {
       }
     };
 
-    const printContextScript = `
-      <script>
-        (function() {
-          console.log('[Print Context] Initializing Chrome print bug fixes...');
-          const images = document.querySelectorAll('.tile-image');
-          images.forEach((img, index) => {
-            if (img.src) {
-              const tempImg = new Image();
-              tempImg.src = img.src;
-            }
-          });
-          const handleBeforePrint = () => {
-            console.log('[Print Context] Before print—reloading images...');
-            images.forEach(img => {
-              const src = img.src;
-              img.src = '';
-              setTimeout(() => img.src = src, 10);
-            });
-          };
-          window.addEventListener('beforeprint', handleBeforePrint);
-          if (window.matchMedia) {
-            window.matchMedia('print').addEventListener('change', e => {
-              if (e.matches) handleBeforePrint();
-            });
-          }
-        })();
-      </script>
-    `;
 
     return `
       <!DOCTYPE html>
@@ -610,69 +479,69 @@ export const useUnifiedPDFGeneration = () => {
               </thead>
               <tbody>
                 ${calculations.map((calc: any) => {
-                  const tile = calc.tile;
-                  
-                 return `
+      const tile = calc.tile;
+
+      return `
                     <tr>
                       <td class="room-cell">
                         ${(() => {
-                          // Group rooms by name to consolidate layers
-                          const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
-                          
-                          calc.rooms.forEach((room: any) => {
-                            const roomKey = room.name;
-                            if (!roomGroups[roomKey]) {
-                              roomGroups[roomKey] = { room, layers: [] };
-                            }
-                            if (room.layerNumber !== null && room.layerNumber !== undefined) {
-                              roomGroups[roomKey].layers.push(room.layerNumber);
-                            }
-                            // If the grouped room doesn't have measurements but this one does, update it
-                            if ((!roomGroups[roomKey].room.measurements?.length) && room.measurements?.length > 0) {
-                               roomGroups[roomKey].room.measurements = room.measurements;
-                            }
-                          });
-                          
-                          return Object.values(roomGroups).map(({ room, layers }) => {
-                            let roomDisplay = `<strong>${room.name}</strong>`;
-                            
-                            // --- DISPLAY LOGIC ---
-                            if (room.measurements && room.measurements.length > 0) {
-                                // CASE 1: Multi-Shape Display
-                                roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
-                                room.measurements.forEach((m: any, idx: number) => {
-                                     const len = parseFloat(m.length || m.size_length || 0);
-                                     const wid = parseFloat(m.width || m.breadth || m.size_breadth || 0);
-                                     
-                                     if (len > 0 && wid > 0) {
-                                       roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${len} × ${wid} ${room.unit || 'ft'}</div>`;
-                                     }
-                                });
-                                roomDisplay += `</div>`;
-                            } else {
-                                // CASE 2: Single Shape (Legacy)
-                                const isWall = room.room_type === 'wall';
-                                // Determine correct dimensions based on room type
-                                const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
-                                const w = isWall ? (room.wall_height || room.width || 0) : (room.width || 0);
-                                
-                                // HACK FIX: If Width is 1 and Length equals Area, it's a "Total Area" room. 
-                                // Do NOT show dimensions in this case to avoid "337 x 1".
-                                const isAreaHack = w == 1 || w == '1';
-                                
-                                if (!isAreaHack && l > 0 && w > 0) {
-                                    const dims = `${l} × ${w} ${room.unit || 'ft'}`;
-                                    roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
-                                }
-                            }
+          // Group rooms by name to consolidate layers
+          const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
 
-                            if (layers.length > 0) {
-                              roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
-                            }
-                            
-                            return roomDisplay;
-                          }).join('<br><br>');
-                        })()}
+          calc.rooms.forEach((room: any) => {
+            const roomKey = room.name;
+            if (!roomGroups[roomKey]) {
+              roomGroups[roomKey] = { room, layers: [] };
+            }
+            if (room.layerNumber !== null && room.layerNumber !== undefined) {
+              roomGroups[roomKey].layers.push(room.layerNumber);
+            }
+            // If the grouped room doesn't have measurements but this one does, update it
+            if ((!roomGroups[roomKey].room.measurements?.length) && room.measurements?.length > 0) {
+              roomGroups[roomKey].room.measurements = room.measurements;
+            }
+          });
+
+          return Object.values(roomGroups).map(({ room, layers }) => {
+            let roomDisplay = `<strong>${room.name}</strong>`;
+
+            // --- DISPLAY LOGIC ---
+            if (room.measurements && room.measurements.length > 0) {
+              // CASE 1: Multi-Shape Display
+              roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
+              room.measurements.forEach((m: any, idx: number) => {
+                const len = parseFloat(m.length || m.size_length || 0);
+                const wid = parseFloat(m.width || m.breadth || m.size_breadth || 0);
+
+                if (len > 0 && wid > 0) {
+                  roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${len} × ${wid} ${room.unit || 'ft'}</div>`;
+                }
+              });
+              roomDisplay += `</div>`;
+            } else {
+              // CASE 2: Single Shape (Legacy)
+              const isWall = room.room_type === 'wall';
+              // Determine correct dimensions based on room type
+              const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
+              const w = isWall ? (room.wall_height || room.width || 0) : (room.width || 0);
+
+              // HACK FIX: If Width is 1 and Length equals Area, it's a "Total Area" room. 
+              // Do NOT show dimensions in this case to avoid "337 x 1".
+              const isAreaHack = w == 1 || w == '1';
+
+              if (!isAreaHack && l > 0 && w > 0) {
+                const dims = `${l} × ${w} ${room.unit || 'ft'}`;
+                roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+              }
+            }
+
+            if (layers.length > 0) {
+              roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
+            }
+
+            return roomDisplay;
+          }).join('<br><br>');
+        })()}
                         <br><br>
                         <span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block;">
                           Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong>
@@ -704,13 +573,13 @@ export const useUnifiedPDFGeneration = () => {
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {
-                          const fullBoxes = Math.floor(calc.tilesNeeded / (tile.pieces_per_box || 1));
-                          const leftoverTiles = calc.tilesNeeded % (tile.pieces_per_box || 1);
-                          if (leftoverTiles > 0) {
-                            return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''} and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}`;
-                          }
-                          return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}`;
-                        })()})</small><br>
+          const fullBoxes = Math.floor(calc.tilesNeeded / (tile.pieces_per_box || 1));
+          const leftoverTiles = calc.tilesNeeded % (tile.pieces_per_box || 1);
+          if (leftoverTiles > 0) {
+            return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''} and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}`;
+          }
+          return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}`;
+        })()})</small><br>
                         <small class="wastage-note">+${wastage_percentage}% wastage</small>
                       </td>
                       <td>${calc.boxesNeeded}</td>
@@ -718,7 +587,7 @@ export const useUnifiedPDFGeneration = () => {
                       <td class="price-cell">₹${calc.totalPrice.toLocaleString()}</td>
                     </tr>
                   `;
-                }).join('')}
+    }).join('')}
               </tbody>  
             </table>
           </div>
@@ -751,7 +620,7 @@ export const useUnifiedPDFGeneration = () => {
         
         <script>
           console.log('PDF content loaded and ready');
-          ${printContextScript}
+          console.log('PDF content loaded and ready');
         </script>
       </body>
       </html>
@@ -912,13 +781,13 @@ export const useUnifiedPDFGeneration = () => {
       console.log('[PDF Generation] Starting PDF generation for quotation:', quotation.quotation_number);
 
       const htmlContent = await generateQuotationHTML(quotation);
-      
+
       const printWindow = window.open('', '_blank');
-      
+
       if (printWindow) {
         printWindow.document.write(htmlContent);
         printWindow.document.close();
-        
+
         await new Promise<void>(resolve => {
           if (printWindow.document.readyState === 'complete') {
             resolve();
@@ -943,18 +812,14 @@ export const useUnifiedPDFGeneration = () => {
         }
 
         console.log('[PDF Generation] Print media context prepared, waiting for images...');
-        toast.info('Preparing images for print...');
-        
+
         await waitForAllImages(printWindow);
-        
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
+
         printWindow.focus();
         printWindow.print();
-        
+
         console.log('[PDF Generation] ✓ PDF generation complete');
-        toast.success('PDF ready! All images loaded successfully.');
-        
+
       } else {
         toast.error('Please allow popups to generate PDF');
       }

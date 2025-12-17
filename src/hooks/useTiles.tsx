@@ -21,7 +21,7 @@
 // //2.0
 // const fetchTiles = async (): Promise<Tile[]> => {
 //   console.log('Fetching all tiles from database...');
-  
+
 //   let allTiles: Tile[] = [];
 //   let from = 0;
 //   const limit = 1000; // Supabase's safe batch size
@@ -64,6 +64,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getShowroomId } from './useShowroom';
 
 export interface Tile {
   id: string;
@@ -83,15 +84,35 @@ export interface Tile {
 async function fetchTiles(includeInactive = false): Promise<{ tiles: Tile[]; totalCount: number }> {
   console.log('🔄 Starting to fetch all tiles with pagination...', includeInactive ? '(including inactive)' : '(active only)');
   try {
+    const showroom_id = await getShowroomId();
+
+    // Check if user is super_admin
+    const { data: { user } } = await supabase.auth.getUser();
+    let isSuperAdmin = false;
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (profile?.role === 'super_admin') {
+        isSuperAdmin = true;
+      }
+    }
+
     // Step 1: Get total tile count
     let countQuery = supabase
       .from('tiles')
       .select('*', { count: 'exact', head: true });
-    
+
+    if (showroom_id && !isSuperAdmin) {
+      countQuery = countQuery.eq('showroom_id', showroom_id);
+    }
+
     if (!includeInactive) {
       countQuery = countQuery.eq('is_active', true);
     }
-    
+
     const { count, error: countError } = await countQuery;
 
     if (countError) {
@@ -120,11 +141,15 @@ async function fetchTiles(includeInactive = false): Promise<{ tiles: Tile[]; tot
         .select('*')
         .range(from, from + batchSize - 1)
         .order('created_at', { ascending: false });
-      
+
+      if (showroom_id && !isSuperAdmin) {
+        dataQuery = dataQuery.eq('showroom_id', showroom_id);
+      }
+
       if (!includeInactive) {
         dataQuery = dataQuery.eq('is_active', true);
       }
-      
+
       const { data, error } = await dataQuery;
 
       if (error) {

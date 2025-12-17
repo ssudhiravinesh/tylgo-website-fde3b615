@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import type { Tile } from "@/hooks/useTiles";
 
 interface TileManagementProps {
-  userRole: "admin" | "worker";
+  userRole: "admin" | "worker" | "super_admin";
 }
 
 export const TileManagement = ({ userRole }: TileManagementProps) => {
@@ -46,52 +46,52 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   };
 
   const styles = {
-  tilesContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 20px)',
-    gridTemplateRows: 'repeat(3, 20px)',
-    gap: '8px',
-    justifyContent: 'center',
-    marginBottom: '24px',
-  },
-  tile: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '4px',
-    animation: 'tileAnimation 1.2s ease-in-out infinite',
-  },
-  tileBlue: {
-    backgroundColor: '#3B82F6',
-  },
-  tileBeige: {
-    backgroundColor: '#F5F5DC',
-  },
-  tileLight: {
-    backgroundColor: '#93C5FD',
-  },
-  loadingText: {
-    color: '#6B7280',
-    fontSize: '16px',
-    fontWeight: '500',
-    marginBottom: '16px',
-  },
-  progressBar: {
-    width: '200px',
-    height: '4px',
-    backgroundColor: '#E5E7EB',
-    borderRadius: '2px',
-    overflow: 'hidden',
-    margin: '0 auto',
-  },
-  progressFill: {
-    height: '100%',
-    width: '100%',
-    background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
-    backgroundSize: '200% 100%',
-    animation: 'progressFlow 2s linear infinite',
-  },
-};
-  
+    tilesContainer: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 20px)',
+      gridTemplateRows: 'repeat(3, 20px)',
+      gap: '8px',
+      justifyContent: 'center',
+      marginBottom: '24px',
+    },
+    tile: {
+      width: '20px',
+      height: '20px',
+      borderRadius: '4px',
+      animation: 'tileAnimation 1.2s ease-in-out infinite',
+    },
+    tileBlue: {
+      backgroundColor: '#3B82F6',
+    },
+    tileBeige: {
+      backgroundColor: '#F5F5DC',
+    },
+    tileLight: {
+      backgroundColor: '#93C5FD',
+    },
+    loadingText: {
+      color: '#6B7280',
+      fontSize: '16px',
+      fontWeight: '500',
+      marginBottom: '16px',
+    },
+    progressBar: {
+      width: '200px',
+      height: '4px',
+      backgroundColor: '#E5E7EB',
+      borderRadius: '2px',
+      overflow: 'hidden',
+      margin: '0 auto',
+    },
+    progressFill: {
+      height: '100%',
+      width: '100%',
+      background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
+      backgroundSize: '200% 100%',
+      animation: 'progressFlow 2s linear infinite',
+    },
+  };
+
   const handleViewDetails = (tileId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const tile = tiles.find(t => t.id === tileId);
@@ -136,8 +136,8 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   };
 
   const handleRoomToggle = (roomId: string) => {
-    setSelectedRooms(prev => 
-      prev.includes(roomId) 
+    setSelectedRooms(prev =>
+      prev.includes(roomId)
         ? prev.filter(id => id !== roomId)
         : [...prev, roomId]
     );
@@ -190,30 +190,30 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
 
       {isLoading ? (
 
-          <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-              {/* Tile Loading Animation */}
-              <div style={styles.tilesContainer}>
-                {[...Array(12)].map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      ...styles.tile,
-                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                      animationDelay: `${index * 0.08}s`
-                    }}
-                  />
-                ))}
-              </div>
-              
-              <p style={styles.loadingText}>Loading...</p>
-              
-              <div style={styles.progressBar}>
-                <div style={styles.progressFill}></div>
-              </div>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+          <div className="text-center">
+            {/* Tile Loading Animation */}
+            <div style={styles.tilesContainer}>
+              {[...Array(12)].map((_, index) => (
+                <div
+                  key={index}
+                  style={{
+                    ...styles.tile,
+                    ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
+                    animationDelay: `${index * 0.08}s`
+                  }}
+                />
+              ))}
+            </div>
+
+            <p style={styles.loadingText}>Loading...</p>
+
+            <div style={styles.progressBar}>
+              <div style={styles.progressFill}></div>
             </div>
           </div>
-        
+        </div>
+
       ) : filteredTiles.length === 0 ? (
         <EmptyTileState />
       ) : (
@@ -223,7 +223,7 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
               key={tile.id}
               tile={tile}
               isSelected={selectedTile?.id === tile.id}
-              isAdmin={userRole === "admin"}
+              isAdmin={userRole === "admin" || userRole === "super_admin"}
               showAssignButton={selectedTile?.id === tile.id}
               onTileSelect={() => handleTileSelect(tile)}
               onGenerateQR={handleGenerateQR}

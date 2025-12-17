@@ -7,12 +7,13 @@ import { TileManagement } from "@/components/tiles/TileManagement";
 import { QuotationList } from "@/components/quotations/QuotationList";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { CustomerRoomManagement } from "@/components/rooms/CustomerRoomManagement";
+import { SuperAdminDashboard } from "@/components/superadmin/SuperAdminDashboard";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "worker";
+  role: "admin" | "worker" | "super_admin";
 }
 
 interface DashboardProps {
@@ -20,11 +21,11 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-export type ActiveView = 
-  | "customers" 
-  | "add-customer" 
-  | "tiles" 
-  | "quotations" 
+export type ActiveView =
+  | "customers"
+  | "add-customer"
+  | "tiles"
+  | "quotations"
   | "admin"
   | "rooms";
 
@@ -52,16 +53,16 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
     switch (activeView) {
       case "customers":
         return (
-          <CustomerList 
-            onAddCustomer={() => setActiveView("add-customer")} 
+          <CustomerList
+            onAddCustomer={() => setActiveView("add-customer")}
             onNewQuote={handleNewQuote}
-            userRole={user.role} 
+            userRole={user.role}
           />
         );
       case "add-customer":
         return user.role === "worker" ? (
-          <CustomerForm 
-            onBack={() => setActiveView("customers")} 
+          <CustomerForm
+            onBack={() => setActiveView("customers")}
             onNewQuote={handleNewQuoteFromForm}
           />
         ) : <div>Access denied</div>;
@@ -70,20 +71,23 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "quotations":
         return <QuotationList userRole={user.role} />;
       case "admin":
+        if (user.role === "super_admin") {
+          return <SuperAdminDashboard />;
+        }
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
       case "rooms":
         return user.role === "worker" ? (
-          <CustomerRoomManagement 
+          <CustomerRoomManagement
             preSelectedCustomerId={selectedCustomerForQuote}
             onBack={handleBackFromRooms}
           />
         ) : <div>Access denied</div>;
       default:
         return (
-          <CustomerList 
-            onAddCustomer={() => setActiveView("add-customer")} 
+          <CustomerList
+            onAddCustomer={() => setActiveView("add-customer")}
             onNewQuote={handleNewQuote}
-            userRole={user.role} 
+            userRole={user.role}
           />
         );
     }
@@ -91,20 +95,20 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar 
+      <Sidebar
         isOpen={isSidebarOpen}
         activeView={activeView}
         onViewChange={setActiveView}
         userRole={user.role}
       />
-      
+
       <div className="flex-1 flex flex-col">
-        <Header 
+        <Header
           user={user}
           onLogout={onLogout}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
-        
+
         <main className="flex-1 p-6 overflow-auto">
           {renderContent()}
         </main>

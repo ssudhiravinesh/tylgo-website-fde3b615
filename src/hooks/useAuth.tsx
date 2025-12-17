@@ -8,7 +8,7 @@ interface Profile {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'worker';
+  role: 'admin' | 'worker' | 'super_admin';
   showroom_id?: string;
 }
 
@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string, role: 'admin' | 'worker', showroomId?: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, role: 'admin' | 'worker' | 'super_admin', showroomId?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ user: User | null }>;
   signOut: () => Promise<void>;
 }
@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) {
         // Handle specific case where session is already invalid
         if (error.message?.includes('session') && error.message?.includes('missing')) {
-          
+
           setUser(null);
           setProfile(null);
           return;
@@ -59,11 +59,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     console.log('Auth: Setting up auth state listener');
-    
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth: State changed -', event, session?.user?.id);
-      
+
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         // Fetch profile after state update
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         console.log('Auth: Initializing auth');
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
           console.error('Auth: Error getting session:', error);
           setLoading(false);
@@ -121,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Auth: Fetching profile for user:', userId);
-      
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -154,13 +154,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, role: 'admin' | 'worker', showroomId?: string) => {
+  const signUp = async (email: string, password: string, name: string, role: 'admin' | 'worker' | 'super_admin', showroomId?: string) => {
     try {
       setLoading(true);
-      
+
       // For first admin signup, use the default showroom if no showroomId provided
       const showroom_id = showroomId || '00000000-0000-0000-0000-000000000001';
-      
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -173,11 +173,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       });
-      
+
       if (error) {
         throw error;
       }
-      
+
       toast.success('Account created successfully! Please check your email to verify your account.');
     } catch (error: any) {
       console.error('Sign up error:', error);
@@ -195,17 +195,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      
-      
+
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
-      
+
       if (error) {
         throw error;
       }
-      
+
       toast.success('Signed in successfully!');
       return { user: data.user };
     } catch (error: any) {
