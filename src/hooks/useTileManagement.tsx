@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Tile } from './useTiles';
 import QRCode from 'qrcode';
+import { getShowroomId } from './useShowroom';
 
 const generateQRCode = async (tileCode: string, tileId: string): Promise<string | null> => {
   try {
@@ -52,10 +53,16 @@ export const useCreateTile = () => {
   return useMutation({
     mutationFn: async (tileData: Omit<Tile, 'id' | 'created_at' | 'updated_at' | 'qr_code_url'>) => {
       console.log('Creating tile with data:', tileData);
+
+      // Get showroom_id
+      const showroom_id = await getShowroomId();
+      if (!showroom_id) {
+        throw new Error('No showroom assigned to user');
+      }
       
       const { data, error } = await supabase
         .from('tiles')
-        .insert([tileData])
+        .insert([{ ...tileData, showroom_id }])
         .select()
         .single();
 

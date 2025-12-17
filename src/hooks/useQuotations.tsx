@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNotification } from '@/contexts/NotificationContext';
+import { getShowroomId } from './useShowroom';
 
 const getFinancialYear = (date: Date = new Date()): string => {
   const month = date.getMonth() + 1; // JavaScript months are 0-indexed
@@ -358,11 +359,17 @@ const createQuotationMutation = useMutation({
   mutationFn: async (quotationData: CreateQuotationData) => {
     console.log('Creating quotation with data:', quotationData);
     const { items, ...quotationFields } = quotationData;
+
+    // Get showroom_id
+    const showroom_id = await getShowroomId();
+    if (!showroom_id) {
+      throw new Error('No showroom assigned to user');
+    }
       
-    // First, create the quotation
+    // First, create the quotation with showroom_id
     const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
-      .insert([quotationFields]) 
+      .insert([{ ...quotationFields, showroom_id }]) 
       .select('*')
       .single();
 
@@ -370,11 +377,12 @@ const createQuotationMutation = useMutation({
       throw quotationError;
     }
 
-    // Then, create the quotation items
+    // Then, create the quotation items with showroom_id
     if (items && items.length > 0) {
       const quotationItems = items.map(item => ({
         ...item,
         quotation_id: quotation.id,
+        showroom_id,
       }));
 
       // FIXED: Added missing fields to the select query here

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getShowroomId } from './useShowroom';
 
 export interface QuotationItem {
   id: string;
@@ -110,9 +111,15 @@ export const useCreateQuotationItem = () => {
 
   return useMutation({
     mutationFn: async (itemData: Omit<QuotationItem, 'id' | 'created_at' | 'room' | 'tile'>) => {
+      // Get showroom_id
+      const showroom_id = await getShowroomId();
+      if (!showroom_id) {
+        throw new Error('No showroom assigned to user');
+      }
+
       const { data, error } = await supabase
         .from('quotation_items')
-        .insert([itemData])
+        .insert([{ ...itemData, showroom_id }])
         .select()
         .single();
 

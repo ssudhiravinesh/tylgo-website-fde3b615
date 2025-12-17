@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getShowroomId } from './useShowroom';
 
 export interface MeasurementSet {
   id: number;
@@ -17,6 +18,8 @@ export interface Room {
   room_type: 'floor' | 'wall';
   wall_height?: number;
   wall_length?: number;
+  measurements?: any; // JSON field from database
+  showroom_id?: string;
   created_at: string;
 }
 
@@ -41,6 +44,7 @@ export interface RoomTileSelection {
   room_id: string;
   tile_id: string;
   layer_number?: number;
+  showroom_id?: string;
   created_at: string;
 }
 
@@ -66,9 +70,15 @@ const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
 };
 
 const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
+  // Get showroom_id
+  const showroom_id = await getShowroomId();
+  if (!showroom_id) {
+    throw new Error('No showroom assigned to user');
+  }
+
   const { data, error } = await supabase
     .from('rooms')
-    .insert([roomData])
+    .insert([{ ...roomData, showroom_id }])
     .select('*')
     .single();
 
@@ -160,9 +170,18 @@ const fetchRoomTileSelections = async (customerId: string): Promise<RoomTileSele
 const saveRoomTileSelections = async (selections: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[]): Promise<void> => {
   if (selections.length === 0) return;
 
+  // Get showroom_id
+  const showroom_id = await getShowroomId();
+  if (!showroom_id) {
+    throw new Error('No showroom assigned to user');
+  }
+
+  // Add showroom_id to each selection
+  const selectionsWithShowroom = selections.map(s => ({ ...s, showroom_id }));
+
   const { error } = await supabase
     .from('room_tile_selections')
-    .upsert(selections, { onConflict: 'room_id,tile_id,layer_number' });
+    .upsert(selectionsWithShowroom, { onConflict: 'room_id,tile_id,layer_number' });
 
   if (error) {
     console.error('Error saving room tile selections:', error);
