@@ -54,11 +54,9 @@ export default function LandingPage() {
             <nav className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="bg-blue-600 w-8 h-8 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-xl">T</span>
-                        </div>
-                        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-blue-500">
-                            Tylgo
+                        <img src="/tylgo.svg" alt="Tylgo" className="w-8 h-8" />
+                        <span className="text-xl font-bold text-slate-1000">
+                            YLGO
                         </span>
                     </div>
                     <div className="hidden md:flex items-center gap-6">
