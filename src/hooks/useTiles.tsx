@@ -69,7 +69,6 @@ import { getShowroomId } from './useShowroom';
 export interface Tile {
   id: string;
   code: string;
-  name: string;
   size_length: number;
   size_breadth: number;
   pieces_per_box?: number;

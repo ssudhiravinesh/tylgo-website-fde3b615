@@ -15,20 +15,20 @@ interface ContextAwareQRScannerProps {
   onClose: () => void;
 }
 
-export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({ 
-  isOpen, 
-  onClose 
+export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
+  isOpen,
+  onClose
 }) => {
   const [lastScannedTile, setLastScannedTile] = useState<string | null>(null);
   const [processingAssignment, setProcessingAssignment] = useState(false);
-  
-  const { 
-    currentCustomerId, 
-    currentCustomerName, 
-    selectedRoomIds, 
-    isContextActive 
+
+  const {
+    currentCustomerId,
+    currentCustomerName,
+    selectedRoomIds,
+    isContextActive
   } = useQRScanningContext();
-  
+
   const { data: tiles = [] } = useTiles();
   const { data: rooms = [] } = useRoomsByCustomer(currentCustomerId || '');
   const saveSelectionsMutation = useSaveRoomTileSelections();
@@ -70,14 +70,14 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
       }));
 
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
-      
+
       const roomNames = rooms
         .filter(room => selectedRoomIds.includes(room.id))
         .map(room => room.name)
         .join(', ');
 
       toast.success(
-        `Tile "${tile.name}" assigned to ${selectedRoomIds.length} room(s): ${roomNames}`,
+        `Tile "${tile.code}" assigned to ${selectedRoomIds.length} room(s): ${roomNames}`,
         { duration: 3000 }
       );
 
@@ -117,13 +117,13 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
               <Users className="h-4 w-4" />
               Current Context
             </div>
-            
+
             {currentCustomerName && (
               <div className="flex items-center gap-2 text-sm text-blue-700 mb-1">
                 <span>Customer: {currentCustomerName}</span>
               </div>
             )}
-            
+
             {selectedRoomNames.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-blue-700">
                 <Home className="h-4 w-4" />
@@ -153,7 +153,7 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
                 <Type className="h-4 w-4 mr-2" />
                 Enter Tile Code
               </Button>
-              
+
               {processingAssignment && (
                 <div className="mt-4 flex items-center justify-center gap-2 text-blue-600">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -181,7 +181,7 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            {isContextActive 
+            {isContextActive
               ? "Enter tile codes to automatically assign tiles to selected rooms"
               : "Set up customer context first, then enter tile codes for instant assignment"
             }

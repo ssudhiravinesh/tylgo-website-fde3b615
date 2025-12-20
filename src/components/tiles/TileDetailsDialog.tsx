@@ -95,7 +95,7 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
             {tile.image_url ? (
               <img
                 src={tile.image_url}
-                alt={tile.name}
+                alt={tile.code}
                 className="w-full h-full object-cover rounded-lg"
               />
             ) : (
@@ -106,10 +106,7 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
           {/* Tile Information */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">{tile.name}</h3>
-              <Badge variant="secondary" className="font-mono">
-                {tile.code}
-              </Badge>
+              <h3 className="text-lg font-semibold text-gray-800">{tile.code}</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm">

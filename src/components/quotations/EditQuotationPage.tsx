@@ -49,7 +49,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   const { updateQuotation, isUpdating } = useQuotations();
   const { mutate: updateQuotationItem } = useUpdateQuotationItem();
   const { data: quotationItems = [], isLoading: isLoadingItems } = useQuotationItems(quotation.id);
-  
+
   const [quotationNumber, setQuotationNumber] = useState("");
   const [status, setStatus] = useState("draft");
   const [notes, setNotes] = useState("");
@@ -64,7 +64,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       setNotes(quotation.notes || "");
       setWastagePercentage(quotation.wastage_percentage?.toString() || "");
       setDiscountPercentage(quotation.discount_percentage?.toString() || "");
-      
+
       // Initialize custom box adjustments from stored data
       const storedAdjustments: { [tileId: string]: number } = {};
       quotation.quotation_items?.forEach(item => {
@@ -91,10 +91,10 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
   const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
     if (!sizeLength || !sizeBreadth) return 'N/A';
-    
+
     const lengthInMm = sizeLength;
     const widthInMm = sizeBreadth;
-    
+
     if (lengthInMm >= 1000 || widthInMm >= 1000) {
       const lengthInM = (lengthInMm / 1000).toFixed(2);
       const widthInM = (widthInMm / 1000).toFixed(2);
@@ -117,12 +117,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         const tileId = item.tile_id;
         const room = item.room;
         const tile = item.tile;
-        
+
         if (!tileCalculations[tileId] && tile) {
           tileCalculations[tileId] = {
             tile: {
               id: tileId,
-              name: tile.name,
+              name: tile.code,
               code: tile.code,
               price_per_box: tile.price_per_box,
               pieces_per_box: tile.pieces_per_box,
@@ -155,34 +155,34 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
       Object.values(tileCalculations).forEach(calc => {
         const tile = calc.tile;
-        
+
         if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
           const pricePerBox = parseFloat(tile.price_per_box.toString());
           const piecesPerBox = parseInt(tile.pieces_per_box.toString());
-          
+
           if (!isNaN(pricePerBox) && !isNaN(piecesPerBox) && piecesPerBox > 0) {
             const tileLengthFt = (tile.size_length || 0) / 304.8;
             const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-            
+
             if (tileAreaSqFt > 0) {
               const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
               calc.rawTilesNeeded = basicTilesNeeded;
               calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (currentWastagePercentage / 100)));
-              
+
               // Calculate box breakdown
               calc.fullBoxes = Math.floor(basicTilesNeeded / piecesPerBox);
               calc.leftoverTiles = basicTilesNeeded % piecesPerBox;
-              
+
               // Apply custom box adjustments
               const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
               const adjustment = customBoxAdjustments[tile.id] || 0;
               calc.boxesNeeded = Math.max(0, baseBoxes + adjustment);
               calc.customBoxes = adjustment;
-              
+
               // Update tiles needed based on actual boxes (for display purposes)
               calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
-              
+
               // Recalculate total price based on current box count
               calc.totalPrice = calc.boxesNeeded * pricePerBox;
             }
@@ -230,7 +230,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
     // Formula: Target = MRP - (MRP * Discount% / 100)
     // Derived: Discount% = (1 - Target/MRP) * 100
     const newDiscountPercentage = ((1 - (targetTotal / mrp)) * 100);
-    
+
     // Update state. We use toFixed(4) to ensure precision when the UI recalculates it,
     // so the Grand Total hits the integer mark exactly.
     setDiscountPercentage(newDiscountPercentage.toFixed(4));
@@ -239,7 +239,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.select();
   };
-  
+
   const handleSave = async () => {
     try {
       await updateQuotation({
@@ -258,12 +258,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         const quotationItemsForTile = quotation.quotation_items?.filter(item => item.tile_id === calc.tile.id) || [];
         const pricePerBox = parseFloat(calc.tile.price_per_box?.toString() || '0');
         const customBoxAdjustment = customBoxAdjustments[calc.tile.id] || 0;
-        
+
         if (quotationItemsForTile.length > 0) {
           // Distribute the total price proportionally across all items for this tile
           const totalBoxesForTile = calc.boxesNeeded;
           const pricePerItem = (totalBoxesForTile * pricePerBox) / quotationItemsForTile.length;
-          
+
           for (const item of quotationItemsForTile) {
             await updateQuotationItem({
               id: item.id,
@@ -297,7 +297,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             <ArrowLeft className="h-4 w-4" />
             Back to List
           </Button>
-          
+
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
               Edit Quotation {quotation.quotation_number}
@@ -305,7 +305,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             <p className="text-gray-600">Modify quotation details and tile quantities</p>
           </div>
         </div>
-    
+
         <Button
           onClick={handleSave}
           disabled={isUpdating}
@@ -329,7 +329,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             </Badge>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Customer Information */}
@@ -409,12 +409,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     onFocus={handleInputFocus} // UPDATED: Select all on focus
                   />
                 </div>
-                
+
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="h-4 w-4 text-gray-400" />
                   <span>Created: {new Date(quotation.created_at).toLocaleDateString()}</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2 text-lg font-bold text-green-600">
                   <IndianRupee className="h-5 w-5" />
                   <span>Total: ₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
@@ -444,7 +444,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
             Tile Calculations ({parseFloat(wastagePercentage) || 0}% wastage included)
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent>
           {isLoadingItems ? (
             <div className="text-center py-8">
@@ -457,16 +457,16 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="font-semibold text-gray-800">{calc.tile.name}</h4>
+                      <h4 className="font-semibold text-gray-800">{calc.tile.code}</h4>
                       <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
                       <div className="text-xs text-gray-500">
                         <p>
                           Rooms: {calc.rooms.map(r => r.name).join(', ')}
                         </p>
-                         {(() => {
-                           const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
-                           const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
-                          
+                        {(() => {
+                          const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
+                          const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
+
                           if (layerNumbers.length > 0) {
                             return (
                               <p>
@@ -482,7 +482,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="flex items-center gap-2">
                       <Layers className="h-4 w-4 text-gray-400" />
@@ -491,23 +491,23 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                         <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <Calculator className="h-4 w-4 text-green-600" />
                       <div>
-                          <p className="text-gray-600">Tiles Required</p>
-                          <p className="font-medium text-green-600">
-                            {calc.rawTilesNeeded || calc.tilesNeeded} tiles
-                            {calc.fullBoxes !== undefined && calc.leftoverTiles !== undefined && (
-                             <span className="text-xs text-gray-500 block">
-                               ({calc.fullBoxes} {calc.fullBoxes === 1 ? 'box' : 'boxes'}{calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})
-                               {parseFloat(wastagePercentage) > 0 && ` (+${parseFloat(wastagePercentage)}% wastage)`}
-                             </span>
-                            )}
-                          </p>
+                        <p className="text-gray-600">Tiles Required</p>
+                        <p className="font-medium text-green-600">
+                          {calc.rawTilesNeeded || calc.tilesNeeded} tiles
+                          {calc.fullBoxes !== undefined && calc.leftoverTiles !== undefined && (
+                            <span className="text-xs text-gray-500 block">
+                              ({calc.fullBoxes} {calc.fullBoxes === 1 ? 'box' : 'boxes'}{calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})
+                              {parseFloat(wastagePercentage) > 0 && ` (+${parseFloat(wastagePercentage)}% wastage)`}
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-blue-600" />
                       <div>
@@ -540,7 +540,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <IndianRupee className="h-4 w-4 text-purple-600" />
                       <div>
@@ -551,13 +551,13 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   </div>
                 </div>
               ))}
-              
+
               <div className="border-t pt-4 mt-4 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold text-gray-800">MRP:</span>
                   <span className="text-lg font-semibold text-gray-800">₹{mrp.toLocaleString()}</span>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">Discount:</span>
@@ -591,25 +591,25 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   </div>
                   <span className="text-sm text-red-600">-₹{discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
-                
+
                 <div className="flex justify-between items-center border-t pt-2">
                   <div className="flex items-center gap-3">
                     <span className="text-xl font-bold text-gray-800">Grand Total:</span>
                     {/* NEW ROUND OFF BUTTON */}
                     <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRoundOff}
-                        className="h-7 text-xs text-gray-600 hover:text-blue-600 border-gray-300 gap-1"
-                        title="Round down to nearest hundred"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRoundOff}
+                      className="h-7 text-xs text-gray-600 hover:text-blue-600 border-gray-300 gap-1"
+                      title="Round down to nearest hundred"
                     >
-                        <ArrowDown className="h-3 w-3" />
-                        Round Off
+                      <ArrowDown className="h-3 w-3" />
+                      Round Off
                     </Button>
                   </div>
                   <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
-                
+
                 <p className="text-xs text-gray-500">
                   All calculations include {parseFloat(wastagePercentage) || 0}% wastage allowance
                 </p>

@@ -7,10 +7,10 @@ export const useExcelExport = () => {
     try {
       // Prepare simplified data for Excel export
       const excelData = tiles.map((tile) => ({
-        'Tile Name': tile.name || 'N/A',
+
         'Tile Code': tile.code || 'N/A',
         'Category': tile.category || 'N/A',
-        'Size': tile.size_length && tile.size_breadth 
+        'Size': tile.size_length && tile.size_breadth
           ? `${tile.size_length} × ${tile.size_breadth} mm`
           : 'N/A',
         'Price per Box (₹)': tile.price_per_box ? `₹${tile.price_per_box}` : 'N/A'

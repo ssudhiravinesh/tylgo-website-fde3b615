@@ -37,7 +37,7 @@ export const QuotationItemsSection = ({
   onRemoveItem,
   onUpdateItem
 }: QuotationItemsSectionProps) => {
-  const [tileSearchTerms, setTileSearchTerms] = useState<{[key: number]: string}>({});
+  const [tileSearchTerms, setTileSearchTerms] = useState<{ [key: number]: string }>({});
 
   const getTotalCost = () => {
     return items.reduce((sum, item) => sum + item.total_price, 0);
@@ -45,15 +45,15 @@ export const QuotationItemsSection = ({
 
   const handleCodeSearch = (index: number, searchTerm: string) => {
     setTileSearchTerms(prev => ({ ...prev, [index]: searchTerm }));
-    
+
     if (searchTerm.trim()) {
-      const tile = tiles.find(t => 
+      const tile = tiles.find(t =>
         t.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
       if (tile && tile.code.toLowerCase() === searchTerm.toLowerCase()) {
         onUpdateItem(index, 'tile_id', tile.id);
-        toast.success(`Tile "${tile.name}" selected`);
+        toast.success(`Tile "${tile.code}" selected`);
       }
     }
   };
@@ -61,10 +61,10 @@ export const QuotationItemsSection = ({
   const getFilteredTiles = (index: number) => {
     const searchTerm = tileSearchTerms[index] || '';
     if (!searchTerm.trim()) return tiles;
-    
+
     return tiles.filter(tile =>
       tile.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tile.name.toLowerCase().includes(searchTerm.toLowerCase())
+      tile.code.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
@@ -126,10 +126,10 @@ export const QuotationItemsSection = ({
                       className="pl-10"
                     />
                   </div>
-                  
+
                   {/* Tile Selection Dropdown */}
-                  <Select 
-                    value={item.tile_id} 
+                  <Select
+                    value={item.tile_id}
                     onValueChange={(value) => onUpdateItem(index, 'tile_id', value)}
                   >
                     <SelectTrigger>
@@ -138,7 +138,7 @@ export const QuotationItemsSection = ({
                     <SelectContent>
                       {getFilteredTiles(index).map((tile) => (
                         <SelectItem key={tile.id} value={tile.id}>
-                          {tile.name} - {tile.code}
+                          {tile.code}
                         </SelectItem>
                       ))}
                     </SelectContent>

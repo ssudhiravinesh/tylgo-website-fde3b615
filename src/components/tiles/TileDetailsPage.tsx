@@ -27,7 +27,7 @@ const fetchTileDetails = async (tileId: string) => {
 
 export const TileDetailsPage: React.FC = () => {
   const { tileId } = useParams<{ tileId: string }>();
-  
+
   const { data: tile, isLoading, error } = useQuery({
     queryKey: ['tile', tileId],
     queryFn: () => fetchTileDetails(tileId!),
@@ -38,8 +38,8 @@ export const TileDetailsPage: React.FC = () => {
     if (navigator.share && tile) {
       try {
         await navigator.share({
-          title: tile.name,
-          text: `Check out this tile: ${tile.name} (${tile.code})`,
+          title: tile.code,
+          text: `Check out this tile: ${tile.code}`,
           url: window.location.href,
         });
       } catch (error) {
@@ -96,13 +96,13 @@ export const TileDetailsPage: React.FC = () => {
 
   // Calculate tile area in square feet (converting from mm)
   const tileAreaSqFt = ((tile.size_length * tile.size_breadth) / 1000000) * 10.764; // Convert m² to sq ft
-  
+
   // Calculate price per square foot using available data
   const calculatePricePerSqFt = () => {
     if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
       return 0;
     }
-    
+
     const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
     const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
     return tile.price_per_box / areaPerBoxSqFt;
@@ -133,22 +133,22 @@ export const TileDetailsPage: React.FC = () => {
             <CardContent className="p-6">
               <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center mb-4">
                 {tile.image_url ? (
-                  <img 
-                    src={tile.image_url} 
-                    alt={tile.name}
+                  <img
+                    src={tile.image_url}
+                    alt={tile.code}
                     className="w-full h-full object-cover rounded-lg"
                   />
                 ) : (
                   <Grid3X3 className="h-24 w-24 text-gray-400" />
                 )}
               </div>
-              
+
               {tile.qr_code_url && (
                 <div className="text-center">
                   <p className="text-sm text-gray-600 mb-2">QR Code</p>
                   <div className="inline-flex flex-col items-center gap-2">
-                    <img 
-                      src={tile.qr_code_url} 
+                    <img
+                      src={tile.qr_code_url}
                       alt="QR Code"
                       className="w-32 h-32 border rounded-lg"
                     />
@@ -171,7 +171,7 @@ export const TileDetailsPage: React.FC = () => {
                     {tile.code}
                   </Badge>
                 </div>
-                <CardTitle className="text-2xl">{tile.name}</CardTitle>
+                <CardTitle className="text-2xl">{tile.code}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -248,15 +248,15 @@ export const TileDetailsPage: React.FC = () => {
                       />
                     </div>
                   </div>
-                  
-                  <Button 
+
+                  <Button
                     className="w-full"
                     onClick={() => {
                       const length = parseFloat((document.getElementById('length-input') as HTMLInputElement)?.value || '0');
                       const width = parseFloat((document.getElementById('width-input') as HTMLInputElement)?.value || '0');
                       const area = length * width;
                       const tilesNeeded = Math.ceil(area / tileAreaSqFt);
-                      
+
                       if (area > 0 && pricePerSqFt > 0) {
                         const totalCost = area * pricePerSqFt;
                         toast.success(

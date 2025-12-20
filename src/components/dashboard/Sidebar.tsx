@@ -6,7 +6,8 @@ import {
   Grid3X3,
   FileText,
   Settings,
-  Home
+  Home,
+  Package
 } from "lucide-react";
 import { ActiveView } from "./Dashboard";
 
@@ -22,6 +23,7 @@ const sidebarItems = [
   { id: "add-customer" as ActiveView, label: "Add Customer", icon: UserPlus, roles: ["worker"] },
   { id: "rooms" as ActiveView, label: "Rooms", icon: Home, roles: ["worker"] },
   { id: "tiles" as ActiveView, label: "Tile Catalog", icon: Grid3X3, roles: ["worker"] },
+  { id: "products" as ActiveView, label: "Product Catalog", icon: Package, roles: ["admin", "worker", "super_admin"] },
   { id: "quotations" as ActiveView, label: "Quotations", icon: FileText, roles: ["admin", "worker", "super_admin"] },
   { id: "admin" as ActiveView, label: "Admin Panel", icon: Settings, roles: ["admin", "super_admin"] },
 ];

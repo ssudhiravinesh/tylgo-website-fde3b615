@@ -16,7 +16,6 @@ interface QuotationDetailsProps {
 interface TileCalculation {
   tile: {
     id: string;
-    name: string;
     code: string;
     price_per_box?: number;
     pieces_per_box?: number;
@@ -50,9 +49,9 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
     }
   };
 
- const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
-      if (!sizeLength || !sizeBreadth) return 'N/A';
-      return `${sizeLength} × ${sizeBreadth} mm`;
+  const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
+    if (!sizeLength || !sizeBreadth) return 'N/A';
+    return `${sizeLength} × ${sizeBreadth} mm`;
   };
 
   // Use quotation items from the dedicated hook for accurate calculations
@@ -65,12 +64,11 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         const tileId = item.tile_id;
         const room = item.room;
         const tile = item.tile;
-        
+
         if (!tileCalculations[tileId] && tile) {
           tileCalculations[tileId] = {
             tile: {
               id: tileId,
-              name: tile.name,
               code: tile.code,
               price_per_box: tile.price_per_box,
               pieces_per_box: tile.pieces_per_box,
@@ -88,7 +86,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         if (room && tileCalculations[tileId]) {
           // Use the stored area from the quotation item (original area without wastage)
           const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
-          
+
           tileCalculations[tileId].rooms.push({
             id: item.room_id,
             name: room.name,
@@ -103,38 +101,38 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
       // Use the same unified calculation logic
       Object.values(tileCalculations).forEach(calc => {
         const tile = calc.tile;
-        
+
         if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
           const pricePerBox = parseFloat(tile.price_per_box.toString());
           const piecesPerBox = parseInt(tile.pieces_per_box.toString());
-          
+
           if (!isNaN(pricePerBox) && !isNaN(piecesPerBox) && piecesPerBox > 0) {
             // Convert tile dimensions from mm to feet (unified logic)
             const tileLengthFt = (tile.size_length || 0) / 304.8;
             const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
             const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-            
+
             if (tileAreaSqFt > 0) {
               // Step 1: Calculate basic tiles needed for the area
               const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-              
+
               // Step 2: Add wastage percentage to tiles
               calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-              
+
               // Step 3: Calculate boxes needed from total tiles with custom adjustments
               const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
-              
+
               // Get custom box adjustment from the first item for this tile
               const tileItem = quotationItems?.find(item => item.tile_id === tile.id);
               const customBoxAdjustment = tileItem?.custom_boxes || 0;
-              
+
               calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
-              
+
               // Update tiles needed to reflect actual boxes being purchased
               if (customBoxAdjustment !== 0) {
                 calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
               }
-              
+
               // Step 4: Calculate total price based on current box count (same as edit page)
               calc.totalPrice = calc.boxesNeeded * pricePerBox;
             }
@@ -163,7 +161,6 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
       tile: item.tile ? {
         id: item.tile_id,
         code: item.tile.code,
-        name: item.tile.name,
         size_length: item.tile.size_length,
         size_breadth: item.tile.size_breadth,
         price_per_box: item.tile.price_per_box || 0,
@@ -177,7 +174,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         unit: item.room.unit
       } : undefined
     }));
-    
+
     generateQuotationPDF({ ...quotation, quotation_items: transformedQuotationItems });
   };
 
@@ -194,7 +191,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
             <ArrowLeft className="h-4 w-4" />
             Back to List
           </Button>
-          
+
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
               Quotation {quotation.quotation_number}
@@ -228,7 +225,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
             </Badge>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Customer Information */}
@@ -249,16 +246,16 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                 {(() => {
                   const customer = quotation.customer as any;
                   if (!customer) return null;
-                  
+
                   const parts = [];
                   if (customer.area) parts.push(customer.area);
                   if (customer.state) parts.push(customer.state);
-                  
+
                   let formatted = parts.join(", ");
                   if (customer.pincode) {
                     formatted += formatted ? ` - ${customer.pincode}` : customer.pincode;
                   }
-                  
+
                   return formatted ? (
                     <div className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 text-gray-500 mt-1" />
@@ -329,7 +326,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
             Tile Calculations ({wastagePercentage}% wastage included)
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent>
           {isLoadingItems ? (
             <div className="text-center py-8">
@@ -342,24 +339,24 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                 <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="font-semibold text-gray-800">{calc.tile.name}</h4>
-                      <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
+                      <h4 className="font-semibold text-gray-800">{calc.tile.code}</h4>
+                      <p className="text-sm text-gray-600">Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}</p>
                       <div className="text-xs text-gray-500">
                         {(() => {
                           // 1. Get all items associated with this specific tile
                           const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
-                      
+
                           // 2. Group layers by Room Name using a Map to preserve order and uniqueness
                           const roomLayerMap = new Map<string, number[]>();
-                      
+
                           tileItems.forEach(item => {
                             const roomName = item.room?.name;
                             if (!roomName) return;
-                      
+
                             if (!roomLayerMap.has(roomName)) {
                               roomLayerMap.set(roomName, []);
                             }
-                      
+
                             // Add layer if it exists and isn't already in the list for this room
                             if (item.layer_number !== null && item.layer_number !== undefined) {
                               const layers = roomLayerMap.get(roomName);
@@ -368,17 +365,17 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                               }
                             }
                           });
-                      
+
                           // 3. Extract the ordered lists
                           const uniqueRoomNames = Array.from(roomLayerMap.keys());
-                          
+
                           // Create the layer string groups corresponding to the room order
                           // Example: "(4, 5, 6, 7), (8, 9, 10, 11)"
                           const layerGroups = uniqueRoomNames.map(name => {
                             const layers = roomLayerMap.get(name)?.sort((a, b) => a - b) || [];
                             return layers.length > 0 ? `(${layers.join(', ')})` : null;
                           }).filter(Boolean); // Remove nulls if a room has no layers
-                      
+
                           return (
                             <>
                               {uniqueRoomNames.length > 0 && (
@@ -391,12 +388,12 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                           );
                         })()}
                       </div>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
-                      </p>
                     </div>
-                  
+                    <p className="text-xs text-gray-500">
+                      Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="flex items-center gap-2">
                       <Layers className="h-4 w-4 text-gray-400" />
@@ -405,7 +402,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                         <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <Calculator className="h-4 w-4 text-green-600" />
                       <div>
@@ -426,27 +423,27 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
 
                       </div>
                     </div>
-                    
-                     <div className="flex items-center gap-2">
-                       <Package className="h-4 w-4 text-blue-600" />
-                       <div>
-                         <p className="text-gray-600">Boxes Needed</p>
-                         <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
-                         {(() => {
-                           const tileItem = quotationItems?.find(item => item.tile_id === calc.tile.id);
-                           const customBoxAdjustment = tileItem?.custom_boxes || 0;
-                           if (customBoxAdjustment !== 0) {
-                             return (
-                               <p className="text-xs text-orange-600">
-                                 {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
-                               </p>
-                             );
-                           }
-                           return null;
-                         })()}
-                       </div>
-                     </div>
-                    
+
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-blue-600" />
+                      <div>
+                        <p className="text-gray-600">Boxes Needed</p>
+                        <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
+                        {(() => {
+                          const tileItem = quotationItems?.find(item => item.tile_id === calc.tile.id);
+                          const customBoxAdjustment = tileItem?.custom_boxes || 0;
+                          if (customBoxAdjustment !== 0) {
+                            return (
+                              <p className="text-xs text-orange-600">
+                                {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
                       <IndianRupee className="h-4 w-4 text-purple-600" />
                       <div>
@@ -457,7 +454,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                   </div>
                 </div>
               ))}
-              
+
               <div className="border-t pt-4 mt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold text-gray-800">Grand Total:</span>

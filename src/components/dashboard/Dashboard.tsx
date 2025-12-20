@@ -8,6 +8,7 @@ import { QuotationList } from "@/components/quotations/QuotationList";
 import { AdminPanel } from "@/components/admin/AdminPanel";
 import { CustomerRoomManagement } from "@/components/rooms/CustomerRoomManagement";
 import { SuperAdminDashboard } from "@/components/superadmin/SuperAdminDashboard";
+import { ProductCatalog } from "@/components/products/ProductCatalog";
 
 interface User {
   id: string;
@@ -27,6 +28,9 @@ export type ActiveView =
   | "tiles"
   | "quotations"
   | "admin"
+  | "quotations"
+  | "admin"
+  | "products"
   | "rooms";
 
 export const Dashboard = ({ user, onLogout }: DashboardProps) => {
@@ -75,6 +79,8 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
           return <SuperAdminDashboard />;
         }
         return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
+      case "products":
+        return <ProductCatalog userRole={user.role} />;
       case "rooms":
         return user.role === "worker" ? (
           <CustomerRoomManagement

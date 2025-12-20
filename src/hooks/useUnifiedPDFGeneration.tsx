@@ -6,7 +6,6 @@ import type { Quotation } from '@/hooks/useQuotations';
 interface TileData {
   id: string;
   code: string;
-  name: string;
   category?: string;
   size_length: number;
   size_breadth: number;
@@ -123,11 +122,23 @@ export const useUnifiedPDFGeneration = () => {
           tile: item.tile,
           totalArea: 0,
           customBoxAdjustment: 0,
-          rooms: []
+          rooms: [],
+          staircases: [] // Initialize staircases array
         };
       }
 
-      tileCalculations[tileId].totalArea += Number(item.area || 0);
+      // Only add area for rooms, staircases handle quantity directly
+      if (item.room) {
+        tileCalculations[tileId].totalArea += Number(item.area || 0);
+      }
+      // For staircases, we don't add to totalArea in the same way, as they are quantity-based (tiles count)
+      // But if we want to calculate boxes based on tiles count, we need to handle that.
+      // The shared logic uses totalArea -> tilesNeeded.
+      // If we have pure quantity items (staircases), we should sum them up separately or convert to area equivalent?
+      // Actually, existing logic: calculate requirements for each tile based on totalArea.
+      // We need to adapt it. 
+      // If we have staircase items, we know exact tiles needed (quantity).
+
       tileCalculations[tileId].customBoxAdjustment += Number(item.custom_boxes || 0);
 
       if (item.room) {
@@ -135,6 +146,14 @@ export const useUnifiedPDFGeneration = () => {
           ...item.room,
           layerNumber: item.layer_number,
           measurements: item.room.measurements
+        });
+      }
+
+      if (item.staircases) {
+        tileCalculations[tileId].staircases.push({
+          ...item.staircases,
+          quantity: (item as any).quantity || 0,
+          tile_type: (item as any).tile_type
         });
       }
     });
@@ -169,9 +188,23 @@ export const useUnifiedPDFGeneration = () => {
         const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
         const tileAreaSqFt = tileLengthFt * tileBreadthFt;
 
-        if (tileAreaSqFt > 0) {
-          const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-          calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastage_percentage / 100)));
+        // Base tiles from Area (Rooms)
+        let totalTilesNeeded = 0;
+
+        if (calc.totalArea > 0 && tileAreaSqFt > 0) {
+          const basicTilesFromArea = Math.ceil(calc.totalArea / tileAreaSqFt);
+          totalTilesNeeded += Math.ceil(basicTilesFromArea * (1 + (wastage_percentage / 100)));
+        }
+
+        // Add tiles from Staircases (Direct Quantity)
+        if (calc.staircases && calc.staircases.length > 0) {
+          const staircaseTiles = calc.staircases.reduce((sum: number, s: any) => sum + (Number(s.quantity) || 0), 0);
+          // Apply wastage to staircase tiles too? Usually yes.
+          totalTilesNeeded += Math.ceil(staircaseTiles * (1 + (wastage_percentage / 100)));
+        }
+
+        if (totalTilesNeeded > 0) {
+          calc.tilesNeeded = totalTilesNeeded;
           const baseBoxes = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
           calc.boxesNeeded = Math.max(0, baseBoxes + calc.customBoxAdjustment);
           calc.totalPrice = calc.boxesNeeded * tile.price_per_box;
@@ -481,76 +514,85 @@ export const useUnifiedPDFGeneration = () => {
                 ${calculations.map((calc: any) => {
       const tile = calc.tile;
 
+      // Group rooms and prepare staircases for display
+      let breakdownHTML = '';
+
+      // 1. ROOMS BREAKDOWN
+      if (calc.rooms && calc.rooms.length > 0) {
+        const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
+
+        calc.rooms.forEach((room: any) => {
+          const roomKey = room.name;
+          if (!roomGroups[roomKey]) {
+            roomGroups[roomKey] = { room, layers: [] };
+          }
+          if (room.layerNumber !== null && room.layerNumber !== undefined) {
+            roomGroups[roomKey].layers.push(room.layerNumber);
+          }
+          if ((!roomGroups[roomKey].room.measurements?.length) && room.measurements?.length > 0) {
+            roomGroups[roomKey].room.measurements = room.measurements;
+          }
+        });
+
+        breakdownHTML += Object.values(roomGroups).map(({ room, layers }) => {
+          let roomDisplay = `<strong>${room.name}</strong>`;
+
+          if (room.measurements && room.measurements.length > 0) {
+            roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
+            room.measurements.forEach((m: any, idx: number) => {
+              const len = parseFloat(m.length || m.size_length || 0);
+              const wid = parseFloat(m.width || m.breadth || m.size_breadth || 0);
+              if (len > 0 && wid > 0) {
+                roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${len} × ${wid} ${room.unit || 'ft'}</div>`;
+              }
+            });
+            roomDisplay += `</div>`;
+          } else {
+            const isWall = room.room_type === 'wall';
+            const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
+            const w = isWall ? (room.wall_height || room.width || 0) : (room.width || 0);
+            const isAreaHack = w == 1 || w == '1';
+            if (!isAreaHack && l > 0 && w > 0) {
+              const dims = `${l} × ${w} ${room.unit || 'ft'}`;
+              roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+            }
+          }
+
+          if (layers.length > 0) {
+            roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
+          }
+          return roomDisplay;
+        }).join('<br><br>');
+
+        if (calc.totalArea > 0) {
+          breakdownHTML += `<br><br><span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block;">Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong></span>`;
+        }
+      }
+
+      // 2. STAIRCASES BREAKDOWN
+      if (calc.staircases && calc.staircases.length > 0) {
+        if (breakdownHTML) breakdownHTML += '<br><hr style="border: 0; border-top: 1px dashed #eee; margin: 8px 0;"><br>';
+
+        breakdownHTML += calc.staircases.map((s: any) => {
+          const tileType = s.tile_type === 'step' ? 'Step' : s.tile_type === 'riser' ? 'Riser' : 'Tile';
+          return `
+               <strong>${s.name || 'Staircase'}</strong>
+               <div style="font-size: 9px; color: #555;">
+                  ${tileType} - ${s.quantity} pcs
+               </div>
+             `;
+        }).join('<br><br>');
+      }
+
       return `
                     <tr>
                       <td class="room-cell">
-                        ${(() => {
-          // Group rooms by name to consolidate layers
-          const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
-
-          calc.rooms.forEach((room: any) => {
-            const roomKey = room.name;
-            if (!roomGroups[roomKey]) {
-              roomGroups[roomKey] = { room, layers: [] };
-            }
-            if (room.layerNumber !== null && room.layerNumber !== undefined) {
-              roomGroups[roomKey].layers.push(room.layerNumber);
-            }
-            // If the grouped room doesn't have measurements but this one does, update it
-            if ((!roomGroups[roomKey].room.measurements?.length) && room.measurements?.length > 0) {
-              roomGroups[roomKey].room.measurements = room.measurements;
-            }
-          });
-
-          return Object.values(roomGroups).map(({ room, layers }) => {
-            let roomDisplay = `<strong>${room.name}</strong>`;
-
-            // --- DISPLAY LOGIC ---
-            if (room.measurements && room.measurements.length > 0) {
-              // CASE 1: Multi-Shape Display
-              roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
-              room.measurements.forEach((m: any, idx: number) => {
-                const len = parseFloat(m.length || m.size_length || 0);
-                const wid = parseFloat(m.width || m.breadth || m.size_breadth || 0);
-
-                if (len > 0 && wid > 0) {
-                  roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${len} × ${wid} ${room.unit || 'ft'}</div>`;
-                }
-              });
-              roomDisplay += `</div>`;
-            } else {
-              // CASE 2: Single Shape (Legacy)
-              const isWall = room.room_type === 'wall';
-              // Determine correct dimensions based on room type
-              const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
-              const w = isWall ? (room.wall_height || room.width || 0) : (room.width || 0);
-
-              // HACK FIX: If Width is 1 and Length equals Area, it's a "Total Area" room. 
-              // Do NOT show dimensions in this case to avoid "337 x 1".
-              const isAreaHack = w == 1 || w == '1';
-
-              if (!isAreaHack && l > 0 && w > 0) {
-                const dims = `${l} × ${w} ${room.unit || 'ft'}`;
-                roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
-              }
-            }
-
-            if (layers.length > 0) {
-              roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
-            }
-
-            return roomDisplay;
-          }).join('<br><br>');
-        })()}
-                        <br><br>
-                        <span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block;">
-                          Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong>
-                        </span>
+                        ${breakdownHTML || '<span style="color:#999; font-style:italic;">No room/staircase details</span>'}
                       </td>
                       
                       <td class="tile-details">
                         <div class="tile-code">Code: ${tile.code}</div>
-                        <div class="tile-name">${tile.name}</div>
+                        <div class="tile-name">${tile.code}</div>
                         <div class="tile-size">Size: ${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>
@@ -738,7 +780,6 @@ export const useUnifiedPDFGeneration = () => {
         <thead>
           <tr>
             <th>Code</th>
-            <th>Name</th>
             <th>Category</th>
             <th>Size (cm)</th>
             <th>Price/Box</th>
@@ -749,7 +790,6 @@ export const useUnifiedPDFGeneration = () => {
           ${tiles.map(tile => `
             <tr>
               <td><strong>${tile.code}</strong></td>
-              <td>${tile.name}</td>
               <td>${tile.category || 'N/A'}</td>
               <td>${(tile.size_length / 10).toFixed(1)} × ${(tile.size_breadth / 10).toFixed(1)}</td>
               <td>${tile.price_per_box != null ? `₹${tile.price_per_box.toLocaleString('en-IN')}` : 'N/A'}</td>

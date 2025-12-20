@@ -93,7 +93,7 @@ export interface QuotationItem {
   id?: string;
   quotation_id?: string;
   tile_id: string;
-  room_id: string;
+  room_id?: string | null;
   area: number;
   price_per_box: number;
   total_price: number;
@@ -102,7 +102,6 @@ export interface QuotationItem {
   tile?: {
     id: string;
     code: string;
-    name: string;
     size_length: number;
     size_breadth: number;
     price_per_box: number;
@@ -119,6 +118,15 @@ export interface QuotationItem {
     wall_height?: number;
     measurements?: any[];
   };
+  staircases?: {
+    id: string;
+    name: string;
+    number_of_steps: number;
+    number_of_risers: number;
+  };
+  staircase_id?: string;
+  quantity?: number;
+  tile_type?: string;
 }
 
 export interface Quotation {
@@ -318,10 +326,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .from('quotation_items')
           .select(`
             *,
+            tile_id,
+            staircase_id,
+            quantity,
+            tile_type,
             tiles!quotation_items_tile_id_fkey (
               id,
               code,
-              name,
               size_length,
               size_breadth,
               price_per_box,
@@ -337,6 +348,12 @@ export const useQuotations = (filters?: QuotationFilters) => {
               wall_length,
               wall_height,
               measurements
+            ),
+            staircases!quotation_items_staircase_id_fkey (
+              id,
+              name,
+              number_of_steps,
+              number_of_risers
             )
           `)
           .in('quotation_id', quotationIds);
@@ -399,28 +416,37 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .from('quotation_items')
           .insert(quotationItems)
           .select(`
-          *,
-          tiles!quotation_items_tile_id_fkey (
-            id,
-            code,
-            name,
-            size_length,
-            size_breadth,
-            price_per_box,
-            pieces_per_box
-          ),
-          rooms!quotation_items_room_id_fkey (
-            id,
-            name,
-            length,
-            width,
-            unit,
-            room_type,
-            wall_length,
-            wall_height,
-            measurements
-          )
-        `);
+            *,
+            tile_id,
+            staircase_id,
+            quantity,
+            tile_type,
+            tiles!quotation_items_tile_id_fkey (
+              id,
+              code,
+              size_length,
+              size_breadth,
+              price_per_box,
+              pieces_per_box
+            ),
+            rooms!quotation_items_room_id_fkey (
+              id,
+              name,
+              length,
+              width,
+              unit,
+              room_type,
+              wall_length,
+              wall_height,
+              measurements
+            ),
+            staircases!quotation_items_staircase_id_fkey (
+              id,
+              name,
+              number_of_steps,
+              number_of_risers
+            )
+          `);
 
         if (itemsError) {
           // If items creation fails, we should delete the quotation to maintain consistency
@@ -453,15 +479,17 @@ export const useQuotations = (filters?: QuotationFilters) => {
           id,
           tile_id,
           room_id,
+          staircase_id,
           area,
           price_per_box,
           total_price,
           layer_number,
           custom_boxes,
+          quantity,
+          tile_type,
           tiles!quotation_items_tile_id_fkey (
             id,
             code,
-            name,
             size_length,
             size_breadth,
             price_per_box,
@@ -477,6 +505,12 @@ export const useQuotations = (filters?: QuotationFilters) => {
             wall_length,
             wall_height,
             measurements
+          ),
+          staircases!quotation_items_staircase_id_fkey (
+            id,
+            name,
+            number_of_steps,
+            number_of_risers
           )
         )
       `)
@@ -581,14 +615,17 @@ export const useQuotations = (filters?: QuotationFilters) => {
           id,
           tile_id,
           room_id,
+          staircase_id,
           area,
           price_per_box,
           total_price,
           layer_number,
+          custom_boxes,
+          quantity,
+          tile_type,
           tiles!quotation_items_tile_id_fkey (
             id,
             code,
-            name,
             size_length,
             size_breadth,
             price_per_box,
@@ -604,6 +641,12 @@ export const useQuotations = (filters?: QuotationFilters) => {
             wall_length,
             wall_height,
             measurements
+          ),
+          staircases!quotation_items_staircase_id_fkey (
+            id,
+            name,
+            number_of_steps,
+            number_of_risers
           )
         )
       `)
@@ -690,10 +733,16 @@ export const useCreateQuotation = () => {
     mutationFn: async (quotationData: CreateQuotationData) => {
       const { items, ...quotationFields } = quotationData;
 
+      // Get showroom_id
+      const showroom_id = await getShowroomId();
+      if (!showroom_id) {
+        throw new Error('No showroom assigned to user');
+      }
+
       // First, create the quotation
       const { data: quotation, error: quotationError } = await supabase
         .from('quotations')
-        .insert([quotationFields])
+        .insert([{ ...quotationFields, showroom_id }])
         .select('*')
         .single();
 
@@ -706,6 +755,7 @@ export const useCreateQuotation = () => {
         const quotationItems = items.map(item => ({
           ...item,
           quotation_id: quotation.id,
+          showroom_id,
         }));
 
         const { error: itemsError } = await supabase
@@ -743,14 +793,17 @@ export const useCreateQuotation = () => {
             id,
             tile_id,
             room_id,
+            staircase_id,
             area,
             price_per_box,
             total_price,
             layer_number,
+            custom_boxes,
+            quantity,
+            tile_type,
             tiles!quotation_items_tile_id_fkey (
               id,
               code,
-              name,
               size_length,
               size_breadth,
               price_per_box,
@@ -766,6 +819,12 @@ export const useCreateQuotation = () => {
               wall_length,
               wall_height,
               measurements
+            ),
+            staircases!quotation_items_staircase_id_fkey (
+              id,
+              name,
+              number_of_steps,
+              number_of_risers
             )
           )
         `)
@@ -811,7 +870,6 @@ export const useQuotationItems = (quotationId?: string) => {
           tiles!quotation_items_tile_id_fkey (
             id,
             code,
-            name,
             size_length,
             size_breadth,
             price_per_box,

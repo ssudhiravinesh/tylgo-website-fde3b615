@@ -19,12 +19,12 @@ interface WallTileSelectionPageProps {
   onUpdateSelection: (selection: WallTileSelection) => void;
 }
 
-export const WallTileSelectionPage = ({ 
-  room, 
-  wallSelection, 
-  tiles, 
-  onBack, 
-  onUpdateSelection 
+export const WallTileSelectionPage = ({
+  room,
+  wallSelection,
+  tiles,
+  onBack,
+  onUpdateSelection
 }: WallTileSelectionPageProps) => {
   const [showTileCatalog, setShowTileCatalog] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -45,16 +45,16 @@ export const WallTileSelectionPage = ({
 
   const calculateWallLayers = (baseTileId: string) => {
     const baseTile = tiles.find(t => t.id === baseTileId);
-    
+
     if (!room || !baseTile) return;
 
     const wallHeight = room.wall_height || 0;
     const wallLength = room.wall_length || room.length || 0;
-    
+
     // Convert tile dimensions from mm to the room's unit
     let tileHeightInRoomUnit: number;
     let tileLengthInRoomUnit: number;
-    
+
     if (room.unit === "feet") {
       tileHeightInRoomUnit = (baseTile.size_length || 0) / 304.8; // mm to feet
       tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
@@ -73,7 +73,7 @@ export const WallTileSelectionPage = ({
     // 1. Calculate Grand Total based on Area
     const totalWallArea = wallHeight * wallLength;
     const singleTileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
-    
+
     // Safety check to avoid division by zero
     if (singleTileArea <= 0) {
       console.error("Invalid tile dimensions");
@@ -125,12 +125,12 @@ export const WallTileSelectionPage = ({
           ? { ...layer, tileId }
           : layer
       );
-      
+
       const updatedSelection = {
         ...wallSelection,
         layers: updatedLayers
       };
-      
+
       onUpdateSelection(updatedSelection);
       toast.success(`Tile updated for layer ${catalogContext.layerNumber}`);
     }
@@ -145,16 +145,16 @@ export const WallTileSelectionPage = ({
   };
 
   const handleCopyTileToAllLayers = (tileId: string) => {
-    const updatedLayers = wallSelection.layers.map(layer => ({ 
-      ...layer, 
-      tileId 
+    const updatedLayers = wallSelection.layers.map(layer => ({
+      ...layer,
+      tileId
     }));
-    
+
     const updatedSelection = {
       ...wallSelection,
       layers: updatedLayers
     };
-    
+
     onUpdateSelection(updatedSelection);
     toast.success("Tile copied to all layers");
   };
@@ -165,16 +165,16 @@ export const WallTileSelectionPage = ({
       return;
     }
 
-    const updatedLayers = wallSelection.layers.filter(layer => 
+    const updatedLayers = wallSelection.layers.filter(layer =>
       layer.layerNumber !== layerNumber
     );
-    
+
     const updatedSelection = {
       ...wallSelection,
       layers: updatedLayers,
       totalLayers: Math.max(1, wallSelection.totalLayers - 1)
     };
-    
+
     onUpdateSelection(updatedSelection);
     toast.success(`Layer ${layerNumber} deleted`);
   };
@@ -204,24 +204,24 @@ export const WallTileSelectionPage = ({
 
   const handleQRScan = (tileCode: string) => {
     console.log('QR Code scanned in wall selection:', tileCode);
-    
+
     if (!tileCode || tileCode.trim() === '') {
       toast.error('Invalid QR code. Please try again.');
       return;
     }
 
     const normalizedCode = tileCode.trim();
-    
+
     // Find matching tile
-    const matchingTile = tiles.find(tile => 
+    const matchingTile = tiles.find(tile =>
       tile.code?.toLowerCase() === normalizedCode.toLowerCase()
     );
-    
+
     if (matchingTile) {
       if (catalogContext?.isBaseSelection) {
         // Setting base tile via QR
         calculateWallLayers(matchingTile.id);
-        toast.success(`Base wall tile selected: ${matchingTile.name}`);
+        toast.success(`Base wall tile selected: ${matchingTile.code}`);
       } else if (catalogContext?.layerNumber !== undefined) {
         // Changing tile for specific layer via QR
         const updatedLayers = wallSelection.layers.map(layer =>
@@ -229,20 +229,20 @@ export const WallTileSelectionPage = ({
             ? { ...layer, tileId: matchingTile.id }
             : layer
         );
-        
+
         const updatedSelection = {
           ...wallSelection,
           layers: updatedLayers
         };
-        
+
         onUpdateSelection(updatedSelection);
-        toast.success(`Tile updated for layer ${catalogContext.layerNumber}: ${matchingTile.name}`);
+        toast.success(`Tile updated for layer ${catalogContext.layerNumber}: ${matchingTile.code}`);
       } else {
         // No specific context, treat as base tile selection
         calculateWallLayers(matchingTile.id);
-        toast.success(`Base wall tile selected: ${matchingTile.name}`);
+        toast.success(`Base wall tile selected: ${matchingTile.code}`);
       }
-      
+
       // Close scanner and clear context
       setShowQRScanner(false);
       setCatalogContext(null);
@@ -279,7 +279,7 @@ export const WallTileSelectionPage = ({
 
   const generateWallPreview = () => {
     if (!canvasRef.current || wallSelection.layers.length === 0) return;
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -290,17 +290,17 @@ export const WallTileSelectionPage = ({
     // 1. Get the tile dimensions
     const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
     if (!firstTile) return;
-    
+
     // Length is usually Height, Breadth is usually Width
-    const tileLength = firstTile.size_length || 600; 
+    const tileLength = firstTile.size_length || 600;
     const tileBreadth = firstTile.size_breadth || 600;
-    
+
     // Calculate Aspect Ratio
     const aspectRatio = tileBreadth / tileLength;
-    
+
     // 2. Determine Grid Layout based on Aspect Ratio (Match Floor Preview Logic)
     let tilesPerLayer = 6;
-    
+
     // 3. Calculate "Virtual" Pixel Sizes (Base Size Logic)
     const baseSize = 200;
     let tileWidth, tileHeight;
@@ -325,22 +325,22 @@ export const WallTileSelectionPage = ({
     // Calculate available space in the dialog
     const maxW = Math.min(window.innerWidth * 0.90, 1200);
     const maxH = Math.min(window.innerHeight * 0.75, 900);
-    
+
     const scaleToFitX = maxW / requiredWidth;
     const scaleToFitY = maxH / requiredHeight;
     // Use the smaller scale to ensure it fits entirely
     const scale = Math.min(scaleToFitX, scaleToFitY, 1);
-    
+
     // Final Display Dimensions
     const displayWidth = requiredWidth * scale;
     const displayHeight = requiredHeight * scale;
-    
+
     // 6. Set Canvas Properties
     canvas.width = displayWidth * devicePixelRatio;
     canvas.height = displayHeight * devicePixelRatio;
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
-    
+
     // Scale Context
     ctx.scale(devicePixelRatio, devicePixelRatio);
     ctx.imageSmoothingEnabled = true;
@@ -352,10 +352,10 @@ export const WallTileSelectionPage = ({
 
     // Sort layers by number
     const sortedLayers = [...wallSelection.layers].sort((a, b) => a.layerNumber - b.layerNumber);
-    
+
     let loadedImages = 0;
     const totalImages = sortedLayers.length * tilesPerLayer;
-    
+
     // 7. Helper: Draw Single Tile
     const drawTile = (x: number, y: number, tile: any, layer: any) => {
       const scaledTileWidth = tileWidth * scale;
@@ -364,7 +364,7 @@ export const WallTileSelectionPage = ({
       if (tile.image_url && tile.image_url.trim() !== '') {
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        
+
         img.onload = () => {
           try {
             if (img.complete && img.naturalWidth > 0) {
@@ -381,7 +381,7 @@ export const WallTileSelectionPage = ({
                   ctx.lineWidth = 3 / devicePixelRatio;
                   ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
                   bitmap.close();
-                  
+
                   loadedImages++;
                   if (loadedImages === totalImages) addLayerLabels(scale);
                 }).catch(() => {
@@ -397,18 +397,18 @@ export const WallTileSelectionPage = ({
             drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
           }
         };
-        
+
         img.onerror = () => {
           drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
         };
-        
+
         // Timeout safety
         setTimeout(() => {
           if (!img.complete || img.naturalWidth === 0) {
-             // Only fallback if not already drawn (simplistic check)
+            // Only fallback if not already drawn (simplistic check)
           }
         }, 5000);
-        
+
         img.src = tile.image_url;
       } else {
         drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
@@ -416,32 +416,32 @@ export const WallTileSelectionPage = ({
     };
 
     const fallbackDraw = (img: HTMLImageElement, x: number, y: number, w: number, h: number) => {
-       ctx.drawImage(img, x, y, w, h);
-       ctx.strokeStyle = '#000000';
-       ctx.lineWidth = 3 / devicePixelRatio;
-       ctx.strokeRect(x, y, w, h);
-       loadedImages++;
-       if (loadedImages === totalImages) addLayerLabels(scale);
+      ctx.drawImage(img, x, y, w, h);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3 / devicePixelRatio;
+      ctx.strokeRect(x, y, w, h);
+      loadedImages++;
+      if (loadedImages === totalImages) addLayerLabels(scale);
     };
 
     const drawFallbackTile = (x: number, y: number, tile: any, layer: any, w: number, h: number) => {
       const hue = (layer.layerNumber * 60) % 360;
       ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
       ctx.fillRect(x, y, w, h);
-      
+
       ctx.strokeStyle = '#9ca3af';
       ctx.lineWidth = 2 / devicePixelRatio;
       ctx.strokeRect(x, y, w, h);
-      
+
       ctx.fillStyle = '#374151';
       const fontSize = Math.min(w, h) * 0.15;
       ctx.font = `bold ${fontSize}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      
-      const code = tile.code || tile.name || 'Unknown';
-      ctx.fillText(code.substring(0, 8), x + w/2, y + h/2);
-      
+
+      const code = tile.code || 'Unknown';
+      ctx.fillText(code.substring(0, 8), x + w / 2, y + h / 2);
+
       loadedImages++;
       if (loadedImages === totalImages) addLayerLabels(scale);
     };
@@ -452,7 +452,7 @@ export const WallTileSelectionPage = ({
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      
+
       // Note: This loop assumes we drew layers from top (y=0) to bottom
       // If you want to reverse stack (Layer 1 at bottom), the drawing loop below needs reversing too.
       // Keeping consistent with your original order for now:
@@ -460,25 +460,25 @@ export const WallTileSelectionPage = ({
         // If we reverse the drawing order, we must update this Y calculation
         // For now, keeping standard top-down drawing
         const y = layerIndex * scaledTileHeight;
-        ctx.fillText(`L${layer.layerNumber}`, -8, y + scaledTileHeight/2);
+        ctx.fillText(`L${layer.layerNumber}`, -8, y + scaledTileHeight / 2);
       });
     };
-    
+
     // 8. Main Draw Loop
     // NOTE: To make Layer 1 appear at the BOTTOM of the wall (physically correct),
     // we should iterate backwards or calculate Y from bottom. 
     // However, to keep it simple and match your exact request "Make it look like Floor Preview" (which is a grid),
     // I will render them in order, but with the correct Shape.
-    
+
     // If you want Layer 1 at the BOTTOM, use this reversed array:
-    const layersToDraw = [...sortedLayers].reverse(); 
-    
+    const layersToDraw = [...sortedLayers].reverse();
+
     layersToDraw.forEach((layer, layerIndex) => {
       const tile = tiles.find(t => t.id === layer.tileId);
       if (!tile) return;
 
       const y = layerIndex * (tileHeight * scale);
-      
+
       for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
         const x = tileIndex * (tileWidth * scale);
         drawTile(x, y, tile, layer);
@@ -526,7 +526,7 @@ export const WallTileSelectionPage = ({
 
             {!wallSelection.baseTileId ? (
               <div className="space-y-2">
-                <Button 
+                <Button
                   onClick={handleSelectBaseTile}
                   className="w-full"
                   size="lg"
@@ -534,7 +534,7 @@ export const WallTileSelectionPage = ({
                   <Plus className="h-4 w-4 mr-2" />
                   Select Base Tile
                 </Button>
-                <Button 
+                <Button
                   onClick={handleScanQRForBaseTile}
                   variant="outline"
                   className="w-full"
@@ -548,7 +548,7 @@ export const WallTileSelectionPage = ({
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Layers: {wallSelection.layers.length}</span>
-                  <Button 
+                  <Button
                     onClick={handleAddLayer}
                     size="sm"
                     variant="outline"
@@ -602,65 +602,65 @@ export const WallTileSelectionPage = ({
                   {wallSelection.layers
                     .sort((a, b) => a.layerNumber - b.layerNumber)
                     .map(layer => {
-                    const tile = tiles.find(t => t.id === layer.tileId);
-                    return tile ? (
-                      <div key={layer.layerNumber} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-xs">
-                              Layer {layer.layerNumber}
-                            </Badge>
+                      const tile = tiles.find(t => t.id === layer.tileId);
+                      return tile ? (
+                        <div key={layer.layerNumber} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="text-xs">
+                                Layer {layer.layerNumber}
+                              </Badge>
+                            </div>
+                            <p className="font-medium truncate">{tile.code}</p>
+                            <p className="text-sm text-gray-500">{tile.code}</p>
+                            <p className="text-xs text-gray-400">
+                              {layer.tilesNeeded.toFixed(2)} tiles needed
+                            </p>
                           </div>
-                          <p className="font-medium truncate">{tile.name}</p>
-                          <p className="text-sm text-gray-500">{tile.code}</p>
-                          <p className="text-xs text-gray-400">
-                            {layer.tilesNeeded.toFixed(2)} tiles needed
-                          </p>
-                        </div>
-                        
-                        <div className="flex gap-1 ml-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleChangeLayerTile(layer.layerNumber)}
-                            className="h-8 w-8 p-0"
-                            title="Change tile"
-                          >
-                            <Layers className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleScanQRForLayer(layer.layerNumber)}
-                            className="h-8 w-8 p-0"
-                            title="Scan QR for this layer"
-                          >
-                            <QrCode className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleCopyTileToAllLayers(layer.tileId)}
-                            className="h-8 w-8 p-0"
-                            title="Copy to all layers"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          {wallSelection.layers.length > 1 && (
+
+                          <div className="flex gap-1 ml-2">
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleDeleteLayer(layer.layerNumber)}
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                              title="Delete layer"
+                              onClick={() => handleChangeLayerTile(layer.layerNumber)}
+                              className="h-8 w-8 p-0"
+                              title="Change tile"
                             >
-                              <Minus className="h-4 w-4" />
+                              <Layers className="h-4 w-4" />
                             </Button>
-                          )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleScanQRForLayer(layer.layerNumber)}
+                              className="h-8 w-8 p-0"
+                              title="Scan QR for this layer"
+                            >
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleCopyTileToAllLayers(layer.tileId)}
+                              className="h-8 w-8 p-0"
+                              title="Copy to all layers"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            {wallSelection.layers.length > 1 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteLayer(layer.layerNumber)}
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                                title="Delete layer"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ) : null;
-                   })}
+                      ) : null;
+                    })}
                 </div>
               </div>
             ) : (
@@ -678,13 +678,13 @@ export const WallTileSelectionPage = ({
         <DialogContent className="max-w-6xl h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {catalogContext?.isBaseSelection 
-                ? "Select Base Tile for Wall" 
+              {catalogContext?.isBaseSelection
+                ? "Select Base Tile for Wall"
                 : `Select Tile for Layer ${catalogContext?.layerNumber}`
               }
             </DialogTitle>
           </DialogHeader>
-          <TileCatalog 
+          <TileCatalog
             isSelectionMode={true}
             onTileSelect={handleTileSelected}
           />
@@ -708,14 +708,14 @@ export const WallTileSelectionPage = ({
               Wall Preview - {wallSelection.layers.length} Layer{wallSelection.layers.length > 1 ? 's' : ''}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="flex-1 flex items-center justify-center min-h-0">
             <div className="w-full h-full flex items-center justify-center p-4">
               <div className="border-2 border-gray-200 rounded-lg bg-white shadow-lg flex items-center justify-center p-4 max-w-full max-h-full">
                 <canvas
                   ref={canvasRef}
                   className="max-w-full max-h-full block"
-                  style={{ 
+                  style={{
                     imageRendering: 'crisp-edges',
                     objectFit: 'contain'
                   }}
@@ -723,7 +723,7 @@ export const WallTileSelectionPage = ({
               </div>
             </div>
           </div>
-          
+
           <div className="text-sm text-gray-600 text-center pt-4 border-t">
             <p className="font-medium">
               Preview shows {tiles.find(t => t.id === wallSelection.layers[0]?.tileId)?.size_breadth! > tiles.find(t => t.id === wallSelection.layers[0]?.tileId)?.size_length! ? '6' : '4'} tiles per layer maintaining actual proportions

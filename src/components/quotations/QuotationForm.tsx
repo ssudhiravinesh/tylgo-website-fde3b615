@@ -16,25 +16,36 @@ import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 
 interface QuotationFormProps {
   preSelectedCustomerId?: string;
-  selectedRoomsData?: Array<{
-    tile_id: string;
-    room_id: string;
-    area: number;
-    price_per_box: number;
-    total_price: number;
-    layer_number?: number;
-  }>;
+  selectedRoomsData?: Array<
+    | {
+      tile_id: string;
+      room_id: string;
+      area: number;
+      price_per_box: number;
+      total_price: number;
+      layer_number?: number;
+    }
+    | {
+      tile_id: string;
+      staircase_id: string;
+      staircase_name: string;
+      tile_type: 'step' | 'riser';
+      quantity: number;
+      price_per_box: number;
+      total_price: number;
+    }
+  >;
   wastagePercentage?: number;
   onBack: () => void;
   onSuccess: () => void;
 }
 
-export const QuotationForm = ({ 
-  preSelectedCustomerId, 
-  selectedRoomsData = [], 
+export const QuotationForm = ({
+  preSelectedCustomerId,
+  selectedRoomsData = [],
   wastagePercentage = 0,
-  onBack, 
-  onSuccess 
+  onBack,
+  onSuccess
 }: QuotationFormProps) => {
   const { user } = useAuth();
   const { data: customers = [] } = useCustomers();
@@ -59,62 +70,77 @@ export const QuotationForm = ({
 
   const totalCost = calculateTotal();
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!user) {
-    toast.error("You must be logged in to create quotations");
-    return;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (!customerId) {
-    toast.error("Please select a customer");
-    return;
-  }
+    if (!user) {
+      toast.error("You must be logged in to create quotations");
+      return;
+    }
 
-  if (!selectedRoomsData.length) {
-    toast.error("No room data provided");
-    return;
-  }
+    if (!customerId) {
+      toast.error("Please select a customer");
+      return;
+    }
 
-  if (!quotationNumber) {
-    toast.error("Quotation number not generated");
-    return;
-  }
+    if (!selectedRoomsData.length) {
+      toast.error("No room data provided");
+      return;
+    }
 
-  setIsSubmitting(true);
+    if (!quotationNumber) {
+      toast.error("Quotation number not generated");
+      return;
+    }
 
-  try {
-    // Prepare quotation items - they're already calculated
-    const quotationItems = selectedRoomsData.map(roomData => ({
-      tile_id: roomData.tile_id,
-      room_id: roomData.room_id,
-      area: roomData.area,
-      price_per_box: roomData.price_per_box,
-      total_price: roomData.total_price,
-      layer_number: roomData.layer_number,
-    }));
+    setIsSubmitting(true);
 
-    const quotationData = {
-      quotation_number: quotationNumber, // Use the generated sequential number
-      customer_id: customerId,
-      worker_id: user.id,
-      total_cost: totalCost,
-      status: 'draft',
-      notes: notes || undefined,
-      wastage_percentage: wastagePercentage,
-      items: quotationItems,
-    };
+    try {
+      // Prepare quotation items - they're already calculated
+      const quotationItems = selectedRoomsData.map(item => {
+        if ('room_id' in item) {
+          return {
+            tile_id: item.tile_id,
+            room_id: item.room_id,
+            area: item.area,
+            price_per_box: item.price_per_box,
+            total_price: item.total_price,
+            layer_number: item.layer_number,
+          };
+        } else {
+          return {
+            tile_id: item.tile_id,
+            area: 0,
+            room_id: null,
+            staircase_id: item.staircase_id,
+            price_per_box: item.price_per_box,
+            total_price: item.total_price,
+            tile_type: item.tile_type,
+            quantity: item.quantity
+          };
+        }
+      });
 
-    await createQuotationMutation.mutateAsync(quotationData);
-    onSuccess();
-  } catch (error) {
-    console.error('Error creating quotation:', error);
-    toast.error('Failed to create quotation');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      const quotationData = {
+        quotation_number: quotationNumber, // Use the generated sequential number
+        customer_id: customerId,
+        worker_id: user.id,
+        total_cost: totalCost,
+        status: 'draft',
+        notes: notes || undefined,
+        wastage_percentage: wastagePercentage,
+        items: quotationItems,
+      };
+
+      await createQuotationMutation.mutateAsync(quotationData);
+      onSuccess();
+    } catch (error) {
+      console.error('Error creating quotation:', error);
+      toast.error('Failed to create quotation');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const selectedCustomer = customers.find(c => c.id === customerId);
 
@@ -206,33 +232,60 @@ const handleSubmit = async (e: React.FormEvent) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {selectedRoomsData.map((roomData, index) => {
-                const room = rooms.find(r => r.id === roomData.room_id);
-                const tile = tiles.find(t => t.id === roomData.tile_id);
-                
-                return (
-                  <div key={index} className="border rounded-lg p-3 bg-gray-50">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h5 className="font-medium">
-                          {room?.name || 'Unknown Room'}
-                          {roomData.layer_number && (
-                            <span className="text-sm text-gray-500 ml-2">
-                              (Layer {roomData.layer_number})
-                            </span>
-                          )}
-                        </h5>
-                        <p className="text-sm text-gray-600">{tile?.name || 'Unknown Tile'}</p>
-                        <p className="text-xs text-gray-500">
-                          Area: {roomData.area.toFixed(2)} sq ft
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Price: ₹{roomData.total_price.toLocaleString()}
-                        </p>
+              {selectedRoomsData.map((item, index) => {
+                const tile = tiles.find(t => t.id === item.tile_id);
+
+                // Room Item
+                if ('room_id' in item) {
+                  const room = rooms.find(r => r.id === item.room_id);
+                  return (
+                    <div key={index} className="border rounded-lg p-3 bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="font-medium">
+                            {room?.name || 'Unknown Room'}
+                            {item.layer_number && (
+                              <span className="text-sm text-gray-500 ml-2">
+                                (Layer {item.layer_number})
+                              </span>
+                            )}
+                          </h5>
+                          <p className="text-sm text-gray-600">{tile?.code || 'Unknown Tile'}</p>
+                          <p className="text-xs text-gray-500">
+                            Area: {item.area.toFixed(2)} sq ft
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Price: ₹{item.total_price.toLocaleString()}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
+                  );
+                }
+                // Staircase Item
+                else {
+                  return (
+                    <div key={index} className="border rounded-lg p-3 bg-orange-50 border-orange-100">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="font-medium text-orange-900">
+                            {item.staircase_name}
+                            <span className="text-sm text-orange-700 ml-2">
+                              ({item.tile_type === 'step' ? 'Steps' : 'Risers'})
+                            </span>
+                          </h5>
+                          <p className="text-sm text-gray-600">{tile?.code || 'Unknown Tile'}</p>
+                          <p className="text-xs text-gray-500">
+                            Qty: {item.quantity} tiles
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Price: ₹{item.total_price.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
               })}
             </div>
           </CardContent>
@@ -244,7 +297,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         <Button variant="outline" onClick={onBack}>
           Cancel
         </Button>
-        <Button 
+        <Button
           onClick={handleSubmit}
           disabled={isSubmitting || !customerId || !selectedRoomsData.length}
           className="gap-2"

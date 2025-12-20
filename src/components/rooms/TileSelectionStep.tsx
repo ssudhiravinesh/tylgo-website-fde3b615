@@ -16,9 +16,9 @@ import { FloorTilePreview } from "@/components/tiles/FloorTilePreview";
 import { toast } from "sonner";
 import { formatArea, decimalFeetToFeetInches } from "@/utils/unitConversions";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
-import { 
-  calculateTileRequirements, 
-  calculateGrandTotal, 
+import {
+  calculateTileRequirements,
+  calculateGrandTotal,
   prepareQuotationItems,
   formatTileBreakdown,
   type FloorTileSelection,
@@ -41,7 +41,7 @@ interface TileSelectionStepProps {
 
 // Updated Context to support multi-room selection and staircases
 interface CatalogContext {
-  roomId?: string; 
+  roomId?: string;
   roomIds?: string[]; // For bulk selection
   staircaseId?: string;
   staircaseTileType?: 'step' | 'riser';
@@ -57,12 +57,12 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   const deleteSelectionMutation = useDeleteRoomTileSelection();
   const saveStaircaseSelectionMutation = useSaveStaircaseTileSelection();
   const deleteStaircaseSelectionMutation = useDeleteStaircaseTileSelection();
-  
+
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
   const [staircaseTileSelectionsState, setStaircaseTileSelectionsState] = useState<StaircaseTileSelectionType[]>([]);
   const [wastagePercentage, setWastagePercentage] = useState<string>("0");
-  
+
   // State for multi-selection
   const [selectedFloorRooms, setSelectedFloorRooms] = useState<Set<string>>(new Set());
 
@@ -94,9 +94,9 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   // Load staircase tile selections from database
   useEffect(() => {
     if (staircaseSelections.length === 0) return;
-    
+
     const loadedSelections: StaircaseTileSelectionType[] = [];
-    
+
     staircases.forEach(staircase => {
       const stepSelection = staircaseSelections.find(
         s => s.staircase_id === staircase.id && s.tile_type === 'step'
@@ -104,7 +104,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       const riserSelection = staircaseSelections.find(
         s => s.staircase_id === staircase.id && s.tile_type === 'riser'
       );
-      
+
       if (stepSelection || riserSelection) {
         loadedSelections.push({
           staircaseId: staircase.id,
@@ -113,7 +113,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         });
       }
     });
-    
+
     setStaircaseTileSelectionsState(loadedSelections);
   }, [staircaseSelections, staircases]);
 
@@ -148,20 +148,20 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
           };
           wallSelections.push(wallSelection);
         }
-        
+
         const layerNumber = selection.layer_number || 1;
         const existingLayer = wallSelection.layers.find(l => l.layerNumber === layerNumber);
         if (!existingLayer) {
           const baseTile = tiles.find(t => t.id === selection.tile_id);
           let tilesNeeded = 0;
-          
+
           if (baseTile && room) {
             const wallHeight = room.wall_height || 0;
             const wallLength = room.wall_length || room.length || 0;
-            
+
             let tileHeightInRoomUnit: number;
             let tileLengthInRoomUnit: number;
-            
+
             if (room.unit === "feet") {
               tileHeightInRoomUnit = (baseTile.size_length || 0) / 304.8;
               tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
@@ -172,16 +172,16 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
               tileHeightInRoomUnit = baseTile.size_length || 0;
               tileLengthInRoomUnit = baseTile.size_breadth || 0;
             }
-            
+
             if (tileHeightInRoomUnit > 0 && tileLengthInRoomUnit > 0) {
-               const totalArea = wallHeight * wallLength;
-               const tileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
-               const totalTiles = Math.ceil(totalArea / tileArea);
-               const layerCount = Math.max(1, Math.ceil(wallHeight / tileHeightInRoomUnit));
-               tilesNeeded = totalTiles / layerCount;
+              const totalArea = wallHeight * wallLength;
+              const tileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
+              const totalTiles = Math.ceil(totalArea / tileArea);
+              const layerCount = Math.max(1, Math.ceil(wallHeight / tileHeightInRoomUnit));
+              tilesNeeded = totalTiles / layerCount;
             }
           }
-          
+
           wallSelection.layers.push({
             layerNumber,
             tileId: selection.tile_id,
@@ -202,13 +202,13 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       const isEqual = JSON.stringify(prev) === JSON.stringify(floorSelections);
       return isEqual ? prev : floorSelections;
     });
-    
+
     setWallTileSelections(prev => {
       const isEqual = JSON.stringify(prev) === JSON.stringify(wallSelections);
       return isEqual ? prev : wallSelections;
     });
   }, [selections, rooms, tiles]);
-  
+
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.select();
   };
@@ -224,8 +224,8 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       return (
         <div className="space-y-1 mt-1">
           <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
-             <Layers className="h-3 w-3" />
-             <span>{room.measurements.length} Shapes</span>
+            <Layers className="h-3 w-3" />
+            <span>{room.measurements.length} Shapes</span>
           </div>
           <div className="space-y-1 max-h-24 overflow-y-auto pr-1 bg-gray-50 rounded border border-gray-100 p-1.5">
             {room.measurements.map((m, idx) => (
@@ -299,11 +299,11 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     });
     setShowTileCatalog(true);
   };
-  
+
   // Restored and Upgraded Auto Assign Logic
   const handleAutoAssignTile = async (tileId: string) => {
     console.log('🔵 handleAutoAssignTile START:', { tileId, catalogContext });
-    
+
     if (!catalogContext) {
       console.error('No catalogContext available');
       toast.error('Room context not found');
@@ -311,7 +311,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     }
 
     const { roomId, roomIds, isWallTile } = catalogContext;
-    
+
     // Determine target rooms (single or multiple)
     const targetRoomIds = roomIds && roomIds.length > 0 ? roomIds : (roomId ? [roomId] : []);
 
@@ -319,7 +319,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       toast.error("No rooms targeted for assignment");
       return;
     }
-    
+
     if (!isWallTile) {
       // Filter out rooms that already have this tile to avoid duplicates
       const roomsToAdd: string[] = [];
@@ -329,7 +329,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
           roomsToAdd.push(id);
         }
       });
-      
+
       if (roomsToAdd.length === 0) {
         toast.info("Tile already selected for all target rooms");
         return;
@@ -338,17 +338,17 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       try {
         const newSelections = roomsToAdd.map(id => ({ roomId: id, tileId }));
         console.log('🔵 Adding selections:', newSelections);
-        
+
         // Optimistic update
         setFloorTileSelections(prev => {
           const updated = [...prev, ...newSelections];
           return updated;
         });
-        
+
         // Create complete selections payload for saving
         // (We need to send ALL current selections + new ones because the API likely replaces or we want consistency)
         const selectionsToSave: any[] = [];
-        
+
         // Current selections + New selections
         [...floorTileSelections, ...newSelections].forEach(fs => {
           selectionsToSave.push({
@@ -372,39 +372,39 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
         console.log('🔵 Calling save mutation with:', selectionsToSave);
         await saveSelectionsMutation.mutateAsync(selectionsToSave);
-        
+
         const selectedTile = tiles.find(t => t.id === tileId);
-        const tileName = selectedTile?.name || 'Tile';
-        
+        const tileName = selectedTile?.code || 'Tile';
+
         if (roomsToAdd.length === 1) {
-           const roomName = rooms.find(r => r.id === roomsToAdd[0])?.name || 'Room';
-           toast.success(`${tileName} assigned to ${roomName} successfully!`);
+          const roomName = rooms.find(r => r.id === roomsToAdd[0])?.name || 'Room';
+          toast.success(`${tileName} assigned to ${roomName} successfully!`);
         } else {
-           toast.success(`${tileName} assigned to ${roomsToAdd.length} rooms successfully!`);
+          toast.success(`${tileName} assigned to ${roomsToAdd.length} rooms successfully!`);
         }
-        
+
         // Clear selection after successful bulk add
         if (roomIds && roomIds.length > 0) {
           setSelectedFloorRooms(new Set());
         }
-        
+
       } catch (error: any) {
         console.error('❌ Save failed:', error);
-        
+
         console.log('🔄 Rolling back state...');
         setFloorTileSelections(prev => {
           // Remove the ones we just tried to add
-          const rolledBack = prev.filter(fs => 
+          const rolledBack = prev.filter(fs =>
             !(roomsToAdd.includes(fs.roomId) && fs.tileId === tileId)
           );
           return rolledBack;
         });
-        
+
         let errorMessage = "Failed to save tile assignment";
         if (error?.status === 400) errorMessage = "Invalid tile selection data";
         else if (error?.status === 401) errorMessage = "Authentication required";
         else if (error?.status >= 500) errorMessage = "Server error. Please try again.";
-        
+
         toast.error(errorMessage);
         return;
       }
@@ -441,7 +441,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     const wallLength = room.wall_length || room.length || 0;
     let tileHeightInRoomUnit: number;
     let tileLengthInRoomUnit: number;
-    
+
     if (room.unit === "feet") {
       tileHeightInRoomUnit = (baseTile.size_length || 0) / 304.8;
       tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
@@ -455,7 +455,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
     const totalArea = wallHeight * wallLength;
     const tileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
-    
+
     if (tileArea <= 0) return;
 
     const grandTotalTilesNeeded = Math.ceil(totalArea / tileArea);
@@ -508,7 +508,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         } else {
           toast.info("Selected tile is already present in all selected rooms");
         }
-      } 
+      }
       // --- SINGLE FLOOR TILE SELECTION (Fallback) ---
       else if (roomId) {
         const existingSelection = floorTileSelections.find(
@@ -524,7 +524,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     } else if (roomId) {
       // --- WALL TILE SELECTION ---
       const wallSelection = wallTileSelections.find(ws => ws.roomId === roomId);
-      
+
       if (!wallSelection || !wallSelection.baseTileId) {
         calculateWallLayers(roomId, tileId);
         toast.success("Base wall tile selected and layers calculated");
@@ -533,13 +533,13 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
           prev.map(ws =>
             ws.roomId === roomId
               ? {
-                  ...ws,
-                  layers: ws.layers.map(layer =>
-                    layer.layerNumber === layerNumber
-                      ? { ...layer, tileId }
-                      : layer
-                  )
-                }
+                ...ws,
+                layers: ws.layers.map(layer =>
+                  layer.layerNumber === layerNumber
+                    ? { ...layer, tileId }
+                    : layer
+                )
+              }
               : ws
           )
         );
@@ -579,9 +579,9 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       prev.map(ws =>
         ws.roomId === roomId
           ? {
-              ...ws,
-              layers: ws.layers.map(layer => ({ ...layer, tileId }))
-            }
+            ...ws,
+            layers: ws.layers.map(layer => ({ ...layer, tileId }))
+          }
           : ws
       )
     );
@@ -593,10 +593,10 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       prev.map(ws =>
         ws.roomId === roomId
           ? {
-              ...ws,
-              layers: ws.layers.filter(layer => layer.layerNumber !== layerNumber),
-              totalLayers: Math.max(1, ws.totalLayers - 1)
-            }
+            ...ws,
+            layers: ws.layers.filter(layer => layer.layerNumber !== layerNumber),
+            totalLayers: Math.max(1, ws.totalLayers - 1)
+          }
           : ws
       )
     );
@@ -606,7 +606,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   const handleSaveSelections = async (newSelections?: FloorTileSelection[]) => {
     const selectionsToUse = newSelections || floorTileSelections;
     const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
-    
+
     selectionsToUse.forEach(fs => {
       selectionsToSave.push({
         customer_id: customerId,
@@ -614,7 +614,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         tile_id: fs.tileId
       });
     });
-  
+
     wallTileSelections.forEach(ws => {
       ws.layers.forEach(layer => {
         selectionsToSave.push({
@@ -625,7 +625,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         });
       });
     });
-  
+
     try {
       await saveSelectionsMutation.mutateAsync(selectionsToSave);
       toast.success("Tile selections saved successfully!");
@@ -645,7 +645,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     const hasFloorTiles = floorTileSelections.length > 0;
     const hasWallTiles = wallTileSelections.some(ws => ws.layers.length > 0);
     const hasStaircaseTiles = staircaseTileSelectionsState.some(s => s.stepTileId || s.riserTileId);
-    
+
     if (!hasFloorTiles && !hasWallTiles && !hasStaircaseTiles) {
       toast.error("Please select tiles for at least one room or staircase before generating quotation");
       return;
@@ -665,15 +665,15 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
   const handleStaircaseTileSelected = async (tileId: string) => {
     if (!catalogContext?.staircaseId || !catalogContext?.staircaseTileType) return;
-    
+
     const { staircaseId, staircaseTileType } = catalogContext;
-    
+
     // Update local state
     setStaircaseTileSelectionsState(prev => {
       const existing = prev.find(s => s.staircaseId === staircaseId);
       if (existing) {
-        return prev.map(s => 
-          s.staircaseId === staircaseId 
+        return prev.map(s =>
+          s.staircaseId === staircaseId
             ? { ...s, [staircaseTileType === 'step' ? 'stepTileId' : 'riserTileId']: tileId }
             : s
         );
@@ -685,7 +685,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         }];
       }
     });
-    
+
     // Save to database
     try {
       await saveStaircaseSelectionMutation.mutateAsync({
@@ -699,7 +699,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       console.error('Error saving staircase tile:', error);
       toast.error('Failed to save tile selection');
     }
-    
+
     setShowTileCatalog(false);
     setCatalogContext(null);
   };
@@ -711,16 +711,34 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     tiles,
     getWastagePercentage()
   );
-  const grandTotal = calculateGrandTotal(calculations);
+
+  const staircaseCalculations = calculateStaircaseTileRequirements(
+    staircaseTileSelectionsState,
+    staircases,
+    tiles,
+    getWastagePercentage()
+  );
+
+  const grandTotal = calculateGrandTotal(calculations) +
+    staircaseCalculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
 
   const prepareQuotationData = () => {
-    return prepareQuotationItems(
+    const roomItems = prepareQuotationItems(
       floorTileSelections,
       wallTileSelections,
       rooms,
       tiles,
       getWastagePercentage()
     );
+
+    const staircaseItems = prepareStaircaseQuotationItems(
+      staircaseTileSelectionsState,
+      staircases,
+      tiles,
+      getWastagePercentage()
+    );
+
+    return [...roomItems, ...staircaseItems];
   };
 
   const styles = {
@@ -748,26 +766,26 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
   if (tilesLoading || selectionsLoading || staircaseSelectionsLoading) {
     return (
-       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-              <div style={styles.tilesContainer}>
-                {[...Array(12)].map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      ...styles.tile,
-                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                      animationDelay: `${index * 0.08}s`
-                    }}
-                  />
-                ))}
-              </div>
-              <p style={styles.loadingText}>Loading...</p>
-              <div style={styles.progressBar}>
-                <div style={styles.progressFill}></div>
-              </div>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div style={styles.tilesContainer}>
+            {[...Array(12)].map((_, index) => (
+              <div
+                key={index}
+                style={{
+                  ...styles.tile,
+                  ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
+                  animationDelay: `${index * 0.08}s`
+                }}
+              />
+            ))}
           </div>
+          <p style={styles.loadingText}>Loading...</p>
+          <div style={styles.progressBar}>
+            <div style={styles.progressFill}></div>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -845,20 +863,19 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                   const isSelected = selectedFloorRooms.has(room.id);
 
                   return (
-                    <div 
-                      key={room.id} 
+                    <div
+                      key={room.id}
                       className={`border rounded-lg p-4 transition-colors ${isSelected ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-200' : 'bg-green-50/50 hover:border-green-300'}`}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           {/* CUSTOM BIG CHECKBOX for Selection */}
-                          <div 
+                          <div
                             onClick={() => toggleFloorRoomSelection(room.id)}
-                            className={`h-6 w-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all shadow-sm ${
-                              isSelected
-                                ? "bg-blue-600 border-blue-600" 
-                                : "border-gray-300 bg-white hover:border-blue-400"
-                            }`}
+                            className={`h-6 w-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all shadow-sm ${isSelected
+                              ? "bg-blue-600 border-blue-600"
+                              : "border-gray-300 bg-white hover:border-blue-400"
+                              }`}
                             title={isSelected ? "Deselect Room" : "Select Room to Add Tile"}
                           >
                             {isSelected && <Check className="h-4 w-4 text-white stroke-[3]" />}
@@ -866,7 +883,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
                           <div>
                             <h4 className="font-semibold text-base text-gray-800">{room.name}</h4>
-                            
+
                             {/* UPDATED: Use renderRoomDimensions for detailed multi-shape display */}
                             {renderRoomDimensions(room)}
 
@@ -885,7 +902,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                           </Button>
                         )}
                       </div>
-                      
+
                       {roomSelections.length > 0 ? (
                         <div className="space-y-3 pl-9">
                           {roomSelections.map((fs, index) => {
@@ -894,10 +911,10 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                               <div key={`${fs.roomId}-${fs.tileId}-${index}`} className="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
                                 <div>
                                   <div className="flex items-center gap-2">
-                                     <p className="font-semibold">{tile.name}</p>
-                                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                        {formatTileDim(tile.size_length, tile.size_breadth)}
-                                     </span>
+                                    <p className="font-semibold">{tile.code}</p>
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                      {formatTileDim(tile.size_length, tile.size_breadth)}
+                                    </span>
                                   </div>
                                   <p className="text-sm text-gray-600">{tile.code}</p>
                                 </div>
@@ -938,13 +955,13 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                   return (
                     <div key={room.id} className="border rounded-lg p-4 bg-blue-50/50">
                       <div className="flex items-center justify-between mb-3">
-                          <div>
-                           <h4 className="font-semibold text-base">{room.name}</h4>
+                        <div>
+                          <h4 className="font-semibold text-base">{room.name}</h4>
 
-                           {/* UPDATED: Use renderRoomDimensions for detailed multi-shape display */}
-                           {renderRoomDimensions(room)}
-                           
-                          </div>
+                          {/* UPDATED: Use renderRoomDimensions for detailed multi-shape display */}
+                          {renderRoomDimensions(room)}
+
+                        </div>
                         <Button
                           onClick={() => handleConfigureWallTiles(room.id)}
                           className="gap-2"
@@ -953,20 +970,20 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                           Configure
                         </Button>
                       </div>
-                      
-                       {wallSelection && wallSelection.layers.length > 0 ? (
+
+                      {wallSelection && wallSelection.layers.length > 0 ? (
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div className="bg-white p-2 rounded border">
                               <span className="text-gray-500">Layers:</span>
                               <span className="font-semibold ml-2">{wallSelection.layers.length}</span>
                             </div>
-                              <div className="bg-white p-2 rounded border">
-                                 <span className="text-gray-500">Total Tiles:</span>
-                                 <span className="font-semibold ml-2">
-                                   {wallSelection.layers.reduce((sum, layer) => sum + layer.tilesNeeded, 0).toFixed(0)}
-                                </span>
-                              </div>
+                            <div className="bg-white p-2 rounded border">
+                              <span className="text-gray-500">Total Tiles:</span>
+                              <span className="font-semibold ml-2">
+                                {wallSelection.layers.reduce((sum, layer) => sum + layer.tilesNeeded, 0).toFixed(0)}
+                              </span>
+                            </div>
                           </div>
 
                           {/* List Unique Tiles for Wall Room */}
@@ -982,10 +999,10 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                                     <div key={tile.id} className="bg-white p-2 rounded border border-blue-100 flex justify-between items-center">
                                       <div>
                                         <div className="flex items-center gap-2">
-                                           <span className="font-medium text-sm">{tile.name}</span>
-                                           <span className="text-xs text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
-                                              {formatTileDim(tile.size_length, tile.size_breadth)}
-                                           </span>
+                                          <span className="font-medium text-sm">{tile.code}</span>
+                                          <span className="text-xs text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
+                                            {formatTileDim(tile.size_length, tile.size_breadth)}
+                                          </span>
                                         </div>
                                         <p className="text-xs text-gray-500">{tile.code}</p>
                                       </div>
@@ -1007,21 +1024,104 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
               </CardContent>
             </Card>
           )}
+
+
+          {/* Staircases Section */}
+          {staircases.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Footprints className="h-5 w-5 text-orange-600" />
+                  Staircases ({staircases.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {staircases.map(staircase => {
+                  const selection = staircaseTileSelectionsState.find(s => s.staircaseId === staircase.id);
+                  const stepTile = selection?.stepTileId ? tiles.find(t => t.id === selection?.stepTileId) : null;
+                  const riserTile = selection?.riserTileId ? tiles.find(t => t.id === selection?.riserTileId) : null;
+
+                  return (
+                    <div key={staircase.id} className="border rounded-lg p-4 bg-orange-50/50">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold text-base text-gray-800">{staircase.name}</h4>
+                          <p className="text-sm text-gray-600">
+                            {staircase.number_of_steps} Steps, {staircase.number_of_risers} Risers
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {/* Steps Selection */}
+                        <div className="flex items-center justify-between bg-white p-2 rounded border border-orange-100">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-orange-100 p-1.5 rounded">
+                              <Footprints className="h-4 w-4 text-orange-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">Steps</p>
+                              {stepTile ? (
+                                <p className="text-xs text-blue-600 font-medium">{stepTile.code}</p>
+                              ) : (
+                                <p className="text-xs text-gray-400 italic">Not selected</p>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSelectStaircaseTile(staircase.id, 'step')}
+                          >
+                            {stepTile ? 'Change' : 'Select'}
+                          </Button>
+                        </div>
+
+                        {/* Risers Selection */}
+                        <div className="flex items-center justify-between bg-white p-2 rounded border border-orange-100">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-orange-100 p-1.5 rounded">
+                              <Layers className="h-4 w-4 text-orange-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">Risers</p>
+                              {riserTile ? (
+                                <p className="text-xs text-blue-600 font-medium">{riserTile.code}</p>
+                              ) : (
+                                <p className="text-xs text-gray-400 italic">Not selected</p>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSelectStaircaseTile(staircase.id, 'riser')}
+                          >
+                            {riserTile ? 'Change' : 'Select'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Summary & Actions */}
         <div className="lg:col-span-1 space-y-6">
-          
+
           {/* NEW GLOBAL ADD TILE BUTTON */}
           {floorRooms.length > 0 && (
-            <Button 
+            <Button
               onClick={handleBulkAddTile}
               disabled={selectedFloorRooms.size === 0}
               className="w-full bg-blue-600 hover:bg-blue-700 gap-2 shadow-md py-6 text-lg transition-all transform hover:-translate-y-0.5"
             >
               <PlusSquare className="h-5 w-5" />
-              {selectedFloorRooms.size === 0 
-                ? "Select Rooms to Add Tile" 
+              {selectedFloorRooms.size === 0
+                ? "Select Rooms to Add Tile"
                 : `Add Tile to ${selectedFloorRooms.size} Rooms`}
             </Button>
           )}
@@ -1036,30 +1136,30 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
             <CardContent className="space-y-4">
               {/* Wastage Percentage */}
               <div>
-                  <Label htmlFor="wastage" className="text-sm font-medium flex items-center gap-2 mb-2">
-                    <Percent className="h-4 w-4" />
-                    Wastage Percentage (0-15%)
-                  </Label>
-                  <Input
-                    id="wastage"
-                    type="number" // UPDATED: Changed to number
-                    inputMode="numeric"
-                    min="0"
-                    max="15"
-                    step="0.1"
-                    value={wastagePercentage}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // Keep validation to ensure strictly 0-15 range
-                      const numValue = parseFloat(value);
-                      if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 15)) {
-                        setWastagePercentage(value);
-                      }
-                    }}
-                    onFocus={handleInputFocus} // UPDATED: Select all on focus
-                    placeholder="Enter 0-15"
-                    className="text-center"
-                  />
+                <Label htmlFor="wastage" className="text-sm font-medium flex items-center gap-2 mb-2">
+                  <Percent className="h-4 w-4" />
+                  Wastage Percentage (0-15%)
+                </Label>
+                <Input
+                  id="wastage"
+                  type="number" // UPDATED: Changed to number
+                  inputMode="numeric"
+                  min="0"
+                  max="15"
+                  step="0.1"
+                  value={wastagePercentage}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Keep validation to ensure strictly 0-15 range
+                    const numValue = parseFloat(value);
+                    if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 15)) {
+                      setWastagePercentage(value);
+                    }
+                  }}
+                  onFocus={handleInputFocus} // UPDATED: Select all on focus
+                  placeholder="Enter 0-15"
+                  className="text-center"
+                />
               </div>
 
               {/* Calculations Summary */}
@@ -1072,7 +1172,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                     </div>
                     <p className="text-xs text-gray-600">Includes {getWastagePercentage()}% wastage</p>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Breakdown:</h4>
                     <div className="max-h-48 overflow-y-auto space-y-2">
@@ -1080,7 +1180,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                         <div key={index} className="bg-gray-50 p-2 rounded text-xs">
                           <div className="flex justify-between items-center mb-1">
                             <div className="flex-1">
-                              <span className="font-medium truncate">{calc.tile.name}</span>
+                              <span className="font-medium truncate">{calc.tile.code}</span>
                               {calc.isWallTile && calc.wallLayers && calc.wallLayers.length > 0 && (
                                 <span className="text-gray-500 text-xs ml-2">
                                   (Layer{calc.wallLayers.length > 1 ? 's' : ''}: {calc.wallLayers.sort((a, b) => a - b).join(', ')})
@@ -1118,6 +1218,40 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                       ))}
                     </div>
                   </div>
+
+                  {/* Staircase Breakdown */}
+                  {staircaseCalculations.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t mt-2">
+                      <h4 className="text-sm font-semibold text-orange-800">Staircases:</h4>
+                      <div className="max-h-48 overflow-y-auto space-y-2">
+                        {staircaseCalculations.map((calc, index) => (
+                          <div key={`stair-${index}`} className="bg-orange-50/50 p-2 rounded text-xs border border-orange-100">
+                            <p className="font-semibold text-orange-900 mb-1">{calc.staircase.name}</p>
+
+                            {calc.stepTile && (
+                              <div className="mb-2 pl-2 border-l-2 border-orange-200">
+                                <p className="text-gray-600">Step: <span className="font-medium text-gray-900">{calc.stepTile.tile.code}</span></p>
+                                <div className="flex justify-between text-gray-500 mt-0.5">
+                                  <span>{calc.stepTile.tilesNeeded} tiles ({calc.stepTile.boxesNeeded} boxes)</span>
+                                  <span>₹{calc.stepTile.totalPrice.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {calc.riserTile && (
+                              <div className="pl-2 border-l-2 border-orange-200">
+                                <p className="text-gray-600">Riser: <span className="font-medium text-gray-900">{calc.riserTile.tile.code}</span></p>
+                                <div className="flex justify-between text-gray-500 mt-0.5">
+                                  <span>{calc.riserTile.tilesNeeded} tiles ({calc.riserTile.boxesNeeded} boxes)</span>
+                                  <span>₹{calc.riserTile.totalPrice.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
@@ -1149,30 +1283,30 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
           </Card>
         </div>
       </div>
-      
+
       <Dialog open={showTileCatalog} onOpenChange={setShowTileCatalog}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {catalogContext?.roomIds 
-                  ? `Select Tile for ${catalogContext.roomIds.length} Rooms`
-                  : catalogContext 
-                    ? `Select Tile for Room` 
-                    : 'Select Tiles'
-                }
-              </DialogTitle>
-            </DialogHeader>
-          <TileCatalog 
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {catalogContext?.roomIds
+                ? `Select Tile for ${catalogContext.roomIds.length} Rooms`
+                : catalogContext
+                  ? `Select Tile for Room`
+                  : 'Select Tiles'
+              }
+            </DialogTitle>
+          </DialogHeader>
+          <TileCatalog
             isSelectionMode={true}
             onTileSelect={handleTileSelected}
             autoAssignmentContext={null}
             onAutoAssignment={handleAutoAssignTile}
             onNavigateBack={() => {
-            setShowTileCatalog(false);
-            setCatalogContext(null);
+              setShowTileCatalog(false);
+              setCatalogContext(null);
             }}
           />
-          </DialogContent>
+        </DialogContent>
       </Dialog>
 
 
@@ -1183,6 +1317,6 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         area={showFloorPreview ? calculateAreaInSquareFeet(showFloorPreview.room.length, showFloorPreview.room.width, showFloorPreview.room.unit) : 0}
         unit="ft"
       />
-    </div>
+    </div >
   );
 };

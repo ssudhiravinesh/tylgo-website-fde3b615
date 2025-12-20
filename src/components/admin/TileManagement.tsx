@@ -19,12 +19,12 @@ import { useExcelExport } from "@/hooks/useExcelExport";
 import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { DownloadCatalogueDialog } from "@/components/tiles/DownloadCatalogueDialog"; 
+import { DownloadCatalogueDialog } from "@/components/tiles/DownloadCatalogueDialog";
 import * as z from "zod";
 
 const tileSchema = z.object({
   code: z.string().min(1, "Code is required"),
-  name: z.string().min(1, "Name is required"),
+
   size_length: z.number().min(1, "Length must be greater than 0"),
   size_breadth: z.number().min(1, "Breadth must be greater than 0"),
   price_per_box: z.number().min(0, "Price must be 0 or greater").optional(),
@@ -71,7 +71,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     resolver: zodResolver(tileSchema),
     defaultValues: {
       code: "",
-      name: "",
+
       size_length: undefined,
       size_breadth: undefined,
       price_per_box: undefined,
@@ -82,19 +82,19 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   });
 
   const filteredTiles = tiles.filter(tile =>
-    tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tile.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (tile.category && tile.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Get unique categories for dropdown
   const categories = Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean)));
-  
+
   // Filter categories based on current input
-  const filteredCategories = categories.filter(cat => 
+  const filteredCategories = categories.filter(cat =>
     cat.toLowerCase().includes(categoryInput.toLowerCase())
   );
-  
+
   // Always show bulk price update button if there are categories
   const shouldShowPriceUpdateButton = categories.length > 0;
 
@@ -102,7 +102,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedImageFile(file);
-      
+
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
@@ -116,7 +116,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
   const handleAddTile = async (data: TileFormData) => {
     let imageUrl = data.image_url || null;
-    
+
     // If user selected a file, upload it first
     if (selectedImageFile) {
       const uploadedUrl = await uploadImage(selectedImageFile);
@@ -127,7 +127,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
     const tileData = {
       code: data.code,
-      name: data.name,
+
       size_length: data.size_length,
       size_breadth: data.size_breadth,
       price_per_box: data.price_per_box || null,
@@ -135,7 +135,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       image_url: imageUrl,
       category: data.category,
     };
-    
+
     createTileMutation.mutate(tileData, {
       onSuccess: () => {
         setIsAddDialogOpen(false);
@@ -148,7 +148,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const handleEditTile = async (data: TileFormData) => {
     if (editingTile) {
       let imageUrl = data.image_url || null;
-      
+
       // If user selected a new file, upload it first
       if (selectedImageFile) {
         const uploadedUrl = await uploadImage(selectedImageFile);
@@ -160,7 +160,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       const updateData = {
         id: editingTile.id,
         code: data.code,
-        name: data.name,
+
         size_length: data.size_length,
         size_breadth: data.size_breadth,
         price_per_box: data.price_per_box || null,
@@ -168,7 +168,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         image_url: imageUrl,
         category: data.category,
       };
-      
+
       updateTileMutation.mutate(updateData, {
         onSuccess: () => {
           setIsEditDialogOpen(false);
@@ -209,7 +209,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       // Load and draw QR code
       const qrImage = new Image();
       qrImage.crossOrigin = 'anonymous';
-      
+
       await new Promise((resolve, reject) => {
         qrImage.onload = resolve;
         qrImage.onerror = reject;
@@ -223,8 +223,8 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       ctx.fillStyle = 'black';
       ctx.font = 'bold 18px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(tileName, canvas.width / 2, qrSize + padding + 25);
-      
+      ctx.fillText(tileCode, canvas.width / 2, qrSize + padding + 25);
+
       // Add tile code text
       ctx.font = '14px Arial';
       ctx.fillText(`Code: ${tileCode}`, canvas.width / 2, qrSize + padding + 50);
@@ -236,13 +236,13 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
     } catch (error) {
-      
+
     }
   };
 
- const handleDownloadTilesPDF = (category?: string) => {
+  const handleDownloadTilesPDF = (category?: string) => {
     let tilesToExport = tiles;
 
     if (category && category !== "all") {
@@ -258,7 +258,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
     try {
       generateTilesPDF(tilesToExport);
-      setIsDownloadDialogOpen(false); 
+      setIsDownloadDialogOpen(false);
       toast.success("PDF generated successfully");
     } catch (error) {
       console.error(error);
@@ -274,7 +274,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         (t) => t.category?.toLowerCase() === category.toLowerCase()
       );
     }
-    
+
     if (tilesToExport.length === 0) {
       toast.error("No tiles found to download");
       return;
@@ -282,7 +282,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
 
     try {
       exportTilesToExcel(tilesToExport);
-      setIsDownloadDialogOpen(false); 
+      setIsDownloadDialogOpen(false);
       toast.success("Excel file downloaded successfully");
     } catch (error) {
       console.error(error);
@@ -294,7 +294,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     setEditingTile(tile);
     form.reset({
       code: tile.code,
-      name: tile.name,
+
       size_length: tile.size_length,
       size_breadth: tile.size_breadth,
       price_per_box: tile.price_per_box || undefined,
@@ -302,15 +302,15 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       image_url: tile.image_url || "",
       category: tile.category || "",
     });
-    
+
     // Reset image states when opening edit dialog
     resetImageStates();
-    
+
     // Set current image as preview if exists
     if (tile.image_url) {
       setImagePreview(tile.image_url);
     }
-    
+
     setIsEditDialogOpen(true);
   };
 
@@ -319,7 +319,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     if (!tile.price_per_box || !tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
       return 0;
     }
-    
+
     const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
     const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
     return tile.price_per_box / areaPerBoxSqFt;
@@ -354,16 +354,16 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search by tile name, code, or category..."
+            placeholder="Search by tile code or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
             className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        
+
         <div className="flex gap-2">
           {shouldShowPriceUpdateButton && (
-            <Button 
+            <Button
               onClick={() => setIsPriceUpdateDialogOpen(true)}
               className="bg-green-600 hover:bg-green-700 text-white gap-2"
             >
@@ -371,9 +371,9 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
               Bulk Price Update
             </Button>
           )}
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="gap-2"
             onClick={() => setIsDownloadDialogOpen(true)}
           >
@@ -381,14 +381,14 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
             Download Catalogue
           </Button>
 
-          <DownloadCatalogueDialog 
+          <DownloadCatalogueDialog
             isOpen={isDownloadDialogOpen}
             onClose={() => setIsDownloadDialogOpen(false)}
             onDownloadPDF={handleDownloadTilesPDF}
             onDownloadExcel={handleDownloadTilesExcel}
-            isGenerating={isPDFGenerating} 
+            isGenerating={isPDFGenerating}
           />
-          
+
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
@@ -396,141 +396,129 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                 Add New Tile
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Add New Tile</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleAddTile)} className="space-y-4">
-                {/* Basic Info Row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="code"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tile Code</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g., TH007" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tile Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g., Marble Classic White" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add New Tile</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleAddTile)} className="space-y-4">
+                  {/* Basic Info Row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="code"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tile Code</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="e.g., TH007" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {/* Size and Pricing Row */}
-                <div className="grid grid-cols-4 gap-3">
-                   <FormField
-                     control={form.control}
-                     name="size_length"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Height(mm)</FormLabel>
-                         <FormControl>
+                  </div>
+
+                  {/* Size and Pricing Row */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="size_length"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Height(mm)</FormLabel>
+                          <FormControl>
                             <Input
-                             {...field}
-                             inputMode="numeric"
-                             pattern="[0-9]*"
-                             placeholder="600"
-                             value={field.value || ""}
-                             onChange={(e) => {
-                               const value = e.target.value;
-                               field.onChange(value === "" ? undefined : Number(value));
-                             }}
-                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                           />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                   <FormField
-                     control={form.control}
-                     name="size_breadth"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Width Length(mm)</FormLabel>
-                         <FormControl>
+                              {...field}
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              placeholder="600"
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value === "" ? undefined : Number(value));
+                              }}
+                              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="size_breadth"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Width Length(mm)</FormLabel>
+                          <FormControl>
                             <Input
-                             {...field}
-                             inputMode="numeric"
-                             pattern="[0-9]*"
-                             placeholder="600"
-                             value={field.value || ""}
-                             onChange={(e) => {
-                               const value = e.target.value;
-                               field.onChange(value === "" ? undefined : Number(value));
-                             }}
-                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                           />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                   <FormField
-                     control={form.control}
-                     name="price_per_box"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Price/Box</FormLabel>
-                         <FormControl>
+                              {...field}
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              placeholder="600"
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value === "" ? undefined : Number(value));
+                              }}
+                              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="price_per_box"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price/Box</FormLabel>
+                          <FormControl>
                             <Input
-                             {...field}
-                             inputMode="decimal"
-                             pattern="[0-9]*\.?[0-9]*"
-                             placeholder="450"
-                             value={field.value || ""}
-                             onChange={(e) => {
-                               const value = e.target.value;
-                               field.onChange(value === "" ? undefined : Number(value));
-                             }}
-                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                           />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                   <FormField
-                     control={form.control}
-                     name="pieces_per_box"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Pieces/Box</FormLabel>
-                         <FormControl>
+                              {...field}
+                              inputMode="decimal"
+                              pattern="[0-9]*\.?[0-9]*"
+                              placeholder="450"
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value === "" ? undefined : Number(value));
+                              }}
+                              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="pieces_per_box"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Pieces/Box</FormLabel>
+                          <FormControl>
                             <Input
-                             {...field}
-                             inputMode="numeric"
-                             pattern="[0-9]*"
-                             placeholder="4"
-                             value={field.value || ""}
-                             onChange={(e) => {
-                               const value = e.target.value;
-                               field.onChange(value === "" ? undefined : Number(value));
-                             }}
-                             className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                           />
-                         </FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                 </div>
+                              {...field}
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              placeholder="4"
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value === "" ? undefined : Number(value));
+                              }}
+                              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   {/* Category Field */}
                   <FormField
@@ -540,7 +528,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       <FormItem className="relative">
                         <FormLabel>Category</FormLabel>
                         <FormControl>
-                          <Input 
+                          <Input
                             {...field}
                             ref={categoryInputRef}
                             placeholder="e.g., Bathroom, Kitchen, Living Room"
@@ -579,87 +567,87 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     )}
                   />
 
-                 {/* Image Section */}
-                <div className="space-y-3">
-                  <FormLabel>Tile Image</FormLabel>
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Image Upload */}
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="image-upload-add"
-                        className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        {imagePreview ? (
-                          <img
-                            src={imagePreview}
-                            alt="Preview"
-                            className="w-16 h-16 object-cover rounded-md"
-                          />
-                        ) : (
-                          <div className="text-center">
-                            <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                            <p className="text-xs text-gray-500">Upload Image</p>
-                          </div>
-                        )}
-                        <input
-                          id="image-upload-add"
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handleImageFileChange}
-                        />
-                      </label>
-                      {imagePreview && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setImagePreview("");
-                            setSelectedImageFile(null);
-                          }}
-                          className="w-full text-xs"
+                  {/* Image Section */}
+                  <div className="space-y-3">
+                    <FormLabel>Tile Image</FormLabel>
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Image Upload */}
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="image-upload-add"
+                          className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
                         >
-                          Remove
-                        </Button>
-                      )}
+                          {imagePreview ? (
+                            <img
+                              src={imagePreview}
+                              alt="Preview"
+                              className="w-16 h-16 object-cover rounded-md"
+                            />
+                          ) : (
+                            <div className="text-center">
+                              <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                              <p className="text-xs text-gray-500">Upload Image</p>
+                            </div>
+                          )}
+                          <input
+                            id="image-upload-add"
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleImageFileChange}
+                          />
+                        </label>
+                        {imagePreview && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setImagePreview("");
+                              setSelectedImageFile(null);
+                            }}
+                            className="w-full text-xs"
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* URL Input */}
+                      <FormField
+                        control={form.control}
+                        name="image_url"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel>Or Image URL</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="https://..." />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    
-                    {/* URL Input */}
-                    <FormField
-                      control={form.control}
-                      name="image_url"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Or Image URL</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="https://..." />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsAddDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={createTileMutation.isPending || isUploading}
-                  >
-                    {isUploading ? "Uploading..." : createTileMutation.isPending ? "Adding..." : "Add Tile"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsAddDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="bg-blue-600 hover:bg-blue-700"
+                      disabled={createTileMutation.isPending || isUploading}
+                    >
+                      {isUploading ? "Uploading..." : createTileMutation.isPending ? "Adding..." : "Add Tile"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
@@ -669,7 +657,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         isOpen={isPriceUpdateDialogOpen}
         onClose={() => setIsPriceUpdateDialogOpen(false)}
       />
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Tile Database ({filteredTiles.length} tiles)</CardTitle>
@@ -679,7 +667,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
             <TableHeader>
               <TableRow>
                 <TableHead>Code</TableHead>
-                <TableHead>Name</TableHead>
+
                 <TableHead>Tile Image</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Size</TableHead>
@@ -696,12 +684,12 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     <TableCell className="font-mono">
                       {tile.code}
                     </TableCell>
-                    <TableCell className="font-medium">{tile.name}</TableCell>
+
                     <TableCell>
                       {tile.image_url ? (
-                        <img 
-                          src={tile.image_url} 
-                          alt={tile.name}
+                        <img
+                          src={tile.image_url}
+                          alt={tile.code}
                           className="w-16 h-16 object-cover rounded border border-border"
                         />
                       ) : (
@@ -750,7 +738,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code, tile.name)}
+                              onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code, tile.code)}
                               className="gap-1"
                             >
                               <Download className="h-3 w-3" />
@@ -797,7 +785,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Tile</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete "{tile.name}" ({tile.code})? 
+                                Are you sure you want to delete "{tile.code}"?
                                 This action cannot be undone and will remove the tile from all quotations.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -855,172 +843,155 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                     </FormItem>
                   )}
                 />
-               <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tile Name</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        placeholder="e.g., MARBLE CLASSIC WHITE" 
-                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                        value={field.value}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
               </div>
 
               {/* Size and Pricing Row */}
               <div className="grid grid-cols-4 gap-3">
-                 <FormField
-                   control={form.control}
-                   name="size_length"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Length (mm)</FormLabel>
-                       <FormControl>
-                          <Input
-                            {...field}
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            placeholder="600"
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              field.onChange(value === "" ? undefined : Number(value));
-                            }}
-                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                       </FormControl>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-                 <FormField
-                   control={form.control}
-                   name="size_breadth"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Breadth (mm)</FormLabel>
-                       <FormControl>
-                          <Input
-                            {...field}
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            placeholder="600"
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              field.onChange(value === "" ? undefined : Number(value));
-                            }}
-                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                       </FormControl>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-                 <FormField
-                   control={form.control}
-                   name="price_per_box"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Price/Box</FormLabel>
-                       <FormControl>
-                          <Input
-                            {...field}
-                            inputMode="decimal"
-                            pattern="[0-9]*\.?[0-9]*"
-                            placeholder="450"
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              field.onChange(value === "" ? undefined : Number(value));
-                            }}
-                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                       </FormControl>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-                 <FormField
-                   control={form.control}
-                   name="pieces_per_box"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Pieces/Box</FormLabel>
-                       <FormControl>
-                          <Input
-                            {...field}
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            placeholder="4"
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              field.onChange(value === "" ? undefined : Number(value));
-                            }}
-                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                       </FormControl>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-               </div>
+                <FormField
+                  control={form.control}
+                  name="size_length"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Length (mm)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="600"
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value === "" ? undefined : Number(value));
+                          }}
+                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="size_breadth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Breadth (mm)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="600"
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value === "" ? undefined : Number(value));
+                          }}
+                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="price_per_box"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price/Box</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          inputMode="decimal"
+                          pattern="[0-9]*\.?[0-9]*"
+                          placeholder="450"
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value === "" ? undefined : Number(value));
+                          }}
+                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pieces_per_box"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pieces/Box</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="4"
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value === "" ? undefined : Number(value));
+                          }}
+                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-               {/* Category Field */}
-               <FormField
-                 control={form.control}
-                 name="category"
-                 render={({ field }) => (
-                   <FormItem className="relative">
-                     <FormLabel>Category</FormLabel>
-                     <FormControl>
-                       <Input 
-                         {...field}
-                         placeholder="e.g., Bathroom, Kitchen, Living Room"
-                         onFocus={() => setShowCategorySuggestions(true)}
-                         onChange={(e) => {
-                           field.onChange(e);
-                           setCategoryInput(e.target.value);
-                           setShowCategorySuggestions(true);
-                         }}
-                         onBlur={() => {
-                           // Delay to allow click on suggestion
-                           setTimeout(() => setShowCategorySuggestions(false), 200);
-                         }}
-                       />
-                     </FormControl>
-                     {showCategorySuggestions && filteredCategories.length > 0 && (
-                       <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                         {filteredCategories.map((category) => (
-                           <div
-                             key={category}
-                             className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                             onClick={() => {
-                               field.onChange(category);
-                               setCategoryInput(category);
-                               setShowCategorySuggestions(false);
-                             }}
-                           >
-                             {category}
-                           </div>
-                         ))}
-                       </div>
-                     )}
-                     <FormMessage />
-                   </FormItem>
-                 )}
-               />
+              {/* Category Field */}
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem className="relative">
+                    <FormLabel>Category</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="e.g., Bathroom, Kitchen, Living Room"
+                        onFocus={() => setShowCategorySuggestions(true)}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setCategoryInput(e.target.value);
+                          setShowCategorySuggestions(true);
+                        }}
+                        onBlur={() => {
+                          // Delay to allow click on suggestion
+                          setTimeout(() => setShowCategorySuggestions(false), 200);
+                        }}
+                      />
+                    </FormControl>
+                    {showCategorySuggestions && filteredCategories.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {filteredCategories.map((category) => (
+                          <div
+                            key={category}
+                            className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+                            onClick={() => {
+                              field.onChange(category);
+                              setCategoryInput(category);
+                              setShowCategorySuggestions(false);
+                            }}
+                          >
+                            {category}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-               {/* Image Section */}
+              {/* Image Section */}
               <div className="space-y-3">
                 <FormLabel>Tile Image</FormLabel>
                 <div className="grid grid-cols-2 gap-4">
@@ -1065,7 +1036,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
                       </Button>
                     )}
                   </div>
-                  
+
                   {/* URL Input */}
                   <FormField
                     control={form.control}

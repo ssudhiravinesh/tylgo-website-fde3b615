@@ -32,7 +32,7 @@ export const TileCard = ({
   isGeneratingQR,
   children
 }: TileCardProps) => {
-  
+
   const handleCardClick = (e: React.MouseEvent) => {
     // Only trigger card click if the click is not on a button
     const target = e.target as HTMLElement;
@@ -43,40 +43,36 @@ export const TileCard = ({
   };
 
   return (
-    <Card 
-      className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-gray-200 ${
-        isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''
-      }`}
+    <Card
+      className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-gray-200 ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''
+        }`}
       onClick={handleCardClick}
     >
-    <CardContent className="p-4">
-      <div 
-        className="bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden w-full"
-        style={{ 
-          aspectRatio: '2/1',
-          minHeight: '100px',
-          maxHeight: '200px'
-        }}
-      >
-        {tile.image_url ? (
-          <img 
-            src={tile.image_url} 
-            alt={tile.name}
-            className="w-full h-full object-contain rounded-lg"
-          />
-        ) : (
-          <div className="text-gray-500">No image available</div>
-        )}
-      </div>
-            
+      <CardContent className="p-4">
+        <div
+          className="bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden w-full"
+          style={{
+            aspectRatio: '2/1',
+            minHeight: '100px',
+            maxHeight: '200px'
+          }}
+        >
+          {tile.image_url ? (
+            <img
+              src={tile.image_url}
+              alt={tile.code}
+              className="w-full h-full object-contain rounded-lg"
+            />
+          ) : (
+            <div className="text-gray-500">No image available</div>
+          )}
+        </div>
+
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            {tile.code}
-          </div>
-          
+
           <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">
             <Badge variant="secondary" className="text-xs font-mono">
-              {tile.name}
+              {tile.code}
             </Badge>
             {isSelected && (
               <Badge className="bg-blue-600 text-white text-xs">
@@ -85,12 +81,12 @@ export const TileCard = ({
               </Badge>
             )}
           </h3>
-          
+
           <div className="flex items-center gap-1 text-xs text-gray-600">
             <Ruler className="h-3 w-3" />
             {tile.size_length} × {tile.size_breadth} mm
           </div>
-          
+
           <div className="space-y-1">
             {tile.price_per_box && (
               <div className="flex items-center gap-1 text-sm font-semibold text-blue-600">
@@ -98,7 +94,7 @@ export const TileCard = ({
                 {tile.price_per_box.toLocaleString()} per box
               </div>
             )}
-            
+
             {tile.pieces_per_box && (
               <div className="flex items-center gap-1 text-xs text-gray-600">
                 <Package className="h-3 w-3" />
@@ -145,7 +141,7 @@ export const TileCard = ({
                   {isGeneratingQR ? 'Gen...' : 'QR'}
                 </Button>
               )}
-              
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -172,8 +168,8 @@ export const TileCard = ({
           )}
 
           {isSelected && showAssignButton && (
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               className="w-full mt-2 gap-2"
               onClick={onAssignClick}
             >

@@ -19,15 +19,15 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
   const [pricePerBox, setPricePerBox] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  
+
   const { data: tiles = [] } = useTiles();
   const updateTileMutation = useUpdateTile(true); // Skip individual toasts during bulk update
-  
+
   // Get unique categories for dropdown
   const categories = Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean)));
-  
+
   // Get all tiles with the selected category
-  const matchingTiles = selectedCategory ? tiles.filter(tile => 
+  const matchingTiles = selectedCategory ? tiles.filter(tile =>
     tile.category?.toLowerCase() === selectedCategory.toLowerCase()
   ) : [];
 
@@ -53,17 +53,17 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
 
   const handleUpdate = async () => {
     if (!pricePerBox || matchingTiles.length === 0) return;
-    
+
     setIsUpdating(true);
     const price = parseFloat(pricePerBox);
-    
+
     try {
       // Update all tiles with the selected category
-      const updatePromises = matchingTiles.map(tile => 
+      const updatePromises = matchingTiles.map(tile =>
         updateTileMutation.mutateAsync({
           id: tile.id,
           code: tile.code,
-          name: tile.name,
+
           size_length: tile.size_length,
           size_breadth: tile.size_breadth,
           price_per_box: price,
@@ -72,9 +72,9 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
           category: tile.category
         })
       );
-      
+
       await Promise.all(updatePromises);
-      
+
       toast.success(`Updated price for ${matchingTiles.length} tiles in "${selectedCategory}" category`);
       handleClose();
     } catch (error) {
@@ -89,7 +89,7 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
     if (!tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
       return 0;
     }
-    
+
     const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
     const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
     return newPrice / areaPerBoxSqFt;
@@ -105,14 +105,14 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
               Bulk Price Update by Category
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-blue-800">
                 Select a category and new price to update all tiles in that category at once.
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="category">Select Category</Label>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -137,7 +137,7 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
                 <div className="max-h-20 overflow-y-auto space-y-1">
                   {matchingTiles.slice(0, 5).map((tile) => (
                     <div key={tile.id} className="text-xs text-gray-600">
-                      {tile.code} - {tile.name}
+                      {tile.code}
                     </div>
                   ))}
                   {matchingTiles.length > 5 && (
@@ -148,7 +148,7 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
                 </div>
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="price">New Price per Box (₹)</Label>
               <Input
@@ -163,7 +163,7 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
                 disabled={!selectedCategory}
               />
             </div>
-            
+
             {pricePerBox && parseFloat(pricePerBox) > 0 && selectedCategory && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-medium text-sm text-gray-800 mb-2">Preview (Price per sq ft):</h4>
@@ -183,12 +183,12 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleConfirm}
               disabled={!selectedCategory || !pricePerBox || parseFloat(pricePerBox) <= 0}
               className="bg-green-600 hover:bg-green-700 text-white"
@@ -210,37 +210,37 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
             Confirm Price Update
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
             <p className="text-sm text-orange-800">
-              <strong>Warning:</strong> This action will update the price for all {matchingTiles.length} tiles 
+              <strong>Warning:</strong> This action will update the price for all {matchingTiles.length} tiles
               in "{selectedCategory}" category to <strong>₹{pricePerBox} per box</strong>.
             </p>
           </div>
-          
+
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-medium text-sm text-gray-800 mb-2">Tiles to be updated:</h4>
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {matchingTiles.map((tile) => (
                 <div key={tile.id} className="text-xs text-gray-600 flex justify-between border-b border-gray-200 pb-1">
-                  <span>{tile.code} - {tile.name}</span>
+                  <span>{tile.code}</span>
                   <span>₹{tile.price_per_box || 0} → ₹{pricePerBox}</span>
                 </div>
               ))}
             </div>
           </div>
-          
+
           <p className="text-sm text-gray-600">
             This action cannot be undone. Are you sure you want to proceed?
           </p>
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsConfirming(false)} disabled={isUpdating}>
             Back
           </Button>
-          <Button 
+          <Button
             onClick={handleUpdate}
             disabled={isUpdating}
             className="bg-red-600 hover:bg-red-700 text-white"

@@ -15,17 +15,17 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
   const { data: customers = [] } = useCustomers();
   const { data: quotations = [] } = useQuotations();
   const { data: tiles = [] } = useTiles();
-  
-  const [topCustomers, setTopCustomers] = useState<Array<{name: string; totalValue: number}>>([]);
+
+  const [topCustomers, setTopCustomers] = useState<Array<{ name: string; totalValue: number }>>([]);
   const [conversionRate, setConversionRate] = useState(0);
-  const [popularTiles, setPopularTiles] = useState<Array<{name: string; usage: number}>>([]);
-  const [topWorker, setTopWorker] = useState<{name: string; closed: number; total: number} | null>(null);
+  const [popularTiles, setPopularTiles] = useState<Array<{ name: string; usage: number }>>([]);
+  const [topWorker, setTopWorker] = useState<{ name: string; closed: number; total: number } | null>(null);
 
   useEffect(() => {
     if (customers.length > 0 && quotations.length > 0) {
       // Calculate top customers by total quotation value
       const customerValues: { [customerId: string]: { name: string; totalValue: number } } = {};
-      
+
       // Calculate worker performance
       const workerStats: { [name: string]: { closed: number; total: number } } = {};
 
@@ -34,7 +34,7 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
         const customerId = quotation.customer_id;
         const customer = customers.find(c => c.id === customerId);
         const value = quotation.total_cost || 0;
-        
+
         if (customer) {
           if (!customerValues[customerId]) {
             customerValues[customerId] = { name: customer.name, totalValue: 0 };
@@ -52,13 +52,13 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
           workerStats[workerName].closed += 1;
         }
       });
-      
+
       const sortedCustomers = Object.values(customerValues)
         .sort((a, b) => b.totalValue - a.totalValue)
         .slice(0, 3);
-      
+
       setTopCustomers(sortedCustomers);
-      
+
       // Determine Top Worker
       let bestWorker = null;
       let maxClosed = -1;
@@ -77,26 +77,26 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
       const totalQuotations = quotations.length;
       const rate = totalQuotations > 0 ? (approvedQuotations / totalQuotations) * 100 : 0;
       setConversionRate(rate);
-      
+
       // Calculate popular tiles from quotation items
       const tileUsage: { [tileId: string]: { name: string; usage: number } } = {};
-      
+
       quotations.forEach(quotation => {
         quotation.quotation_items?.forEach(item => {
           const tile = tiles.find(t => t.id === item.tile_id);
           if (tile) {
             if (!tileUsage[item.tile_id]) {
-              tileUsage[item.tile_id] = { name: tile.name, usage: 0 };
+              tileUsage[item.tile_id] = { name: tile.code, usage: 0 };
             }
             tileUsage[item.tile_id].usage += 1;
           }
         });
       });
-      
+
       const sortedTiles = Object.values(tileUsage)
         .sort((a, b) => b.usage - a.usage)
         .slice(0, 2);
-      
+
       setPopularTiles(sortedTiles);
     }
   }, [customers, quotations, tiles]);
@@ -138,8 +138,8 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
           <h1 className="text-2xl font-bold text-gray-800">Customer Analytics</h1>
           <p className="text-gray-600">Analyze customer behavior and business performance</p>
         </div>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={onBack}
           className="gap-2"
         >
@@ -147,7 +147,7 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
           Back to Dashboard
         </Button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Top Customers - spans 2 columns */}
         <Card className="border-gray-200 md:col-span-2">
@@ -238,13 +238,13 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
                 popularTiles.map((tile, index) => (
                   <div key={index} className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium text-sm">{tile.name}</span>
+                      <span className="font-medium text-sm">{tile.code}</span>
                       <span className="text-xs text-gray-500">{tile.usage} quotations</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                        style={{width: `${getUsagePercentage(tile.usage, maxTileUsage)}%`}}
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${getUsagePercentage(tile.usage, maxTileUsage)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -317,7 +317,7 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
                   {quotations.filter(q => q.status === 'approved').length}
                 </span>
               </div>
-              
+
               {/* New Top Worker Section */}
               {topWorker && topWorker.name !== 'Unknown' && (
                 <div className="mt-4 pt-4 border-t border-blue-200">
@@ -344,7 +344,7 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
                 <span className="text-sm text-gray-600">Avg. Deal Value</span>
                 <span className="text-xl font-bold text-purple-600">
                   {formatCurrency(
-                    quotations.length > 0 
+                    quotations.length > 0
                       ? quotations.reduce((sum, q) => sum + (q.total_cost || 0), 0) / quotations.length
                       : 0
                   )}

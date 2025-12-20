@@ -5,14 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { 
-  Search, 
-  QrCode, 
-  Filter, 
-  SortAsc, 
-  SortDesc, 
-  Grid, 
-  List, 
+import {
+  Search,
+  QrCode,
+  Filter,
+  SortAsc,
+  SortDesc,
+  Grid,
+  List,
   Download,
   Eye,
   ShoppingCart,
@@ -31,30 +31,30 @@ import type { Tile } from "@/hooks/useTiles";
 
 // Add to TileCatalogProps interface
 interface TileCatalogProps {
-isSelectionMode?: boolean;
-onTileSelect?: (tileId: string) => void;
-// New props for auto-assignment
-autoAssignmentContext?: {
-roomId: string;
-roomName: string;
-isWallTile: boolean;
-layerNumber?: number;
-};
-onAutoAssignment?: (tileId: string) => void;
-onNavigateBack?: () => void;
+  isSelectionMode?: boolean;
+  onTileSelect?: (tileId: string) => void;
+  // New props for auto-assignment
+  autoAssignmentContext?: {
+    roomId: string;
+    roomName: string;
+    isWallTile: boolean;
+    layerNumber?: number;
+  };
+  onAutoAssignment?: (tileId: string) => void;
+  onNavigateBack?: () => void;
 }
 
-export const TileCatalog = ({ 
-  isSelectionMode = false, 
+export const TileCatalog = ({
+  isSelectionMode = false,
   onTileSelect,
-  autoAssignmentContext,     
-  onAutoAssignment,            
-  onNavigateBack             
+  autoAssignmentContext,
+  onAutoAssignment,
+  onNavigateBack
 }: TileCatalogProps) => {
-const { data: tiles, totalCount, isLoading: loading, error, refetch } = useTiles();
+  const { data: tiles, totalCount, isLoading: loading, error, refetch } = useTiles();
 
 
-console.log(`Received ${tiles.length} tiles out of total ${totalCount}`);
+  console.log(`Received ${tiles.length} tiles out of total ${totalCount}`);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
@@ -63,128 +63,126 @@ console.log(`Received ${tiles.length} tiles out of total ${totalCount}`);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000]);
-  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortBy, setSortBy] = useState<string>("code");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<Set<string>>(new Set());
 
-const [alphabeticalIndex, setAlphabeticalIndex] = useState<string>('');
-const [showAlphabetNav, setShowAlphabetNav] = useState(false);
-  
-const getAlphaKey = (tile: Tile): string => {
-  const value = (tile.code || tile.name || '').trim();
-  if (!value) return '#';  // fallback if nothing exists
-  const firstChar = value.charAt(0).toUpperCase();
-  if (/[0-9]/.test(firstChar)) return firstChar;     // Individual digit
-  if (/[A-Z]/.test(firstChar)) return firstChar;     // Letter A-Z
-  return '#';  // All other cases (symbols etc.)
-};
+  const [alphabeticalIndex, setAlphabeticalIndex] = useState<string>('');
+  const [showAlphabetNav, setShowAlphabetNav] = useState(false);
 
-const availableKeys = Array.from(
-  new Set(
-    tiles
-      .map(getAlphaKey)
-      .filter(Boolean)
-  )
-);
+  const getAlphaKey = (tile: Tile): string => {
+    const value = (tile.code || '').trim();
+    if (!value) return '#';  // fallback if nothing exists
+    const firstChar = value.charAt(0).toUpperCase();
+    if (/[0-9]/.test(firstChar)) return firstChar;     // Individual digit
+    if (/[A-Z]/.test(firstChar)) return firstChar;     // Letter A-Z
+    return '#';  // All other cases (symbols etc.)
+  };
 
-// Always sort: first digits, then letters, then #
-const numbers = availableKeys.filter((char) => /[0-9]/.test(char)).sort();
-const letters = availableKeys.filter((char) => /[A-Z]/.test(char)).sort();
-const others = availableKeys.filter((char) => !/[0-9A-Z]/.test(char));
-const displayKeys = [...numbers, ...letters, ...others];
-
-  
-const AlphabeticalNavigation = ({
-  tiles,
-  onLetterClick,
-  activeLetter,
-}: {
-  tiles: Tile[];
-  onLetterClick: (letter: string) => void;
-  activeLetter: string;
-}) => {
-
-  // Get unique, sorted keys for navigation
   const availableKeys = Array.from(
     new Set(
-      tiles.map(getAlphaKey).filter(Boolean)
+      tiles
+        .map(getAlphaKey)
+        .filter(Boolean)
     )
   );
-  const numbers = availableKeys.filter(char => /[0-9]/.test(char)).sort();
-  const letters = availableKeys.filter(char => /[A-Z]/.test(char)).sort();
-  const others = availableKeys.filter(char => !/[0-9A-Z]/.test(char));
+
+  // Always sort: first digits, then letters, then #
+  const numbers = availableKeys.filter((char) => /[0-9]/.test(char)).sort();
+  const letters = availableKeys.filter((char) => /[A-Z]/.test(char)).sort();
+  const others = availableKeys.filter((char) => !/[0-9A-Z]/.test(char));
   const displayKeys = [...numbers, ...letters, ...others];
 
-  return (
-    <div className="bg-white border rounded-lg p-3 mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-700">Quick Navigation</span>
-        <Badge variant="outline" className="text-xs">{tiles.length} tiles</Badge>
-      </div>
-      <div className="flex flex-wrap gap-1">
-        <Button
-          variant={activeLetter === '' ? "default" : "outline"}
-          size="sm"
-          onClick={() => onLetterClick('')}
-          className="h-8 w-12 p-0 text-xs"
-        >
-          All
-        </Button>
-        {displayKeys.map(letter => (
+
+  const AlphabeticalNavigation = ({
+    tiles,
+    onLetterClick,
+    activeLetter,
+  }: {
+    tiles: Tile[];
+    onLetterClick: (letter: string) => void;
+    activeLetter: string;
+  }) => {
+
+    // Get unique, sorted keys for navigation
+    const availableKeys = Array.from(
+      new Set(
+        tiles.map(getAlphaKey).filter(Boolean)
+      )
+    );
+    const numbers = availableKeys.filter(char => /[0-9]/.test(char)).sort();
+    const letters = availableKeys.filter(char => /[A-Z]/.test(char)).sort();
+    const others = availableKeys.filter(char => !/[0-9A-Z]/.test(char));
+    const displayKeys = [...numbers, ...letters, ...others];
+
+    return (
+      <div className="bg-white border rounded-lg p-3 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-700">Quick Navigation</span>
+          <Badge variant="outline" className="text-xs">{tiles.length} tiles</Badge>
+        </div>
+        <div className="flex flex-wrap gap-1">
           <Button
-            key={letter}
-            variant={activeLetter === letter ? "default" : "outline"}
+            variant={activeLetter === '' ? "default" : "outline"}
             size="sm"
-            onClick={() => onLetterClick(letter)}
-            className="h-8 w-8 p-0 text-xs"
+            onClick={() => onLetterClick('')}
+            className="h-8 w-12 p-0 text-xs"
           >
-            {letter}
+            All
           </Button>
-        ))}
+          {displayKeys.map(letter => (
+            <Button
+              key={letter}
+              variant={activeLetter === letter ? "default" : "outline"}
+              size="sm"
+              onClick={() => onLetterClick(letter)}
+              className="h-8 w-8 p-0 text-xs"
+            >
+              {letter}
+            </Button>
+          ))}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   // Enhanced QR scan handler that populates search box
   const handleQRScanned = (tileCode: string) => {
     console.log('QR Code scanned:', tileCode);
-    
+
     if (!tileCode || tileCode.trim() === '') {
       toast.error('Invalid QR code. Please try again.');
       return;
     }
 
     const normalizedCode = tileCode.trim();
-    
+
     // Auto-populate the search box with the scanned code
     setSearchTerm(normalizedCode);
-    
+
     // Find matching tiles
-    const exactMatches = tiles.filter(tile => 
-      tile.code?.toLowerCase() === normalizedCode.toLowerCase() ||
-      tile.name?.toLowerCase().includes(normalizedCode.toLowerCase())
+    const exactMatches = tiles.filter(tile =>
+      tile.code?.toLowerCase().includes(normalizedCode.toLowerCase())
     );
-    
+
     if (exactMatches.length > 0) {
       // If exactly one match, show details
       if (exactMatches.length === 1) {
         setSelectedTile(exactMatches[0]);
         setIsDetailsOpen(true);
-        toast.success(`Found tile: ${exactMatches[0].name}`);
+        toast.success(`Found tile: ${exactMatches[0].code}`);
       } else {
         toast.success(`Found ${exactMatches.length} matching tiles`);
       }
     } else {
       // Try partial matches
       const partialMatches = tiles.filter(tile =>
-        tile.code?.toLowerCase().includes(normalizedCode.toLowerCase()) ||
-        tile.name?.toLowerCase().includes(normalizedCode.toLowerCase())
+        tile.code?.toLowerCase().includes(normalizedCode.toLowerCase())
       );
-      
+
       if (partialMatches.length > 0) {
         toast.success(`Found ${partialMatches.length} similar tiles`);
       } else {
@@ -192,16 +190,15 @@ const AlphabeticalNavigation = ({
       }
     }
   };
-  
-const filteredAndSortedTiles = useMemo(() => {
+
+  const filteredAndSortedTiles = useMemo(() => {
     // 1. FILTERING
     let filtered = tiles.filter(tile => {
       const term = searchTerm.toLowerCase();
-      const name = (tile.name || '').toLowerCase();
       const code = (tile.code || '').toLowerCase();
 
-      const matchesSearch = name.includes(term) || code.includes(term);
-      
+      const matchesSearch = code.includes(term);
+
       const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
 
       const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
@@ -212,29 +209,27 @@ const filteredAndSortedTiles = useMemo(() => {
     filtered.sort((a, b) => {
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        const aName = (a.name || '').toLowerCase();
         const aCode = (a.code || '').toLowerCase();
-        const bName = (b.name || '').toLowerCase();
         const bCode = (b.code || '').toLowerCase();
-        const aStartsWith = aName.startsWith(term) || aCode.startsWith(term);
-        const bStartsWith = bName.startsWith(term) || bCode.startsWith(term);
+        const aStartsWith = aCode.startsWith(term);
+        const bStartsWith = bCode.startsWith(term);
         if (aStartsWith && !bStartsWith) return -1;
         if (!aStartsWith && bStartsWith) return 1;
       }
 
       // --- STANDARD SORT: User Selected Criteria (Name, Price, etc.) ---
-      if (sortBy === 'name') {
-        const aName = (a.name || '').toLowerCase();
-        const bName = (b.name || '').toLowerCase();
-        const result = aName.localeCompare(bName);
+      if (sortBy === 'code') {
+        const aCode = (a.code || '').toLowerCase();
+        const bCode = (b.code || '').toLowerCase();
+        const result = aCode.localeCompare(bCode);
         return sortOrder === "asc" ? result : -result;
       } else {
         let aValue: any = a[sortBy as keyof Tile];
         let bValue: any = b[sortBy as keyof Tile];
-        
+
         if (typeof aValue === 'string') aValue = aValue.toLowerCase();
         if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-        
+
         if (sortOrder === "asc") {
           return aValue > bValue ? 1 : -1;
         } else {
@@ -267,30 +262,30 @@ const filteredAndSortedTiles = useMemo(() => {
   );
 
   // Handle tile click
-const handleTileClick = (tile: Tile) => {
-  // Check if we're in auto-assignment mode
-  if (autoAssignmentContext && onAutoAssignment) {
-    // Auto-assign the tile to the room
-    onAutoAssignment(tile.id);
-    
-    // Show success message with room context
-    toast.success(`${tile.name} assigned to ${autoAssignmentContext.roomName}`);
-    
-    // Navigate back automatically
-    if (onNavigateBack) {
-      onNavigateBack();
+  const handleTileClick = (tile: Tile) => {
+    // Check if we're in auto-assignment mode
+    if (autoAssignmentContext && onAutoAssignment) {
+      // Auto-assign the tile to the room
+      onAutoAssignment(tile.id);
+
+      // Show success message with room context
+      toast.success(`${tile.code} assigned to ${autoAssignmentContext.roomName}`);
+
+      // Navigate back automatically
+      if (onNavigateBack) {
+        onNavigateBack();
+      }
+      return;
     }
-    return;
-  }
-  
-  // Existing logic for other selection modes
-  if (isSelectionMode && onTileSelect) {
-    onTileSelect(tile.id);
-  } else {
-    setSelectedTile(tile);
-    setIsDetailsOpen(true);
-  }
-};
+
+    // Existing logic for other selection modes
+    if (isSelectionMode && onTileSelect) {
+      onTileSelect(tile.id);
+    } else {
+      setSelectedTile(tile);
+      setIsDetailsOpen(true);
+    }
+  };
 
 
   const toggleFavorite = (tileId: string) => {
@@ -317,91 +312,91 @@ const handleTileClick = (tile: Tile) => {
     setCart(newCart);
   };
 
-const clearFilters = () => {
-  setSearchTerm("");
-  setSelectedCategory("all");
-  setSelectedBrand("all");
-  setPriceRange([0, 20000]);
-  setSortBy("name"); // Default to name sorting for better alphabetical experience
-  setSortOrder("asc");
-  setAlphabeticalIndex(''); // Clear alphabetical filter
-  toast.success('Filters cleared');
-};
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedCategory("all");
+    setSelectedBrand("all");
+    setPriceRange([0, 20000]);
+    setSortBy("code"); // Default to code sorting
+    setSortOrder("asc");
+    setAlphabeticalIndex(''); // Clear alphabetical filter
+    toast.success('Filters cleared');
+  };
 
 
   const styles = {
-  tilesContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 20px)',
-    gridTemplateRows: 'repeat(3, 20px)',
-    gap: '8px',
-    justifyContent: 'center',
-    marginBottom: '24px',
-  },
-  tile: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '4px',
-    animation: 'tileAnimation 1.2s ease-in-out infinite',
-  },
-  tileBlue: {
-    backgroundColor: '#3B82F6',
-  },
-  tileBeige: {
-    backgroundColor: '#F5F5DC',
-  },
-  tileLight: {
-    backgroundColor: '#93C5FD',
-  },
-  loadingText: {
-    color: '#6B7280',
-    fontSize: '16px',
-    fontWeight: '500',
-    marginBottom: '16px',
-  },
-  progressBar: {
-    width: '200px',
-    height: '4px',
-    backgroundColor: '#E5E7EB',
-    borderRadius: '2px',
-    overflow: 'hidden',
-    margin: '0 auto',
-  },
-  progressFill: {
-    height: '100%',
-    width: '100%',
-    background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
-    backgroundSize: '200% 100%',
-    animation: 'progressFlow 2s linear infinite',
-  },
-};
-  
+    tilesContainer: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 20px)',
+      gridTemplateRows: 'repeat(3, 20px)',
+      gap: '8px',
+      justifyContent: 'center',
+      marginBottom: '24px',
+    },
+    tile: {
+      width: '20px',
+      height: '20px',
+      borderRadius: '4px',
+      animation: 'tileAnimation 1.2s ease-in-out infinite',
+    },
+    tileBlue: {
+      backgroundColor: '#3B82F6',
+    },
+    tileBeige: {
+      backgroundColor: '#F5F5DC',
+    },
+    tileLight: {
+      backgroundColor: '#93C5FD',
+    },
+    loadingText: {
+      color: '#6B7280',
+      fontSize: '16px',
+      fontWeight: '500',
+      marginBottom: '16px',
+    },
+    progressBar: {
+      width: '200px',
+      height: '4px',
+      backgroundColor: '#E5E7EB',
+      borderRadius: '2px',
+      overflow: 'hidden',
+      margin: '0 auto',
+    },
+    progressFill: {
+      height: '100%',
+      width: '100%',
+      background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
+      backgroundSize: '200% 100%',
+      animation: 'progressFlow 2s linear infinite',
+    },
+  };
+
   if (loading) {
-     return (
-          <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-              {/* Tile Loading Animation */}
-              <div style={styles.tilesContainer}>
-                {[...Array(12)].map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      ...styles.tile,
-                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                      animationDelay: `${index * 0.08}s`
-                    }}
-                  />
-                ))}
-              </div>
-              
-              <p style={styles.loadingText}>Loading...</p>
-              
-              <div style={styles.progressBar}>
-                <div style={styles.progressFill}></div>
-              </div>
-            </div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          {/* Tile Loading Animation */}
+          <div style={styles.tilesContainer}>
+            {[...Array(12)].map((_, index) => (
+              <div
+                key={index}
+                style={{
+                  ...styles.tile,
+                  ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
+                  animationDelay: `${index * 0.08}s`
+                }}
+              />
+            ))}
           </div>
-        );
+
+          <p style={styles.loadingText}>Loading...</p>
+
+          <div style={styles.progressBar}>
+            <div style={styles.progressFill}></div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
@@ -482,15 +477,15 @@ const clearFilters = () => {
           </div>
         </CardHeader>
       </Card>
-  
+
       {/* Alphabetical Navigation */}
-      <AlphabeticalNavigation 
+      <AlphabeticalNavigation
         tiles={tiles}
         onLetterClick={setAlphabeticalIndex}
         activeLetter={alphabeticalIndex}
       />
 
-      
+
       {/* Active Filters */}
       {(searchTerm || alphabeticalIndex) && (
         <div className="flex flex-wrap gap-2 items-center">
@@ -538,7 +533,7 @@ const clearFilters = () => {
         <EmptyTileState />
       ) : (
         <div className={
-          viewMode === "grid" 
+          viewMode === "grid"
             ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
             : "space-y-4"
         }>
@@ -550,10 +545,10 @@ const clearFilters = () => {
               isAdmin={false}
               showAssignButton={false}
               onTileSelect={() => handleTileClick(tile)}
-              onGenerateQR={() => {}}
-              onDownloadQR={() => {}}
+              onGenerateQR={() => { }}
+              onDownloadQR={() => { }}
               onViewDetails={() => handleTileClick(tile)}
-              onAssignClick={() => {}}
+              onAssignClick={() => { }}
               isGeneratingQR={false}
             />
           ))}

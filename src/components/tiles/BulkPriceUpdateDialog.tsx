@@ -18,13 +18,13 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
   const [pricePerBox, setPricePerBox] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  
+
   const { data: tiles = [] } = useTiles();
   const updateTileMutation = useUpdateTile();
-  
+
   // Get all tiles with the matching name
-  const matchingTiles = tiles.filter(tile => 
-    tile.name.toLowerCase() === tileName.toLowerCase()
+  const matchingTiles = tiles.filter(tile =>
+    tile.code.toLowerCase() === tileName.toLowerCase()
   );
 
   const handleClose = () => {
@@ -44,17 +44,17 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
 
   const handleUpdate = async () => {
     if (!pricePerBox || matchingTiles.length === 0) return;
-    
+
     setIsUpdating(true);
     const price = parseFloat(pricePerBox);
-    
+
     try {
       // Update all tiles with the same name
-      const updatePromises = matchingTiles.map(tile => 
+      const updatePromises = matchingTiles.map(tile =>
         updateTileMutation.mutateAsync({
           id: tile.id,
           code: tile.code,
-          name: tile.name,
+          name: tile.code,
           size_length: tile.size_length,
           size_breadth: tile.size_breadth,
           price_per_box: price,
@@ -62,9 +62,9 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
           image_url: tile.image_url
         })
       );
-      
+
       await Promise.all(updatePromises);
-      
+
       toast.success(`Updated price for ${matchingTiles.length} tiles named "${tileName}"`);
       handleClose();
     } catch (error) {
@@ -79,7 +79,7 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
     if (!tile.pieces_per_box || !tile.size_length || !tile.size_breadth) {
       return 0;
     }
-    
+
     const tileAreaSqm = (tile.size_length * tile.size_breadth) / 1000000; // Convert mm² to m²
     const areaPerBoxSqFt = (tileAreaSqm * tile.pieces_per_box) * 10.764; // Convert to sq ft
     return newPrice / areaPerBoxSqFt;
@@ -95,14 +95,14 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
               Change Price for "{tileName}"
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-blue-800">
                 This will update the price for <strong>{matchingTiles.length} tiles</strong> with the name "{tileName}".
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="price">New Price per Box (₹)</Label>
               <Input
@@ -116,7 +116,7 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
                 className="h-12"
               />
             </div>
-            
+
             {pricePerBox && parseFloat(pricePerBox) > 0 && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-medium text-sm text-gray-800 mb-2">Preview (Price per sq ft):</h4>
@@ -136,12 +136,12 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleConfirm}
               disabled={!pricePerBox || parseFloat(pricePerBox) <= 0}
               className="bg-green-600 hover:bg-green-700 text-white"
@@ -163,15 +163,15 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
             Confirm Price Update
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
             <p className="text-sm text-orange-800">
-              <strong>Warning:</strong> This action will update the price for all {matchingTiles.length} tiles 
+              <strong>Warning:</strong> This action will update the price for all {matchingTiles.length} tiles
               named "{tileName}" to <strong>₹{pricePerBox} per box</strong>.
             </p>
           </div>
-          
+
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-medium text-sm text-gray-800 mb-2">Tiles to be updated:</h4>
             <div className="space-y-1 max-h-40 overflow-y-auto">
@@ -184,17 +184,17 @@ export const BulkPriceUpdateDialog = ({ isOpen, onClose, tileName }: BulkPriceUp
               ))}
             </div>
           </div>
-          
+
           <p className="text-sm text-gray-600">
             This action cannot be undone. Are you sure you want to proceed?
           </p>
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsConfirming(false)} disabled={isUpdating}>
             Back
           </Button>
-          <Button 
+          <Button
             onClick={handleUpdate}
             disabled={isUpdating}
             className="bg-red-600 hover:bg-red-700 text-white"

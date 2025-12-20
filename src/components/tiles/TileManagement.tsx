@@ -37,7 +37,6 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
   const generateQRMutation = useGenerateQRForTile();
 
   const filteredTiles = tiles.filter(tile =>
-    tile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tile.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -162,7 +161,7 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
     }
 
     // Here you would typically save the tile assignments
-    toast.success(`Tile "${selectedTile.name}" assigned to ${selectedRooms.length} room(s)`);
+    toast.success(`Tile "${selectedTile.code}" assigned to ${selectedRooms.length} room(s)`);
     setShowAssignmentDialog(false);
     setSelectedCustomerId("");
     setSelectedRooms([]);
