@@ -6,8 +6,10 @@ export interface Worker {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'worker';
-  created_at: string;
+  role: 'admin' | 'worker' | 'super_admin';
+  showroom_id?: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
   quotation_count?: number;
   approved_quotations?: number;
   pending_quotations?: number;
