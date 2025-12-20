@@ -2,15 +2,18 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft, Layers } from "lucide-react";
+import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft, Layers, Footprints } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
+import { useStaircasesByCustomer, useDeleteStaircase } from "@/hooks/useStaircases";
 import { RoomFormDialog } from "./RoomFormDialog";
+import { StaircaseFormDialog } from "./StaircaseFormDialog";
 import { TileSelectionStep } from "./TileSelectionStep";
 import { DirectCustomerSearch } from "./DirectCustomerSearch";
 import { DeleteRoomDialog } from "./DeleteRoomDialog";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
+import type { Staircase } from "@/hooks/useStaircases";
 
 interface CustomerRoomManagementProps {
   preSelectedCustomerId?: string | null;
@@ -21,14 +24,22 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId || "");
   const { data: rooms = [], isLoading: roomsLoading } = useRoomsByCustomer(selectedCustomerId);
+  const { data: staircases = [], isLoading: staircasesLoading } = useStaircasesByCustomer(selectedCustomerId);
   const deleteRoomMutation = useDeleteRoom();
+  const deleteStaircaseMutation = useDeleteStaircase();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isStaircaseFormOpen, setIsStaircaseFormOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [editingStaircase, setEditingStaircase] = useState<Staircase | null>(null);
   const [showTileSelection, setShowTileSelection] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; room: Room | null }>({
     isOpen: false,
     room: null
+  });
+  const [deleteStaircaseDialog, setDeleteStaircaseDialog] = useState<{ isOpen: boolean; staircase: Staircase | null }>({
+    isOpen: false,
+    staircase: null
   });
 
   useEffect(() => {
@@ -66,6 +77,33 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     setEditingRoom(null);
   };
 
+  const handleEditStaircase = (staircase: Staircase) => {
+    setEditingStaircase(staircase);
+    setIsStaircaseFormOpen(true);
+  };
+
+  const handleDeleteStaircaseClick = (staircase: Staircase) => {
+    setDeleteStaircaseDialog({ isOpen: true, staircase });
+  };
+
+  const handleConfirmDeleteStaircase = async () => {
+    if (!deleteStaircaseDialog.staircase) return;
+    
+    try {
+      await deleteStaircaseMutation.mutateAsync(deleteStaircaseDialog.staircase.id);
+      toast.success("Staircase deleted successfully!");
+      setDeleteStaircaseDialog({ isOpen: false, staircase: null });
+    } catch (error) {
+      console.error("Error deleting staircase:", error);
+      toast.error("Failed to delete staircase");
+    }
+  };
+
+  const handleCloseStaircaseForm = () => {
+    setIsStaircaseFormOpen(false);
+    setEditingStaircase(null);
+  };
+
   const calculateArea = (room: Room) => {
     // If using the new aggregation logic, the length holds the total area and width is 1
     // But for legacy rooms, we calculate L * W
@@ -76,8 +114,8 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
   };
 
   const handleProceedToTileSelection = () => {
-    if (rooms.length === 0) {
-      toast.error("Please add at least one room before selecting tiles");
+    if (rooms.length === 0 && staircases.length === 0) {
+      toast.error("Please add at least one room or staircase before selecting tiles");
       return;
     }
     setShowTileSelection(true);
@@ -239,11 +277,12 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         );
   }
 
-  if (showTileSelection && selectedCustomerId && rooms.length > 0) {
+  if (showTileSelection && selectedCustomerId && (rooms.length > 0 || staircases.length > 0)) {
     return (
       <TileSelectionStep
         customerId={selectedCustomerId}
         rooms={rooms}
+        staircases={staircases}
         onBack={handleBackToRooms}
       />
     );
@@ -348,7 +387,14 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
               <Plus className="h-4 w-4" />
               Add Room
             </Button>
-            {rooms.length > 0 && (
+            <Button 
+              onClick={() => setIsStaircaseFormOpen(true)}
+              className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              <Footprints className="h-4 w-4" />
+              Add Staircase
+            </Button>
+            {(rooms.length > 0 || staircases.length > 0) && (
               <Button 
                 onClick={handleProceedToTileSelection}
                 className="gap-2 bg-green-600 hover:bg-green-700 text-white"
@@ -461,6 +507,75 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
               ))}
             </div>
           )}
+
+          {/* Staircases Display */}
+          {staircases.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Footprints className="h-5 w-5 text-orange-600" />
+                Staircases ({staircases.length})
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {staircases.map((staircase) => (
+                  <Card 
+                    key={staircase.id} 
+                    className="hover:shadow-lg transition-all border-orange-200 bg-gradient-to-br from-orange-50 to-white"
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Footprints className="h-5 w-5 text-orange-600" />
+                          {staircase.name}
+                        </CardTitle>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditStaircase(staircase)}
+                            className="flex items-center gap-1 px-2 py-1 h-auto hover:bg-orange-100"
+                          >
+                            <Edit className="h-4 w-4 text-orange-600" />
+                            <span className="text-orange-600 text-sm">Edit</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteStaircaseClick(staircase)}
+                            className="h-8 w-8 p-0 hover:bg-red-100"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center p-3 bg-blue-50 rounded-lg">
+                          <p className="text-2xl font-bold text-blue-600">{staircase.number_of_steps}</p>
+                          <p className="text-xs text-gray-500">Steps</p>
+                        </div>
+                        <div className="text-center p-3 bg-orange-50 rounded-lg">
+                          <p className="text-2xl font-bold text-orange-600">{staircase.number_of_risers}</p>
+                          <p className="text-xs text-gray-500">Risers</p>
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-gray-100">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1">
+                            <Calculator className="h-3 w-3 text-green-600" />
+                            <span className="text-gray-600">Total Tiles Needed:</span>
+                          </div>
+                          <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                            {staircase.number_of_steps + staircase.number_of_risers} tiles
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -471,11 +586,26 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         customerId={selectedCustomerId}
       />
 
+      <StaircaseFormDialog
+        isOpen={isStaircaseFormOpen}
+        onClose={handleCloseStaircaseForm}
+        staircase={editingStaircase}
+        customerId={selectedCustomerId}
+      />
+
       <DeleteRoomDialog
         isOpen={deleteDialog.isOpen}
         onOpenChange={(open) => setDeleteDialog({ isOpen: open, room: null })}
         onConfirm={handleConfirmDelete}
         roomName={deleteDialog.room?.name || ""}
+      />
+
+      {/* Delete Staircase Dialog */}
+      <DeleteRoomDialog
+        isOpen={deleteStaircaseDialog.isOpen}
+        onOpenChange={(open) => setDeleteStaircaseDialog({ isOpen: open, staircase: null })}
+        onConfirm={handleConfirmDeleteStaircase}
+        roomName={deleteStaircaseDialog.staircase?.name || ""}
       />
     </div>
   );

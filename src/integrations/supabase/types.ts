@@ -476,6 +476,74 @@ export type Database = {
         }
         Relationships: []
       }
+      staircase_tile_selections: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          id: string
+          showroom_id: string | null
+          staircase_id: string
+          tile_id: string
+          tile_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          showroom_id?: string | null
+          staircase_id: string
+          tile_id: string
+          tile_type?: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          showroom_id?: string | null
+          staircase_id?: string
+          tile_id?: string
+          tile_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staircase_tile_selections_staircase_id_fkey"
+            columns: ["staircase_id"]
+            isOneToOne: false
+            referencedRelation: "staircases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staircases: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          id: string
+          name: string
+          number_of_risers: number
+          number_of_steps: number
+          showroom_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          name: string
+          number_of_risers?: number
+          number_of_steps?: number
+          showroom_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          name?: string
+          number_of_risers?: number
+          number_of_steps?: number
+          showroom_id?: string | null
+        }
+        Relationships: []
+      }
       tiles: {
         Row: {
           category: string | null
