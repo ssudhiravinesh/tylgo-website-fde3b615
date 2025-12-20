@@ -35,6 +35,34 @@ export interface WallTileSelection {
   totalLayers: number;
 }
 
+export interface StaircaseTileSelection {
+  staircaseId: string;
+  stepTileId?: string;
+  riserTileId?: string;
+}
+
+export interface StaircaseTileCalculationResult {
+  staircase: {
+    id: string;
+    name: string;
+    number_of_steps: number;
+    number_of_risers: number;
+  };
+  stepTile?: {
+    tile: any;
+    tilesNeeded: number;
+    boxesNeeded: number;
+    totalPrice: number;
+  };
+  riserTile?: {
+    tile: any;
+    tilesNeeded: number;
+    boxesNeeded: number;
+    totalPrice: number;
+  };
+  totalPrice: number;
+}
+
 /**
  * Format tile breakdown for display
  */
@@ -334,7 +362,152 @@ export const prepareQuotationItems = (
         total_price: totalPrice,
         layer_number: layer.layerNumber,
       });
+      });
     });
+
+  return items;
+};
+
+/**
+ * Calculate staircase tile requirements
+ * Each step needs 1 tile, each riser needs 1 tile
+ */
+export const calculateStaircaseTileRequirements = (
+  staircaseSelections: StaircaseTileSelection[],
+  staircases: Array<{
+    id: string;
+    name: string;
+    number_of_steps: number;
+    number_of_risers: number;
+  }>,
+  tiles: any[],
+  wastagePercentage: number
+): StaircaseTileCalculationResult[] => {
+  const results: StaircaseTileCalculationResult[] = [];
+  const validWastage = Math.max(0, Math.min(15, wastagePercentage));
+
+  staircaseSelections.forEach(selection => {
+    const staircase = staircases.find(s => s.id === selection.staircaseId);
+    if (!staircase) return;
+
+    let totalPrice = 0;
+    let stepTileResult;
+    let riserTileResult;
+
+    // Calculate step tiles
+    if (selection.stepTileId) {
+      const tile = tiles.find(t => t.id === selection.stepTileId);
+      if (tile) {
+        const tilesNeeded = Math.ceil(staircase.number_of_steps * (1 + validWastage / 100));
+        const piecesPerBox = parseInt(tile.pieces_per_box?.toString() || '1');
+        const pricePerBox = parseFloat(tile.price_per_box?.toString() || '0');
+        const boxesNeeded = Math.ceil(tilesNeeded / piecesPerBox);
+        const price = boxesNeeded * pricePerBox;
+        
+        stepTileResult = {
+          tile,
+          tilesNeeded: staircase.number_of_steps,
+          boxesNeeded,
+          totalPrice: price
+        };
+        totalPrice += price;
+      }
+    }
+
+    // Calculate riser tiles
+    if (selection.riserTileId) {
+      const tile = tiles.find(t => t.id === selection.riserTileId);
+      if (tile) {
+        const tilesNeeded = Math.ceil(staircase.number_of_risers * (1 + validWastage / 100));
+        const piecesPerBox = parseInt(tile.pieces_per_box?.toString() || '1');
+        const pricePerBox = parseFloat(tile.price_per_box?.toString() || '0');
+        const boxesNeeded = Math.ceil(tilesNeeded / piecesPerBox);
+        const price = boxesNeeded * pricePerBox;
+        
+        riserTileResult = {
+          tile,
+          tilesNeeded: staircase.number_of_risers,
+          boxesNeeded,
+          totalPrice: price
+        };
+        totalPrice += price;
+      }
+    }
+
+    results.push({
+      staircase,
+      stepTile: stepTileResult,
+      riserTile: riserTileResult,
+      totalPrice
+    });
+  });
+
+  return results;
+};
+
+/**
+ * Prepare staircase quotation items
+ */
+export const prepareStaircaseQuotationItems = (
+  staircaseSelections: StaircaseTileSelection[],
+  staircases: Array<{
+    id: string;
+    name: string;
+    number_of_steps: number;
+    number_of_risers: number;
+  }>,
+  tiles: any[],
+  wastagePercentage: number
+): Array<{
+  tile_id: string;
+  staircase_id: string;
+  staircase_name: string;
+  tile_type: 'step' | 'riser';
+  quantity: number;
+  price_per_box: number;
+  total_price: number;
+}> => {
+  const items: Array<{
+    tile_id: string;
+    staircase_id: string;
+    staircase_name: string;
+    tile_type: 'step' | 'riser';
+    quantity: number;
+    price_per_box: number;
+    total_price: number;
+  }> = [];
+
+  const calculations = calculateStaircaseTileRequirements(
+    staircaseSelections,
+    staircases,
+    tiles,
+    wastagePercentage
+  );
+
+  calculations.forEach(calc => {
+    if (calc.stepTile) {
+      items.push({
+        tile_id: calc.stepTile.tile.id,
+        staircase_id: calc.staircase.id,
+        staircase_name: calc.staircase.name,
+        tile_type: 'step',
+        quantity: calc.stepTile.tilesNeeded,
+        price_per_box: parseFloat(calc.stepTile.tile.price_per_box?.toString() || '0'),
+        total_price: calc.stepTile.totalPrice
+      });
+    }
+
+    if (calc.riserTile) {
+      items.push({
+        tile_id: calc.riserTile.tile.id,
+        staircase_id: calc.staircase.id,
+        staircase_name: calc.staircase.name,
+        tile_type: 'riser',
+        quantity: calc.riserTile.tilesNeeded,
+        price_per_box: parseFloat(calc.riserTile.tile.price_per_box?.toString() || '0'),
+        total_price: calc.riserTile.totalPrice
+      });
+    }
   });
 
   return items;

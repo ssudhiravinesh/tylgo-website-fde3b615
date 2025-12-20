@@ -5,9 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus, Eye, Check, PlusSquare, Ruler } from "lucide-react";
+import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus, Eye, Check, PlusSquare, Ruler, Footprints } from "lucide-react";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
+import { useStaircaseTileSelections, useSaveStaircaseTileSelection, useDeleteStaircaseTileSelection } from "@/hooks/useStaircases";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { WallTileSelectionPage } from "./WallTileSelectionPage";
@@ -22,33 +23,44 @@ import {
   formatTileBreakdown,
   type FloorTileSelection,
   type WallTileSelection,
-  type WallTileLayer 
+  type WallTileLayer,
+  type StaircaseTileSelection as StaircaseTileSelectionType,
+  calculateStaircaseTileRequirements,
+  prepareStaircaseQuotationItems
 } from "@/utils/tileCalculations";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
+import type { Staircase } from "@/hooks/useStaircases";
 
 interface TileSelectionStepProps {
   customerId: string;
   rooms: Room[];
+  staircases?: Staircase[];
   onBack: () => void;
 }
 
-// Updated Context to support multi-room selection
+// Updated Context to support multi-room selection and staircases
 interface CatalogContext {
   roomId?: string; 
-  roomIds?: string[]; // New: For bulk selection
+  roomIds?: string[]; // For bulk selection
+  staircaseId?: string;
+  staircaseTileType?: 'step' | 'riser';
   isWallTile: boolean;
   layerNumber?: number;
 }
 
-export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionStepProps) => {
+export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }: TileSelectionStepProps) => {
   const { data: tiles = [], isLoading: tilesLoading } = useTiles();
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
+  const { data: staircaseSelections = [], isLoading: staircaseSelectionsLoading } = useStaircaseTileSelections(customerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
+  const saveStaircaseSelectionMutation = useSaveStaircaseTileSelection();
+  const deleteStaircaseSelectionMutation = useDeleteStaircaseTileSelection();
   
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
+  const [staircaseTileSelectionsState, setStaircaseTileSelectionsState] = useState<StaircaseTileSelectionType[]>([]);
   const [wastagePercentage, setWastagePercentage] = useState<string>("0");
   
   // State for multi-selection
@@ -78,6 +90,32 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
 
   const floorRooms = rooms.filter(room => room.room_type === "floor");
   const wallRooms = rooms.filter(room => room.room_type === "wall");
+
+  // Load staircase tile selections from database
+  useEffect(() => {
+    if (staircaseSelections.length === 0) return;
+    
+    const loadedSelections: StaircaseTileSelectionType[] = [];
+    
+    staircases.forEach(staircase => {
+      const stepSelection = staircaseSelections.find(
+        s => s.staircase_id === staircase.id && s.tile_type === 'step'
+      );
+      const riserSelection = staircaseSelections.find(
+        s => s.staircase_id === staircase.id && s.tile_type === 'riser'
+      );
+      
+      if (stepSelection || riserSelection) {
+        loadedSelections.push({
+          staircaseId: staircase.id,
+          stepTileId: stepSelection?.tile_id,
+          riserTileId: riserSelection?.tile_id
+        });
+      }
+    });
+    
+    setStaircaseTileSelectionsState(loadedSelections);
+  }, [staircaseSelections, staircases]);
 
   useEffect(() => {
     if (selections.length === 0 && tiles.length === 0) return;
@@ -509,6 +547,12 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
       }
     }
 
+    // Handle staircase tile selection
+    if (catalogContext?.staircaseId && catalogContext?.staircaseTileType) {
+      handleStaircaseTileSelected(tileId);
+      return;
+    }
+
     setShowTileCatalog(false);
     setCatalogContext(null);
   };
@@ -600,12 +644,64 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
   const handleGenerateQuotation = () => {
     const hasFloorTiles = floorTileSelections.length > 0;
     const hasWallTiles = wallTileSelections.some(ws => ws.layers.length > 0);
+    const hasStaircaseTiles = staircaseTileSelectionsState.some(s => s.stepTileId || s.riserTileId);
     
-    if (!hasFloorTiles && !hasWallTiles) {
-      toast.error("Please select tiles for at least one room before generating quotation");
+    if (!hasFloorTiles && !hasWallTiles && !hasStaircaseTiles) {
+      toast.error("Please select tiles for at least one room or staircase before generating quotation");
       return;
     }
     setShowQuotationForm(true);
+  };
+
+  // Handler for staircase tile selection
+  const handleSelectStaircaseTile = (staircaseId: string, tileType: 'step' | 'riser') => {
+    setCatalogContext({
+      staircaseId,
+      staircaseTileType: tileType,
+      isWallTile: false
+    });
+    setShowTileCatalog(true);
+  };
+
+  const handleStaircaseTileSelected = async (tileId: string) => {
+    if (!catalogContext?.staircaseId || !catalogContext?.staircaseTileType) return;
+    
+    const { staircaseId, staircaseTileType } = catalogContext;
+    
+    // Update local state
+    setStaircaseTileSelectionsState(prev => {
+      const existing = prev.find(s => s.staircaseId === staircaseId);
+      if (existing) {
+        return prev.map(s => 
+          s.staircaseId === staircaseId 
+            ? { ...s, [staircaseTileType === 'step' ? 'stepTileId' : 'riserTileId']: tileId }
+            : s
+        );
+      } else {
+        return [...prev, {
+          staircaseId,
+          stepTileId: staircaseTileType === 'step' ? tileId : undefined,
+          riserTileId: staircaseTileType === 'riser' ? tileId : undefined
+        }];
+      }
+    });
+    
+    // Save to database
+    try {
+      await saveStaircaseSelectionMutation.mutateAsync({
+        staircase_id: staircaseId,
+        customer_id: customerId,
+        tile_id: tileId,
+        tile_type: staircaseTileType
+      });
+      toast.success(`${staircaseTileType === 'step' ? 'Step' : 'Riser'} tile assigned successfully!`);
+    } catch (error) {
+      console.error('Error saving staircase tile:', error);
+      toast.error('Failed to save tile selection');
+    }
+    
+    setShowTileCatalog(false);
+    setCatalogContext(null);
   };
 
   const calculations = calculateTileRequirements(
@@ -650,7 +746,7 @@ export const TileSelectionStep = ({ customerId, rooms, onBack }: TileSelectionSt
     progressFill: { height: '100%', width: '100%', background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)', backgroundSize: '200% 100%', animation: 'progressFlow 2s linear infinite' },
   };
 
-  if (tilesLoading || selectionsLoading) {
+  if (tilesLoading || selectionsLoading || staircaseSelectionsLoading) {
     return (
        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
             <div className="text-center">
