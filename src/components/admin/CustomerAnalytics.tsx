@@ -31,7 +31,7 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
 
   const [topCustomers, setTopCustomers] = useState<Array<{ name: string; totalValue: number; quotationCount: number }>>([]);
   const [conversionRate, setConversionRate] = useState(0);
-  const [popularTiles, setPopularTiles] = useState<Array<{ code: string; usage: number; name: string }>>([]);
+  const [popularTiles, setPopularTiles] = useState<Array<{ code: string; usage: number }>>([]);
   const [topWorker, setTopWorker] = useState<{ name: string; closed: number; total: number } | null>(null);
 
   // Data for Charts
@@ -140,13 +140,13 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
 
 
       // --- 5. Popular Tiles (Fix: Use Code) ---
-      const tileUsage: { [tileId: string]: { code: string; name: string; usage: number } } = {};
+      const tileUsage: { [tileId: string]: { code: string; usage: number } } = {};
       quotations.forEach(quotation => {
         quotation.quotation_items?.forEach(item => {
           const tile = tiles.find(t => t.id === item.tile_id);
           if (tile) {
             if (!tileUsage[item.tile_id]) {
-              tileUsage[item.tile_id] = { code: tile.code, name: tile.name || '', usage: 0 };
+              tileUsage[item.tile_id] = { code: tile.code, usage: 0 };
             }
             tileUsage[item.tile_id].usage += 1;
           }
