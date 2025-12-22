@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Grid3X3, Ruler, IndianRupee, ArrowLeft, Download, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { GridLoader } from "@/components/ui/GridLoader";
 import { calculateAreaInSquareFeet, formatArea } from '@/utils/unitConversions';
 
 const fetchTileDetails = async (tileId: string) => {
@@ -64,11 +65,7 @@ export const TileDetailsPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <GridLoader loadingText="Loading tile details..." />;
   }
 
   if (error || !tile) {

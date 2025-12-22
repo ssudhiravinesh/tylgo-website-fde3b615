@@ -1,8 +1,9 @@
 
-import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
+import { useState, createContext, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Profile {
   id: string;
@@ -23,50 +24,36 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Session management utilities
+const SESSION_TOKEN_KEY = 'tylgo-session-token';
+const SESSION_DURATION_HOURS = 24;
+const SESSION_POLL_INTERVAL = 30 * 1000; // 30 seconds - check if session is still valid
+
+const generateSessionToken = (): string => {
+  return `${Date.now()}-${crypto.randomUUID()}`;
+};
+
+const getDeviceInfo = () => ({
+  userAgent: navigator.userAgent,
+  platform: navigator.platform,
+  language: navigator.language,
+  timestamp: new Date().toISOString(),
+});
+
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const signOut = async () => {
-    try {
-      setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        // Handle specific case where session is already invalid
-        if (error.message?.includes('session') && error.message?.includes('missing')) {
-
-          setUser(null);
-          setProfile(null);
-          return;
-        }
-        throw error;
-      }
-      setUser(null);
-      setProfile(null);
-      toast.success('Signed out successfully!');
-    } catch (error: any) {
-      console.error('Sign out error:', error);
-      // Don't show error toast for already invalidated sessions
-      if (!error.message?.includes('session') || !error.message?.includes('missing')) {
-        toast.error(error.message || 'Error signing out');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
   useEffect(() => {
     console.log('Auth: Setting up auth state listener');
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth: State changed -', event, session?.user?.id);
 
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
-        // Fetch profile after state update
         setTimeout(() => fetchProfile(session.user.id), 0);
       } else if (event === 'SIGNED_OUT') {
         console.log('Auth: User signed out');
@@ -75,7 +62,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       } else if (session?.user) {
         setUser(session.user);
-        // Fetch profile for existing sessions
         setTimeout(() => fetchProfile(session.user.id), 0);
       } else {
         console.log('Auth: No session found');
@@ -136,7 +122,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           toast.error('Error loading profile');
         }
-        // Still set loading to false even on error
         setLoading(false);
         return;
       }
@@ -158,7 +143,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
 
-      // For first admin signup, use the default showroom if no showroomId provided
       const showroom_id = showroomId || '00000000-0000-0000-0000-000000000001';
 
       const { error } = await supabase.auth.signUp({
@@ -196,6 +180,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
 
+      // Clear any existing session token before new login
+      sessionStorage.removeItem(SESSION_TOKEN_KEY);
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -221,6 +207,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signOut = async () => {
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        if (error.message?.includes('session') && error.message?.includes('missing')) {
+          setUser(null);
+          setProfile(null);
+          return;
+        }
+        throw error;
+      }
+      setUser(null);
+      setProfile(null);
+      toast.success('Signed out successfully!');
+    } catch (error: any) {
+      console.error('Sign out error:', error);
+      if (!error.message?.includes('session') || !error.message?.includes('missing')) {
+        toast.error(error.message || 'Error signing out');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const contextValue: AuthContextType = {
     user,

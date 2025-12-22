@@ -2,31 +2,29 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  FileText, 
-  Grid3X3, 
-  TrendingUp, 
+import {
+  Users,
+  FileText,
+  Grid3X3,
+  TrendingUp,
   UserCog,
   Calendar,
   BarChart3,
   UserCheck
 } from "lucide-react";
-import { TileManagement } from "./TileManagement";
+
 import { WorkerManagement } from "./WorkerManagement";
 import { ReferencesView } from "./ReferencesView";
 import { AdminDashboard, useDashboardData } from "./AdminDashboard";
 import { CustomerAnalytics } from "./CustomerAnalytics";
 
 export const AdminPanel = () => {
-  const [activeView, setActiveView] = useState<"dashboard" | "tile-management" | "worker-management" | "customer-analytics" | "references">("dashboard");
-  
+  const [activeView, setActiveView] = useState<"dashboard" | "worker-management" | "customer-analytics" | "references">("dashboard");
+
   // Always call hooks at the top level to avoid conditional hook calls
   const { recentActivity } = useDashboardData();
 
-  if (activeView === "tile-management") {
-    return <TileManagement onBack={() => setActiveView("dashboard")} />;
-  }
+
 
   if (activeView === "worker-management") {
     return <WorkerManagement onBack={() => setActiveView("dashboard")} />;
@@ -54,30 +52,24 @@ export const AdminPanel = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button 
-              className="w-full justify-start gap-3 h-12 bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={() => setActiveView("tile-management")}
-            >
-              <Grid3X3 className="h-4 w-4" />
-              Manage Tiles
-            </Button>
-            <Button 
+
+            <Button
               className="w-full justify-start gap-3 h-12 bg-green-600 hover:bg-green-700 text-white"
               onClick={() => setActiveView("worker-management")}
             >
               <UserCog className="h-4 w-4" />
               Manage Workers
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start gap-3 h-12"
               onClick={() => setActiveView("references")}
             >
               <UserCheck className="h-4 w-4" />
               View References
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start gap-3 h-12"
               onClick={() => setActiveView("customer-analytics")}
             >

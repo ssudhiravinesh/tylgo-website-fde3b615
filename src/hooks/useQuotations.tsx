@@ -92,9 +92,10 @@ export const useQuotationNumber = () => {
 export interface QuotationItem {
   id?: string;
   quotation_id?: string;
-  tile_id: string;
+  tile_id?: string | null;
+  product_id?: string | null;
   room_id?: string | null;
-  area: number;
+  area?: number;
   price_per_box: number;
   total_price: number;
   layer_number?: number;
@@ -106,6 +107,13 @@ export interface QuotationItem {
     size_breadth: number;
     price_per_box: number;
     pieces_per_box: number;
+  };
+  product?: {
+    id: string;
+    name: string;
+    code: string;
+    price: number;
+    image_url?: string;
   };
   room?: {
     id: string;
@@ -176,6 +184,7 @@ interface QuotationFilters {
   quickSort?: string;
   year?: number | null;
   month?: number | null;
+  overrideShowroomId?: string;
 }
 
 export const useQuotations = (filters?: QuotationFilters) => {
@@ -226,13 +235,23 @@ export const useQuotations = (filters?: QuotationFilters) => {
           `)
           .order('created_at', { ascending: false });
 
-        // Get showroom_id
-        const showroom_id = await getShowroomId();
+        // Get target showroom_id
+        let targetShowroomId: string | null = null;
+        if (filters?.overrideShowroomId) {
+          targetShowroomId = filters.overrideShowroomId;
+        } else {
+          targetShowroomId = await getShowroomId();
+        }
 
         const isSuperAdmin = profile?.role === 'super_admin';
 
-        if (showroom_id && !isSuperAdmin) {
-          baseQuery = baseQuery.eq('showroom_id', showroom_id);
+        // Filter by showroom if we have a specific one targeted
+        if (targetShowroomId) {
+          baseQuery = baseQuery.eq('showroom_id', targetShowroomId);
+        } else if (!isSuperAdmin) {
+          // If regular user has no showroom, they shouldn't see anything?
+          // Existing logic: if (showroom_id && !isSuperAdmin) baseQuery.eq...
+          // So if no showroom_id and not super admin, likely show nothing or RLS handles it.
         }
 
         // Filter by worker_id if user is a worker (not admin)
@@ -327,6 +346,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .select(`
             *,
             tile_id,
+            product_id,
             staircase_id,
             quantity,
             tile_type,
@@ -337,6 +357,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
               size_breadth,
               price_per_box,
               pieces_per_box
+            ),
+            products!quotation_items_product_id_fkey (
+              id,
+              name,
+              code,
+              price,
+              image_url
             ),
             rooms!quotation_items_room_id_fkey (
               id,
@@ -418,6 +445,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
           .select(`
             *,
             tile_id,
+            product_id,
             staircase_id,
             quantity,
             tile_type,
@@ -428,6 +456,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
               size_breadth,
               price_per_box,
               pieces_per_box
+            ),
+            products!quotation_items_product_id_fkey (
+              id,
+              name,
+              code,
+              price,
+              image_url
             ),
             rooms!quotation_items_room_id_fkey (
               id,
@@ -511,6 +546,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
             name,
             number_of_steps,
             number_of_risers
+          ),
+          products!quotation_items_product_id_fkey (
+            id,
+            name,
+            code,
+            price,
+            image_url
           )
         )
       `)
@@ -647,6 +689,13 @@ export const useQuotations = (filters?: QuotationFilters) => {
             name,
             number_of_steps,
             number_of_risers
+          ),
+          products!quotation_items_product_id_fkey (
+            id,
+            name,
+            code,
+            price,
+            image_url
           )
         )
       `)
@@ -825,6 +874,13 @@ export const useCreateQuotation = () => {
               name,
               number_of_steps,
               number_of_risers
+            ),
+            products!quotation_items_product_id_fkey (
+              id,
+              name,
+              code,
+              price,
+              image_url
             )
           )
         `)

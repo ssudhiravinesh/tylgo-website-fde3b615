@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
-import { CustomerList } from "@/components/customers/CustomerList";
-import { CustomerForm } from "@/components/customers/CustomerForm";
-import { TileManagement } from "@/components/tiles/TileManagement";
-import { QuotationList } from "@/components/quotations/QuotationList";
-import { AdminPanel } from "@/components/admin/AdminPanel";
-import { CustomerRoomManagement } from "@/components/rooms/CustomerRoomManagement";
-import { SuperAdminDashboard } from "@/components/superadmin/SuperAdminDashboard";
-import { ProductCatalog } from "@/components/products/ProductCatalog";
+import { DashboardContent } from "./DashboardContent";
 
 interface User {
   id: string;
@@ -28,10 +21,9 @@ export type ActiveView =
   | "tiles"
   | "quotations"
   | "admin"
-  | "quotations"
-  | "admin"
   | "products"
-  | "rooms";
+  | "rooms"
+  | "manage-tiles";
 
 export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
@@ -53,52 +45,6 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
     setActiveView("customers");
   };
 
-  const renderContent = () => {
-    switch (activeView) {
-      case "customers":
-        return (
-          <CustomerList
-            onAddCustomer={() => setActiveView("add-customer")}
-            onNewQuote={handleNewQuote}
-            userRole={user.role}
-          />
-        );
-      case "add-customer":
-        return user.role === "worker" ? (
-          <CustomerForm
-            onBack={() => setActiveView("customers")}
-            onNewQuote={handleNewQuoteFromForm}
-          />
-        ) : <div>Access denied</div>;
-      case "tiles":
-        return <TileManagement userRole={user.role} />;
-      case "quotations":
-        return <QuotationList userRole={user.role} />;
-      case "admin":
-        if (user.role === "super_admin") {
-          return <SuperAdminDashboard />;
-        }
-        return user.role === "admin" ? <AdminPanel /> : <div>Access denied</div>;
-      case "products":
-        return <ProductCatalog userRole={user.role} />;
-      case "rooms":
-        return user.role === "worker" ? (
-          <CustomerRoomManagement
-            preSelectedCustomerId={selectedCustomerForQuote}
-            onBack={handleBackFromRooms}
-          />
-        ) : <div>Access denied</div>;
-      default:
-        return (
-          <CustomerList
-            onAddCustomer={() => setActiveView("add-customer")}
-            onNewQuote={handleNewQuote}
-            userRole={user.role}
-          />
-        );
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar
@@ -116,9 +62,20 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
         />
 
         <main className="flex-1 p-6 overflow-auto">
-          {renderContent()}
+          <DashboardContent
+            activeView={activeView}
+            userRole={user.role}
+            setActiveView={setActiveView}
+            handlers={{
+              handleNewQuote,
+              handleNewQuoteFromForm,
+              handleBackFromRooms,
+              selectedCustomerForQuote
+            }}
+          />
         </main>
       </div>
     </div>
   );
 };
+

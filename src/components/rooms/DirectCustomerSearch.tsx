@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { User, Phone, MapPin, Search } from "lucide-react";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { useCustomers, Customer } from "@/hooks/useCustomers";
 
 interface DirectCustomerSearchProps {
@@ -96,10 +97,7 @@ export const DirectCustomerSearch = ({ value, onValueChange, placeholder = "Sear
           {showResults && (
             <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-80 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
               {isLoading ? (
-                <div className="p-4 text-center text-gray-500">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                  <div className="mt-2">Loading customers...</div>
-                </div>
+                <GridLoader className="py-4 min-h-0" loadingText="Loading customers..." />
               ) : filteredCustomers.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">
                   No customers found matching "{searchTerm}"

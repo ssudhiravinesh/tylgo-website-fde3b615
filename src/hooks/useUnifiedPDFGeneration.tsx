@@ -80,19 +80,27 @@ export const useUnifiedPDFGeneration = () => {
 
 
   // Helper to convert URL to Base64
-  const urlToBase64 = async (url: string): Promise<string> => {
+  const urlToBase64 = async (url: string): Promise<string | null> => {
     try {
-      const response = await fetch(url, { mode: 'cors' });
+      const response = await fetch(url, { mode: 'cors', cache: 'no-store' });
+      if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
       const blob = await response.blob();
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          if (result && result.startsWith('data:image')) {
+            resolve(result);
+          } else {
+            resolve(null);
+          }
+        };
+        reader.onerror = () => resolve(null);
         reader.readAsDataURL(blob);
       });
     } catch (error) {
       console.warn('[PDF Generation] Failed to convert image to base64:', error);
-      return '';
+      return null;
     }
   };
 
@@ -112,48 +120,58 @@ export const useUnifiedPDFGeneration = () => {
 
     // Calculate tile requirements
     const tileCalculations: Record<string, any> = {};
+    const productCalculations: any[] = [];
 
+    // Process Items
     quotation_items.forEach((item) => {
-      if (!item.tile_id || !item.tile) return;
+      // 1. Tile Items (Rooms/Staircases)
+      if (item.tile_id) {
+        const tileId = item.tile_id;
+        if (!tileCalculations[tileId]) {
+          tileCalculations[tileId] = {
+            type: 'tile',
+            tile: item.tile || { code: 'Unknown', size_length: 0, size_breadth: 0, price_per_box: 0, pieces_per_box: 0 },
+            totalArea: 0,
+            customBoxAdjustment: 0,
+            rooms: [],
+            staircases: [],
+            totalPrice: 0,
+            tilesNeeded: 0,
+            boxesNeeded: 0
+          };
+        }
 
-      const tileId = item.tile_id;
-      if (!tileCalculations[tileId]) {
-        tileCalculations[tileId] = {
-          tile: item.tile,
-          totalArea: 0,
-          customBoxAdjustment: 0,
-          rooms: [],
-          staircases: [] // Initialize staircases array
-        };
-      }
+        // Only add area for rooms if room exists
+        if (item.room) {
+          tileCalculations[tileId].totalArea += Number(item.area || 0);
+          tileCalculations[tileId].rooms.push({
+            ...item.room,
+            layerNumber: item.layer_number,
+            measurements: item.room.measurements
+          });
+        }
 
-      // Only add area for rooms, staircases handle quantity directly
-      if (item.room) {
-        tileCalculations[tileId].totalArea += Number(item.area || 0);
-      }
-      // For staircases, we don't add to totalArea in the same way, as they are quantity-based (tiles count)
-      // But if we want to calculate boxes based on tiles count, we need to handle that.
-      // The shared logic uses totalArea -> tilesNeeded.
-      // If we have pure quantity items (staircases), we should sum them up separately or convert to area equivalent?
-      // Actually, existing logic: calculate requirements for each tile based on totalArea.
-      // We need to adapt it. 
-      // If we have staircase items, we know exact tiles needed (quantity).
+        // Staircases
+        const staircase = (item as any).staircase || item.staircases;
+        if (staircase) {
+          tileCalculations[tileId].staircases.push({
+            ...staircase,
+            quantity: (item as any).quantity || 0,
+            tile_type: (item as any).tile_type
+          });
+        }
 
-      tileCalculations[tileId].customBoxAdjustment += Number(item.custom_boxes || 0);
+        // Custom boxes
+        tileCalculations[tileId].customBoxAdjustment += Number(item.custom_boxes || 0);
 
-      if (item.room) {
-        tileCalculations[tileId].rooms.push({
-          ...item.room,
-          layerNumber: item.layer_number,
-          measurements: item.room.measurements
-        });
-      }
-
-      if (item.staircases) {
-        tileCalculations[tileId].staircases.push({
-          ...item.staircases,
-          quantity: (item as any).quantity || 0,
-          tile_type: (item as any).tile_type
+      } else if (item.product_id) {
+        // 2. Product Items
+        productCalculations.push({
+          type: 'product',
+          product: item.product,
+          quantity: item.quantity,
+          totalPrice: (item.total_price) || ((item.product?.price || 0) * (item.quantity || 0)),
+          imageUrl: item.product?.image_url // Store image URL
         });
       }
     });
@@ -169,16 +187,47 @@ export const useUnifiedPDFGeneration = () => {
       if (imageUrl) {
         try {
           // Convert to base64 for reliable PDF rendering
-          finalUrl = await urlToBase64(imageUrl);
+          const base64Url = await urlToBase64(imageUrl);
+          if (base64Url) {
+            finalUrl = base64Url;
+          } else {
+            finalUrl = imageUrl;
+          }
         } catch (e) {
           console.warn(`[PDF Generation] Error processing image for tile ${tileId}`, e);
-          // Fallback to original URL if base64 conversion fails
           finalUrl = imageUrl;
         }
       }
 
       tileCalculations[tileId].tile_image_direct_url = finalUrl;
     }));
+
+
+    // Process logo
+    const logoUrl = '/tylgo.svg';
+    let logoBase64 = '';
+    try {
+      const base64 = await urlToBase64(logoUrl);
+      if (base64) {
+        logoBase64 = base64;
+      }
+    } catch (e) {
+      console.warn('[PDF Generation] Error processing logo:', e);
+    }
+
+    // Process product images
+    await Promise.all(productCalculations.map(async (calc) => {
+      if (calc.product?.image_url) {
+        try {
+          const base64Url = await urlToBase64(calc.product.image_url);
+          calc.product_image_direct_url = base64Url || calc.product.image_url;
+        } catch (e) {
+          console.warn(`[PDF Generation] Error processing image for product ${calc.product.name}`, e);
+          calc.product_image_direct_url = calc.product.image_url;
+        }
+      }
+    }));
+
 
     // Calculate requirements for each tile
     Object.values(tileCalculations).forEach((calc: any) => {
@@ -199,7 +248,6 @@ export const useUnifiedPDFGeneration = () => {
         // Add tiles from Staircases (Direct Quantity)
         if (calc.staircases && calc.staircases.length > 0) {
           const staircaseTiles = calc.staircases.reduce((sum: number, s: any) => sum + (Number(s.quantity) || 0), 0);
-          // Apply wastage to staircase tiles too? Usually yes.
           totalTilesNeeded += Math.ceil(staircaseTiles * (1 + (wastage_percentage / 100)));
         }
 
@@ -212,10 +260,12 @@ export const useUnifiedPDFGeneration = () => {
       }
     });
 
-    const calculations = Object.values(tileCalculations);
-    const mrp = calculations.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
+    const tileItems = Object.values(tileCalculations);
+    const allItems = [...tileItems, ...productCalculations];
+
+    const mrp = allItems.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
     const finalTotal = mrp - discountAmount;
-    const totalBoxes = calculations.reduce((sum: number, calc: any) => sum + calc.boxesNeeded, 0);
+    const totalBoxes = tileItems.reduce((sum: number, calc: any) => sum + calc.boxesNeeded, 0);
     const totalTileTypes = Object.keys(tileCalculations).length;
 
     const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
@@ -397,9 +447,9 @@ export const useUnifiedPDFGeneration = () => {
           }
           
           .tile-image {
-            max-width: 50px;
-            max-height: 50px;
-            object-fit: contain;
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
             border-radius: 4px;
             border: 1px solid #ddd;
             background-color: #fff;
@@ -463,11 +513,15 @@ export const useUnifiedPDFGeneration = () => {
             font-weight: bold;
           }
         </style>
+        ${logoBase64 ? `<link rel="icon" href="${logoBase64}" type="image/svg+xml">` : ''}
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1 class="company-name">TYLGO</h1>
+            ${logoBase64 ?
+        `<img src="${logoBase64}" alt="TYLGO" style="height: 40px; margin-bottom: 5px;">` :
+        `<h1 class="company-name">TYLGO</h1>`
+      }
             <h2 class="document-type">QUOTATION</h2>
           </div>
           
@@ -498,93 +552,94 @@ export const useUnifiedPDFGeneration = () => {
           </div>
           
           <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width: 20%;">Room(s) & Area</th>
-                  <th style="width: 25%;">Tile Details</th>
-                  <th style="width: 8%;">Image</th>
-                  <th style="width: 12%;">Tiles Required</th>
-                  <th style="width: 8%;">Boxes</th>
-                  <th style="width: 12%;">Price/Box</th>
-                  <th style="width: 15%;">Total Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${calculations.map((calc: any) => {
-      const tile = calc.tile;
+            ${tileItems.length > 0 ? `
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Room(s) & Area</th>
+                    <th style="width: 25%;">Tile Details</th>
+                    <th style="width: 8%;">Image</th>
+                    <th style="width: 12%;">Tiles Required</th>
+                    <th style="width: 8%;">Boxes</th>
+                    <th style="width: 12%;">Price/Box</th>
+                    <th style="width: 15%;">Total Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tileItems.map((calc: any) => {
+        const tile = calc.tile;
 
-      // Group rooms and prepare staircases for display
-      let breakdownHTML = '';
+        // Group rooms and prepare staircases for display
+        let breakdownHTML = '';
 
-      // 1. ROOMS BREAKDOWN
-      if (calc.rooms && calc.rooms.length > 0) {
-        const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
+        // 1. ROOMS BREAKDOWN
+        if (calc.rooms && calc.rooms.length > 0) {
+          const roomGroups: { [roomName: string]: { room: any, layers: number[] } } = {};
 
-        calc.rooms.forEach((room: any) => {
-          const roomKey = room.name;
-          if (!roomGroups[roomKey]) {
-            roomGroups[roomKey] = { room, layers: [] };
-          }
-          if (room.layerNumber !== null && room.layerNumber !== undefined) {
-            roomGroups[roomKey].layers.push(room.layerNumber);
-          }
-          if ((!roomGroups[roomKey].room.measurements?.length) && room.measurements?.length > 0) {
-            roomGroups[roomKey].room.measurements = room.measurements;
-          }
-        });
-
-        breakdownHTML += Object.values(roomGroups).map(({ room, layers }) => {
-          let roomDisplay = `<strong>${room.name}</strong>`;
-
-          if (room.measurements && room.measurements.length > 0) {
-            roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
-            room.measurements.forEach((m: any, idx: number) => {
-              const len = parseFloat(m.length || m.size_length || 0);
-              const wid = parseFloat(m.width || m.breadth || m.size_breadth || 0);
-              if (len > 0 && wid > 0) {
-                roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${len} × ${wid} ${room.unit || 'ft'}</div>`;
-              }
-            });
-            roomDisplay += `</div>`;
-          } else {
-            const isWall = room.room_type === 'wall';
-            const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
-            const w = isWall ? (room.wall_height || room.width || 0) : (room.width || 0);
-            const isAreaHack = w == 1 || w == '1';
-            if (!isAreaHack && l > 0 && w > 0) {
-              const dims = `${l} × ${w} ${room.unit || 'ft'}`;
-              roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+          calc.rooms.forEach((room: any) => {
+            const roomKey = room.name;
+            if (!roomGroups[roomKey]) {
+              roomGroups[roomKey] = { room, layers: [] };
             }
-          }
+            if (room.layerNumber !== null && room.layerNumber !== undefined) {
+              roomGroups[roomKey].layers.push(room.layerNumber);
+            }
+            if ((!roomGroups[roomKey].room.measurements?.length) && room.measurements?.length > 0) {
+              roomGroups[roomKey].room.measurements = room.measurements;
+            }
+          });
 
-          if (layers.length > 0) {
-            roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
-          }
-          return roomDisplay;
-        }).join('<br><br>');
+          breakdownHTML += Object.values(roomGroups).map(({ room, layers }) => {
+            let roomDisplay = `<strong>${room.name}</strong>`;
 
-        if (calc.totalArea > 0) {
-          breakdownHTML += `<br><br><span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block;">Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong></span>`;
+            if (room.measurements && room.measurements.length > 0) {
+              roomDisplay += `<div style="margin-top:2px; margin-bottom:2px;">`;
+              room.measurements.forEach((m: any, idx: number) => {
+                const len = parseFloat(m.length || m.size_length || 0);
+                const wid = parseFloat(m.width || m.breadth || m.size_breadth || 0);
+                if (len > 0 && wid > 0) {
+                  roomDisplay += `<div style="color: #555; font-size: 9px;">Shape ${idx + 1}: ${len} × ${wid} ${room.unit || 'ft'}</div>`;
+                }
+              });
+              roomDisplay += `</div>`;
+            } else {
+              const isWall = room.room_type === 'wall';
+              const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
+              const w = isWall ? (room.wall_height || room.width || 0) : (room.width || 0);
+              const isAreaHack = w == 1 || w == '1';
+              if (!isAreaHack && l > 0 && w > 0) {
+                const dims = `${l} × ${w} ${room.unit || 'ft'}`;
+                roomDisplay += `<br><span style="color: #555; font-size: 9px; font-style: italic;">Dim: ${dims}</span>`;
+              }
+            }
+
+            if (layers.length > 0) {
+              roomDisplay += `<br><span style="font-size: 9px; color: #666;">(LAYERS: ${layers.sort((a: number, b: number) => a - b).join(', ')})</span>`;
+            }
+            return roomDisplay;
+          }).join('<br><br>');
+
+          if (calc.totalArea > 0) {
+            breakdownHTML += `<br><br><span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block;">Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong></span>`;
+          }
         }
-      }
 
-      // 2. STAIRCASES BREAKDOWN
-      if (calc.staircases && calc.staircases.length > 0) {
-        if (breakdownHTML) breakdownHTML += '<br><hr style="border: 0; border-top: 1px dashed #eee; margin: 8px 0;"><br>';
+        // 2. STAIRCASES BREAKDOWN
+        if (calc.staircases && calc.staircases.length > 0) {
+          if (breakdownHTML) breakdownHTML += '<br><hr style="border: 0; border-top: 1px dashed #eee; margin: 8px 0;"><br>';
 
-        breakdownHTML += calc.staircases.map((s: any) => {
-          const tileType = s.tile_type === 'step' ? 'Step' : s.tile_type === 'riser' ? 'Riser' : 'Tile';
-          return `
+          breakdownHTML += calc.staircases.map((s: any) => {
+            const tileType = s.tile_type === 'step' ? 'Step' : s.tile_type === 'riser' ? 'Riser' : 'Tile';
+            return `
                <strong>${s.name || 'Staircase'}</strong>
                <div style="font-size: 9px; color: #555;">
                   ${tileType} - ${s.quantity} pcs
                </div>
              `;
-        }).join('<br><br>');
-      }
+          }).join('<br><br>');
+        }
 
-      return `
+        return `
                     <tr>
                       <td class="room-cell">
                         ${breakdownHTML || '<span style="color:#999; font-style:italic;">No room/staircase details</span>'}
@@ -603,7 +658,6 @@ export const useUnifiedPDFGeneration = () => {
                           src="${calc.tile_image_direct_url}"
                           alt="Tile ${tile.code}"
                           class="tile-image"
-                          crossorigin="anonymous"
                           loading="eager"
                           style="${tile.size_length > tile.size_breadth ? 'transform: rotate(90deg);' : ''}"
                         />
@@ -615,13 +669,13 @@ export const useUnifiedPDFGeneration = () => {
                       <td>
                         ${calc.tilesNeeded} tiles<br>
                         <small>(${(() => {
-          const fullBoxes = Math.floor(calc.tilesNeeded / (tile.pieces_per_box || 1));
-          const leftoverTiles = calc.tilesNeeded % (tile.pieces_per_box || 1);
-          if (leftoverTiles > 0) {
-            return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''} and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}`;
-          }
-          return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}`;
-        })()})</small><br>
+            const fullBoxes = Math.floor(calc.tilesNeeded / (tile.pieces_per_box || 1));
+            const leftoverTiles = calc.tilesNeeded % (tile.pieces_per_box || 1);
+            if (leftoverTiles > 0) {
+              return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''} and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}`;
+            }
+            return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}`;
+          })()})</small><br>
                         <small class="wastage-note">+${wastage_percentage}% wastage</small>
                       </td>
                       <td>${calc.boxesNeeded}</td>
@@ -629,9 +683,57 @@ export const useUnifiedPDFGeneration = () => {
                       <td class="price-cell">₹${calc.totalPrice.toLocaleString()}</td>
                     </tr>
                   `;
-    }).join('')}
-              </tbody>  
-            </table>
+      }).join('')}
+                </tbody>  
+              </table>
+            ` : '<tr><td colspan="7" style="text-align:center; padding: 20px;">No tiles in this quotation</td></tr>'}
+
+            ${productCalculations.length > 0 ? `
+            <div style="margin-top: 30px;">
+                <h3 style="color: #2563eb; font-size: 14px; margin-bottom: 10px; font-weight: bold;">Product Selection</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 35%;">Product Details</th>
+                      <th style="width: 15%;">Code</th>
+                      <th style="width: 10%;">Image</th>
+                      <th style="width: 15%;">Quantity</th>
+                      <th style="width: 10%;">Price/Unit</th>
+                      <th style="width: 15%;">Total Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${productCalculations.map((calc: any) => `
+                        <tr>
+                          <td class="tile-details">
+                            <div class="tile-code" style="font-size:12px;">${calc.product?.name || 'Unknown Product'}</div>
+                          </td>
+                          <td class="tile-details">
+                            <div class="tile-name text-center">${calc.product?.code || ''}</div>
+                          </td>
+                          <td class="image-cell">
+                             ${calc.product_image_direct_url ? `
+                               <img
+                                 src="${calc.product_image_direct_url}"
+                                 alt="${calc.product?.name}"
+                                 class="tile-image"
+                                 loading="eager"
+                               />
+                             ` : `
+                               <div class="no-image-placeholder">No Image</div>
+                             `}
+                          </td>
+                          <td>
+                            ${calc.quantity} units
+                          </td>
+                          <td class="price-cell">₹${calc.product?.price?.toLocaleString() || 0}</td>
+                          <td class="price-cell">₹${calc.totalPrice.toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+            </div>
+            ` : ''}
           </div>
           
          <div class="summary-section">

@@ -34,6 +34,13 @@ interface QuotationFormProps {
       price_per_box: number;
       total_price: number;
     }
+    | {
+      product_id: string;
+      quantity: number;
+      total_price: number;
+      price_per_box: number; // Unit price
+      display_name?: string; // Passed for display
+    }
   >;
   wastagePercentage?: number;
   onBack: () => void;
@@ -59,8 +66,6 @@ export const QuotationForm = ({
 
   // Auto-generate quotation number based on timestamp with better uniqueness
   const { quotationNumber, isLoading: quotationNumberLoading, error: quotationNumberError, refreshNumber } = useQuotationNumber();
-
-  // const [quotationNumber] = useState(generateQuotationNumber());
 
   // Calculate total from selected rooms data using pre-calculated prices
   const calculateTotal = () => {
@@ -98,7 +103,17 @@ export const QuotationForm = ({
     try {
       // Prepare quotation items - they're already calculated
       const quotationItems = selectedRoomsData.map(item => {
-        if ('room_id' in item) {
+        if ('product_id' in item) {
+          return {
+            product_id: item.product_id,
+            quantity: item.quantity,
+            total_price: item.total_price,
+            price_per_box: item.price_per_box, // Unit price
+            tile_id: null,
+            area: 0,
+            room_id: null
+          };
+        } else if ('room_id' in item) {
           return {
             tile_id: item.tile_id,
             room_id: item.room_id,
@@ -233,10 +248,9 @@ export const QuotationForm = ({
           <CardContent>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {selectedRoomsData.map((item, index) => {
-                const tile = tiles.find(t => t.id === item.tile_id);
-
                 // Room Item
                 if ('room_id' in item) {
+                  const tile = tiles.find(t => t.id === item.tile_id);
                   const room = rooms.find(r => r.id === item.room_id);
                   return (
                     <div key={index} className="border rounded-lg p-3 bg-gray-50">
@@ -262,24 +276,56 @@ export const QuotationForm = ({
                     </div>
                   );
                 }
+                // Product Item
+                else if ('product_id' in item) {
+                  return (
+                    <div key={index} className="border rounded-lg p-3 bg-purple-50 border-purple-100">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="font-medium text-purple-900">
+                            {item.display_name || 'Product'}
+                          </h5>
+                          <p className="text-xs text-gray-500">
+                            Qty: {item.quantity}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Price: ₹{item.total_price.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
                 // Staircase Item
                 else {
+                  // We need to check if tile_id exists or handle it safely if type narrowing failed (though 'else' should imply staircase here if logic implies only 3 types)
+                  // But to be safe and satisfy TS if it thinks it's strictly the 3rd type:
+                  const staircaseItem = item as {
+                    tile_id: string;
+                    staircase_id: string;
+                    staircase_name: string;
+                    tile_type: 'step' | 'riser';
+                    quantity: number;
+                    price_per_box: number;
+                    total_price: number;
+                  };
+                  const tile = tiles.find(t => t.id === staircaseItem.tile_id);
                   return (
                     <div key={index} className="border rounded-lg p-3 bg-orange-50 border-orange-100">
                       <div className="flex justify-between items-start">
                         <div>
                           <h5 className="font-medium text-orange-900">
-                            {item.staircase_name}
+                            {staircaseItem.staircase_name}
                             <span className="text-sm text-orange-700 ml-2">
-                              ({item.tile_type === 'step' ? 'Steps' : 'Risers'})
+                              ({staircaseItem.tile_type === 'step' ? 'Steps' : 'Risers'})
                             </span>
                           </h5>
                           <p className="text-sm text-gray-600">{tile?.code || 'Unknown Tile'}</p>
                           <p className="text-xs text-gray-500">
-                            Qty: {item.quantity} tiles
+                            Qty: {staircaseItem.quantity} tiles
                           </p>
                           <p className="text-xs text-gray-500">
-                            Price: ₹{item.total_price.toLocaleString()}
+                            Price: ₹{staircaseItem.total_price.toLocaleString()}
                           </p>
                         </div>
                       </div>

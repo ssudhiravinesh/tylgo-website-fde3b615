@@ -1,21 +1,9 @@
-
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Package, IndianRupee, Grid3X3, Ruler, Check, Plus, Download } from "lucide-react";
-import { useTiles } from "@/hooks/useTiles";
-import { useGenerateQRForTile } from "@/hooks/useTileManagement";
+import { useState } from "react";
+import { toast } from "sonner";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import { TileAssignmentDialog } from "./TileAssignmentDialog";
-import { TileDetailsDialog } from "./TileDetailsDialog";
-import { SearchBar } from "./SearchBar";
-import { TileCard } from "./TileCard";
-import { EmptyTileState } from "./EmptyTileState";
-import { toast } from "sonner";
+import { TileCatalog } from "./TileCatalog";
 import type { Tile } from "@/hooks/useTiles";
 
 interface TileManagementProps {
@@ -23,110 +11,17 @@ interface TileManagementProps {
 }
 
 export const TileManagement = ({ userRole }: TileManagementProps) => {
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
-  const [showTileDetails, setShowTileDetails] = useState(false);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
-  const [generatingQRTileId, setGeneratingQRTileId] = useState<string | null>(null);
 
-  const { data: tiles = [], isLoading } = useTiles();
   const { data: customers = [] } = useCustomers();
   const { data: rooms = [] } = useRoomsByCustomer(selectedCustomerId);
-  const generateQRMutation = useGenerateQRForTile();
 
-  const filteredTiles = tiles.filter(tile =>
-    tile.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleTileSelect = (tile: Tile) => {
+  const handleAssignClick = (tile: Tile) => {
     setSelectedTile(tile);
-  };
-
-  const styles = {
-    tilesContainer: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 20px)',
-      gridTemplateRows: 'repeat(3, 20px)',
-      gap: '8px',
-      justifyContent: 'center',
-      marginBottom: '24px',
-    },
-    tile: {
-      width: '20px',
-      height: '20px',
-      borderRadius: '4px',
-      animation: 'tileAnimation 1.2s ease-in-out infinite',
-    },
-    tileBlue: {
-      backgroundColor: '#3B82F6',
-    },
-    tileBeige: {
-      backgroundColor: '#F5F5DC',
-    },
-    tileLight: {
-      backgroundColor: '#93C5FD',
-    },
-    loadingText: {
-      color: '#6B7280',
-      fontSize: '16px',
-      fontWeight: '500',
-      marginBottom: '16px',
-    },
-    progressBar: {
-      width: '200px',
-      height: '4px',
-      backgroundColor: '#E5E7EB',
-      borderRadius: '2px',
-      overflow: 'hidden',
-      margin: '0 auto',
-    },
-    progressFill: {
-      height: '100%',
-      width: '100%',
-      background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
-      backgroundSize: '200% 100%',
-      animation: 'progressFlow 2s linear infinite',
-    },
-  };
-
-  const handleViewDetails = (tileId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const tile = tiles.find(t => t.id === tileId);
-    if (tile) {
-      setSelectedTile(tile);
-      setShowTileDetails(true);
-    }
-  };
-
-  const handleAssignClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (selectedTile) {
-      setShowAssignmentDialog(true);
-    }
-  };
-
-  const handleGenerateQR = async (tileId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setGeneratingQRTileId(tileId);
-    try {
-      await generateQRMutation.mutateAsync(tileId);
-    } catch (error) {
-      console.error('Error generating QR:', error);
-    } finally {
-      setGeneratingQRTileId(null);
-    }
-  };
-
-  const handleDownloadQR = (qrUrl: string, tileCode: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const link = document.createElement('a');
-    link.href = qrUrl;
-    link.download = `${tileCode}-qr.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setShowAssignmentDialog(true);
   };
 
   const handleCustomerChange = (customerId: string) => {
@@ -160,7 +55,15 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
       return;
     }
 
-    // Here you would typically save the tile assignments
+    // Since TileAssignmentDialog mainly handles UI but doesn't persist itself? 
+    // Wait, TileAssignmentDialog in original code just toasted success but didn't actually call a mutation.
+    // Let's preserve that behavior or check if mutations were missing.
+    // The original code:
+    // toast.success(`Tile "${selectedTile.code}" assigned to ${selectedRooms.length} room(s)`);
+    // setShowAssignmentDialog(false);
+    //
+    // So for now we keep it as UI prototype unless mutation exists.
+
     toast.success(`Tile "${selectedTile.code}" assigned to ${selectedRooms.length} room(s)`);
     setShowAssignmentDialog(false);
     setSelectedCustomerId("");
@@ -175,75 +78,16 @@ export const TileManagement = ({ userRole }: TileManagementProps) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Tile Catalog</h1>
-          <p className="text-gray-600 mt-1">Browse and manage tiles</p>
-        </div>
-      </div>
-
-      <SearchBar
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-      />
-
-      {isLoading ? (
-
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-          <div className="text-center">
-            {/* Tile Loading Animation */}
-            <div style={styles.tilesContainer}>
-              {[...Array(12)].map((_, index) => (
-                <div
-                  key={index}
-                  style={{
-                    ...styles.tile,
-                    ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                    animationDelay: `${index * 0.08}s`
-                  }}
-                />
-              ))}
-            </div>
-
-            <p style={styles.loadingText}>Loading...</p>
-
-            <div style={styles.progressBar}>
-              <div style={styles.progressFill}></div>
-            </div>
-          </div>
-        </div>
-
-      ) : filteredTiles.length === 0 ? (
-        <EmptyTileState />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredTiles.map((tile) => (
-            <TileCard
-              key={tile.id}
-              tile={tile}
-              isSelected={selectedTile?.id === tile.id}
-              isAdmin={userRole === "admin" || userRole === "super_admin"}
-              showAssignButton={selectedTile?.id === tile.id}
-              onTileSelect={() => handleTileSelect(tile)}
-              onGenerateQR={handleGenerateQR}
-              onDownloadQR={handleDownloadQR}
-              onViewDetails={handleViewDetails}
-              onAssignClick={handleAssignClick}
-              isGeneratingQR={generatingQRTileId === tile.id}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Tile Details Dialog */}
-      <TileDetailsDialog
-        tile={selectedTile}
-        isOpen={showTileDetails}
-        onClose={() => {
-          setShowTileDetails(false);
-          setSelectedTile(null);
-        }}
-        userRole={userRole}
+      {/* 
+          We reuse TileCatalog for the main view. 
+          This gives us the Category View, Search, and Filtering for free!
+      */}
+      <TileCatalog
+        isSelectionMode={true} // Enables selection behavior (clicking tile opens details or selects)
+        // Actually, isSelectionMode=true in TileCatalog triggers onTileSelect.
+        // If onTileSelect is NOT provided, it opens details.
+        // We want "Assign" button to show up.
+        onAssignTile={handleAssignClick}
       />
 
       {/* Tile Assignment Dialog */}

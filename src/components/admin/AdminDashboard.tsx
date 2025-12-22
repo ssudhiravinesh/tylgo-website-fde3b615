@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  FileText, 
-  Grid3X3, 
-  TrendingUp, 
+import {
+  Users,
+  FileText,
+  Grid3X3,
+  TrendingUp,
   Calendar,
   BarChart3
 } from "lucide-react";
@@ -49,12 +50,12 @@ export const useDashboardData = () => {
         // Calculate monthly revenue from approved quotations
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
-        
+
         const monthlyQuotations = quotations.filter(q => {
           const qDate = new Date(q.created_at);
-          return qDate.getMonth() === currentMonth && 
-                 qDate.getFullYear() === currentYear && 
-                 q.status === 'approved';
+          return qDate.getMonth() === currentMonth &&
+            qDate.getFullYear() === currentYear &&
+            q.status === 'approved';
         });
 
         const monthlyRevenue = monthlyQuotations.reduce((sum, q) => sum + (q.total_cost || 0), 0);
@@ -110,7 +111,7 @@ export const useDashboardData = () => {
           const timeAgo = getTimeAgo(tile.created_at || '');
           activities.push({
             type: "tile",
-            message: `New tile added: ${tile.name}`,
+            message: `New tile added: ${tile.code}`,
             time: timeAgo
           });
         });
@@ -139,16 +140,16 @@ export const useDashboardData = () => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) return "Just now";
     if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
-    
+
     const diffInWeeks = Math.floor(diffInDays / 7);
     if (diffInWeeks < 4) return `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -163,33 +164,33 @@ export const useDashboardData = () => {
   };
 
   const statsData = [
-    { 
-      label: "Total Customers", 
-      value: stats.totalCustomers.toString(), 
-      icon: Users, 
-      change: "+12%", 
-      color: "text-blue-600" 
+    {
+      label: "Total Customers",
+      value: stats.totalCustomers.toString(),
+      icon: Users,
+      change: "+12%",
+      color: "text-blue-600"
     },
-    { 
-      label: "Active Quotations", 
-      value: stats.activeQuotations.toString(), 
-      icon: FileText, 
-      change: "+8%", 
-      color: "text-green-600" 
+    {
+      label: "Active Quotations",
+      value: stats.activeQuotations.toString(),
+      icon: FileText,
+      change: "+8%",
+      color: "text-green-600"
     },
-    { 
-      label: "Tiles in Catalog", 
-      value: stats.tilesInCatalog.toString(), 
-      icon: Grid3X3, 
-      change: "+15%", 
-      color: "text-purple-600" 
+    {
+      label: "Tiles in Catalog",
+      value: stats.tilesInCatalog.toString(),
+      icon: Grid3X3,
+      change: "+15%",
+      color: "text-purple-600"
     },
-    { 
-      label: "Monthly Revenue", 
-      value: formatCurrency(stats.monthlyRevenue), 
-      icon: TrendingUp, 
-      change: "+18%", 
-      color: "text-orange-600" 
+    {
+      label: "Monthly Revenue",
+      value: formatCurrency(stats.monthlyRevenue),
+      icon: TrendingUp,
+      change: "+18%",
+      color: "text-orange-600"
     }
   ];
 
@@ -204,11 +205,7 @@ export const AdminDashboard = () => {
   const { stats, loading } = useDashboardData();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <GridLoader className="py-12 min-h-[300px]" loadingText="Loading dashboard..." />;
   }
 
   return (

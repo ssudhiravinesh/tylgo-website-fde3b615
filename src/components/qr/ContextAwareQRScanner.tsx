@@ -6,8 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Camera, X, Users, Home, Check, AlertCircle, Type } from 'lucide-react';
 import { useQRScanningContext } from '@/contexts/QRScanningContext';
 import { useTiles } from '@/hooks/useTiles';
+import { useProducts } from '@/hooks/useProducts';
 import { useRoomsByCustomer } from '@/hooks/useRooms';
 import { useSaveRoomTileSelections } from '@/hooks/useRooms';
+import { useSaveRoomProductSelection } from '@/hooks/useProductSelections';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 interface ContextAwareQRScannerProps {
@@ -30,60 +33,93 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
   } = useQRScanningContext();
 
   const { data: tiles = [] } = useTiles();
+  const { data: products = [] } = useProducts();
   const { data: rooms = [] } = useRoomsByCustomer(currentCustomerId || '');
-  const saveSelectionsMutation = useSaveRoomTileSelections();
+  const saveTileSelectionsMutation = useSaveRoomTileSelections();
+  const saveProductSelectionMutation = useSaveRoomProductSelection();
+  const queryClient = useQueryClient();
 
   const handleManualInput = () => {
-    const input = prompt('Enter the tile code:');
+    const input = prompt('Enter the tile or product code:');
     if (input && input.trim()) {
-      handleTileScan(input.trim());
+      handleScan(input.trim());
     }
   };
 
-  const handleTileScan = async (tileCode: string) => {
+  const handleScan = async (code: string) => {
     if (!isContextActive) {
       toast.error("Please select a customer and rooms first");
       return;
     }
 
-    const tile = tiles.find(t => t.code === tileCode);
-    if (!tile) {
-      toast.error(`No tile found with code: ${tileCode}`);
-      return;
-    }
-
     // Prevent duplicate scans
-    if (lastScannedTile === tileCode) {
-      toast.error("This tile was just scanned. Please scan a different tile.");
+    if (lastScannedTile === code) {
+      toast.error("This item was just scanned. Please scan a different item.");
       return;
     }
 
-    setLastScannedTile(tileCode);
+    setLastScannedTile(code);
     setProcessingAssignment(true);
 
     try {
-      // Prepare selections for all selected rooms
-      const selectionsToSave = selectedRoomIds.map(roomId => ({
-        customer_id: currentCustomerId!,
-        room_id: roomId,
-        tile_id: tile.id
-      }));
+      // Check if it's a tile
+      const tile = tiles.find(t => t.code === code);
 
-      await saveSelectionsMutation.mutateAsync(selectionsToSave);
+      if (tile) {
+        // Handle Tile Assignment
+        const selectionsToSave = selectedRoomIds.map(roomId => ({
+          customer_id: currentCustomerId!,
+          room_id: roomId,
+          tile_id: tile.id
+        }));
 
-      const roomNames = rooms
-        .filter(room => selectedRoomIds.includes(room.id))
-        .map(room => room.name)
-        .join(', ');
+        await saveTileSelectionsMutation.mutateAsync(selectionsToSave);
 
-      toast.success(
-        `Tile "${tile.code}" assigned to ${selectedRoomIds.length} room(s): ${roomNames}`,
-        { duration: 3000 }
-      );
+        const roomNames = rooms
+          .filter(room => selectedRoomIds.includes(room.id))
+          .map(room => room.name)
+          .join(', ');
+
+        toast.success(
+          `Tile "${tile.code}" assigned to ${selectedRoomIds.length} room(s): ${roomNames}`,
+          { duration: 3000 }
+        );
+        return;
+      }
+
+      // Check if it's a product
+      const product = products.find(p => p.code === code);
+
+      if (product) {
+        // Handle Product Assignment
+        const promises = selectedRoomIds.map(roomId =>
+          saveProductSelectionMutation.mutateAsync({
+            customer_id: currentCustomerId!,
+            room_id: roomId,
+            product_id: product.id,
+            quantity: 1 // Default quantity
+          })
+        );
+
+        await Promise.all(promises);
+
+        const roomNames = rooms
+          .filter(room => selectedRoomIds.includes(room.id))
+          .map(room => room.name)
+          .join(', ');
+
+        toast.success(
+          `Product "${product.code}" assigned to ${selectedRoomIds.length} room(s): ${roomNames}`,
+          { duration: 3000 }
+        );
+        return;
+      }
+
+      toast.error(`No tile or product found with code: ${code}`);
 
     } catch (error) {
-      console.error('Error assigning tile:', error);
-      toast.error("Failed to assign tile to rooms");
+      console.error('Error assigning item:', error);
+      toast.error("Failed to assign item to rooms");
     } finally {
       setProcessingAssignment(false);
       // Clear the last scanned tile after 3 seconds to allow re-scanning
@@ -106,7 +142,7 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
-            Context-Aware Tile Scanner
+            Context-Aware Scanner
           </DialogTitle>
         </DialogHeader>
 
@@ -144,14 +180,14 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
             <div className="text-center py-8">
               <Type className="h-12 w-12 text-blue-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-700 mb-2">
-                Manual Tile Input
+                Manual Item Input
               </h3>
               <p className="text-gray-600 text-sm mb-4">
-                Enter the tile code manually to assign to selected rooms.
+                Enter the tile or product code manually to assign to selected rooms.
               </p>
               <Button onClick={handleManualInput} disabled={processingAssignment}>
                 <Type className="h-4 w-4 mr-2" />
-                Enter Tile Code
+                Enter Code
               </Button>
 
               {processingAssignment && (
@@ -182,8 +218,8 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
 
           <p className="text-xs text-gray-500 text-center">
             {isContextActive
-              ? "Enter tile codes to automatically assign tiles to selected rooms"
-              : "Set up customer context first, then enter tile codes for instant assignment"
+              ? "Enter codes to automatically assign tiles or products to selected rooms"
+              : "Set up customer context first, then enter codes for instant assignment"
             }
           </p>
         </div>

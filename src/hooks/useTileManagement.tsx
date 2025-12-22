@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Tile } from './useTiles';
 import QRCode from 'qrcode';
-import { getShowroomId } from './useShowroom';
+import { getBrandId, getShowroomId } from './useShowroom';
 
 const generateQRCode = async (tileCode: string, tileId: string): Promise<string | null> => {
   try {
@@ -54,15 +54,17 @@ export const useCreateTile = () => {
     mutationFn: async (tileData: Omit<Tile, 'id' | 'created_at' | 'updated_at' | 'qr_code_url'>) => {
       console.log('Creating tile with data:', tileData);
 
-      // Get showroom_id
+      // Get both brand_id and showroom_id
+      const brand_id = await getBrandId();
       const showroom_id = await getShowroomId();
-      if (!showroom_id) {
-        throw new Error('No showroom assigned to user');
+
+      if (!brand_id) {
+        throw new Error('No brand assigned to showroom');
       }
-      
+
       const { data, error } = await supabase
         .from('tiles')
-        .insert([{ ...tileData, showroom_id }])
+        .insert([{ ...tileData, name: tileData.code, brand_id, showroom_id }])
         .select()
         .single();
 
@@ -75,7 +77,7 @@ export const useCreateTile = () => {
 
       // Generate QR code after tile creation
       const qrCodeUrl = await generateQRCode(data.code, data.id);
-      
+
       if (qrCodeUrl) {
         // Update tile with QR code URL
         const { error: updateError } = await supabase
@@ -115,7 +117,7 @@ export const useUpdateTile = (skipToast = false) => {
     mutationFn: async (updateData: Partial<Tile> & { id: string }) => {
       const { id, ...updates } = updateData;
       console.log('Updating tile:', id, 'with data:', updates);
-      
+
       const { data, error } = await supabase
         .from('tiles')
         .update(updates)
@@ -133,7 +135,7 @@ export const useUpdateTile = (skipToast = false) => {
       // Regenerate QR code if code was updated
       if (updates.code) {
         const qrCodeUrl = await generateQRCode(data.code, data.id);
-        
+
         if (qrCodeUrl) {
           const { error: updateError } = await supabase
             .from('tiles')
@@ -176,7 +178,7 @@ export const useDeleteTile = () => {
   return useMutation({
     mutationFn: async (tileId: string) => {
       console.log('Soft deleting tile (marking as inactive):', tileId);
-      
+
       const { error } = await supabase
         .from('tiles')
         .update({ is_active: false })
@@ -217,7 +219,7 @@ export const useGenerateQRForTile = () => {
       }
 
       const qrCodeUrl = await generateQRCode(tile.code, tile.id);
-      
+
       if (!qrCodeUrl) {
         throw new Error('Failed to generate QR code');
       }

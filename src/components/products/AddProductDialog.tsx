@@ -1,16 +1,19 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAddProduct } from "@/hooks/useProducts";
-import { Plus, Trash } from "lucide-react";
+import { useAddProduct, useUpdateProduct } from "@/hooks/useProducts";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { Plus, Trash, Upload } from "lucide-react";
+import { ProductUnit } from "@/utils/unitConversions";
 
 interface AddProductDialogProps {
     isOpen: boolean;
     onClose: () => void;
+    productToEdit?: any;
 }
 
 const CATEGORIES = [
@@ -25,26 +28,70 @@ const CATEGORIES = [
     "Other"
 ];
 
-export const AddProductDialog = ({ isOpen, onClose }: AddProductDialogProps) => {
+export const AddProductDialog = ({ isOpen, onClose, productToEdit }: AddProductDialogProps) => {
     const addProduct = useAddProduct();
+    const updateProduct = useUpdateProduct();
+    const { uploadImage, isUploading } = useImageUpload();
+
+    // Initialize form with productToEdit data if available
     const [formData, setFormData] = useState({
-        name: "",
-        code: "",
-        category: "",
-        price: "",
-        image_url: "",
+        name: productToEdit?.name || "",
+        code: productToEdit?.code || "",
+        category: productToEdit?.category || "",
+        unit: (productToEdit?.unit as ProductUnit) || "mm",
+        price: productToEdit?.price?.toString() || "",
+        image_url: productToEdit?.image_url || "",
     });
 
-    // Dimensions state - starting with common ones
-    const [dimensions, setDimensions] = useState<{ key: string; value: string }[]>([
-        { key: "length", value: "" },
-        { key: "width", value: "" },
-        { key: "height", value: "" },
-    ]);
+    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>(productToEdit?.image_url || "");
+
+    // Initialize dimensions from productToEdit or start with common ones
+    const getInitialDimensions = () => {
+        if (productToEdit?.dimensions && Object.keys(productToEdit.dimensions).length > 0) {
+            return Object.entries(productToEdit.dimensions).map(([key, value]) => ({
+                key,
+                value: String(value)
+            }));
+        }
+        return [
+            { key: "length", value: "" },
+            { key: "width", value: "" },
+            { key: "height", value: "" },
+        ];
+    };
+
+    const [dimensions, setDimensions] = useState<{ key: string; value: string }[]>(getInitialDimensions());
+
+    // Update state when productToEdit changes
+    useEffect(() => {
+        if (isOpen) {
+            setFormData({
+                name: productToEdit?.name || "",
+                code: productToEdit?.code || "",
+                category: productToEdit?.category || "",
+                unit: (productToEdit?.unit as ProductUnit) || "mm",
+                price: productToEdit?.price?.toString() || "",
+                image_url: productToEdit?.image_url || "",
+            });
+            setImagePreview(productToEdit?.image_url || "");
+            setDimensions(getInitialDimensions());
+            setSelectedImageFile(null);
+        }
+    }, [isOpen, productToEdit]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedImageFile(file);
+            const previewUrl = URL.createObjectURL(file);
+            setImagePreview(previewUrl);
+        }
     };
 
     const handleDimensionChange = (index: number, field: "key" | "value", value: string) => {
@@ -75,25 +122,47 @@ export const AddProductDialog = ({ isOpen, onClose }: AddProductDialogProps) => 
         });
 
         try {
-            await addProduct.mutateAsync({
+            let finalImageUrl = formData.image_url;
+
+            if (selectedImageFile) {
+                const uploadedUrl = await uploadImage(selectedImageFile, 'products', 'product-images');
+                if (uploadedUrl) {
+                    finalImageUrl = uploadedUrl;
+                }
+            }
+
+            const productData = {
                 name: formData.name,
                 code: formData.code,
                 category: formData.category,
+                unit: formData.unit,
                 price: Number(formData.price) || 0,
-                image_url: formData.image_url,
+                image_url: finalImageUrl,
                 dimensions: dimensionsObj,
                 is_active: true
-            });
+            };
+
+            if (productToEdit) {
+                await updateProduct.mutateAsync({
+                    id: productToEdit.id,
+                    ...productData
+                });
+            } else {
+                await addProduct.mutateAsync(productData);
+            }
+
             onClose();
             // Reset form
-            setFormData({ name: "", code: "", category: "", price: "", image_url: "" });
+            setFormData({ name: "", code: "", category: "", unit: "mm", price: "", image_url: "" });
+            setSelectedImageFile(null);
+            setImagePreview("");
             setDimensions([
                 { key: "length", value: "" },
                 { key: "width", value: "" },
                 { key: "height", value: "" },
             ]);
         } catch (error) {
-            console.error("Failed to add product", error);
+            console.error("Failed to save product", error);
         }
     };
 
@@ -101,7 +170,7 @@ export const AddProductDialog = ({ isOpen, onClose }: AddProductDialogProps) => 
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Add New Product</DialogTitle>
+                    <DialogTitle>{productToEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -160,14 +229,79 @@ export const AddProductDialog = ({ isOpen, onClose }: AddProductDialogProps) => 
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="image_url">Image URL</Label>
-                        <Input
-                            id="image_url"
-                            name="image_url"
-                            value={formData.image_url}
-                            onChange={handleInputChange}
-                            placeholder="https://..."
-                        />
+                        <Label htmlFor="unit">Dimensions Unit</Label>
+                        <Select
+                            value={formData.unit}
+                            onValueChange={(val) => setFormData(prev => ({ ...prev, unit: val as ProductUnit }))}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select Unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="mm">Millimeters (mm)</SelectItem>
+                                <SelectItem value="cm">Centimeters (cm)</SelectItem>
+                                <SelectItem value="in">Inches (in)</SelectItem>
+                                <SelectItem value="ft">Feet (ft)</SelectItem>
+                                <SelectItem value="m">Meters (m)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-3">
+                        <Label>Product Image</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label
+                                    htmlFor="product-image-upload"
+                                    className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                                >
+                                    {imagePreview ? (
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
+                                            className="w-16 h-16 object-cover rounded-md"
+                                        />
+                                    ) : (
+                                        <div className="text-center">
+                                            <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                                            <p className="text-xs text-gray-500">Upload Image</p>
+                                        </div>
+                                    )}
+                                    <input
+                                        id="product-image-upload"
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handleImageFileChange}
+                                    />
+                                </label>
+                                {imagePreview && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setImagePreview("");
+                                            setSelectedImageFile(null);
+                                        }}
+                                        className="w-full text-xs"
+                                    >
+                                        Remove
+                                    </Button>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="image_url" className="text-xs text-gray-500">Or Image URL</Label>
+                                <Input
+                                    id="image_url"
+                                    name="image_url"
+                                    value={formData.image_url}
+                                    onChange={handleInputChange}
+                                    placeholder="https://..."
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="space-y-4 border p-4 rounded-md bg-gray-50">
@@ -211,8 +345,10 @@ export const AddProductDialog = ({ isOpen, onClose }: AddProductDialogProps) => 
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button type="submit" disabled={addProduct.isPending}>
-                            {addProduct.isPending ? "Adding..." : "Add Product"}
+                        <Button type="submit" disabled={addProduct.isPending || updateProduct.isPending || isUploading}>
+                            {isUploading ? "Uploading..." :
+                                addProduct.isPending || updateProduct.isPending ? "Saving..." :
+                                    productToEdit ? "Update Product" : "Add Product"}
                         </Button>
                     </DialogFooter>
                 </form>

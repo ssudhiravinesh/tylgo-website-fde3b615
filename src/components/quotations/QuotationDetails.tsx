@@ -1,19 +1,37 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers, Footprints } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
 import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
 import { useQuotationItems, useUpdateQuotationItem } from '@/hooks/useQuotationItems';
 import type { Quotation } from "@/hooks/useQuotations";
 import { toast } from "sonner";
+import { GridLoader } from "@/components/ui/GridLoader";
 
 interface QuotationDetailsProps {
   quotation: Quotation;
   onBack: () => void;
 }
 
+// Union type for calculations
+type ItemCalculation = TileCalculation | ProductCalculation;
+
+interface ProductCalculation {
+  type: 'product';
+  product: {
+    id: string;
+    code?: string;
+    name: string;
+    price: number;
+    image_url?: string;
+  };
+  quantity: number;
+  totalPrice: number;
+}
+
 interface TileCalculation {
+  type: 'tile';
   tile: {
     id: string;
     code: string;
@@ -28,6 +46,12 @@ interface TileCalculation {
     length: number;
     width: number;
     unit: string;
+  }>;
+  staircases: Array<{
+    id: string;
+    name: string;
+    type: 'step' | 'riser';
+    quantity: number;
   }>;
   totalArea: number;
   tilesNeeded: number;
@@ -55,18 +79,44 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   };
 
   // Use quotation items from the dedicated hook for accurate calculations
-  const calculateTileRequirements = (): { calculations: TileCalculation[]; wastagePercentage: number } => {
+  const calculateTileRequirements = (): { calculations: ItemCalculation[]; wastagePercentage: number } => {
     const tileCalculations: { [tileId: string]: TileCalculation } = {};
+    const productCalculations: ProductCalculation[] = [];
     const wastagePercentage = quotation.wastage_percentage || 0; // Use stored wastage percentage, default to 0
 
     if (quotationItems && quotationItems.length > 0) {
       quotationItems.forEach((item) => {
         const tileId = item.tile_id;
         const room = item.room;
+        const staircase = item.staircase;
         const tile = item.tile;
+
+        // Handle Product Items
+        if (item.product_id && item.product) {
+          const existing = productCalculations.find(p => p.product.id === item.product_id);
+          if (existing) {
+            existing.quantity += (item.quantity || 0);
+            existing.totalPrice += (item.total_price || ((item.quantity || 0) * (item.product.price || 0)));
+          } else {
+            productCalculations.push({
+              type: 'product',
+              product: {
+                id: item.product_id,
+                code: item.product.code,
+                name: item.product.name,
+                price: item.product.price || 0,
+                image_url: item.product.image_url
+              },
+              quantity: item.quantity || 0,
+              totalPrice: item.total_price || ((item.quantity || 0) * (item.product.price || 0))
+            });
+          }
+          return; // Skip tile logic for product items
+        }
 
         if (!tileCalculations[tileId] && tile) {
           tileCalculations[tileId] = {
+            type: 'tile',
             tile: {
               id: tileId,
               code: tile.code,
@@ -76,6 +126,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
               size_breadth: tile.size_breadth
             },
             rooms: [],
+            staircases: [],
             totalArea: 0,
             tilesNeeded: 0,
             boxesNeeded: 0,
@@ -83,18 +134,34 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
           };
         }
 
-        if (room && tileCalculations[tileId]) {
-          // Use the stored area from the quotation item (original area without wastage)
-          const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
+        if (tileCalculations[tileId]) {
+          // Handle Room Item
+          if (room && item.room_id) {
+            // Use the stored area from the quotation item (original area without wastage)
+            const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
 
-          tileCalculations[tileId].rooms.push({
-            id: item.room_id,
-            name: room.name,
-            length: room.length,
-            width: room.width,
-            unit: room.unit
-          });
-          tileCalculations[tileId].totalArea += roomAreaInSqFt;
+            tileCalculations[tileId].rooms.push({
+              id: item.room_id,
+              name: room.name,
+              length: room.length,
+              width: room.width,
+              unit: room.unit,
+              measurements: room.measurements
+            } as any);
+            tileCalculations[tileId].totalArea += roomAreaInSqFt;
+          }
+          // Handle Staircase Item
+          else if (staircase && item.staircase_id) {
+            tileCalculations[tileId].staircases.push({
+              id: item.staircase_id,
+              name: staircase.name,
+              type: (item.tile_type as 'step' | 'riser') || 'step',
+              quantity: item.quantity || 0
+            });
+            // Staircases don't contribute to totalArea generally as they are unit based, 
+            // but we add their raw quantity directly to tilesNeeded logic later
+            // or we can pre-calculate their cost here.
+          }
         }
       });
 
@@ -107,42 +174,59 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
           const piecesPerBox = parseInt(tile.pieces_per_box.toString());
 
           if (!isNaN(pricePerBox) && !isNaN(piecesPerBox) && piecesPerBox > 0) {
-            // Convert tile dimensions from mm to feet (unified logic)
-            const tileLengthFt = (tile.size_length || 0) / 304.8;
-            const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
-            const tileAreaSqFt = tileLengthFt * tileBreadthFt;
 
-            if (tileAreaSqFt > 0) {
-              // Step 1: Calculate basic tiles needed for the area
-              const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+            // --- 1. Calculate for ROOMS (Area Based) ---
+            let roomTilesNeeded = 0;
+            if (calc.totalArea > 0) {
+              const tileLengthFt = (tile.size_length || 0) / 304.8;
+              const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+              const tileAreaSqFt = tileLengthFt * tileBreadthFt;
 
-              // Step 2: Add wastage percentage to tiles
-              calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
-
-              // Step 3: Calculate boxes needed from total tiles with custom adjustments
-              const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
-
-              // Get custom box adjustment from the first item for this tile
-              const tileItem = quotationItems?.find(item => item.tile_id === tile.id);
-              const customBoxAdjustment = tileItem?.custom_boxes || 0;
-
-              calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
-
-              // Update tiles needed to reflect actual boxes being purchased
-              if (customBoxAdjustment !== 0) {
-                calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+              if (tileAreaSqFt > 0) {
+                const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+                roomTilesNeeded = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
               }
-
-              // Step 4: Calculate total price based on current box count (same as edit page)
-              calc.totalPrice = calc.boxesNeeded * pricePerBox;
             }
+
+            // --- 2. Calculate for STAIRCASES (Quantity Based) ---
+            let staircaseTilesNeeded = 0;
+            if (calc.staircases.length > 0) {
+              // Staircase tiles in DB are stored as RAW quantity (steps/risers count).
+              // We must apply wastage here to match PDF generation logic.
+              const rawStaircaseTiles = calc.staircases.reduce((sum, s) => sum + s.quantity, 0);
+              staircaseTilesNeeded = Math.ceil(rawStaircaseTiles * (1 + (wastagePercentage / 100)));
+            }
+
+
+            // --- 3. Combine and Calculate Boxes ---
+            calc.tilesNeeded = roomTilesNeeded + staircaseTilesNeeded;
+
+            const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
+
+            // Get custom box adjustment from the first item for this tile
+            // Note: This logic assumes one custom adjustment per tile across the whole quote, 
+            // but custom_boxes is per item. We should sum them? 
+            // Usually custom_boxes is used when user manually overrides boxes.
+            // For now, let's keep existing behavior: take it from one find.
+            const tileItem = quotationItems?.find(item => item.tile_id === tile.id);
+            const customBoxAdjustment = tileItem?.custom_boxes || 0;
+
+            calc.boxesNeeded = Math.max(0, baseBoxes + customBoxAdjustment);
+
+            // Update tiles needed to reflect actual boxes being purchased (if adjusted)
+            if (customBoxAdjustment !== 0) {
+              calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+            }
+
+            // Step 4: Calculate total price
+            calc.totalPrice = calc.boxesNeeded * pricePerBox;
           }
         }
       });
     }
 
     return {
-      calculations: Object.values(tileCalculations),
+      calculations: [...Object.values(tileCalculations).map(c => ({ ...c, type: 'tile' as const })), ...productCalculations],
       wastagePercentage
     };
   };
@@ -158,20 +242,24 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
     // Transform quotation items to match the expected interface
     const transformedQuotationItems = quotationItems.map(item => ({
       ...item,
+      // Ensure tile_id is present if required by the target type, defaulting to empty string if missing (e.g. for products)
+      tile_id: item.tile_id || '',
       tile: item.tile ? {
-        id: item.tile_id,
+        id: item.tile_id || '',
         code: item.tile.code,
         size_length: item.tile.size_length,
         size_breadth: item.tile.size_breadth,
         price_per_box: item.tile.price_per_box || 0,
-        pieces_per_box: item.tile.pieces_per_box || 0
+        pieces_per_box: item.tile.pieces_per_box || 0,
+        image_url: item.tile.image_url
       } : undefined,
       room: item.room ? {
         id: item.room_id,
         name: item.room.name,
         length: item.room.length,
         width: item.room.width,
-        unit: item.room.unit
+        unit: item.room.unit,
+        measurements: item.room.measurements
       } : undefined
     }));
 
@@ -329,131 +417,223 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
 
         <CardContent>
           {isLoadingItems ? (
-            <div className="text-center py-8">
-              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading quotation items...</p>
-            </div>
+            <GridLoader className="min-h-[200px]" loadingText="Loading quotation items..." />
           ) : calculations.length > 0 ? (
             <div className="space-y-4">
-              {calculations.map((calc) => (
-                <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h4 className="font-semibold text-gray-800">{calc.tile.code}</h4>
-                      <p className="text-sm text-gray-600">Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}</p>
-                      <div className="text-xs text-gray-500">
-                        {(() => {
-                          // 1. Get all items associated with this specific tile
-                          const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
+              {/* Tile Calculations Section */}
+              {calculations.some(c => c.type === 'tile') && (
+                <div className="space-y-4 mb-8">
+                  <h3 className="font-semibold text-lg text-gray-800 border-b pb-2">Tiles & Rooms</h3>
+                  {calculations.filter(c => c.type === 'tile').map((calc) => {
+                    const tile = (calc as TileCalculation).tile;
+                    // Tile Render
+                    return (
+                      <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold text-gray-800">{calc.tile.code}</h4>
+                            <p className="text-sm text-gray-600">Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}</p>
+                            <div className="text-xs text-gray-500 space-y-1 mt-1">
+                              {(() => {
+                                // Display Rooms if any
+                                if (calc.rooms.length > 0) {
+                                  // 1. Get all items associated with this specific tile
+                                  const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id && item.room_id) || [];
 
-                          // 2. Group layers by Room Name using a Map to preserve order and uniqueness
-                          const roomLayerMap = new Map<string, number[]>();
+                                  // 2. Group layers by Room Name using a Map to preserve order and uniqueness
+                                  const roomLayerMap = new Map<string, number[]>();
 
-                          tileItems.forEach(item => {
-                            const roomName = item.room?.name;
-                            if (!roomName) return;
+                                  tileItems.forEach(item => {
+                                    const roomName = item.room?.name;
+                                    if (!roomName) return;
 
-                            if (!roomLayerMap.has(roomName)) {
-                              roomLayerMap.set(roomName, []);
-                            }
+                                    if (!roomLayerMap.has(roomName)) {
+                                      roomLayerMap.set(roomName, []);
+                                    }
 
-                            // Add layer if it exists and isn't already in the list for this room
-                            if (item.layer_number !== null && item.layer_number !== undefined) {
-                              const layers = roomLayerMap.get(roomName);
-                              if (layers && !layers.includes(item.layer_number)) {
-                                layers.push(item.layer_number);
-                              }
-                            }
-                          });
+                                    // Add layer if it exists and isn't already in the list for this room
+                                    if (item.layer_number !== null && item.layer_number !== undefined) {
+                                      const layers = roomLayerMap.get(roomName);
+                                      if (layers && !layers.includes(item.layer_number)) {
+                                        layers.push(item.layer_number);
+                                      }
+                                    }
+                                  });
 
-                          // 3. Extract the ordered lists
-                          const uniqueRoomNames = Array.from(roomLayerMap.keys());
+                                  // 3. Extract the ordered lists
+                                  const uniqueRoomNames = Array.from(roomLayerMap.keys());
 
-                          // Create the layer string groups corresponding to the room order
-                          // Example: "(4, 5, 6, 7), (8, 9, 10, 11)"
-                          const layerGroups = uniqueRoomNames.map(name => {
-                            const layers = roomLayerMap.get(name)?.sort((a, b) => a - b) || [];
-                            return layers.length > 0 ? `(${layers.join(', ')})` : null;
-                          }).filter(Boolean); // Remove nulls if a room has no layers
+                                  // Create the layer string groups corresponding to the room order
+                                  const layerGroups = uniqueRoomNames.map(name => {
+                                    const layers = roomLayerMap.get(name)?.sort((a, b) => a - b) || [];
+                                    return layers.length > 0 ? `(${layers.join(', ')})` : null;
+                                  }).filter(Boolean);
 
-                          return (
-                            <>
-                              {uniqueRoomNames.length > 0 && (
-                                <p>Rooms: {uniqueRoomNames.join(', ')}</p>
+                                  return (
+                                    <div className="mb-1">
+                                      {uniqueRoomNames.length > 0 && (
+                                        <div>
+                                          <p className="font-medium text-gray-600">Rooms:</p>
+                                          <ul className="list-disc list-inside text-xs text-gray-500 ml-1">
+                                            {tileItems.map((item, idx) => {
+                                              if (!item.room) return null;
+                                              // Use a unique key combining room id and index
+                                              return (
+                                                <li key={`${item.room.name}-${idx}`}>
+                                                  {item.room.name}
+                                                  {item.room.measurements && item.room.measurements.length > 0 ? (
+                                                    <div className="ml-2 mt-1 space-y-0.5">
+                                                      {item.room.measurements.map((m: any, mIdx: number) => (
+                                                        <div key={mIdx} className="text-[10px] text-gray-500">
+                                                          Shape {mIdx + 1}: {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {item.room.unit}
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  ) : (
+                                                    <span className="text-gray-400 ml-1">
+                                                      ({formatDimensions(item.room.length, item.room.width, item.room.unit as Unit)})
+                                                    </span>
+                                                  )}
+                                                  {item.layer_number && ` - L${item.layer_number}`}
+                                                </li>
+                                              );
+                                            })}
+                                          </ul>
+                                        </div>
+                                      )}
+                                      {layerGroups.length > 0 && (
+                                        <p className="mt-1"><span className="font-medium text-gray-600">Layers Summary:</span> {layerGroups.join(', ')}</p>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+
+                              {/* Display Staircases if any */}
+                              {calc.staircases.length > 0 && (
+                                <div className="flex flex-wrap gap-2 items-center text-orange-700">
+                                  <div className="flex items-center gap-1">
+                                    <Footprints className="h-3 w-3" />
+                                    <span className="font-medium">Staircases:</span>
+                                  </div>
+                                  {calc.staircases.map((s, idx) => (
+                                    <span key={idx} className="bg-orange-50 px-1.5 py-0.5 rounded text-xs border border-orange-200">
+                                      {s.name} ({s.type === 'step' ? 'Steps' : 'Risers'})
+                                    </span>
+                                  ))}
+                                </div>
                               )}
-                              {layerGroups.length > 0 && (
-                                <p>Layers: {layerGroups.join(', ')}</p>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
-                    </p>
-                  </div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
+                          </p>
+                        </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Layers className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <p className="text-gray-600">Total Area</p>
-                        <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          {/* Show Total Area only if there are rooms involved */}
+                          {calc.totalArea > 0 && (
+                            <div className="flex items-center gap-2">
+                              <Layers className="h-4 w-4 text-gray-400" />
+                              <div>
+                                <p className="text-gray-600">Total Area</p>
+                                <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
+                              </div>
+                            </div>
+                          )}
 
-                    <div className="flex items-center gap-2">
-                      <Calculator className="h-4 w-4 text-green-600" />
-                      <div>
-                        <p className="text-gray-600">Tiles Required</p>
-                        <p className="font-medium text-green-600">
-                          {calc.tilesNeeded} tiles
-                          {(() => {
-                            const leftoverTiles = calc.tilesNeeded % (calc.tile.pieces_per_box || 1);
-                            const fullBoxes = Math.floor(calc.tilesNeeded / (calc.tile.pieces_per_box || 1));
-                            return (
-                              <span className="text-xs text-gray-500 block">
-                                ({fullBoxes} box{fullBoxes !== 1 ? 'es' : ''}{leftoverTiles > 0 ? ` and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}` : ''})
-                                <br />(+{wastagePercentage}% wastage)
-                              </span>
-                            );
-                          })()}
-                        </p>
-
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-blue-600" />
-                      <div>
-                        <p className="text-gray-600">Boxes Needed</p>
-                        <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
-                        {(() => {
-                          const tileItem = quotationItems?.find(item => item.tile_id === calc.tile.id);
-                          const customBoxAdjustment = tileItem?.custom_boxes || 0;
-                          if (customBoxAdjustment !== 0) {
-                            return (
-                              <p className="text-xs text-orange-600">
-                                {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
+                          <div className="flex items-center gap-2">
+                            <Calculator className="h-4 w-4 text-green-600" />
+                            <div>
+                              <p className="text-gray-600">Tiles Required</p>
+                              <p className="font-medium text-green-600">
+                                {calc.tilesNeeded} tiles
+                                {(() => {
+                                  const leftoverTiles = calc.tilesNeeded % (calc.tile.pieces_per_box || 1);
+                                  const fullBoxes = Math.floor(calc.tilesNeeded / (calc.tile.pieces_per_box || 1));
+                                  return (
+                                    <span className="text-xs text-gray-500 block">
+                                      ({fullBoxes} box{fullBoxes !== 1 ? 'es' : ''}{leftoverTiles > 0 ? ` and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}` : ''})
+                                      <br />(+{wastagePercentage}% wastage)
+                                    </span>
+                                  );
+                                })()}
                               </p>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <IndianRupee className="h-4 w-4 text-purple-600" />
-                      <div>
-                        <p className="text-gray-600">Total Cost</p>
-                        <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-blue-600" />
+                            <div>
+                              <p className="text-gray-600">Boxes Needed</p>
+                              <p className="font-medium text-blue-600">{calc.boxesNeeded}</p>
+                              {(() => {
+                                const tileItem = quotationItems?.find(item => item.tile_id === calc.tile.id);
+                                const customBoxAdjustment = tileItem?.custom_boxes || 0;
+                                if (customBoxAdjustment !== 0) {
+                                  return (
+                                    <p className="text-xs text-orange-600">
+                                      {customBoxAdjustment > 0 ? '+' : ''}{customBoxAdjustment} manual adjustment
+                                    </p>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <IndianRupee className="h-4 w-4 text-purple-600" />
+                            <div>
+                              <p className="text-gray-600">Total Cost</p>
+                              <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
+
+              {/* Product Calculations Section */}
+              {calculations.some(c => c.type === 'product') && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg text-gray-800 border-b pb-2">Product Selection</h3>
+                  {calculations.filter(c => c.type === 'product').map((calc) => {
+                    const productCalc = calc as ProductCalculation;
+                    return (
+                      <div key={productCalc.product.id} className="border rounded-lg p-4 bg-gray-50 border-blue-100">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold text-gray-800">{productCalc.product.name}</h4>
+                            <p className="text-sm text-gray-600">Code: {productCalc.product.code || 'N/A'}</p>
+                            <div className="text-xs text-blue-600 font-medium mt-1">Product Selection</div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-gray-800">₹{productCalc.totalPrice.toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">₹{productCalc.product.price?.toLocaleString()} / unit</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-3 bg-white rounded border border-gray-100 px-3">
+                          <div>
+                            <span className="text-xs text-gray-500 block">Quantity</span>
+                            <span className="font-medium text-sm">{productCalc.quantity} units</span>
+                          </div>
+                          <div className="col-span-2"></div>
+                          <div>
+                            <span className="text-xs text-gray-500 block">Total</span>
+                            <span className="font-medium text-sm">₹{productCalc.totalPrice.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="border-t pt-4 mt-4">
                 <div className="flex justify-between items-center">
@@ -473,6 +653,6 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
           )}
         </CardContent>
       </Card>
-    </div>
+    </div >
   );
 };

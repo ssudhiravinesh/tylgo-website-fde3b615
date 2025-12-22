@@ -1,19 +1,44 @@
 import { ArrowRight, CheckCircle2, LayoutGrid, ShieldCheck, Zap } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../integrations/supabase/client";
 
 export default function LandingPage() {
     const [email, setEmail] = useState("");
+    const [brands, setBrands] = useState<{ id: string, name: string }[]>([]);
+    const [selectedBrandId, setSelectedBrandId] = useState("");
     const [loading, setLoading] = useState(false);
+    const [loadingBrands, setLoadingBrands] = useState(true);
+
+    // Fetch brands on mount
+    useEffect(() => {
+        const fetchBrands = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('brands')
+                    .select('id, name')
+                    .order('name');
+
+                if (error) throw error;
+                if (data) setBrands(data);
+            } catch (err) {
+                console.error("Error fetching brands:", err);
+            } finally {
+                setLoadingBrands(false);
+            }
+        };
+
+        fetchBrands();
+    }, []);
 
     const handleFindShowroom = async (email: string) => {
-        if (!email) return;
+        if (!email || !selectedBrandId) return;
         setLoading(true);
         try {
-            // UPDATED: Use the secure RPC function instead of direct table select
-            const { data: subdomain, error } = await supabase
-                .rpc('get_showroom_subdomain_by_email' as any, {
-                    lookup_email: email
+            // UPDATED: Use the new RPC function to check brand + email association
+            const { data: result, error } = await supabase
+                .rpc('check_brand_email_association' as any, {
+                    lookup_email: email,
+                    brand_id: selectedBrandId
                 });
 
             if (error) {
@@ -22,8 +47,15 @@ export default function LandingPage() {
                 return;
             }
 
+            // The RPC returns a table/array of rows. We expect at most one row if found.
+            // Supabase RPC single-row return might need .single() or access first element depending,
+            // but for 'returns table', it returns an array of objects by default in JS client.
+            // Let's assume it returns { subdomain }[] 
+            const foundRecord = Array.isArray(result) ? result[0] : result;
+            const subdomain = foundRecord?.subdomain;
+
             if (!subdomain) {
-                alert("No account found with this email. Please check the spelling.");
+                alert("No account found for this email under the selected brand.");
                 setLoading(false);
                 return;
             }
@@ -41,8 +73,6 @@ export default function LandingPage() {
             }
 
         } catch (err) {
-            console.error("Unexpected error:", err);
-            alert("An error occurred while finding your showroom.");
         } finally {
             setLoading(false);
         }
@@ -99,34 +129,65 @@ export default function LandingPage() {
                         </p>
 
                         {/* Find My Showroom Form */}
-                        <div className="w-full max-w-md mx-auto mt-8">
+                        <div className="w-full max-w-md mx-auto mt-8 bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-white/50 shadow-sm">
                             <form
                                 onSubmit={(e) => { e.preventDefault(); handleFindShowroom(email); }}
-                                className="flex flex-col sm:flex-row gap-4"
+                                className="flex flex-col gap-4"
                             >
-                                <input
-                                    type="email"
-                                    placeholder="Enter your work email"
-                                    className="flex-1 px-6 py-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-lg"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                    autoFocus
-                                />
+                                {/* Brand Selection */}
+                                <div className="text-left">
+                                    <label htmlFor="brand-select" className="block text-sm font-medium text-slate-700 mb-1 ml-1">
+                                        Select your brand
+                                    </label>
+                                    <select
+                                        id="brand-select"
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-base appearance-none cursor-pointer"
+                                        value={selectedBrandId}
+                                        onChange={(e) => setSelectedBrandId(e.target.value)}
+                                        required
+                                        disabled={loadingBrands}
+                                    >
+                                        <option value="" disabled>
+                                            {loadingBrands ? "Loading brands..." : "Select a brand"}
+                                        </option>
+                                        {brands.map((brand) => (
+                                            <option key={brand.id} value={brand.id}>
+                                                {brand.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Email Input */}
+                                <div className="text-left">
+                                    <label htmlFor="email-input" className="block text-sm font-medium text-slate-700 mb-1 ml-1">
+                                        Work Email
+                                    </label>
+                                    <input
+                                        id="email-input"
+                                        type="email"
+                                        placeholder="Enter your work email"
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-base"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
                                 <button
                                     type="submit"
-                                    disabled={loading}
-                                    className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap min-w-[160px]"
+                                    disabled={loading || !selectedBrandId || !email}
+                                    className="w-full px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                                 >
                                     {loading ? (
-                                        <span className="animate-pulse">Finding...</span>
+                                        <span className="animate-pulse">Verifying...</span>
                                     ) : (
-                                        <>Find <ArrowRight className="w-4 h-4" /></>
+                                        <>Continue to Login <ArrowRight className="w-4 h-4" /></>
                                     )}
                                 </button>
                             </form>
                             <div className="mt-4 text-sm text-slate-500">
-                                Enter the email associated with your Tylgo account.
+                                Select your brand and enter the email associated with your account.
                             </div>
                         </div>
 

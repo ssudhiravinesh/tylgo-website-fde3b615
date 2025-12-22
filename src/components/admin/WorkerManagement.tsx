@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Search } from "lucide-react";
@@ -23,15 +24,15 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
   const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const { 
-    workers, 
-    workerQuotations, 
+  const {
+    workers,
+    workerQuotations,
     quotationStats,
-    isLoading, 
+    isLoading,
     resetPasswordMutation,
     addWorkerMutation,
     deleteWorkerMutation,
-    fetchWorkerQuotations 
+    fetchWorkerQuotations
   } = useWorkerManagement();
 
   const filteredWorkers = workers?.filter(worker =>
@@ -55,10 +56,10 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
 
   const handleAddWorker = (data: { name: string; email: string; password: string }) => {
     addWorkerMutation.mutate(
-      { 
-        name: data.name, 
-        email: data.email, 
-        password: data.password 
+      {
+        name: data.name,
+        email: data.email,
+        password: data.password
       },
       {
         onSuccess: () => {
@@ -87,11 +88,7 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-600">Loading workers...</div>
-      </div>
-    );
+    return <GridLoader loadingText="Loading workers..." />;
   }
 
   return (

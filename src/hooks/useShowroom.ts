@@ -5,6 +5,7 @@ export interface Showroom {
   id: string;
   name: string;
   subdomain: string;
+  brand_id?: string;
   created_at: string;
 }
 
@@ -57,4 +58,18 @@ export const getShowroomId = async (): Promise<string | null> => {
     .single();
 
   return profile?.showroom_id || null;
+};
+
+// Helper function to get brand_id for brand-level tile/product filtering
+export const getBrandId = async (): Promise<string | null> => {
+  const showroomId = await getShowroomId();
+  if (!showroomId) return null;
+
+  const { data: showroom } = await supabase
+    .from('showrooms')
+    .select('brand_id')
+    .eq('id', showroomId)
+    .single();
+
+  return showroom?.brand_id || null;
 };

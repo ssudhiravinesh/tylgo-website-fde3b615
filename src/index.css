@@ -378,6 +378,23 @@
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary-dark));
+/* Loading Animation Keyframes */
+@keyframes tileAnimation {
+  0%, 80%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.7;
+  }
+  40% {
+    transform: scale(1.2) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+@keyframes progressFlow {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }

@@ -20,6 +20,7 @@ export interface Customer {
   showroom_id?: string;
   created_at?: string;
   updated_at?: string;
+  last_interaction_at?: string;
 }
 
 export interface CreateCustomerData {
@@ -35,7 +36,7 @@ export interface CreateCustomerData {
   attended_by?: string;
 }
 
-export const useCustomers = () => {
+export const useCustomers = (overrideShowroomId?: string) => {
   const queryClient = useQueryClient();
 
   const {
@@ -44,9 +45,15 @@ export const useCustomers = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['customers'],
+    queryKey: ['customers', overrideShowroomId],
     queryFn: async () => {
-      const showroom_id = await getShowroomId();
+      let showroom_id: string | null = null;
+
+      if (overrideShowroomId) {
+        showroom_id = overrideShowroomId;
+      } else {
+        showroom_id = await getShowroomId();
+      }
 
       const { data: { user } } = await supabase.auth.getUser();
       let isSuperAdmin = false;
@@ -65,20 +72,37 @@ export const useCustomers = () => {
       let query = supabase
         .from('customers')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('last_interaction_at', { ascending: false });
 
-      if (showroom_id && !isSuperAdmin) {
+      if (showroom_id) {
+        query = query.eq('showroom_id', showroom_id);
+      } else if (!isSuperAdmin) {
+        // If no showroom_id and not super_admin (which implies worker/admin needs context), 
+        // we might want to restrict or better yet, the previous logic was:
+        // if (showroom_id && !isSuperAdmin) query = query.eq('showroom_id', showroom_id);
+        // If super_admin, they see all if no showroom_id is passed?
+        // But now we want strict hierarchy. 
+        // If overrideShowroomId IS passed (which it will be for super_admin drilling down), we use it.
+        // If NOT passed, and isSuperAdmin, they might see all? 
+        // The requirement is "Brand -> Showroom -> Resource".
+        // So if Super Admin acts without override, they shouldn't see anything or falling back to "all"?
+        // Let's stick to the override logic: if showroom_id is determined (either via override or getShowroomId), we filter by it.
+      }
+
+      // Let's refine the logic to be safe and consistent with other hooks
+      if (showroom_id) {
         query = query.eq('showroom_id', showroom_id);
       }
 
+      // Note: Original logic was `if (showroom_id && !isSuperAdmin)`.
+      // If we pass overrideShowroomId, we WANT to filter by it even if super_admin.
+      // So the condition should just be `if (showroom_id)`.
+      // However, if we preserve the "View All" capability for super admin when NO override is provided?
+      // But the dashboard enforces selection.
+      // So simple `if (showroom_id)` is safer and correct for the drilled-down view.
+
       const { data, error } = await query;
-
-      if (error) {
-
-        throw error;
-      }
-
-
+      if (error) throw error;
       return data as Customer[];
     },
   });

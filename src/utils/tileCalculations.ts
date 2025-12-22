@@ -74,18 +74,18 @@ export const formatTileBreakdown = (
   wastagePercentage: number
 ): string => {
   const parts: string[] = [];
-  
+
   if (fullBoxes > 0) {
     parts.push(`${fullBoxes} ${fullBoxes === 1 ? 'box' : 'boxes'}`);
   }
-  
+
   if (leftoverTiles > 0) {
     parts.push(`${leftoverTiles} ${leftoverTiles === 1 ? 'tile' : 'tiles'}`);
   }
-  
+
   const breakdown = parts.length > 0 ? `(${parts.join(' and ')})` : '';
   const wastageText = wastagePercentage > 0 ? ` (+${wastagePercentage}% wastage)` : '';
-  
+
   return `${rawTilesNeeded} ${rawTilesNeeded === 1 ? 'tile' : 'tiles'} ${breakdown}${wastageText}`;
 };
 
@@ -109,7 +109,7 @@ export const calculateTileRequirements = (
   floorSelections.forEach(fs => {
     const room = rooms.find(r => r.id === fs.roomId);
     const tile = tiles.find(t => t.id === fs.tileId);
-    
+
     if (!room || !tile) return;
 
     if (!tileCalculations[fs.tileId]) {
@@ -158,7 +158,7 @@ export const calculateTileRequirements = (
     Object.entries(layersByTile).forEach(([tileId, layerNumbers]) => {
       const tileKey = `${tileId}_wall`;
       const tile = tiles.find(t => t.id === tileId);
-      
+
       if (!tile) return;
 
       if (!tileCalculations[tileKey]) {
@@ -189,7 +189,7 @@ export const calculateTileRequirements = (
   // Calculate tiles, boxes, and pricing for each tile
   Object.values(tileCalculations).forEach(calc => {
     const tile = calc.tile;
-    
+
     // Validate tile data
     if (!tile || !tile.size_length || !tile.size_breadth || !tile.pieces_per_box || !tile.price_per_box) {
       console.warn('Invalid tile data:', tile);
@@ -198,7 +198,7 @@ export const calculateTileRequirements = (
 
     const pricePerBox = parseFloat(tile.price_per_box.toString());
     const piecesPerBox = parseInt(tile.pieces_per_box.toString());
-    
+
     if (isNaN(pricePerBox) || isNaN(piecesPerBox) || piecesPerBox <= 0) {
       console.warn('Invalid tile pricing data:', tile);
       return;
@@ -208,7 +208,7 @@ export const calculateTileRequirements = (
     const tileLengthFt = (parseFloat(tile.size_length.toString()) || 0) / 304.8;
     const tileBreadthFt = (parseFloat(tile.size_breadth.toString()) || 0) / 304.8;
     const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-    
+
     if (tileAreaSqFt <= 0) {
       console.warn('Invalid tile area:', tile);
       return;
@@ -216,15 +216,15 @@ export const calculateTileRequirements = (
 
     // Step 1: Calculate exact tiles needed (total area ÷ single tile area)
     calc.rawTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-    
+
     // Step 2: Add wastage percentage to get final tiles needed
     calc.tilesNeeded = Math.ceil(calc.rawTilesNeeded * (1 + (validWastage / 100)));
-    
+
     // Step 3: Calculate box breakdown
     calc.fullBoxes = Math.floor(calc.rawTilesNeeded / piecesPerBox);
     calc.leftoverTiles = calc.rawTilesNeeded % piecesPerBox;
     calc.boxesNeeded = Math.ceil(calc.tilesNeeded / piecesPerBox);
-    
+
     // Step 4: Calculate total price
     calc.totalPrice = calc.boxesNeeded * pricePerBox;
   });
@@ -286,14 +286,14 @@ export const prepareQuotationItems = (
   floorSelections.forEach(fs => {
     const room = rooms.find(r => r.id === fs.roomId);
     const tile = tiles.find(t => t.id === fs.tileId);
-    
+
     if (!room || !tile) return;
 
     const roomAreaInSqFt = calculateAreaInSquareFeet(room.length, room.width, room.unit);
-    
+
     // Find the corresponding calculation
     const calc = calculations.find(c => c.tile.id === fs.tileId && !c.isWallTile);
-    
+
     // Calculate proportional price based on this room's area vs total area for this tile
     let roomPrice = 0;
     if (calc && calc.totalArea > 0) {
@@ -339,16 +339,16 @@ export const prepareQuotationItems = (
 
       // Find the corresponding wall calculation  
       const calc = calculations.find(c => c.tile.id === layer.tileId && c.isWallTile);
-      
+
       // Calculate proportional price for this specific layer
       let totalPrice = 0;
-      
+
       if (calc && calc.totalArea > 0 && calc.wallLayers) {
         // Calculate price per layer based on total calculation
         const totalLayersForTile = calc.wallLayers.length;
         totalPrice = calc.totalPrice / totalLayersForTile;
       }
-      
+
       // Ensure totalPrice is a valid number
       if (isNaN(totalPrice) || !isFinite(totalPrice)) {
         totalPrice = 0;
@@ -362,15 +362,33 @@ export const prepareQuotationItems = (
         total_price: totalPrice,
         layer_number: layer.layerNumber,
       });
-      });
     });
+  });
 
   return items;
 };
 
 /**
+ * Get the number of tiles needed per step/riser based on tile aspect ratio.
+ * 1:3 ratio tiles (e.g., 300x900mm): 1 tile per unit
+ * 1:1 ratio tiles (e.g., 600x600mm): 3 tiles per unit
+ */
+const getTilesPerUnit = (tile: any): number => {
+  const length = tile.size_length || 0;
+  const breadth = tile.size_breadth || 0;
+  if (length === 0 || breadth === 0) return 1; // Default to 1 if dimensions are missing
+
+  const ratio = Math.max(length, breadth) / Math.min(length, breadth);
+  // If ratio is >= 2.5 (approximately 1:3), 1 tile per unit
+  // Otherwise (1:1 or closer), 3 tiles per unit
+  return ratio >= 2.5 ? 1 : 3;
+};
+
+/**
  * Calculate staircase tile requirements
- * Each step needs 1 tile, each riser needs 1 tile
+ * Tiles per step/riser depend on tile aspect ratio:
+ * - 1:3 tiles (e.g., 300x900): 1 tile each
+ * - 1:1 tiles (e.g., 600x600): 3 tiles each
  */
 export const calculateStaircaseTileRequirements = (
   staircaseSelections: StaircaseTileSelection[],
@@ -398,15 +416,17 @@ export const calculateStaircaseTileRequirements = (
     if (selection.stepTileId) {
       const tile = tiles.find(t => t.id === selection.stepTileId);
       if (tile) {
-        const tilesNeeded = Math.ceil(staircase.number_of_steps * (1 + validWastage / 100));
+        const tilesPerUnit = getTilesPerUnit(tile);
+        const rawTilesNeeded = staircase.number_of_steps * tilesPerUnit;
+        const tilesNeeded = Math.ceil(rawTilesNeeded * (1 + validWastage / 100));
         const piecesPerBox = parseInt(tile.pieces_per_box?.toString() || '1');
         const pricePerBox = parseFloat(tile.price_per_box?.toString() || '0');
         const boxesNeeded = Math.ceil(tilesNeeded / piecesPerBox);
         const price = boxesNeeded * pricePerBox;
-        
+
         stepTileResult = {
           tile,
-          tilesNeeded: staircase.number_of_steps,
+          tilesNeeded: rawTilesNeeded, // Store raw count (without wastage) for display
           boxesNeeded,
           totalPrice: price
         };
@@ -418,15 +438,17 @@ export const calculateStaircaseTileRequirements = (
     if (selection.riserTileId) {
       const tile = tiles.find(t => t.id === selection.riserTileId);
       if (tile) {
-        const tilesNeeded = Math.ceil(staircase.number_of_risers * (1 + validWastage / 100));
+        const tilesPerUnit = getTilesPerUnit(tile);
+        const rawTilesNeeded = staircase.number_of_risers * tilesPerUnit;
+        const tilesNeeded = Math.ceil(rawTilesNeeded * (1 + validWastage / 100));
         const piecesPerBox = parseInt(tile.pieces_per_box?.toString() || '1');
         const pricePerBox = parseFloat(tile.price_per_box?.toString() || '0');
         const boxesNeeded = Math.ceil(tilesNeeded / piecesPerBox);
         const price = boxesNeeded * pricePerBox;
-        
+
         riserTileResult = {
           tile,
-          tilesNeeded: staircase.number_of_risers,
+          tilesNeeded: rawTilesNeeded, // Store raw count (without wastage) for display
           boxesNeeded,
           totalPrice: price
         };
@@ -444,6 +466,7 @@ export const calculateStaircaseTileRequirements = (
 
   return results;
 };
+
 
 /**
  * Prepare staircase quotation items

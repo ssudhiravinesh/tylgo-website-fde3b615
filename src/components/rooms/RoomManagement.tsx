@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Home, Plus, Calendar, Edit, Trash2, Layers, Ruler, Calculator } from "lucide-react";
@@ -15,7 +16,7 @@ interface RoomManagementProps {
 export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
   const { data: rooms = [], isLoading } = useRoomsByCustomer(customerId);
   const deleteRoomMutation = useDeleteRoom();
-  
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
 
@@ -52,28 +53,28 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
   const renderRoomDimensions = (room: Room) => {
     // 1. Check for Multi-Shape Data
     if (room.measurements && room.measurements.length > 0) {
-    return (
-      <div className="space-y-2 bg-gray-50 p-2 rounded-md border border-gray-100">
-        <div className="flex items-center justify-between mb-1">
-           <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
-             <Layers className="h-3 w-3" />
-             Dimensions ({room.measurements.length} Shapes)
-           </span>
+      return (
+        <div className="space-y-2 bg-gray-50 p-3 rounded-md border border-gray-100">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+              <Layers className="h-4 w-4" />
+              Dimensions ({room.measurements.length} Shapes)
+            </span>
+          </div>
+          <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+            {room.measurements.map((m, idx) => (
+              <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1.5 last:pb-0 border-dashed">
+                <span className="text-gray-600 font-medium">Shape {idx + 1}:</span>
+                {/* FIXED: Applied formatting logic here */}
+                <span className="font-semibold text-gray-900" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                  {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
-          {room.measurements.map((m, idx) => (
-            <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1 last:pb-0 border-dashed">
-              <span className="text-gray-600 text-xs">Shape {idx + 1}:</span>
-              {/* FIXED: Applied formatting logic here */}
-              <span className="text-xs font-medium" style={{ fontFamily: "'Manrope', sans-serif", color: "black" }}>
-                {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+      );
+    }
 
     // 2. Fallback for Legacy Data
     const isFloor = room.room_type === "floor";
@@ -89,7 +90,7 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
           <span className="text-gray-500 text-xs">{lLabel}:</span>
         </div>
         <span className="font-medium text-right">{l} {room.unit}</span>
-        
+
         <div className="flex items-center gap-1">
           <Ruler className="h-3 w-3 text-gray-400" />
           <span className="text-gray-500 text-xs">{wLabel}:</span>
@@ -99,79 +100,10 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
     );
   };
 
-  const styles = {
-  tilesContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 20px)',
-    gridTemplateRows: 'repeat(3, 20px)',
-    gap: '8px',
-    justifyContent: 'center',
-    marginBottom: '24px',
-  },
-  tile: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '4px',
-    animation: 'tileAnimation 1.2s ease-in-out infinite',
-  },
-  tileBlue: {
-    backgroundColor: '#3B82F6',
-  },
-  tileBeige: {
-    backgroundColor: '#F5F5DC',
-  },
-  tileLight: {
-    backgroundColor: '#93C5FD',
-  },
-  loadingText: {
-    color: '#6B7280',
-    fontSize: '16px',
-    fontWeight: '500',
-    marginBottom: '16px',
-  },
-  progressBar: {
-    width: '200px',
-    height: '4px',
-    backgroundColor: '#E5E7EB',
-    borderRadius: '2px',
-    overflow: 'hidden',
-    margin: '0 auto',
-  },
-  progressFill: {
-    height: '100%',
-    width: '100%',
-    background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
-    backgroundSize: '200% 100%',
-    animation: 'progressFlow 2s linear infinite',
-  },
-};
-  
+
+
   if (isLoading) {
-      return (
-          <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-              {/* Tile Loading Animation */}
-              <div style={styles.tilesContainer}>
-                {[...Array(12)].map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      ...styles.tile,
-                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                      animationDelay: `${index * 0.08}s`
-                    }}
-                  />
-                ))}
-              </div>
-              
-              <p style={styles.loadingText}>Loading...</p>
-              
-              <div style={styles.progressBar}>
-                <div style={styles.progressFill}></div>
-              </div>
-            </div>
-          </div>
-        );
+    return <GridLoader loadingText="Loading..." />;
   }
 
   return (
@@ -181,8 +113,8 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
           <h1 className="text-2xl font-bold text-gray-800">Room Management</h1>
           <p className="text-gray-600">Manage room details for your projects</p>
         </div>
-        
-        <Button 
+
+        <Button
           onClick={() => setIsFormOpen(true)}
           className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
           disabled={!customerId}
@@ -203,7 +135,7 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
           <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600 mb-2">No rooms found</h3>
           <p className="text-gray-500 mb-4">Create your first room to get started</p>
-          <Button 
+          <Button
             onClick={() => setIsFormOpen(true)}
             className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
           >
@@ -246,7 +178,7 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
                   <Calendar className="h-4 w-4" />
                   Created: {new Date(room.created_at).toLocaleDateString()}
                 </div>
-                
+
                 <Badge variant="outline" className="w-fit mb-2">
                   Room ID: {room.id.slice(0, 8)}...
                 </Badge>

@@ -5,15 +5,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus, Eye, Check, PlusSquare, Ruler, Footprints } from "lucide-react";
+import { ArrowLeft, Percent, Plus, Trash2, Calculator, Package, IndianRupee, Layers, Copy, Minus, Eye, Check, PlusSquare, Ruler, Footprints, ShoppingBag } from "lucide-react";
+import { useCustomerProducts } from "@/hooks/useCustomerProducts";
 import { useTiles } from "@/hooks/useTiles";
 import { useRoomTileSelections, useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
 import { useStaircaseTileSelections, useSaveStaircaseTileSelection, useDeleteStaircaseTileSelection } from "@/hooks/useStaircases";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
+import { ProductCatalog } from "@/components/products/ProductCatalog";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
 import { WallTileSelectionPage } from "./WallTileSelectionPage";
 import { FloorTilePreview } from "@/components/tiles/FloorTilePreview";
 import { toast } from "sonner";
+import { useRoomProductSelections, useSaveRoomProductSelection, useDeleteRoomProductSelection, type RoomProductSelection } from "@/hooks/useProductSelections";
 import { formatArea, decimalFeetToFeetInches } from "@/utils/unitConversions";
 import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
 import {
@@ -53,6 +56,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   const { data: tiles = [], isLoading: tilesLoading } = useTiles();
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
   const { data: staircaseSelections = [], isLoading: staircaseSelectionsLoading } = useStaircaseTileSelections(customerId);
+  const { data: customerProducts = [] } = useCustomerProducts(customerId);
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
   const saveStaircaseSelectionMutation = useSaveStaircaseTileSelection();
@@ -67,7 +71,13 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   const [selectedFloorRooms, setSelectedFloorRooms] = useState<Set<string>>(new Set());
 
   const [showTileCatalog, setShowTileCatalog] = useState(false);
+  const [showProductCatalog, setShowProductCatalog] = useState(false);
   const [catalogContext, setCatalogContext] = useState<CatalogContext | null>(null);
+
+  // Product Selection Hooks
+  const { data: productSelections = [], isLoading: productSelectionsLoading } = useRoomProductSelections(customerId);
+  const saveProductSelectionMutation = useSaveRoomProductSelection();
+  const deleteProductSelectionMutation = useDeleteRoomProductSelection();
   const [showQuotationForm, setShowQuotationForm] = useState(false);
   const [showWallTileSelection, setShowWallTileSelection] = useState<{
     roomId: string;
@@ -645,9 +655,10 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     const hasFloorTiles = floorTileSelections.length > 0;
     const hasWallTiles = wallTileSelections.some(ws => ws.layers.length > 0);
     const hasStaircaseTiles = staircaseTileSelectionsState.some(s => s.stepTileId || s.riserTileId);
+    const hasProducts = customerProducts.length > 0 || productSelections.length > 0;
 
-    if (!hasFloorTiles && !hasWallTiles && !hasStaircaseTiles) {
-      toast.error("Please select tiles for at least one room or staircase before generating quotation");
+    if (!hasFloorTiles && !hasWallTiles && !hasStaircaseTiles && !hasProducts) {
+      toast.error("Please select tiles for at least one room, staircase or add products before generating quotation");
       return;
     }
     setShowQuotationForm(true);
@@ -704,6 +715,38 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     setCatalogContext(null);
   };
 
+
+
+  // --- Product Selection Handlers ---
+  const handleAddProduct = (roomId: string) => {
+    setCatalogContext({ roomId, isWallTile: false });
+    setShowProductCatalog(true);
+  };
+
+  const handleProductSelected = async (product: any) => {
+    if (!catalogContext?.roomId) return;
+
+    try {
+      await saveProductSelectionMutation.mutateAsync({
+        room_id: catalogContext.roomId,
+        product_id: product.id,
+        customer_id: customerId,
+        quantity: 1
+      });
+    } catch (error) {
+      console.error(error);
+    }
+
+    setShowProductCatalog(false);
+    setCatalogContext(null);
+  };
+
+  const handleRemoveProduct = async (selectionId: string) => {
+    if (confirm("Remove this product?")) {
+      await deleteProductSelectionMutation.mutateAsync({ id: selectionId, customerId });
+    }
+  };
+
   const calculations = calculateTileRequirements(
     floorTileSelections,
     wallTileSelections,
@@ -720,7 +763,9 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   );
 
   const grandTotal = calculateGrandTotal(calculations) +
-    staircaseCalculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
+    staircaseCalculations.reduce((sum, calc) => sum + calc.totalPrice, 0) +
+    productSelections.reduce((sum, cp) => sum + ((cp.product?.price || 0) * (cp.quantity || 1)), 0) +
+    customerProducts.reduce((sum, cp) => sum + ((cp.product?.price || 0) * (cp.quantity || 1)), 0);
 
   const prepareQuotationData = () => {
     const roomItems = prepareQuotationItems(
@@ -738,7 +783,25 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       getWastagePercentage()
     );
 
-    return [...roomItems, ...staircaseItems];
+    const productItemsFromRooms = productSelections.map(cp => ({
+      product_id: cp.product_id,
+      quantity: cp.quantity || 1,
+      total_price: (cp.product?.price || 0) * (cp.quantity || 1),
+      price_per_box: cp.product?.price || 0,
+      cost_price: cp.product?.price || 0,
+      display_name: cp.product?.name
+    }));
+
+    const globalProductItems = customerProducts.map(cp => ({
+      product_id: cp.product_id,
+      quantity: cp.quantity || 1,
+      total_price: (cp.product?.price || 0) * (cp.quantity || 1),
+      price_per_box: cp.product?.price || 0,
+      cost_price: cp.product?.price || 0,
+      display_name: cp.product?.name
+    }));
+
+    return [...roomItems, ...staircaseItems, ...productItemsFromRooms, ...globalProductItems];
   };
 
   const styles = {
@@ -933,6 +996,54 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                       ) : (
                         <p className="text-sm text-gray-400 italic pl-9">No tiles selected</p>
                       )}
+
+                      {/* PRODUCT SELECTION SECTION */}
+                      <div className="mt-4 pt-4 border-t border-gray-100 pl-9">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Products</h5>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleAddProduct(room.id)}
+                            className="h-6 text-xs gap-1 hover:bg-blue-50 text-blue-600"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add Product
+                          </Button>
+                        </div>
+
+                        {productSelections
+                          .filter(ps => ps.room_id === room.id)
+                          .map(ps => (
+                            <div key={ps.id} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100 mb-2 last:mb-0">
+                              <div className="flex items-center gap-3">
+                                {ps.product?.image_url ? (
+                                  <img src={ps.product.image_url} alt={ps.product.name} className="h-8 w-8 object-cover rounded" />
+                                ) : (
+                                  <div className="h-8 w-8 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                                    <Package className="h-4 w-4" />
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700">{ps.product?.name || 'Unknown'}</p>
+                                  <p className="text-xs text-gray-500">{ps.product?.code}</p>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRemoveProduct(ps.id)}
+                                className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+
+                        {productSelections.filter(ps => ps.room_id === room.id).length === 0 && (
+                          <p className="text-xs text-gray-400 italic">No products added</p>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1252,6 +1363,30 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
                       </div>
                     </div>
                   )}
+                  {/* Products Breakdown */}
+                  {(productSelections.length > 0 || customerProducts.length > 0) && (
+                    <div className="space-y-2 pt-2 border-t mt-2">
+                      <h4 className="text-sm font-semibold text-purple-800">Products:</h4>
+                      <div className="max-h-48 overflow-y-auto space-y-2">
+                        {[...productSelections, ...customerProducts].map((cp, index) => (
+                          <div key={`prod-${index}`} className="bg-purple-50/50 p-2 rounded text-xs border border-purple-100">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-purple-900 truncate">
+                                {cp.product?.name || 'Unknown'}
+                              </span>
+                              <Badge variant="outline" className="text-[10px] h-4 px-1 bg-white">
+                                {('room_id' in cp) ? rooms.find(r => r.id === cp.room_id)?.name : 'Global'}
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between text-gray-500 mt-1">
+                              <span>Qty: {cp.quantity} × ₹{(cp.product?.price || 0).toLocaleString()}</span>
+                              <span className="font-medium text-gray-900">₹{((cp.quantity || 1) * (cp.product?.price || 0)).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
@@ -1284,9 +1419,46 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         </div>
       </div>
 
+      {/* Global Products Section */}
+      {customerProducts.length > 0 && (
+        <Card className="mt-8 border-purple-200 bg-purple-50/20">
+          <CardHeader className="pb-3 border-b border-purple-100">
+            <CardTitle className="flex items-center gap-2 text-lg text-purple-800">
+              <ShoppingBag className="h-5 w-5 text-purple-600" />
+              Global Selected Products ({customerProducts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {customerProducts.map((cp) => (
+                <div key={cp.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-purple-100 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    {cp.product?.image_url ? (
+                      <img src={cp.product.image_url} alt={cp.product.name} className="h-12 w-12 object-cover rounded border" />
+                    ) : (
+                      <div className="h-12 w-12 bg-gray-100 rounded flex items-center justify-center text-gray-400 border border-dashed">
+                        <ShoppingBag className="h-6 w-6" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-gray-800">{cp.product?.name || 'Unknown'}</p>
+                      <p className="text-xs text-gray-500">{cp.product?.code}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] h-4 px-1">Qty: {cp.quantity}</Badge>
+                        <span className="text-xs font-medium text-green-600">₹{(cp.quantity * (cp.product?.price || 0)).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={showTileCatalog} onOpenChange={setShowTileCatalog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden p-0 gap-0">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>
               {catalogContext?.roomIds
                 ? `Select Tile for ${catalogContext.roomIds.length} Rooms`
@@ -1296,16 +1468,32 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
               }
             </DialogTitle>
           </DialogHeader>
-          <TileCatalog
-            isSelectionMode={true}
-            onTileSelect={handleTileSelected}
-            autoAssignmentContext={null}
-            onAutoAssignment={handleAutoAssignTile}
-            onNavigateBack={() => {
-              setShowTileCatalog(false);
-              setCatalogContext(null);
-            }}
-          />
+          <div className="flex-1 overflow-y-auto p-6 pt-2">
+            <TileCatalog
+              isSelectionMode={true}
+              onTileSelect={handleTileSelected}
+              autoAssignmentContext={null}
+              onAutoAssignment={handleAutoAssignTile}
+              onNavigateBack={() => {
+                setShowTileCatalog(false);
+                setCatalogContext(null);
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showProductCatalog} onOpenChange={setShowProductCatalog}>
+        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col overflow-hidden p-0 gap-0 w-full">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="sr-only">Select Product</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-6 pt-2">
+            <ProductCatalog
+              userRole="worker" // Or pass appropriate role
+              onSelect={handleProductSelected}
+            />
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useProducts, useDeleteProduct } from "@/hooks/useProducts";
 import { ProductCard } from "./ProductCard";
 import { AddProductDialog } from "./AddProductDialog";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +13,9 @@ import { toast } from "sonner";
 
 interface ProductCatalogProps {
     userRole: "admin" | "worker" | "super_admin";
+    onSelect?: (product: any) => void;
+    brandId?: string;
+    showroomId?: string;
 }
 
 const CATEGORIES = [
@@ -27,13 +31,14 @@ const CATEGORIES = [
     "Other"
 ];
 
-export const ProductCatalog = ({ userRole }: ProductCatalogProps) => {
-    const { data: products = [], isLoading, error, refetch } = useProducts();
+export const ProductCatalog = ({ userRole, onSelect, brandId, showroomId }: ProductCatalogProps) => {
+    const { data: products = [], isLoading, error, refetch } = useProducts(false, brandId);
     const deleteProduct = useDeleteProduct();
 
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All Categories");
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<any>(null);
 
     const filteredProducts = products.filter(product => {
         const matchesSearch =
@@ -52,7 +57,8 @@ export const ProductCatalog = ({ userRole }: ProductCatalogProps) => {
     };
 
     const handleEdit = (product: any) => {
-        toast.info("Edit functionality coming soon!");
+        setEditingProduct(product);
+        setIsAddDialogOpen(true);
     };
 
     const isAdmin = userRole === "admin" || userRole === "super_admin";
@@ -106,9 +112,7 @@ export const ProductCatalog = ({ userRole }: ProductCatalogProps) => {
 
             {
                 isLoading ? (
-                    <div className="flex justify-center py-12">
-                        <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
-                    </div>
+                    <GridLoader className="py-12 min-h-[300px]" loadingText="Loading products..." />
                 ) : error ? (
                     <div className="text-center py-12 text-red-500">
                         Failed to load products. Please try again.
@@ -137,9 +141,10 @@ export const ProductCatalog = ({ userRole }: ProductCatalogProps) => {
                             <ProductCard
                                 key={product.id}
                                 product={product}
-                                isAdmin={isAdmin}
+                                isAdmin={isAdmin && !onSelect} // Hide admin controls in selection mode
                                 onDelete={handleDelete}
                                 onEdit={handleEdit}
+                                onSelect={onSelect ? () => onSelect(product) : undefined}
                             />
                         ))}
                     </div>
@@ -148,7 +153,11 @@ export const ProductCatalog = ({ userRole }: ProductCatalogProps) => {
 
             <AddProductDialog
                 isOpen={isAddDialogOpen}
-                onClose={() => setIsAddDialogOpen(false)}
+                onClose={() => {
+                    setIsAddDialogOpen(false);
+                    setEditingProduct(null);
+                }}
+                productToEdit={editingProduct}
             />
         </div >
     );

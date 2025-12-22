@@ -8,12 +8,12 @@ const optimizeImageForPreview = (file: File): Promise<File> => {
     const img = new Image();
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    
+
     img.onload = () => {
       // Calculate optimal dimensions (max 1024px on longest side for better quality)
       const maxSize = 1024;
       let { width, height } = img;
-      
+
       if (width > height && width > maxSize) {
         height = (height * maxSize) / width;
         width = maxSize;
@@ -21,22 +21,22 @@ const optimizeImageForPreview = (file: File): Promise<File> => {
         width = (width * maxSize) / height;
         height = maxSize;
       }
-      
+
       // Set canvas size with device pixel ratio for crisp images
       const devicePixelRatio = window.devicePixelRatio || 1;
       canvas.width = width * devicePixelRatio;
       canvas.height = height * devicePixelRatio;
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
-      
+
       if (ctx) {
         ctx.scale(devicePixelRatio, devicePixelRatio);
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        
+
         // Draw image with high quality
         ctx.drawImage(img, 0, 0, width, height);
-        
+
         // Convert to high-quality blob
         canvas.toBlob((blob) => {
           if (blob) {
@@ -53,7 +53,7 @@ const optimizeImageForPreview = (file: File): Promise<File> => {
         resolve(file); // Fallback to original
       }
     };
-    
+
     img.onerror = () => resolve(file); // Fallback to original
     img.src = URL.createObjectURL(file);
   });
@@ -62,7 +62,7 @@ const optimizeImageForPreview = (file: File): Promise<File> => {
 export const useImageUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
 
-  const uploadImage = async (file: File, folder: string = 'tiles'): Promise<string | null> => {
+  const uploadImage = async (file: File, folder: string = 'tiles', bucket: string = 'tile-images'): Promise<string | null> => {
     if (!file) {
       toast.error('No file selected');
       return null;
@@ -89,10 +89,10 @@ export const useImageUpload = () => {
 
       // Create optimized image for better preview quality
       const optimizedFile = await optimizeImageForPreview(file);
-      
+
       // Upload file to Supabase Storage
       const { data, error } = await supabase.storage
-        .from('tile-images')
+        .from(bucket)
         .upload(fileName, optimizedFile, {
           cacheControl: '3600',
           upsert: false
@@ -106,7 +106,7 @@ export const useImageUpload = () => {
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('tile-images')
+        .from(bucket)
         .getPublicUrl(fileName);
 
       toast.success('Image uploaded successfully');
@@ -120,7 +120,7 @@ export const useImageUpload = () => {
     }
   };
 
-  const deleteImage = async (imageUrl: string): Promise<boolean> => {
+  const deleteImage = async (imageUrl: string, bucket: string = 'tile-images'): Promise<boolean> => {
     try {
       // Extract file path from URL
       const urlParts = imageUrl.split('/');
@@ -129,7 +129,7 @@ export const useImageUpload = () => {
       const filePath = `${folderName}/${fileName}`;
 
       const { error } = await supabase.storage
-        .from('tile-images')
+        .from(bucket)
         .remove([filePath]);
 
       if (error) {

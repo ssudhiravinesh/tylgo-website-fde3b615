@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft, Layers, Footprints } from "lucide-react";
+import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft, Layers, Footprints, ShoppingBag } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { useStaircasesByCustomer, useDeleteStaircase } from "@/hooks/useStaircases";
+import { useCustomerProducts, useDeleteCustomerProduct } from "@/hooks/useCustomerProducts";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { StaircaseFormDialog } from "./StaircaseFormDialog";
+import { ProductSelectionDialog } from "@/components/products/ProductSelectionDialog";
 import { TileSelectionStep } from "./TileSelectionStep";
 import { DirectCustomerSearch } from "./DirectCustomerSearch";
 import { DeleteRoomDialog } from "./DeleteRoomDialog";
@@ -25,18 +28,24 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId || "");
   const { data: rooms = [], isLoading: roomsLoading } = useRoomsByCustomer(selectedCustomerId);
   const { data: staircases = [], isLoading: staircasesLoading } = useStaircasesByCustomer(selectedCustomerId);
+  const { data: customerProducts = [], isLoading: productsLoading } = useCustomerProducts(selectedCustomerId);
+
   const deleteRoomMutation = useDeleteRoom();
   const deleteStaircaseMutation = useDeleteStaircase();
-  
+  const deleteProductMutation = useDeleteCustomerProduct();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isStaircaseFormOpen, setIsStaircaseFormOpen] = useState(false);
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [editingStaircase, setEditingStaircase] = useState<Staircase | null>(null);
   const [showTileSelection, setShowTileSelection] = useState(false);
+
   const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; room: Room | null }>({
     isOpen: false,
     room: null
   });
+
   const [deleteStaircaseDialog, setDeleteStaircaseDialog] = useState<{ isOpen: boolean; staircase: Staircase | null }>({
     isOpen: false,
     staircase: null
@@ -61,7 +70,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
 
   const handleConfirmDelete = async () => {
     if (!deleteDialog.room) return;
-    
+
     try {
       await deleteRoomMutation.mutateAsync(deleteDialog.room.id);
       toast.success("Room deleted successfully!");
@@ -88,7 +97,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
 
   const handleConfirmDeleteStaircase = async () => {
     if (!deleteStaircaseDialog.staircase) return;
-    
+
     try {
       await deleteStaircaseMutation.mutateAsync(deleteStaircaseDialog.staircase.id);
       toast.success("Staircase deleted successfully!");
@@ -104,9 +113,15 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     setEditingStaircase(null);
   };
 
+  const handleDeleteProduct = async (id: string) => {
+    try {
+      await deleteProductMutation.mutateAsync(id);
+    } catch (error) {
+      // Handled in mutation hook
+    }
+  };
+
   const calculateArea = (room: Room) => {
-    // If using the new aggregation logic, the length holds the total area and width is 1
-    // But for legacy rooms, we calculate L * W
     if (room.room_type === "wall") {
       return ((room.wall_height || 0) * (room.wall_length || 0)).toFixed(2);
     }
@@ -114,8 +129,8 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
   };
 
   const handleProceedToTileSelection = () => {
-    if (rooms.length === 0 && staircases.length === 0) {
-      toast.error("Please add at least one room or staircase before selecting tiles");
+    if (rooms.length === 0 && staircases.length === 0 && customerProducts.length === 0) {
+      toast.error("Please add at least one room, staircase, or product before selecting tiles");
       return;
     }
     setShowTileSelection(true);
@@ -125,34 +140,30 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     setShowTileSelection(false);
   };
 
-  // Helper to render dimensions correctly (handling both Multi-Shape and Legacy)
   const renderRoomDimensions = (room: Room) => {
-    // 1. Check for Multi-Shape Data
     if (room.measurements && room.measurements.length > 0) {
-    return (
-      <div className="space-y-2 bg-gray-50 p-2 rounded-md border border-gray-100">
-        <div className="flex items-center justify-between mb-1">
-           <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
-             <Layers className="h-3 w-3" />
-             Dimensions ({room.measurements.length} Shapes)
-           </span>
+      return (
+        <div className="space-y-2 bg-gray-50 p-2 rounded-md border border-gray-100">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+              <Layers className="h-3 w-3" />
+              Dimensions ({room.measurements.length} Shapes)
+            </span>
+          </div>
+          <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
+            {room.measurements.map((m, idx) => (
+              <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1 last:pb-0 border-dashed">
+                <span className="text-gray-600 text-xs">Shape {idx + 1}:</span>
+                <span className="text-xs font-medium" style={{ fontFamily: "'Manrope', sans-serif", color: "black" }}>
+                  {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
-          {room.measurements.map((m, idx) => (
-            <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1 last:pb-0 border-dashed">
-              <span className="text-gray-600 text-xs">Shape {idx + 1}:</span>
-              {/* FIXED: Applied formatting logic here */}
-              <span className="text-xs font-medium" style={{ fontFamily: "'Manrope', sans-serif", color: "black" }}>
-                {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+      );
+    }
 
-    // 2. Fallback for Legacy Data
     const isFloor = room.room_type === "floor";
     const l = isFloor ? room.length : room.wall_length;
     const w = isFloor ? room.width : room.wall_height;
@@ -166,7 +177,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
           <span className="text-gray-500 text-xs">{lLabel}:</span>
         </div>
         <span className="font-medium text-right">{l} {room.unit}</span>
-        
+
         <div className="flex items-center gap-1">
           <Ruler className="h-3 w-3 text-gray-400" />
           <span className="text-gray-500 text-xs">{wLabel}:</span>
@@ -176,108 +187,14 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     );
   };
 
-  const styles = {
-    tilesContainer: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 20px)',
-      gridTemplateRows: 'repeat(3, 20px)',
-      gap: '8px',
-      justifyContent: 'center',
-      marginBottom: '24px',
-    },
-    tile: {
-      width: '20px',
-      height: '20px',
-      borderRadius: '4px',
-      animation: 'tileAnimation 1.2s ease-in-out infinite',
-    },
-    tileBlue: {
-      backgroundColor: '#3B82F6',
-    },
-    tileBeige: {
-      backgroundColor: '#F5F5DC',
-    },
-    tileLight: {
-      backgroundColor: '#93C5FD',
-    },
-    loadingText: {
-      color: '#6B7280',
-      fontSize: '16px',
-      fontWeight: '500',
-      marginBottom: '16px',
-    },
-    progressBar: {
-      width: '200px',
-      height: '4px',
-      backgroundColor: '#E5E7EB',
-      borderRadius: '2px',
-      overflow: 'hidden',
-      margin: '0 auto',
-    },
-    progressFill: {
-      height: '100%',
-      width: '100%',
-      background: 'linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6)',
-      backgroundSize: '200% 100%',
-      animation: 'progressFlow 2s linear infinite',
-    },
-  };
 
-  // Add keyframe animations using a style tag
-  const styleSheet = document.createElement('style');
-  styleSheet.textContent = `
-    @keyframes tileAnimation {
-      0%, 80%, 100% {
-        transform: scale(1) rotate(0deg);
-        opacity: 0.7;
-      }
-      40% {
-        transform: scale(1.2) rotate(180deg);
-        opacity: 1;
-      }
-    }
-    
-    @keyframes progressFlow {
-      0% {
-        background-position: -200% 0;
-      }
-      100% {
-        background-position: 200% 0;
-      }
-    }
-  `;
-  document.head.appendChild(styleSheet);
 
-  
+
   if (customersLoading) {
-   return (
-          <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-              {/* Tile Loading Animation */}
-              <div style={styles.tilesContainer}>
-                {[...Array(12)].map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      ...styles.tile,
-                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                      animationDelay: `${index * 0.08}s`
-                    }}
-                  />
-                ))}
-              </div>
-              
-              <p style={styles.loadingText}>Loading...</p>
-              
-              <div style={styles.progressBar}>
-                <div style={styles.progressFill}></div>
-              </div>
-            </div>
-          </div>
-        );
+    return <GridLoader loadingText="Loading..." />;
   }
 
-  if (showTileSelection && selectedCustomerId && (rooms.length > 0 || staircases.length > 0)) {
+  if (showTileSelection && selectedCustomerId && (rooms.length > 0 || staircases.length > 0 || customerProducts.length > 0)) {
     return (
       <TileSelectionStep
         customerId={selectedCustomerId}
@@ -305,7 +222,6 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         </div>
       </div>
 
-      {/* Customer Search - Always show if no preselected customer */}
       {!preSelectedCustomerId && (
         <div className="w-full">
           <div className="mb-4">
@@ -322,54 +238,58 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         </div>
       )}
 
-      {/* Creative Empty State when no customer is selected */}
       {!preSelectedCustomerId && !selectedCustomerId && (
-        <div className="text-center py-16">
-          <div className="animate-bounce mb-6">
-            <div className="mx-auto h-24 w-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-              <Home className="h-12 w-12 text-blue-600" />
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <div className="p-1.5 bg-blue-100 rounded-full">
+              <Home className="h-4 w-4 text-blue-600" />
             </div>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">Ready to Design Amazing Spaces?</h3>
-          <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            Select a customer above to start managing their rooms and create beautiful tile layouts. 
-            Each room you add brings us closer to their dream space! 🏠✨
-          </p>
-          <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
-            <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-              <div className="text-center">
-                <div className="h-12 w-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Home className="h-6 w-6 text-white" />
-                </div>
-                <h4 className="font-semibold text-gray-800 mb-2">Room Management</h4>
-                <p className="text-sm text-gray-600">Add and manage room dimensions with precision</p>
-              </div>
-            </Card>
-            
-            <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-              <div className="text-center">
-                <div className="h-12 w-12 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Calculator className="h-6 w-6 text-white" />
-                </div>
-                <h4 className="font-semibold text-gray-800 mb-2">Smart Calculations</h4>
-                <p className="text-sm text-gray-600">Automatic tile calculations and cost estimates</p>
-              </div>
-            </Card>
-            
-            <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-              <div className="text-center">
-                <div className="h-12 w-12 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <ArrowRight className="h-6 w-6 text-white" />
-                </div>
-                <h4 className="font-semibold text-gray-800 mb-2">Seamless Flow</h4>
-                <p className="text-sm text-gray-600">From room setup to quotation in minutes</p>
-              </div>
-            </Card>
+            Recent Customers
+          </h3>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {customers.slice(0, 5).map((customer) => (
+              <Card
+                key={customer.id}
+                className="hover:shadow-lg transition-all border-gray-200 cursor-pointer group hover:border-blue-300"
+                onClick={() => setSelectedCustomerId(customer.id)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                        <span className="text-blue-600 font-semibold text-lg">
+                          {customer.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors">
+                          {customer.name}
+                        </h4>
+                        <p className="text-sm text-gray-500">{customer.mobile}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 group-hover:text-blue-600">
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {customer.address && (
+                    <div className="mt-3 text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">
+                      {customer.address}
+                    </div>
+                  )}
+
+                  <div className="mt-3 text-xs text-gray-400 flex items-center justify-between">
+                    <span>Added {new Date(customer.created_at || "").toLocaleDateString()}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Selected Customer Info & Action Buttons */}
       {selectedCustomer && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-blue-50 rounded-lg border">
           <div>
@@ -380,22 +300,29 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
             )}
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button 
+            <Button
               onClick={() => setIsFormOpen(true)}
               className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Plus className="h-4 w-4" />
               Add Room
             </Button>
-            <Button 
+            <Button
               onClick={() => setIsStaircaseFormOpen(true)}
               className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
             >
               <Footprints className="h-4 w-4" />
               Add Staircase
             </Button>
-            {(rooms.length > 0 || staircases.length > 0) && (
-              <Button 
+            <Button
+              onClick={() => setIsProductDialogOpen(true)}
+              className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              Add Product
+            </Button>
+            {(rooms.length > 0 || staircases.length > 0 || customerProducts.length > 0) && (
+              <Button
                 onClick={handleProceedToTileSelection}
                 className="gap-2 bg-green-600 hover:bg-green-700 text-white"
               >
@@ -407,36 +334,16 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         </div>
       )}
 
-      {/* Rooms Display */}
       {selectedCustomerId && (
         <>
           {roomsLoading ? (
-           <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-              <div style={styles.tilesContainer}>
-                {[...Array(12)].map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      ...styles.tile,
-                      ...styles[`tile${index % 3 === 0 ? 'Blue' : index % 3 === 1 ? 'Beige' : 'Light'}`],
-                      animationDelay: `${index * 0.08}s`
-                    }}
-                  />
-                ))}
-              </div>
-              <p style={styles.loadingText}>Loading...</p>
-              <div style={styles.progressBar}>
-                <div style={styles.progressFill}></div>
-              </div>
-            </div>
-          </div>
+            <GridLoader loadingText="Loading..." />
           ) : rooms.length === 0 ? (
             <div className="text-center py-12">
               <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-600 mb-2">No rooms found</h3>
               <p className="text-gray-500 mb-4">Add the first room for this customer</p>
-              <Button 
+              <Button
                 onClick={() => setIsFormOpen(true)}
                 className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
               >
@@ -447,8 +354,8 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rooms.map((room) => (
-                <Card 
-                  key={room.id} 
+                <Card
+                  key={room.id}
                   className="hover:shadow-lg transition-all border-gray-200"
                 >
                   <CardHeader className="pb-3">
@@ -456,7 +363,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Home className="h-5 w-5 text-blue-600" />
                         {room.name}
-                        <Badge 
+                        <Badge
                           variant={room.room_type === "floor" ? "default" : "secondary"}
                           className="text-xs"
                         >
@@ -485,10 +392,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    
-                    {/* Dynamic Dimension Rendering */}
                     {renderRoomDimensions(room)}
-                    
                     <div className="pt-2 border-t border-gray-100">
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-1">
@@ -508,7 +412,6 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
             </div>
           )}
 
-          {/* Staircases Display */}
           {staircases.length > 0 && (
             <div className="mt-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -517,8 +420,8 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {staircases.map((staircase) => (
-                  <Card 
-                    key={staircase.id} 
+                  <Card
+                    key={staircase.id}
                     className="hover:shadow-lg transition-all border-orange-200 bg-gradient-to-br from-orange-50 to-white"
                   >
                     <CardHeader className="pb-3">
@@ -576,6 +479,60 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
               </div>
             </div>
           )}
+
+          {customerProducts.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-purple-600" />
+                Products ({customerProducts.length})
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {customerProducts.map((cp) => (
+                  <Card
+                    key={cp.id}
+                    className="hover:shadow-lg transition-all border-purple-200 bg-gradient-to-br from-purple-50 to-white"
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <ShoppingBag className="h-5 w-5 text-purple-600" />
+                          {cp.product?.name || 'Unknown Product'}
+                        </CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteProduct(cp.id)}
+                          className="h-8 w-8 p-0 hover:bg-red-100"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center p-3 bg-blue-50 rounded-lg">
+                          <p className="text-2xl font-bold text-blue-600">{cp.quantity}</p>
+                          <p className="text-xs text-gray-500">Quantity</p>
+                        </div>
+                        <div className="text-center p-3 bg-purple-50 rounded-lg">
+                          <p className="text-xl font-bold text-purple-600">₹{cp.product?.price || 0}</p>
+                          <p className="text-xs text-gray-500">Unit Price</p>
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-gray-100">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Total:</span>
+                          <span className="font-semibold text-green-600">
+                            ₹{(cp.quantity * (cp.product?.price || 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -593,6 +550,12 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         customerId={selectedCustomerId}
       />
 
+      <ProductSelectionDialog
+        isOpen={isProductDialogOpen}
+        onClose={() => setIsProductDialogOpen(false)}
+        customerId={selectedCustomerId}
+      />
+
       <DeleteRoomDialog
         isOpen={deleteDialog.isOpen}
         onOpenChange={(open) => setDeleteDialog({ isOpen: open, room: null })}
@@ -600,7 +563,6 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         roomName={deleteDialog.room?.name || ""}
       />
 
-      {/* Delete Staircase Dialog */}
       <DeleteRoomDialog
         isOpen={deleteStaircaseDialog.isOpen}
         onOpenChange={(open) => setDeleteStaircaseDialog({ isOpen: open, staircase: null })}

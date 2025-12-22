@@ -1,11 +1,24 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, User, FileText, Calendar, IndianRupee, Briefcase, Star } from "lucide-react";
+import { ArrowLeft, User, FileText, Calendar, IndianRupee, Briefcase, Star, TrendingUp } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useQuotations } from "@/hooks/useQuotations";
 import { useTiles } from "@/hooks/useTiles";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from "recharts";
 
 interface CustomerAnalyticsProps {
   onBack: () => void;
@@ -16,18 +29,34 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
   const { data: quotations = [] } = useQuotations();
   const { data: tiles = [] } = useTiles();
 
-  const [topCustomers, setTopCustomers] = useState<Array<{ name: string; totalValue: number }>>([]);
+  const [topCustomers, setTopCustomers] = useState<Array<{ name: string; totalValue: number; quotationCount: number }>>([]);
   const [conversionRate, setConversionRate] = useState(0);
-  const [popularTiles, setPopularTiles] = useState<Array<{ name: string; usage: number }>>([]);
+  const [popularTiles, setPopularTiles] = useState<Array<{ code: string; usage: number; name: string }>>([]);
   const [topWorker, setTopWorker] = useState<{ name: string; closed: number; total: number } | null>(null);
 
-  useEffect(() => {
-    if (customers.length > 0 && quotations.length > 0) {
-      // Calculate top customers by total quotation value
-      const customerValues: { [customerId: string]: { name: string; totalValue: number } } = {};
+  // Data for Charts
+  const [revenueData, setRevenueData] = useState<Array<{ name: string; revenue: number }>>([]);
+  const [statusData, setStatusData] = useState<Array<{ name: string; value: number }>>([]);
 
-      // Calculate worker performance
+  useEffect(() => {
+    if (customers.length > 0 || quotations.length > 0) {
+      // --- 1. Top Customers ---
+      const customerValues: { [customerId: string]: { name: string; totalValue: number; quotationCount: number } } = {};
+
+      // --- 2. Worker Stats ---
       const workerStats: { [name: string]: { closed: number; total: number } } = {};
+
+      // --- 3. Monthly Revenue Trend (Last 6 Months) ---
+      const monthlyRevenue: { [key: string]: number } = {};
+      const today = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = d.toLocaleString('default', { month: 'short' });
+        monthlyRevenue[key] = 0;
+      }
+
+      // --- 4. Status Breakdown ---
+      const statusCounts = { approved: 0, draft: 0, closed: 0, other: 0 };
 
       quotations.forEach(quotation => {
         // Customer Stats
@@ -37,9 +66,10 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
 
         if (customer) {
           if (!customerValues[customerId]) {
-            customerValues[customerId] = { name: customer.name, totalValue: 0 };
+            customerValues[customerId] = { name: customer.name, totalValue: 0, quotationCount: 0 };
           }
           customerValues[customerId].totalValue += value;
+          customerValues[customerId].quotationCount += 1;
         }
 
         // Worker Stats
@@ -51,20 +81,35 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
         if (quotation.status === 'approved') {
           workerStats[workerName].closed += 1;
         }
+
+        // Revenue Trend
+        const qDate = new Date(quotation.created_at);
+        // Using approved quotations for revenue
+        if (quotation.status === 'approved') {
+          const key = qDate.toLocaleString('default', { month: 'short' });
+          if (monthlyRevenue[key] !== undefined) {
+            monthlyRevenue[key] += value;
+          }
+        }
+
+        // Status Breakdown
+        const status = quotation.status || 'draft';
+        if (status === 'approved') statusCounts.approved++;
+        else if (status === 'draft') statusCounts.draft++;
+        else if (status === 'closed') statusCounts.closed++;
+        else statusCounts.other++;
       });
 
+      // Set Top Customers
       const sortedCustomers = Object.values(customerValues)
         .sort((a, b) => b.totalValue - a.totalValue)
-        .slice(0, 3);
-
+        .slice(0, 5);
       setTopCustomers(sortedCustomers);
 
-      // Determine Top Worker
+      // Set Top Worker
       let bestWorker = null;
       let maxClosed = -1;
-
       Object.entries(workerStats).forEach(([name, stats]) => {
-        // Prioritize closed deals, break ties with total quotations
         if (stats.closed > maxClosed || (stats.closed === maxClosed && stats.total > (bestWorker?.total || 0))) {
           maxClosed = stats.closed;
           bestWorker = { name, ...stats };
@@ -72,21 +117,36 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
       });
       setTopWorker(bestWorker);
 
-      // Calculate conversion rate
-      const approvedQuotations = quotations.filter(q => q.status === 'approved' || q.status === 'closed').length;
-      const totalQuotations = quotations.length;
-      const rate = totalQuotations > 0 ? (approvedQuotations / totalQuotations) * 100 : 0;
+      // Set Conversion Rate
+      const approvedCount = statusCounts.approved;
+      const totalCount = quotations.length;
+      const rate = totalCount > 0 ? (approvedCount / totalCount) * 100 : 0;
       setConversionRate(rate);
 
-      // Calculate popular tiles from quotation items
-      const tileUsage: { [tileId: string]: { name: string; usage: number } } = {};
+      // Set Revenue Chart Data
+      const revChartData = Object.entries(monthlyRevenue).map(([name, revenue]) => ({
+        name,
+        revenue
+      }));
+      setRevenueData(revChartData);
 
+      // Set Status Chart Data
+      setStatusData([
+        { name: 'Approved', value: statusCounts.approved },
+        { name: 'Draft', value: statusCounts.draft },
+        { name: 'Closed', value: statusCounts.closed },
+        { name: 'Other', value: statusCounts.other },
+      ].filter(d => d.value > 0));
+
+
+      // --- 5. Popular Tiles (Fix: Use Code) ---
+      const tileUsage: { [tileId: string]: { code: string; name: string; usage: number } } = {};
       quotations.forEach(quotation => {
         quotation.quotation_items?.forEach(item => {
           const tile = tiles.find(t => t.id === item.tile_id);
           if (tile) {
             if (!tileUsage[item.tile_id]) {
-              tileUsage[item.tile_id] = { name: tile.code, usage: 0 };
+              tileUsage[item.tile_id] = { code: tile.code, name: tile.name || '', usage: 0 };
             }
             tileUsage[item.tile_id].usage += 1;
           }
@@ -95,265 +155,229 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
 
       const sortedTiles = Object.values(tileUsage)
         .sort((a, b) => b.usage - a.usage)
-        .slice(0, 2);
-
+        .slice(0, 5);
       setPopularTiles(sortedTiles);
     }
   }, [customers, quotations, tiles]);
 
   const formatCurrency = (amount: number): string => {
-    if (amount >= 100000) {
-      return `₹${(amount / 100000).toFixed(1)}L`;
-    }
-    if (amount >= 1000) {
-      return `₹${(amount / 1000).toFixed(1)}K`;
-    }
+    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
+    if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
     return `₹${amount.toLocaleString()}`;
   };
 
-  const getUsagePercentage = (usage: number, maxUsage: number): number => {
-    if (maxUsage === 0) return 0;
-    return (usage / maxUsage) * 100;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "approved":
-        return "bg-green-100 text-green-800";
-      case "draft":
-        return "bg-yellow-100 text-yellow-800";
-      case "closed":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const maxTileUsage = Math.max(...popularTiles.map(t => t.usage), 1);
+  const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6366F1'];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Customer Analytics</h1>
-          <p className="text-gray-600">Analyze customer behavior and business performance</p>
+          <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
+          <p className="text-gray-600">Overview of business performance and metrics</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
+        <Button variant="outline" onClick={onBack} className="gap-2">
+          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Top Customers - spans 2 columns */}
-        <Card className="border-gray-200 md:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">Top Customers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {topCustomers.length > 0 ? (
-                topCustomers.map((customer, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                        {index + 1}
-                      </div>
-                      <span className="font-medium">{customer.name}</span>
-                    </div>
-                    <span className="text-lg font-bold text-green-600">{formatCurrency(customer.totalValue)}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <User className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p className="text-sm">No customer data available</p>
-                  <p className="text-xs">Create quotations to see analytics</p>
-                </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-blue-600">Total Customers</p>
+              <User className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="text-2xl font-bold text-blue-900">{customers.length}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-green-600">Conversion Rate</p>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </div>
+            <div className="text-2xl font-bold text-green-900">{Math.round(conversionRate)}%</div>
+            <p className="text-xs text-green-700 mt-1">Quotations to Approved</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-purple-600">Revenue (This Month)</p>
+              <IndianRupee className="h-4 w-4 text-purple-600" />
+            </div>
+            <div className="text-2xl font-bold text-purple-900">
+              {formatCurrency(
+                quotations
+                  .filter(q => q.status === 'approved' && new Date(q.created_at).getMonth() === new Date().getMonth())
+                  .reduce((sum, q) => sum + (q.total_cost || 0), 0)
               )}
             </div>
           </CardContent>
         </Card>
-
-        {/* Conversion Rate */}
-        <Card className="border-gray-200 bg-gradient-to-br from-green-50 to-green-100">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center">
-                <Badge className="h-4 w-4 text-white" />
-              </div>
-              Conversion Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-green-600 mb-2">{Math.round(conversionRate)}%</div>
-              <p className="text-sm text-gray-600 mb-3">Quotations to Approved</p>
-              <Badge variant="outline" className="text-green-600 border-green-200">
-                {quotations.length} total quotations
-              </Badge>
+        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-amber-600">Avg. Deal Value</p>
+              <Briefcase className="h-4 w-4 text-amber-600" />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Monthly Revenue */}
-        <Card className="border-gray-200 bg-gradient-to-br from-purple-50 to-purple-100">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center">
-                <IndianRupee className="h-4 w-4 text-white" />
-              </div>
-              Monthly Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600 mb-2">
-                {formatCurrency(
-                  quotations
-                    .filter(q => q.status === 'approved' && new Date(q.created_at).getMonth() === new Date().getMonth())
-                    .reduce((sum, q) => sum + (q.total_cost || 0), 0)
-                )}
-              </div>
-              <p className="text-sm text-gray-600">This Month</p>
+            <div className="text-2xl font-bold text-amber-900">
+              {formatCurrency(
+                quotations.length > 0
+                  ? quotations.reduce((sum, q) => sum + (q.total_cost || 0), 0) / quotations.length
+                  : 0
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Second Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Popular Tiles */}
-        <Card className="border-gray-200">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Revenue Chart */}
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">Popular Tiles</CardTitle>
+            <CardTitle>Revenue Trend</CardTitle>
+            <CardDescription>Approved quotation value (Last 6 Months)</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {popularTiles.length > 0 ? (
-                popularTiles.map((tile, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-sm">{tile.code}</span>
-                      <span className="text-xs text-gray-500">{tile.usage} quotations</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${getUsagePercentage(tile.usage, maxTileUsage)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-gray-500">
-                  <div className="h-12 w-12 bg-gray-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                    <div className="h-6 w-6 bg-gray-300 rounded"></div>
-                  </div>
-                  <p className="text-sm">No tile usage data</p>
-                  <p className="text-xs">Create quotations to see popular tiles</p>
-                </div>
-              )}
-            </div>
+          <CardContent className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `₹${value >= 1000 ? value / 1000 + 'k' : value}`}
+                />
+                <Tooltip
+                  formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']}
+                  contentStyle={{ borderRadius: '8px' }}
+                />
+                <Bar dataKey="revenue" fill="#4F46E5" radius={[4, 4, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
-        <Card className="border-gray-200">
+        {/* Status Breakdown */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
+            <CardTitle>Quotation Status</CardTitle>
+            <CardDescription>Current status distribution</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {quotations.slice(0, 3).map((quotation, index) => (
-                <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                  <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{quotation.customer?.name}</p>
-                    <p className="text-xs text-gray-500">{quotation.quotation_number}</p>
-                  </div>
-                  <Badge className={`text-xs ${getStatusColor(quotation.status)}`}>
-                    {quotation.status}
-                  </Badge>
-                </div>
-              ))}
-              {quotations.length === 0 && (
-                <div className="text-center py-6 text-gray-500">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-sm">No recent activity</p>
-                  <p className="text-xs">Activities will appear here</p>
-                </div>
-              )}
-            </div>
+          <CardContent className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
+      </div>
 
-        {/* Performance Metrics - Updated with Top Worker */}
-        <Card className="border-gray-200 bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Top Customers */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Performance Metrics</CardTitle>
+            <CardTitle>Top Customers</CardTitle>
+            <CardDescription>By total quotation value</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Total Customers</span>
-                <span className="text-xl font-bold text-blue-600">{customers.length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Active Quotations</span>
-                <span className="text-xl font-bold text-yellow-600">
-                  {quotations.filter(q => q.status === 'draft').length}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Closed Deals</span>
-                <span className="text-xl font-bold text-green-600">
-                  {quotations.filter(q => q.status === 'approved').length}
-                </span>
-              </div>
-
-              {/* New Top Worker Section */}
-              {topWorker && topWorker.name !== 'Unknown' && (
-                <div className="mt-4 pt-4 border-t border-blue-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                    <span className="text-sm font-semibold text-gray-700">Star Performer</span>
+              {topCustomers.map((customer, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm text-white ${index === 0 ? 'bg-yellow-500' : 'bg-gray-400'}`}>
+                      {index + 1}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{customer.name}</p>
+                      <p className="text-xs text-gray-500">{customer.quotationCount} Quotations</p>
+                    </div>
                   </div>
+                  <span className="font-bold text-green-600">{formatCurrency(customer.totalValue)}</span>
+                </div>
+              ))}
+              {topCustomers.length === 0 && (
+                <p className="text-center text-gray-500 py-4">No data available</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Popular Tiles - Fixed to use Code */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Popular Tiles</span>
+            </CardTitle>
+            <CardDescription>Most quoted tiles by code</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {popularTiles.map((tile, index) => (
+                <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 bg-blue-200 rounded-full flex items-center justify-center">
-                        <Briefcase className="h-3 w-3 text-blue-700" />
-                      </div>
-                      <span className="text-sm font-medium text-blue-900">{topWorker.name}</span>
+                      <span className="font-mono font-medium text-sm bg-gray-100 px-2 py-1 rounded text-gray-800">
+                        {tile.code}
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-green-700">{topWorker.closed} Closed</div>
-                      <div className="text-xs text-gray-500">{topWorker.total} Total Quotes</div>
-                    </div>
+                    <span className="text-xs text-gray-500 font-medium">{tile.usage} quotes</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-indigo-500 h-full rounded-full"
+                      style={{ width: `${(tile.usage / (popularTiles[0]?.usage || 1)) * 100}%` }}
+                    ></div>
                   </div>
                 </div>
+              ))}
+              {popularTiles.length === 0 && (
+                <p className="text-center text-gray-500 py-4">No tile usage data available</p>
               )}
-
-              <div className="flex justify-between items-center pt-2 border-t border-blue-200">
-                <span className="text-sm text-gray-600">Avg. Deal Value</span>
-                <span className="text-xl font-bold text-purple-600">
-                  {formatCurrency(
-                    quotations.length > 0
-                      ? quotations.reduce((sum, q) => sum + (q.total_cost || 0), 0) / quotations.length
-                      : 0
-                  )}
-                </span>
-              </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Top Worker Spotlight (if exists) */}
+      {topWorker && topWorker.name !== 'Unknown' && (
+        <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-none">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Star className="h-5 w-5 text-yellow-300 fill-yellow-300" />
+                <span className="font-bold uppercase tracking-wider text-sm opacity-90">Star Performer</span>
+              </div>
+              <h3 className="text-2xl font-bold">{topWorker.name}</h3>
+              <p className="opacity-90 mt-1 text-sm">Leading the team with most closed deals</p>
+            </div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{topWorker.closed}</div>
+              <div className="text-sm opacity-80 uppercase tracking-wide">Closed Deals</div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
     </div>
   );
 };

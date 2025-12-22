@@ -1,6 +1,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image as ImageIcon, DollarSign, ChevronDown, FileSpreadsheet } from "lucide-react";
+import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image as ImageIcon, DollarSign, ChevronDown, FileSpreadsheet, Layers } from "lucide-react";
 import { CategoryBulkPriceUpdateDialog } from "@/components/tiles/CategoryBulkPriceUpdateDialog";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
@@ -41,10 +42,12 @@ const tileSchema = z.object({
 type TileFormData = z.infer<typeof tileSchema>;
 
 interface TileManagementProps {
-  onBack: () => void;
+  onBack?: () => void;
+  brandId?: string;
+  showroomId?: string;
 }
 
-export const TileManagement = ({ onBack }: TileManagementProps) => {
+export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingTile, setEditingTile] = useState<any>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -56,9 +59,10 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   const [categoryInput, setCategoryInput] = useState("");
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
+  const [selectedCategoryForView, setSelectedCategoryForView] = useState<string | null>(null);
   const categoryInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: tiles = [], isLoading } = useTiles();
+  const { data: tiles = [], isLoading } = useTiles(false, brandId);
   const createTileMutation = useCreateTile();
   const updateTileMutation = useUpdateTile();
   const deleteTileMutation = useDeleteTile();
@@ -81,14 +85,36 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     },
   });
 
-  const filteredTiles = tiles.filter(tile =>
-    tile.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tile.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (tile.category && tile.category.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredTiles = tiles.filter(tile => {
+    // First filter by selected category if one is set
+    if (selectedCategoryForView !== null) {
+      if (selectedCategoryForView === 'Uncategorized') {
+        if (tile.category) return false;
+      } else {
+        if (tile.category !== selectedCategoryForView) return false;
+      }
+    }
+    // Then apply search filter
+    return (
+      tile.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (tile.category && tile.category.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  });
 
   // Get unique categories for dropdown
-  const categories = Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean)));
+  const categories = Array.from(new Set(tiles.map(tile => tile.category).filter(Boolean))) as string[];
+
+  // Calculate category statistics for the grid view
+  const categoryStats = categories.map(category => ({
+    name: category,
+    count: tiles.filter(t => t.category === category).length
+  }));
+
+  // Add Uncategorized if there are tiles without category
+  const uncategorizedCount = tiles.filter(t => !t.category).length;
+  if (uncategorizedCount > 0) {
+    categoryStats.push({ name: 'Uncategorized', count: uncategorizedCount });
+  }
 
   // Filter categories based on current input
   const filteredCategories = categories.filter(cat =>
@@ -188,7 +214,7 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
     await generateQRMutation.mutateAsync(tileId);
   };
 
-  const handleDownloadQR = async (qrUrl: string, tileCode: string, tileName: string) => {
+  const handleDownloadQR = async (qrUrl: string, tileCode: string) => {
     try {
       // Create a canvas to combine QR code and tile name
       const canvas = document.createElement('canvas');
@@ -219,15 +245,11 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       // Draw QR code
       ctx.drawImage(qrImage, padding, padding, qrSize, qrSize);
 
-      // Add tile name text
+      // Add tile code text (centered, bold)
       ctx.fillStyle = 'black';
-      ctx.font = 'bold 18px Arial';
+      ctx.font = 'bold 24px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(tileCode, canvas.width / 2, qrSize + padding + 25);
-
-      // Add tile code text
-      ctx.font = '14px Arial';
-      ctx.fillText(`Code: ${tileCode}`, canvas.width / 2, qrSize + padding + 50);
+      ctx.fillText(tileCode, canvas.width / 2, qrSize + padding + 40);
 
       // Download as PNG
       const link = document.createElement('a');
@@ -238,7 +260,8 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
       document.body.removeChild(link);
 
     } catch (error) {
-
+      console.error('Error downloading QR:', error);
+      toast.error('Failed to download QR code');
     }
   };
 
@@ -326,24 +349,22 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <GridLoader loadingText="Loading tiles..." />;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Admin Panel
-        </Button>
+        {onBack && (
+          <Button
+            variant="outline"
+            onClick={onBack}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Admin Panel
+          </Button>
+        )}
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Tile Management</h1>
           <p className="text-gray-600">Manage your tile catalog database and QR codes</p>
@@ -658,167 +679,232 @@ export const TileManagement = ({ onBack }: TileManagementProps) => {
         onClose={() => setIsPriceUpdateDialogOpen(false)}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tile Database ({filteredTiles.length} tiles)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-
-                <TableHead>Tile Image</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Price Info</TableHead>
-                <TableHead>QR Code</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTiles.map((tile) => {
-                const pricePerSqFt = calculatePricePerSqFt(tile);
-                return (
-                  <TableRow key={tile.id}>
-                    <TableCell className="font-mono">
-                      {tile.code}
-                    </TableCell>
-
-                    <TableCell>
-                      {tile.image_url ? (
-                        <img
-                          src={tile.image_url}
-                          alt={tile.code}
-                          className="w-16 h-16 object-cover rounded border border-border"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 bg-muted rounded border border-border flex items-center justify-center">
-                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+      {/* Category Grid View or Tile Table View */}
+      {selectedCategoryForView === null ? (
+        /* Category Grid View */
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="h-5 w-5 text-blue-600" />
+                Tile Categories ({categoryStats.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {categoryStats.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {categoryStats.map((cat) => (
+                    <div
+                      key={cat.name}
+                      onClick={() => setSelectedCategoryForView(cat.name)}
+                      className="group cursor-pointer bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-blue-300 hover:from-blue-50 hover:to-white transition-all duration-200"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                          <Grid3X3 className="h-5 w-5 text-blue-600" />
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {tile.category && (
-                        <Badge variant="outline" className="text-xs">
-                          {tile.category}
+                        <Badge variant="secondary" className="text-sm font-semibold">
+                          {cat.count} {cat.count === 1 ? 'tile' : 'tiles'}
                         </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Ruler className="h-3 w-3" />
-                        {tile.size_length} × {tile.size_breadth} mm
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {tile.price_per_box && (
-                          <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
-                            <IndianRupee className="h-4 w-4" />
-                            {tile.price_per_box}/box
+                      <h3 className="font-semibold text-gray-800 text-lg group-hover:text-blue-700 transition-colors">
+                        {cat.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Click to view tiles
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Layers className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">No categories found</h3>
+                  <p className="text-gray-500">Add tiles with categories to see them here</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        /* Tile Table View (filtered by category) */
+        <div className="space-y-4">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSelectedCategoryForView(null);
+              setSearchTerm("");
+            }}
+            className="gap-2 mb-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Categories
+          </Button>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Grid3X3 className="h-5 w-5 text-blue-600" />
+                {selectedCategoryForView} ({filteredTiles.length} tiles)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Tile Image</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Price Info</TableHead>
+                    <TableHead>QR Code</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTiles.map((tile) => {
+                    const pricePerSqFt = calculatePricePerSqFt(tile);
+                    return (
+                      <TableRow key={tile.id}>
+                        <TableCell className="font-mono">
+                          {tile.code}
+                        </TableCell>
+                        <TableCell>
+                          {tile.image_url ? (
+                            <img
+                              src={tile.image_url}
+                              alt={tile.code}
+                              className="w-16 h-16 object-cover rounded border border-border"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-muted rounded border border-border flex items-center justify-center">
+                              <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {tile.category && (
+                            <Badge variant="outline" className="text-xs">
+                              {tile.category}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 text-sm text-gray-600">
+                            <Ruler className="h-3 w-3" />
+                            {tile.size_length} × {tile.size_breadth} mm
                           </div>
-                        )}
-                        {pricePerSqFt > 0 && (
-                          <div className="text-xs text-gray-600">
-                            ₹{pricePerSqFt.toFixed(2)}/sq ft
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {tile.price_per_box && (
+                              <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
+                                <IndianRupee className="h-4 w-4" />
+                                {tile.price_per_box}/box
+                              </div>
+                            )}
+                            {pricePerSqFt > 0 && (
+                              <div className="text-xs text-gray-600">
+                                ₹{pricePerSqFt.toFixed(2)}/sq ft
+                              </div>
+                            )}
+                            {tile.pieces_per_box && (
+                              <div className="text-xs text-gray-600">
+                                {tile.pieces_per_box} pcs/box
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {tile.pieces_per_box && (
-                          <div className="text-xs text-gray-600">
-                            {tile.pieces_per_box} pcs/box
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {tile.qr_code_url ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code)}
+                                  className="gap-1"
+                                >
+                                  <Download className="h-3 w-3" />
+                                  Download
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleGenerateQR(tile.id)}
+                                disabled={generateQRMutation.isPending}
+                                className="gap-1"
+                              >
+                                <QrCode className="h-3 w-3" />
+                                {generateQRMutation.isPending ? 'Generating...' : 'Generate QR'}
+                              </Button>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {tile.qr_code_url ? (
-                          <>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDownloadQR(tile.qr_code_url!, tile.code, tile.code)}
+                              onClick={() => openEditDialog(tile)}
                               className="gap-1"
                             >
-                              <Download className="h-3 w-3" />
-                              Download
+                              <Edit className="h-3 w-3" />
+                              Edit
                             </Button>
-                          </>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleGenerateQR(tile.id)}
-                            disabled={generateQRMutation.isPending}
-                            className="gap-1"
-                          >
-                            <QrCode className="h-3 w-3" />
-                            {generateQRMutation.isPending ? 'Generating...' : 'Generate QR'}
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditDialog(tile)}
-                          className="gap-1"
-                        >
-                          <Edit className="h-3 w-3" />
-                          Edit
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Tile</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{tile.code}"?
-                                This action cannot be undone and will remove the tile from all quotations.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteTile(tile.id)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  Delete
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Tile</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{tile.code}"?
+                                    This action cannot be undone and will remove the tile from all quotations.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteTile(tile.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
 
-          {filteredTiles.length === 0 && (
-            <div className="text-center py-12">
-              <Grid3X3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
-              <p className="text-gray-500">
-                {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first tile"}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              {filteredTiles.length === 0 && (
+                <div className="text-center py-12">
+                  <Grid3X3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
+                  <p className="text-gray-500">
+                    {searchTerm ? "Try adjusting your search terms" : "No tiles in this category yet"}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

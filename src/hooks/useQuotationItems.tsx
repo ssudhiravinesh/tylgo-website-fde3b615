@@ -7,7 +7,8 @@ export interface QuotationItem {
   id: string;
   quotation_id: string;
   room_id?: string | null;
-  tile_id: string;
+  tile_id?: string; // Made optional as products might not have tile_id
+  product_id?: string | null; // Added product_id
   area: number;
   price_per_box: number;
   total_price: number;
@@ -18,23 +19,32 @@ export interface QuotationItem {
   tile_type?: string;
   created_at: string;
   // Joined data
-  room: {
+  room?: {
     name: string;
     length: number;
     width: number;
     unit: string;
+    measurements?: any[]; // Added measurements
   };
   staircase?: {
     name: string;
     number_of_steps: number;
     number_of_risers: number;
   };
-  tile: {
+  tile?: {
     code: string;
     price_per_box?: number;
     pieces_per_box?: number;
     size_length: number;
     size_breadth: number;
+    image_url?: string; // Added image_url
+  };
+  product?: { // Added product
+    id: string; // Added id
+    name: string;
+    code?: string;
+    image_url?: string;
+    price?: number;
   };
 }
 
@@ -43,10 +53,11 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
     .from('quotation_items')
     .select(`
       *,
-      rooms!quotation_items_room_id_fkey(name, length, width, unit),
+      rooms!quotation_items_room_id_fkey(name, length, width, unit, measurements),
       staircases!quotation_items_staircase_id_fkey(name, number_of_steps, number_of_risers),
-      tiles!quotation_items_tile_id_fkey(name, code, price_per_box, pieces_per_box, size_length, size_breadth)
-    `)
+      tiles!quotation_items_tile_id_fkey(name, code, price_per_box, pieces_per_box, size_length, size_breadth, image_url),
+      products:product_id(*)
+    `) // Attempting to fetch products if the relation exists
     .eq('quotation_id', quotationId)
     .order('created_at', { ascending: true });
 
@@ -62,13 +73,9 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
       name: item.rooms.name || 'Unknown Room',
       length: item.rooms.length || 0,
       width: item.rooms.width || 0,
-      unit: item.rooms.unit || 'metre'
-    } : {
-      name: 'Unknown Room',
-      length: 0,
-      width: 0,
-      unit: 'metre'
-    };
+      unit: item.rooms.unit || 'metre',
+      measurements: item.rooms.measurements || [] // Map measurements
+    } : undefined;
 
     // Extract staircase data
     const staircaseData = item.staircases ? {
@@ -83,14 +90,18 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
       price_per_box: item.tiles.price_per_box || 0,
       pieces_per_box: item.tiles.pieces_per_box || 0,
       size_length: item.tiles.size_length || 0,
-      size_breadth: item.tiles.size_breadth || 0
-    } : {
-      code: 'N/A',
-      price_per_box: 0,
-      pieces_per_box: 0,
-      size_length: 0,
-      size_breadth: 0
-    };
+      size_breadth: item.tiles.size_breadth || 0,
+      image_url: item.tiles.image_url
+    } : undefined;
+
+    // Extract product data
+    const productData = item.products ? {
+      id: item.products.id,
+      name: item.products.name,
+      code: item.products.code,
+      image_url: item.products.image_url,
+      price: item.products.price
+    } : undefined;
 
     return {
       id: item.id,
@@ -98,6 +109,7 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
       room_id: item.room_id,
       staircase_id: item.staircase_id,
       tile_id: item.tile_id,
+      product_id: item.product_id,
       area: item.area,
       quantity: item.quantity,
       tile_type: item.tile_type,
@@ -108,7 +120,8 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
       created_at: item.created_at,
       room: roomData,
       staircase: staircaseData,
-      tile: tileData
+      tile: tileData,
+      product: productData
     };
   });
 
@@ -136,7 +149,7 @@ export const useCreateQuotationItem = () => {
 
       const { data, error } = await supabase
         .from('quotation_items')
-        .insert([{ ...itemData, showroom_id }])
+        .insert([{ ...itemData, showroom_id } as any])
         .select()
         .single();
 

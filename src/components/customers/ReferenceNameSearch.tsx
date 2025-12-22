@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, User, Phone } from "lucide-react";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { useCustomers, Customer } from "@/hooks/useCustomers";
 
 interface ReferenceNameSearchProps {
@@ -18,10 +19,10 @@ const capitalizeWords = (value: string) => {
     .join(" ");
 };
 
-export const ReferenceNameSearch = ({ 
-  value, 
-  onValueChange, 
-  onMobileChange, 
+export const ReferenceNameSearch = ({
+  value,
+  onValueChange,
+  onMobileChange,
   placeholder = "Enter reference name...",
   error
 }: ReferenceNameSearchProps) => {
@@ -33,7 +34,7 @@ export const ReferenceNameSearch = ({
 
   // Debounced search - only filter after user stops typing for 300ms
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -45,7 +46,7 @@ export const ReferenceNameSearch = ({
   // Filter customers - Use includes for better matching
   const filteredCustomers = customers.filter((customer) => {
     if (debouncedSearchTerm.length < 2) return false;
-    
+
     const searchLower = debouncedSearchTerm.toLowerCase();
     return customer.name.toLowerCase().includes(searchLower);
   });
@@ -73,13 +74,13 @@ export const ReferenceNameSearch = ({
     const capitalizedTerm = capitalizeWords(newSearchTerm);
     setSearchTerm(capitalizedTerm);
     onValueChange(capitalizedTerm);
-    
+
     // Clear selected customer when manually typing
     if (selectedCustomer) {
       setSelectedCustomer(null);
       onMobileChange(""); // Clear mobile when changing selection
     }
-    
+
     // FIXED: Show results only when 2+ characters and reset active index
     setShowResults(capitalizedTerm.length >= 2);
     setActiveIndex(-1);
@@ -112,13 +113,13 @@ export const ReferenceNameSearch = ({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setActiveIndex(prev => 
+        setActiveIndex(prev =>
           prev < filteredCustomers.length - 1 ? prev + 1 : 0
         );
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setActiveIndex(prev => 
+        setActiveIndex(prev =>
           prev > 0 ? prev - 1 : filteredCustomers.length - 1
         );
         break;
@@ -179,10 +180,7 @@ export const ReferenceNameSearch = ({
           {shouldShowResults && (
             <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-auto bg-white border border-gray-300 rounded-lg shadow-xl">
               {isLoading ? (
-                <div className="p-4 text-center text-gray-500">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                  <div className="mt-2">Loading customers...</div>
-                </div>
+                <GridLoader className="py-4 min-h-0" loadingText="Loading customers..." />
               ) : filteredCustomers.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">
                   No customers found matching "{debouncedSearchTerm}"
@@ -194,9 +192,8 @@ export const ReferenceNameSearch = ({
                     <div
                       key={customer.id}
                       onClick={() => handleSelectCustomer(customer)}
-                      className={`px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 ${
-                        index === activeIndex ? 'bg-blue-50' : 'hover:bg-gray-50'
-                      }`}
+                      className={`px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 ${index === activeIndex ? 'bg-blue-50' : 'hover:bg-gray-50'
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <User className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />

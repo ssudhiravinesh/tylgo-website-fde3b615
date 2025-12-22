@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Calculator, Package, Layers, Save, Minus, Plus, ArrowDown } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Calculator, Package, Layers, Save, Minus, Plus, ArrowDown, Footprints } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
 import { useQuotations, type Quotation } from "@/hooks/useQuotations";
 import { useQuotationItems, useUpdateQuotationItem } from "@/hooks/useQuotationItems";
 import { toast } from "sonner";
+import { GridLoader } from "@/components/ui/GridLoader";
 
 interface EditQuotationPageProps {
   quotation: Quotation;
@@ -34,6 +35,12 @@ interface TileCalculation {
     length: number;
     width: number;
     unit: string;
+  }>;
+  staircases: Array<{
+    id: string;
+    name: string;
+    type: 'step' | 'riser';
+    quantity: number;
   }>;
   totalArea: number;
   rawTilesNeeded: number;
@@ -116,6 +123,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       quotationItems.forEach((item) => {
         const tileId = item.tile_id;
         const room = item.room;
+        const staircase = item.staircase;
         const tile = item.tile;
 
         if (!tileCalculations[tileId] && tile) {
@@ -130,6 +138,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
               size_breadth: tile.size_breadth
             },
             rooms: [],
+            staircases: [],
             totalArea: 0,
             rawTilesNeeded: 0,
             tilesNeeded: 0,
@@ -140,16 +149,28 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
           };
         }
 
-        if (room && tileCalculations[tileId]) {
-          const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
-          tileCalculations[tileId].rooms.push({
-            id: item.room_id,
-            name: room.name,
-            length: room.length,
-            width: room.width,
-            unit: room.unit
-          });
-          tileCalculations[tileId].totalArea += roomAreaInSqFt;
+        if (tileCalculations[tileId]) {
+          // Handle Room Item
+          if (room && item.room_id) {
+            const roomAreaInSqFt = parseFloat(item.area?.toString()) || 0;
+            tileCalculations[tileId].rooms.push({
+              id: item.room_id,
+              name: room.name,
+              length: room.length,
+              width: room.width,
+              unit: room.unit
+            });
+            tileCalculations[tileId].totalArea += roomAreaInSqFt;
+          }
+          // Handle Staircase Item
+          else if (staircase && item.staircase_id) {
+            tileCalculations[tileId].staircases.push({
+              id: item.staircase_id,
+              name: staircase.name,
+              type: (item.tile_type as 'step' | 'riser') || 'step',
+              quantity: item.quantity || 0
+            });
+          }
         }
       });
 
@@ -161,31 +182,54 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
           const piecesPerBox = parseInt(tile.pieces_per_box.toString());
 
           if (!isNaN(pricePerBox) && !isNaN(piecesPerBox) && piecesPerBox > 0) {
-            const tileLengthFt = (tile.size_length || 0) / 304.8;
-            const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
-            const tileAreaSqFt = tileLengthFt * tileBreadthFt;
 
-            if (tileAreaSqFt > 0) {
-              const basicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
-              calc.rawTilesNeeded = basicTilesNeeded;
-              calc.tilesNeeded = Math.ceil(basicTilesNeeded * (1 + (currentWastagePercentage / 100)));
+            // --- 1. Calculate for ROOMS (Area Based) ---
+            let roomTilesNeeded = 0;
+            let roomBasicTilesNeeded = 0;
+            if (calc.totalArea > 0) {
+              const tileLengthFt = (tile.size_length || 0) / 304.8;
+              const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
+              const tileAreaSqFt = tileLengthFt * tileBreadthFt;
 
-              // Calculate box breakdown
-              calc.fullBoxes = Math.floor(basicTilesNeeded / piecesPerBox);
-              calc.leftoverTiles = basicTilesNeeded % piecesPerBox;
-
-              // Apply custom box adjustments
-              const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
-              const adjustment = customBoxAdjustments[tile.id] || 0;
-              calc.boxesNeeded = Math.max(0, baseBoxes + adjustment);
-              calc.customBoxes = adjustment;
-
-              // Update tiles needed based on actual boxes (for display purposes)
-              calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
-
-              // Recalculate total price based on current box count
-              calc.totalPrice = calc.boxesNeeded * pricePerBox;
+              if (tileAreaSqFt > 0) {
+                roomBasicTilesNeeded = Math.ceil(calc.totalArea / tileAreaSqFt);
+                roomTilesNeeded = Math.ceil(roomBasicTilesNeeded * (1 + (currentWastagePercentage / 100)));
+              }
             }
+
+            // --- 2. Calculate for STAIRCASES (Quantity Based) ---
+            let staircaseTilesNeeded = 0;
+            if (calc.staircases.length > 0) {
+              // Staircase items store pre-calculated quantity which IS RAW (confirmed by analysis).
+              // We need to apply wastage effectively.
+              const rawStaircaseTiles = calc.staircases.reduce((sum, s) => sum + s.quantity, 0);
+              staircaseTilesNeeded = Math.ceil(rawStaircaseTiles * (1 + (currentWastagePercentage / 100)));
+
+              // Add raw staircase tiles to rawTilesNeeded for display consistency
+              // (Although rawTilesNeeded usually refers to area-based raw, adding raw count here makes sense)
+              roomBasicTilesNeeded += rawStaircaseTiles;
+            }
+
+            // --- 3. Combine ---
+            calc.rawTilesNeeded = roomBasicTilesNeeded;
+            calc.tilesNeeded = roomTilesNeeded + staircaseTilesNeeded;
+
+            // Calculate box breakdown
+            // Important: Use tilesNeeded for box calculation
+            calc.fullBoxes = Math.floor(calc.tilesNeeded / piecesPerBox);
+            calc.leftoverTiles = calc.tilesNeeded % piecesPerBox;
+
+            // Apply custom box adjustments
+            const baseBoxes = Math.ceil(calc.tilesNeeded / piecesPerBox);
+            const adjustment = customBoxAdjustments[tile.id] || 0;
+            calc.boxesNeeded = Math.max(0, baseBoxes + adjustment);
+            calc.customBoxes = adjustment;
+
+            // Update tiles needed based on actual boxes (for display purposes)
+            calc.tilesNeeded = calc.boxesNeeded * piecesPerBox;
+
+            // Recalculate total price based on current box count
+            calc.totalPrice = calc.boxesNeeded * pricePerBox;
           }
         }
       });
@@ -447,10 +491,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
         <CardContent>
           {isLoadingItems ? (
-            <div className="text-center py-8">
-              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading quotation items...</p>
-            </div>
+            <GridLoader className="min-h-[200px]" loadingText="Loading quotation items..." />
           ) : calculations.length > 0 ? (
             <div className="space-y-4">
               {calculations.map((calc) => (
@@ -459,38 +500,61 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     <div>
                       <h4 className="font-semibold text-gray-800">{calc.tile.code}</h4>
                       <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
-                      <div className="text-xs text-gray-500">
-                        <p>
-                          Rooms: {calc.rooms.map(r => r.name).join(', ')}
-                        </p>
-                        {(() => {
-                          const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
-                          const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
+                      <div className="text-xs text-gray-500 space-y-1 mt-1">
+                        {/* Rooms Details */}
+                        {calc.rooms.length > 0 && (
+                          <>
+                            <p>
+                              Rooms: {calc.rooms.map(r => r.name).join(', ')}
+                            </p>
+                            {(() => {
+                              const tileItems = quotationItems?.filter(item => item.tile_id === calc.tile.id) || [];
+                              const layerNumbers = Array.from(new Set(tileItems.map(item => item.layer_number).filter(layer => layer !== null && layer !== undefined)));
 
-                          if (layerNumbers.length > 0) {
-                            return (
-                              <p>
-                                Layers: {layerNumbers.sort((a, b) => a - b).join(', ')}
-                              </p>
-                            );
-                          }
-                          return null;
-                        })()}
+                              if (layerNumbers.length > 0) {
+                                return (
+                                  <p>
+                                    Layers: {layerNumbers.sort((a, b) => a - b).join(', ')}
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </>
+                        )}
+
+                        {/* Staircase Details */}
+                        {calc.staircases.length > 0 && (
+                          <div className="flex flex-wrap gap-2 items-center text-orange-700">
+                            <div className="flex items-center gap-1">
+                              <Footprints className="h-3 w-3" />
+                              <span className="font-medium">Staircases:</span>
+                            </div>
+                            {calc.staircases.map((s, idx) => (
+                              <span key={idx} className="bg-orange-50 px-1.5 py-0.5 rounded text-xs border border-orange-200">
+                                {s.name} ({s.type === 'step' ? 'Steps' : 'Risers'})
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 mt-1">
                         Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Layers className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <p className="text-gray-600">Total Area</p>
-                        <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
+                    {/* Only show Total Area if there are rooms */}
+                    {calc.totalArea > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-gray-400" />
+                        <div>
+                          <p className="text-gray-600">Total Area</p>
+                          <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="flex items-center gap-2">
                       <Calculator className="h-4 w-4 text-green-600" />

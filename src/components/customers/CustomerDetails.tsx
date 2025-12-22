@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { User, Phone, MapPin, Calendar, ArrowLeft, Building, Square, Home } from "lucide-react";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { useRoomsByCustomer } from "@/hooks/useRooms";
 import type { Customer } from "@/hooks/useCustomers";
 import { decimalFeetToFeetInches } from "@/utils/unitConversions";
@@ -43,7 +44,7 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
                 <label className="text-sm font-medium text-gray-500">Full Name</label>
                 <p className="text-lg font-semibold text-gray-800">{customer.name}</p>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium text-gray-500">Mobile Number</label>
                 <div className="flex items-center gap-2">
@@ -52,13 +53,13 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">Customer ID</label>
                 <p className="text-sm font-mono text-gray-600">{customer.id.slice(0, 8)}...</p>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium text-gray-500">Created Date</label>
                 <div className="flex items-center gap-2">
@@ -89,14 +90,12 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
               <Building className="h-5 w-5 text-blue-600" />
               Rooms ({rooms.length})
             </div>
-          
+
           </CardTitle>
         </CardHeader>
         <CardContent>
           {roomsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            </div>
+            <GridLoader className="py-8 min-h-0" loadingText="Loading rooms..." />
           ) : rooms.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Building className="h-12 w-12 text-gray-300 mx-auto mb-4" />
@@ -120,64 +119,64 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
                         {room.room_type}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        {room.room_type === 'wall' 
+                        {room.room_type === 'wall'
                           ? `${(room.wall_height && room.wall_length ? room.wall_height * room.wall_length : room.length * room.width).toFixed(2)} ${room.unit}²`
                           : `${(room.length * room.width).toFixed(2)} ${room.unit}²`
                         }
                       </Badge>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2 text-sm text-gray-600">
                     {room.room_type === 'wall' ? (
                       <>
-                         {room.wall_height && (
-                           <div className="flex justify-between">
-                             <span>Height:</span>
-                             <span className="font-medium">
-                               {room.unit === 'feet' ? decimalFeetToFeetInches(room.wall_height) : `${room.wall_height} ${room.unit}`}
-                             </span>
-                           </div>
-                         )}
-                         {room.wall_length && (
-                           <div className="flex justify-between">
-                             <span>Length:</span>
-                             <span className="font-medium">
-                               {room.unit === 'feet' ? decimalFeetToFeetInches(room.wall_length) : `${room.wall_length} ${room.unit}`}
-                             </span>
-                           </div>
-                         )}
-                         {(!room.wall_height || !room.wall_length) && (
-                           <>
-                             <div className="flex justify-between">
-                               <span>Length:</span>
-                               <span className="font-medium">
-                                 {room.unit === 'feet' ? decimalFeetToFeetInches(room.length) : `${room.length} ${room.unit}`}
-                               </span>
-                             </div>
-                             <div className="flex justify-between">
-                               <span>Width:</span>
-                               <span className="font-medium">
-                                 {room.unit === 'feet' ? decimalFeetToFeetInches(room.width) : `${room.width} ${room.unit}`}
-                               </span>
-                             </div>
-                           </>
-                         )}
+                        {room.wall_height && (
+                          <div className="flex justify-between">
+                            <span>Height:</span>
+                            <span className="font-medium">
+                              {room.unit === 'feet' ? decimalFeetToFeetInches(room.wall_height) : `${room.wall_height} ${room.unit}`}
+                            </span>
+                          </div>
+                        )}
+                        {room.wall_length && (
+                          <div className="flex justify-between">
+                            <span>Length:</span>
+                            <span className="font-medium">
+                              {room.unit === 'feet' ? decimalFeetToFeetInches(room.wall_length) : `${room.wall_length} ${room.unit}`}
+                            </span>
+                          </div>
+                        )}
+                        {(!room.wall_height || !room.wall_length) && (
+                          <>
+                            <div className="flex justify-between">
+                              <span>Length:</span>
+                              <span className="font-medium">
+                                {room.unit === 'feet' ? decimalFeetToFeetInches(room.length) : `${room.length} ${room.unit}`}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Width:</span>
+                              <span className="font-medium">
+                                {room.unit === 'feet' ? decimalFeetToFeetInches(room.width) : `${room.width} ${room.unit}`}
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
-                         <div className="flex justify-between">
-                           <span>Length:</span>
-                           <span className="font-medium">
-                             {room.unit === 'feet' ? decimalFeetToFeetInches(room.length) : `${room.length} ${room.unit}`}
-                           </span>
-                         </div>
-                         <div className="flex justify-between">
-                           <span>Width:</span>
-                           <span className="font-medium">
-                             {room.unit === 'feet' ? decimalFeetToFeetInches(room.width) : `${room.width} ${room.unit}`}
-                           </span>
-                         </div>
+                        <div className="flex justify-between">
+                          <span>Length:</span>
+                          <span className="font-medium">
+                            {room.unit === 'feet' ? decimalFeetToFeetInches(room.length) : `${room.length} ${room.unit}`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Width:</span>
+                          <span className="font-medium">
+                            {room.unit === 'feet' ? decimalFeetToFeetInches(room.width) : `${room.width} ${room.unit}`}
+                          </span>
+                        </div>
                       </>
                     )}
                   </div>

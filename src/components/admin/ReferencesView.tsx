@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Users, Phone, User, Search } from "lucide-react";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { useCustomers } from "@/hooks/useCustomers";
 
 interface ReferencesViewProps {
@@ -27,11 +28,7 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
   );
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <GridLoader className="py-12 min-h-[300px]" loadingText="Loading references..." />;
   }
 
   return (
@@ -78,7 +75,7 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
                 {customersWithReferences.length === 0 ? "No references found" : "No matching references"}
               </h3>
               <p className="text-gray-500">
-                {customersWithReferences.length === 0 
+                {customersWithReferences.length === 0
                   ? "Customers haven't provided reference information yet"
                   : "Try adjusting your search criteria"
                 }
@@ -102,7 +99,7 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
                         <strong>Mobile:</strong> {customer.reference_mobile_no}
                       </p>
                     </div>
-                    
+
                     <div>
                       <h4 className="font-semibold text-gray-800 mb-2">Customer Information</h4>
                       <p className="text-sm text-gray-600">
@@ -112,7 +109,7 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
                         <strong>Mobile:</strong> {customer.mobile}
                       </p>
                     </div>
-                    
+
                     {customer.address && (
                       <div>
                         <h4 className="font-semibold text-gray-800 mb-2">Address</h4>
