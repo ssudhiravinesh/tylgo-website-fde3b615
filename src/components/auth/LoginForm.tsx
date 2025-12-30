@@ -91,12 +91,16 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
           }
 
           if (profile?.showroom_id !== subdomainShowroomId) {
+            console.warn(`Tenant mismatch debug: User Showroom (${profile?.showroom_id}) vs Site Showroom (${subdomainShowroomId})`);
+            console.warn(`User ID: ${result.user.id}`);
+
+            // Mismatch! access denied.
             console.warn(`Tenant mismatch: User ${profile?.showroom_id} != Site ${subdomainShowroomId}`);
 
             // Sign out immediately
             await supabase.auth.signOut();
 
-            throw new Error(`Access Denied. This account does not belong to ${showroomName || 'this showroom'}.`);
+            throw new Error(`Access Denied. Mismatch: User(${profile?.showroom_id}) vs Site(${subdomainShowroomId}). Please contact support.`);
           }
         }
 
