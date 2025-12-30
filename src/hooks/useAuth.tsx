@@ -116,11 +116,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error('Auth: Error fetching profile:', error);
+        // "Failed to fetch" is often a network blip or race condition. We shouldn't toast immediately if it's transient.
+        // But for persistent errors, we should notify.
         if (error.code === 'PGRST116') {
           console.log('Auth: Profile not found for user:', userId);
           toast.error('Profile not found. Please contact your administrator.');
-        } else {
-          toast.error('Error loading profile');
+        } else if (error.message !== 'Failed to fetch') {
+          // Only toast for non-network errors to avoid spamming "Failed to fetch" during potential re-auths
+          toast.error('Error loading profile: ' + error.message);
         }
         setLoading(false);
         return;
@@ -130,9 +133,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Auth: Profile loaded successfully for user:', userId);
         setProfile(data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth: Exception while fetching profile:', error);
-      toast.error('Error loading user profile');
+      // Suppress "Failed to fetch" toast here too
+      if (error.message !== 'Failed to fetch') {
+        toast.error('Error loading user profile');
+      }
     } finally {
       console.log('Auth: Profile fetch completed, setting loading to false');
       setLoading(false);
