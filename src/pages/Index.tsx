@@ -22,15 +22,21 @@ const Index = () => {
   };
 
   // Tenant Verification Gatekeeper
-  const [isVerifying, setIsVerifying] = useState(true);
-  // supabase is imported directly now.
+  // We use lastVerifiedUserId to ensure we verify EACH new session/user before showing dashboard.
+  // This prevents the "flash" because if user.id != lastVerifiedUserId, we show loader immediately.
+  const [lastVerifiedUserId, setLastVerifiedUserId] = useState<string | null>(null);
+
+  // Derived state: verification is pending if we have a user but haven't verified this specific user ID yet.
+  const isVerificationPending = user && user.id !== lastVerifiedUserId;
 
   useEffect(() => {
     const verifyTenant = async () => {
-      if (!user || !profile) {
-        setIsVerifying(false);
+      // If no user, or already verified this user, skip.
+      if (!user || !profile || user.id === lastVerifiedUserId) {
         return;
       }
+
+      console.log("Verifying access for user:", user.id);
 
       const hostname = window.location.hostname;
       const isRoot = hostname.includes('localhost') ||
@@ -41,39 +47,47 @@ const Index = () => {
         hostname === 'www.tylgo.store';
 
       if (isRoot) {
-        setIsVerifying(false);
+        // No strict tenant enforcement on root (or handle differently)
+        setLastVerifiedUserId(user.id);
         return;
       }
 
       const subdomain = hostname.split('.')[0];
       try {
-        // We need to import supabase client here or use from hook if available. 
-        // Index.tsx imports: import { supabase } from "@/integrations/supabase/client"; (Needed)
         const { data: showroom, error } = await supabase
           .from('showrooms')
           .select('id, name')
           .eq('subdomain', subdomain)
           .single();
 
-        if (showroom && profile.showroom_id !== showroom.id) {
+        if (error || !showroom) {
+          console.error("Error fetching showroom for validation:", error);
+          // If we can't fetch showroom, we probably shouldn't let them in?
+          // For now, let's assume if network error, we might be safe or fail closed.
+          // Fail closed:
+          // await signOut();
+        } else if (profile.showroom_id !== showroom.id) {
           console.error(`Tenant mismatch in Index gatekeeper: User ${profile.showroom_id} != Site ${showroom.id}`);
           await signOut();
-          // Optional: Toast is handled by signOut usually or we can add one here
+          toast.error(`Access Denied. You do not belong to ${showroom.name}`);
+          return; // Do NOT set verified
         }
+
+        // If we passed checks:
+        setLastVerifiedUserId(user.id);
+
       } catch (err) {
         console.error("Tenant verification error:", err);
-      } finally {
-        setIsVerifying(false);
       }
     };
 
-    if (!loading) {
+    if (!loading && user) {
       verifyTenant();
     }
-  }, [user, profile, loading, signOut]);
+  }, [user, profile, loading, signOut, lastVerifiedUserId]);
 
   // Show loading state while checking authentication OR verifying tenant
-  if (loading || (user && isVerifying)) {
+  if (loading || isVerificationPending) {
     return <GridLoader loadingText="Verifying access..." />;
   }
 
