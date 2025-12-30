@@ -81,6 +81,9 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
     return () => clearTimeout(timeoutId);
   }, [email]);
 
+  // State to store the showroom ID associated with the current subdomain
+  const [subdomainShowroomId, setSubdomainShowroomId] = useState<string | null>(null);
+
   // Check for subdomain on mount
   useEffect(() => {
     const checkSubdomain = async () => {
@@ -99,10 +102,9 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
 
         try {
           // Attempt to fetch showroom details by subdomain
-          // Note: This requires the 'showrooms' table to be readable (public or anon policy)
           const { data, error } = await supabase
             .from('showrooms')
-            .select('name')
+            .select('id, name')
             .eq('subdomain', subdomain)
             .single();
 
@@ -110,6 +112,7 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
             console.error('Error fetching showroom by subdomain:', error);
           } else if (data) {
             setShowroomName(data.name);
+            setSubdomainShowroomId(data.id);
           }
         } catch (err) {
           console.error('Subdomain lookup error:', err);
@@ -126,54 +129,36 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
 
     setIsSubmitting(true);
     try {
-      // Use the signIn method from useAuth hook
+      // 1. Perform Authentication
       const result = await signIn(email, password);
 
-      // If your signIn method returns user data, handle the session management
       if (result?.user) {
-        // Create a new session and invalidate all other sessions
-        if (onSuccessfulLogin) {
-          await onSuccessfulLogin(result.user.id);
+        // 2. Tenant Enforcement Logic
+        if (subdomainShowroomId) {
+          console.log('Verifying tenant access for showroom:', subdomainShowroomId);
+
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('showroom_id')
+            .eq('id', result.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Profile fetch error:', profileError);
+            throw new Error('Failed to verify account permissions.');
+          }
+
+          if (profile?.showroom_id !== subdomainShowroomId) {
+            console.warn(`Tenant mismatch: User ${profile?.showroom_id} != Site ${subdomainShowroomId}`);
+
+            // Sign out immediately
+            await supabase.auth.signOut();
+
+            throw new Error(`Access Denied. This account does not belong to ${showroomName || 'this showroom'}.`);
+          }
         }
 
-        toast.success('Login successful!');
-      }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Login failed');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Alternative implementation if you want to handle Supabase auth directly
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      setIsSubmitting(true);
-
-      // If you're using Supabase directly instead of the useAuth hook
-      // const { data, error } = await supabase.auth.signInWithPassword({
-      //   email,
-      //   password,
-      // });
-
-      // if (error) {
-      //   throw error;
-      // }
-
-      // if (data.user) {
-      //   // Create a new session and invalidate all other sessions
-      //   if (onSuccessfulLogin) {
-      //     await onSuccessfulLogin(data.user.id);
-      //   }
-      //   
-      //   toast.success('Login successful!');
-      // }
-
-      // For now, using the existing useAuth hook
-      const result = await signIn(email, password);
-
-      if (result?.user) {
+        // 3. Success - Proceed
         if (onSuccessfulLogin) {
           await onSuccessfulLogin(result.user.id);
         }
