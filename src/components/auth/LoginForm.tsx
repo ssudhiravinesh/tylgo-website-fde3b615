@@ -20,66 +20,8 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
   const [showroomName, setShowroomName] = useState<string | null>(null);
   const { signIn } = useAuth();
 
-  // Debounce email changes to look up showroom
-  useEffect(() => {
-    const lookupShowroom = async () => {
-      if (!email || !email.includes('@')) {
-        // Only reset if we're not on a subdomain that already set the name
-        const hostname = window.location.hostname;
-        const isRoot = hostname.includes('localhost') ||
-          hostname.endsWith('.vercel.app') ||
-          hostname === 'tylgo.com' ||
-          hostname === 'www.tylgo.com' ||
-          hostname === 'tylgo.store' ||
-          hostname === 'www.tylgo.store';
-
-        if (isRoot) {
-          setShowroomName(null);
-        }
-        return;
-      }
-
-      try {
-        console.log('Looking up showroom for:', email);
-        // Cast the RPC name to any to suppress type error until types are regenerated
-        const { data, error } = await supabase.rpc('get_showroom_details_by_email' as any, {
-          lookup_email: email
-        });
-
-        if (error) {
-          console.error('Error looking up showroom:', error);
-          // Don't reset if we are on a known subdomain? 
-          // Actually, if email lookup fails, we might want to keep the subdomain-based name if available,
-          // but usually email lookup is for finding *user's* specific showroom if different? 
-          // For now, let's play safe and not aggressive reset if we have a subdomain context, 
-          // but the original logic was to reset. 
-          // Let's stick to original logic of resetting or setting based on email unless email is empty.
-          // If email is provided but invalid/no result, maybe we should fall back to subdomain name?
-          // Simpler: Just update if data found.
-          return;
-        }
-
-        console.log('Showroom lookup result:', data);
-
-        // Cast data to expected type
-        const showrooms = data as { showroom_name: string }[] | null;
-
-        if (showrooms && showrooms.length > 0) {
-          setShowroomName(showrooms[0].showroom_name);
-        } else {
-          // If email doesn't match, maybe revert to subdomain name?
-          // For now, explicit email match takes precedence or nulls it.
-          setShowroomName(null);
-        }
-      } catch (err) {
-        console.error('Showroom lookup error:', err);
-        setShowroomName(null);
-      }
-    };
-
-    const timeoutId = setTimeout(lookupShowroom, 500);
-    return () => clearTimeout(timeoutId);
-  }, [email]);
+  // No longer looking up showroom by email.
+  // The showroom name/context is strictly derived from the subdomain logic below.
 
   // State to store the showroom ID associated with the current subdomain
   const [subdomainShowroomId, setSubdomainShowroomId] = useState<string | null>(null);

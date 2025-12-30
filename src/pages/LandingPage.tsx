@@ -3,11 +3,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "../integrations/supabase/client";
 
 export default function LandingPage() {
-    const [email, setEmail] = useState("");
+    // Removed email state
     const [brands, setBrands] = useState<{ id: string, name: string }[]>([]);
+    const [showrooms, setShowrooms] = useState<{ id: string, name: string, subdomain: string }[]>([]);
     const [selectedBrandId, setSelectedBrandId] = useState("");
+    const [selectedShowroomId, setSelectedShowroomId] = useState("");
+
     const [loading, setLoading] = useState(false);
     const [loadingBrands, setLoadingBrands] = useState(true);
+    const [loadingShowrooms, setLoadingShowrooms] = useState(false);
 
     // Fetch brands on mount
     useEffect(() => {
@@ -30,49 +34,64 @@ export default function LandingPage() {
         fetchBrands();
     }, []);
 
-    const handleFindShowroom = async (email: string) => {
-        if (!email || !selectedBrandId) return;
-        setLoading(true);
-        try {
-            // UPDATED: Use the new RPC function to check brand + email association
-            const { data: result, error } = await supabase
-                .rpc('check_brand_email_association' as any, {
-                    lookup_email: email,
-                    brand_id: selectedBrandId
-                });
-
-            if (error) {
-                console.error("RPC Error:", error);
-                alert("System error. Please try again.");
+    // Fetch showrooms when brand changes
+    useEffect(() => {
+        const fetchShowrooms = async () => {
+            if (!selectedBrandId) {
+                setShowrooms([]);
                 return;
             }
 
-            // The RPC returns a table/array of rows. We expect at most one row if found.
-            // Supabase RPC single-row return might need .single() or access first element depending,
-            // but for 'returns table', it returns an array of objects by default in JS client.
-            // Let's assume it returns { subdomain }[] 
-            const foundRecord = Array.isArray(result) ? result[0] : result;
-            const subdomain = foundRecord?.subdomain;
+            setLoadingShowrooms(true);
+            try {
+                const { data, error } = await supabase
+                    .from('showrooms')
+                    .select('id, name, subdomain')
+                    .eq('brand_id', selectedBrandId)
+                    .order('name');
+
+                if (error) throw error;
+                if (data) setShowrooms(data);
+            } catch (err) {
+                console.error("Error fetching showrooms:", err);
+            } finally {
+                setLoadingShowrooms(false);
+            }
+        };
+
+        fetchShowrooms();
+    }, [selectedBrandId]);
+
+    const handleFindShowroom = () => {
+        if (!selectedBrandId || !selectedShowroomId) return;
+        setLoading(true);
+
+        try {
+            const showroom = showrooms.find(s => s.id === selectedShowroomId);
+            const subdomain = showroom?.subdomain;
 
             if (!subdomain) {
-                alert("No account found for this email under the selected brand.");
+                alert("Showroom configuration error: Missing subdomain.");
                 setLoading(false);
                 return;
             }
 
             // 2. The Redirect Logic
             if (window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app')) {
-                // TEST MODE: Redirect to Query Parameter
+                // TEST MODE: Redirect to Query Parameter (or keep as is for legacy dev testing)
+                // Ideally dev environment should also test headers, but for localhost query param is easiest fallback
                 console.log("Development Mode: Redirecting to query param...");
                 window.location.href = `/?showroom=${subdomain}`;
             } else {
-                // PRODUCTION MODE: Redirect to Subdomain
-                // We pass the email in the URL so the login page can auto-fill it
-                const redirectUrl = `https://${subdomain}.tylgo.store/login?email=${encodeURIComponent(email)}`;
+                // PRODUCTION MODE: Redirect to Subdomain Root
+                // We do NOT pass email anymore. We do NOT append /login.
+                // We let the root redirect handling (if any) or just land on the subdomain's dashboard/login.
+                const redirectUrl = `https://${subdomain}.tylgo.store`;
                 window.location.href = redirectUrl;
             }
 
         } catch (err) {
+            console.error(err);
         } finally {
             setLoading(false);
         }
@@ -131,7 +150,7 @@ export default function LandingPage() {
                         {/* Find My Showroom Form */}
                         <div className="w-full max-w-md mx-auto mt-8 bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-white/50 shadow-sm">
                             <form
-                                onSubmit={(e) => { e.preventDefault(); handleFindShowroom(email); }}
+                                onSubmit={(e) => { e.preventDefault(); handleFindShowroom(); }}
                                 className="flex flex-col gap-4"
                             >
                                 {/* Brand Selection */}
@@ -143,7 +162,11 @@ export default function LandingPage() {
                                         id="brand-select"
                                         className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-base appearance-none cursor-pointer"
                                         value={selectedBrandId}
-                                        onChange={(e) => setSelectedBrandId(e.target.value)}
+                                        onChange={(e) => {
+                                            setSelectedBrandId(e.target.value);
+                                            setSelectedShowroomId(""); // Reset showroom on brand change
+                                            setShowrooms([]);
+                                        }}
                                         required
                                         disabled={loadingBrands}
                                     >
@@ -158,36 +181,46 @@ export default function LandingPage() {
                                     </select>
                                 </div>
 
-                                {/* Email Input */}
-                                <div className="text-left">
-                                    <label htmlFor="email-input" className="block text-sm font-medium text-slate-700 mb-1 ml-1">
-                                        Work Email
-                                    </label>
-                                    <input
-                                        id="email-input"
-                                        type="email"
-                                        placeholder="Enter your work email"
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-base"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                    />
-                                </div>
+                                {/* Showroom Selection */}
+                                {selectedBrandId && (
+                                    <div className="text-left">
+                                        <label htmlFor="showroom-select" className="block text-sm font-medium text-slate-700 mb-1 ml-1">
+                                            Select your showroom
+                                        </label>
+                                        <select
+                                            id="showroom-select"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-base appearance-none cursor-pointer"
+                                            value={selectedShowroomId}
+                                            onChange={(e) => setSelectedShowroomId(e.target.value)}
+                                            required
+                                            disabled={loadingShowrooms}
+                                        >
+                                            <option value="" disabled>
+                                                {loadingShowrooms ? "Loading showrooms..." : "Select a showroom"}
+                                            </option>
+                                            {showrooms.map((showroom) => (
+                                                <option key={showroom.id} value={showroom.id}>
+                                                    {showroom.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 <button
                                     type="submit"
-                                    disabled={loading || !selectedBrandId || !email}
+                                    disabled={loading || !selectedBrandId || !selectedShowroomId}
                                     className="w-full px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                                 >
                                     {loading ? (
-                                        <span className="animate-pulse">Verifying...</span>
+                                        <span className="animate-pulse">Redirecting...</span>
                                     ) : (
                                         <>Continue to Login <ArrowRight className="w-4 h-4" /></>
                                     )}
                                 </button>
                             </form>
                             <div className="mt-4 text-sm text-slate-500">
-                                Select your brand and enter the email associated with your account.
+                                Select your brand and showroom to proceed to your workspace.
                             </div>
                         </div>
 
