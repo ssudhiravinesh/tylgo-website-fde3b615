@@ -192,7 +192,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
 
-      toast.success('Signed in successfully!');
+      // toast.success('Signed in successfully!'); // Moved to component level for better control
       return { user: data.user };
     } catch (error: any) {
       console.error('Sign in error:', error);
@@ -222,7 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       setUser(null);
       setProfile(null);
-      toast.success('Signed out successfully!');
+      // toast.success('Signed out successfully!'); // Moved to component level
     } catch (error: any) {
       console.error('Sign out error:', error);
       if (!error.message?.includes('session') || !error.message?.includes('missing')) {

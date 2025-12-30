@@ -6,6 +6,7 @@ import { SignUpForm } from "@/components/auth/SignUpForm";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { GridLoader } from "@/components/ui/GridLoader";
+import { toast } from "sonner";
 
 const Index = () => {
   const { user, profile, signOut, loading } = useAuth();
@@ -14,6 +15,7 @@ const Index = () => {
   const handleLogoutClick = async () => {
     try {
       await signOut();
+      toast.success('Signed out successfully'); // Manual toast for intentional logout
     } catch (error) {
       console.error('Logout error:', error);
     }
