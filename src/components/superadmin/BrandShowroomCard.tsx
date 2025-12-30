@@ -28,7 +28,7 @@ const ShowroomMetricsRow = ({ showroom }: { showroom: ShowroomStats }) => {
                 </div>
                 <div>
                     <p className="font-medium text-gray-900">{showroom.name}</p>
-                    <p className="text-xs text-gray-500">{showroom.subdomain}.tylgo.com</p>
+                    <p className="text-xs text-gray-500">{showroom.subdomain}.tylgo.store</p>
                 </div>
             </div>
             <div className="flex items-center gap-4">

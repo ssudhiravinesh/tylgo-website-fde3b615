@@ -68,7 +68,7 @@ export default function LandingPage() {
             } else {
                 // PRODUCTION MODE: Redirect to Subdomain
                 // We pass the email in the URL so the login page can auto-fill it
-                const redirectUrl = `https://${subdomain}.tylgo.com/login?email=${encodeURIComponent(email)}`;
+                const redirectUrl = `https://${subdomain}.tylgo.store/login?email=${encodeURIComponent(email)}`;
                 window.location.href = redirectUrl;
             }
 

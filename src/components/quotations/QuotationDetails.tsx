@@ -39,6 +39,7 @@ interface TileCalculation {
     pieces_per_box?: number;
     size_length: number;
     size_breadth: number;
+    category?: string;
   };
   rooms: Array<{
     id: string;
@@ -123,7 +124,8 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
               price_per_box: tile.price_per_box,
               pieces_per_box: tile.pieces_per_box,
               size_length: tile.size_length,
-              size_breadth: tile.size_breadth
+              size_breadth: tile.size_breadth,
+              category: tile.category
             },
             rooms: [],
             staircases: [],
@@ -251,7 +253,8 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         size_breadth: item.tile.size_breadth,
         price_per_box: item.tile.price_per_box || 0,
         pieces_per_box: item.tile.pieces_per_box || 0,
-        image_url: item.tile.image_url
+        image_url: item.tile.image_url,
+        category: item.tile.category
       } : undefined,
       room: item.room ? {
         id: item.room_id,
@@ -260,6 +263,13 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         width: item.room.width,
         unit: item.room.unit,
         measurements: item.room.measurements
+      } : undefined,
+      product: item.product ? {
+        id: item.product.id,
+        name: item.product.name,
+        code: item.product.code || '',
+        image_url: item.product.image_url,
+        price: item.product.price
       } : undefined
     }));
 
@@ -432,6 +442,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <h4 className="font-semibold text-gray-800">{calc.tile.code}</h4>
+                            <p className="text-sm text-gray-600 font-medium mb-1">{calc.tile.category}</p>
                             <p className="text-sm text-gray-600">Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}</p>
                             <div className="text-xs text-gray-500 space-y-1 mt-1">
                               {(() => {

@@ -647,7 +647,7 @@ export const useUnifiedPDFGeneration = () => {
                       
                       <td class="tile-details">
                         <div class="tile-code">Code: ${tile.code}</div>
-                        <div class="tile-name">${tile.code}</div>
+                        <div class="tile-name">${tile.category || ''}</div>
                         <div class="tile-size">Size: ${formatTileSize(tile.size_length, tile.size_breadth)}</div>
                         <div class="tile-size">${tile.pieces_per_box} per box (${tile.pieces_per_box} pcs)</div>
                       </td>

@@ -107,6 +107,7 @@ export interface QuotationItem {
     size_breadth: number;
     price_per_box: number;
     pieces_per_box: number;
+    category?: string;
   };
   product?: {
     id: string;
@@ -356,7 +357,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
               size_length,
               size_breadth,
               price_per_box,
-              pieces_per_box
+              pieces_per_box,
+              category
             ),
             products!quotation_items_product_id_fkey (
               id,
@@ -390,7 +392,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
         }
 
         // Combine quotations with their items and map field names
-        const quotationsWithItems = quotationsData.map(quotation => ({
+        const combinedData = quotationsData.map(quotation => ({
           ...quotation,
           // Map profiles to worker to match interface
           worker: quotation.profiles,
@@ -399,7 +401,7 @@ export const useQuotations = (filters?: QuotationFilters) => {
           quotation_items: itemsData?.filter(item => item.quotation_id === quotation.id) || []
         }));
 
-        return quotationsWithItems as Quotation[];
+        return combinedData as Quotation[];
       } catch (error) {
         throw error;
       }
@@ -410,7 +412,6 @@ export const useQuotations = (filters?: QuotationFilters) => {
 
   const createQuotationMutation = useMutation({
     mutationFn: async (quotationData: CreateQuotationData) => {
-      console.log('Creating quotation with data:', quotationData);
       const { items, ...quotationFields } = quotationData;
 
       // Get showroom_id
@@ -455,7 +456,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
               size_length,
               size_breadth,
               price_per_box,
-              pieces_per_box
+              pieces_per_box,
+              category
             ),
             products!quotation_items_product_id_fkey (
               id,
@@ -528,7 +530,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
             size_length,
             size_breadth,
             price_per_box,
-            pieces_per_box
+            pieces_per_box,
+            category
           ),
           rooms!quotation_items_room_id_fkey (
             id,
@@ -671,7 +674,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
             size_length,
             size_breadth,
             price_per_box,
-            pieces_per_box
+            pieces_per_box,
+            category
           ),
           rooms!quotation_items_room_id_fkey (
             id,

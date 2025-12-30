@@ -525,10 +525,7 @@ export const TileCatalog = ({
             // Better to pass current filtered context or original?
             // Usually alphabetical nav should work on the *displayed* list or allow jumping within it.
             // But normally it's a filter. Let's pass the tiles matching the category.
-            tiles={activeCategoryFilter && activeCategoryFilter !== 'All Tiles'
-              ? tiles.filter(t => (t.category || 'Uncategorized') === activeCategoryFilter)
-              : tiles
-            }
+
             onLetterClick={setAlphabeticalIndex}
             activeLetter={alphabeticalIndex}
           />

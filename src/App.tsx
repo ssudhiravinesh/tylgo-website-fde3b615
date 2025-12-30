@@ -29,7 +29,9 @@ function App() {
     (hostname.includes('localhost') ||
       hostname.endsWith('.vercel.app') ||
       hostname === 'tylgo.com' ||
-      hostname === 'www.tylgo.com');
+      hostname === 'www.tylgo.com' ||
+      hostname === 'tylgo.store' ||
+      hostname === 'www.tylgo.store');
 
   if (isRootContext && !showroomParam && window.location.pathname === '/') {
     return <LandingPage />;

@@ -65,50 +65,52 @@ export const ProductCatalog = ({ userRole, onSelect, brandId, showroomId }: Prod
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Product Catalog</h1>
-                    <p className="text-gray-600 mt-1">Manage non-tile inventory items</p>
+            <div className="sticky top-0 z-10 bg-white pb-4 pt-1 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-800">Product Catalog</h1>
+                        <p className="text-gray-600 mt-1">Manage non-tile inventory items</p>
+                    </div>
+                    {isAdmin && (
+                        <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Add Product
+                        </Button>
+                    )}
                 </div>
-                {isAdmin && (
-                    <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        Add Product
-                    </Button>
-                )}
-            </div>
 
-            <Card className="p-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <Input
-                            placeholder="Search by name or code..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
-                        />
+                <Card className="p-4 shadow-sm border-gray-200">
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Input
+                                placeholder="Search by name or code..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <div className="md:w-64">
+                            <Select
+                                value={selectedCategory}
+                                onValueChange={setSelectedCategory}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Filter by Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {CATEGORIES.map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh">
+                            <RefreshCw className="h-4 w-4" />
+                        </Button>
                     </div>
-                    <div className="md:w-64">
-                        <Select
-                            value={selectedCategory}
-                            onValueChange={setSelectedCategory}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Filter by Category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {CATEGORIES.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh">
-                        <RefreshCw className="h-4 w-4" />
-                    </Button>
-                </div>
-            </Card>
+                </Card>
+            </div>
 
             {
                 isLoading ? (

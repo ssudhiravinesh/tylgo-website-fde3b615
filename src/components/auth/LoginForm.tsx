@@ -24,7 +24,18 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
   useEffect(() => {
     const lookupShowroom = async () => {
       if (!email || !email.includes('@')) {
-        setShowroomName(null);
+        // Only reset if we're not on a subdomain that already set the name
+        const hostname = window.location.hostname;
+        const isRoot = hostname.includes('localhost') ||
+          hostname.endsWith('.vercel.app') ||
+          hostname === 'tylgo.com' ||
+          hostname === 'www.tylgo.com' ||
+          hostname === 'tylgo.store' ||
+          hostname === 'www.tylgo.store';
+
+        if (isRoot) {
+          setShowroomName(null);
+        }
         return;
       }
 
@@ -37,7 +48,14 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
 
         if (error) {
           console.error('Error looking up showroom:', error);
-          setShowroomName(null);
+          // Don't reset if we are on a known subdomain? 
+          // Actually, if email lookup fails, we might want to keep the subdomain-based name if available,
+          // but usually email lookup is for finding *user's* specific showroom if different? 
+          // For now, let's play safe and not aggressive reset if we have a subdomain context, 
+          // but the original logic was to reset. 
+          // Let's stick to original logic of resetting or setting based on email unless email is empty.
+          // If email is provided but invalid/no result, maybe we should fall back to subdomain name?
+          // Simpler: Just update if data found.
           return;
         }
 
@@ -49,6 +67,8 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
         if (showrooms && showrooms.length > 0) {
           setShowroomName(showrooms[0].showroom_name);
         } else {
+          // If email doesn't match, maybe revert to subdomain name?
+          // For now, explicit email match takes precedence or nulls it.
           setShowroomName(null);
         }
       } catch (err) {
@@ -60,6 +80,45 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
     const timeoutId = setTimeout(lookupShowroom, 500);
     return () => clearTimeout(timeoutId);
   }, [email]);
+
+  // Check for subdomain on mount
+  useEffect(() => {
+    const checkSubdomain = async () => {
+      const hostname = window.location.hostname;
+      const isRoot = hostname.includes('localhost') ||
+        hostname.endsWith('.vercel.app') ||
+        hostname === 'tylgo.com' ||
+        hostname === 'www.tylgo.com' ||
+        hostname === 'tylgo.store' ||
+        hostname === 'www.tylgo.store';
+
+      if (!isRoot) {
+        // We are on a subdomain (e.g. anuj.tylgo.store)
+        const subdomain = hostname.split('.')[0];
+        console.log('Detected subdomain:', subdomain);
+
+        try {
+          // Attempt to fetch showroom details by subdomain
+          // Note: This requires the 'showrooms' table to be readable (public or anon policy)
+          const { data, error } = await supabase
+            .from('showrooms')
+            .select('name')
+            .eq('subdomain', subdomain)
+            .single();
+
+          if (error) {
+            console.error('Error fetching showroom by subdomain:', error);
+          } else if (data) {
+            setShowroomName(data.name);
+          }
+        } catch (err) {
+          console.error('Subdomain lookup error:', err);
+        }
+      }
+    };
+
+    checkSubdomain();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

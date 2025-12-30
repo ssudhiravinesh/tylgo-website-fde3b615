@@ -38,6 +38,7 @@ export interface QuotationItem {
     size_length: number;
     size_breadth: number;
     image_url?: string; // Added image_url
+    category?: string;
   };
   product?: { // Added product
     id: string; // Added id
@@ -55,7 +56,7 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
       *,
       rooms!quotation_items_room_id_fkey(name, length, width, unit, measurements),
       staircases!quotation_items_staircase_id_fkey(name, number_of_steps, number_of_risers),
-      tiles!quotation_items_tile_id_fkey(name, code, price_per_box, pieces_per_box, size_length, size_breadth, image_url),
+      tiles!quotation_items_tile_id_fkey(name, code, price_per_box, pieces_per_box, size_length, size_breadth, image_url, category),
       products:product_id(*)
     `) // Attempting to fetch products if the relation exists
     .eq('quotation_id', quotationId)
@@ -91,7 +92,8 @@ const fetchQuotationItems = async (quotationId: string): Promise<QuotationItem[]
       pieces_per_box: item.tiles.pieces_per_box || 0,
       size_length: item.tiles.size_length || 0,
       size_breadth: item.tiles.size_breadth || 0,
-      image_url: item.tiles.image_url
+      image_url: item.tiles.image_url,
+      category: item.tiles.category
     } : undefined;
 
     // Extract product data
