@@ -2,12 +2,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getShowroomId } from './useShowroom';
 
+export type StaircaseUnit = 'mm' | 'inches' | 'feet' | 'metre';
+
 export interface Staircase {
   id: string;
   name: string;
   customer_id: string;
   number_of_steps: number;
   number_of_risers: number;
+  // Dimension fields for area-based calculations
+  step_length?: number;
+  step_width?: number;
+  riser_height?: number;
+  riser_width?: number;
+  unit?: StaircaseUnit;
   showroom_id?: string;
   created_at: string;
 }
@@ -17,6 +25,12 @@ export interface CreateStaircaseData {
   customer_id: string;
   number_of_steps: number;
   number_of_risers: number;
+  // Optional dimension fields
+  step_length?: number;
+  step_width?: number;
+  riser_height?: number;
+  riser_width?: number;
+  unit?: StaircaseUnit;
 }
 
 export interface UpdateStaircaseData extends CreateStaircaseData {

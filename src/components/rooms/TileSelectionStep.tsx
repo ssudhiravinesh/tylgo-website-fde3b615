@@ -1457,8 +1457,8 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       )}
 
       <Dialog open={showTileCatalog} onOpenChange={setShowTileCatalog}>
-        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden p-0 gap-0">
-          <DialogHeader className="p-6 pb-2">
+        <DialogContent className="max-w-4xl h-[85vh] p-0">
+          <DialogHeader className="p-6 pb-2 shrink-0">
             <DialogTitle>
               {catalogContext?.roomIds
                 ? `Select Tile for ${catalogContext.roomIds.length} Rooms`
@@ -1468,7 +1468,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
               }
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-6 pt-2">
+          <div className="overflow-y-auto px-6 pb-6" style={{ maxHeight: 'calc(85vh - 80px)' }}>
             <TileCatalog
               isSelectionMode={true}
               onTileSelect={handleTileSelected}

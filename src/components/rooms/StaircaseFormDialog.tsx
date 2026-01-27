@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { useCreateStaircase, useUpdateStaircase } from "@/hooks/useStaircases";
 import { toast } from "sonner";
-import { Loader2, Footprints } from "lucide-react";
-import type { Staircase } from "@/hooks/useStaircases";
+import { Loader2, Footprints, Ruler, Calculator } from "lucide-react";
+import type { Staircase, StaircaseUnit } from "@/hooks/useStaircases";
 
 interface StaircaseFormDialogProps {
   isOpen: boolean;
@@ -15,12 +17,33 @@ interface StaircaseFormDialogProps {
   customerId: string;
 }
 
+// Conversion factors to square feet
+const UNIT_TO_SQFT: Record<StaircaseUnit, number> = {
+  mm: 0.00328084 * 0.00328084,
+  inches: (1 / 12) * (1 / 12),
+  feet: 1,
+  metre: 3.28084 * 3.28084,
+};
+
+const UNIT_LABELS: Record<StaircaseUnit, string> = {
+  mm: 'Millimeters (mm)',
+  inches: 'Inches (in)',
+  feet: 'Feet (ft)',
+  metre: 'Meters (m)',
+};
+
 export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: StaircaseFormDialogProps) => {
   const [formData, setFormData] = useState({
     name: "",
     number_of_steps: "",
     number_of_risers: "",
+    step_length: "",
+    step_width: "",
+    riser_height: "",
+    riser_width: "",
+    unit: "mm" as StaircaseUnit,
   });
+  const [wastagePercentage, setWastagePercentage] = useState(5);
   const [isLoading, setIsLoading] = useState(false);
 
   const createStaircaseMutation = useCreateStaircase();
@@ -32,19 +55,56 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
         name: staircase.name,
         number_of_steps: staircase.number_of_steps.toString(),
         number_of_risers: staircase.number_of_risers.toString(),
+        step_length: staircase.step_length?.toString() || "",
+        step_width: staircase.step_width?.toString() || "",
+        riser_height: staircase.riser_height?.toString() || "",
+        riser_width: staircase.riser_width?.toString() || "",
+        unit: staircase.unit || "mm",
       });
     } else {
       setFormData({
         name: "",
         number_of_steps: "",
         number_of_risers: "",
+        step_length: "",
+        step_width: "",
+        riser_height: "",
+        riser_width: "",
+        unit: "mm",
       });
+      setWastagePercentage(5);
     }
   }, [staircase, isOpen]);
 
+  // Calculate areas in square feet
+  const calculations = useMemo(() => {
+    const steps = parseInt(formData.number_of_steps) || 0;
+    const risers = parseInt(formData.number_of_risers) || 0;
+    const stepLength = parseFloat(formData.step_length) || 0;
+    const stepWidth = parseFloat(formData.step_width) || 0;
+    const riserHeight = parseFloat(formData.riser_height) || 0;
+    const riserWidth = parseFloat(formData.riser_width) || 0;
+    const conversionFactor = UNIT_TO_SQFT[formData.unit];
+
+    const stepAreaSqFt = stepLength * stepWidth * steps * conversionFactor;
+    const riserAreaSqFt = riserHeight * riserWidth * risers * conversionFactor;
+    const totalAreaSqFt = stepAreaSqFt + riserAreaSqFt;
+    const totalWithWastage = totalAreaSqFt * (1 + wastagePercentage / 100);
+
+    return {
+      steps,
+      risers,
+      stepAreaSqFt,
+      riserAreaSqFt,
+      totalAreaSqFt,
+      totalWithWastage,
+      hasDimensions: stepLength > 0 && stepWidth > 0 && riserHeight > 0 && riserWidth > 0,
+    };
+  }, [formData, wastagePercentage]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
       toast.error("Staircase name is required");
       return;
@@ -76,6 +136,11 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
         customer_id: customerId,
         number_of_steps: steps,
         number_of_risers: risers,
+        step_length: formData.step_length ? parseFloat(formData.step_length) : undefined,
+        step_width: formData.step_width ? parseFloat(formData.step_width) : undefined,
+        riser_height: formData.riser_height ? parseFloat(formData.riser_height) : undefined,
+        riser_width: formData.riser_width ? parseFloat(formData.riser_width) : undefined,
+        unit: formData.unit,
       };
 
       if (staircase) {
@@ -88,7 +153,7 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
         await createStaircaseMutation.mutateAsync(staircaseData);
         toast.success("Staircase created successfully!");
       }
-      
+
       onClose();
     } catch (error: any) {
       console.error("Error saving staircase:", error);
@@ -104,14 +169,9 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
     }
   };
 
-  // Calculate total tiles needed
-  const steps = parseInt(formData.number_of_steps) || 0;
-  const risers = parseInt(formData.number_of_risers) || 0;
-  const totalTilesNeeded = steps + risers;
-
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Footprints className="h-5 w-5 text-primary" />
@@ -134,54 +194,201 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
             />
           </div>
 
-          {/* Number of Steps */}
+          {/* Unit Selector */}
           <div className="space-y-2">
-            <Label htmlFor="steps">Number of Steps *</Label>
-            <Input
-              id="steps"
-              type="number"
-              min="1"
-              value={formData.number_of_steps}
-              onChange={(e) => setFormData(prev => ({ ...prev, number_of_steps: e.target.value }))}
-              placeholder="e.g., 12"
+            <Label htmlFor="unit">Measurement Unit</Label>
+            <Select
+              value={formData.unit}
+              onValueChange={(value: StaircaseUnit) => setFormData(prev => ({ ...prev, unit: value }))}
               disabled={isLoading}
-              required
-            />
-            <p className="text-xs text-muted-foreground">Each step requires 1 tile</p>
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select unit" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(UNIT_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Number of Risers */}
-          <div className="space-y-2">
-            <Label htmlFor="risers">Number of Risers *</Label>
-            <Input
-              id="risers"
-              type="number"
-              min="1"
-              value={formData.number_of_risers}
-              onChange={(e) => setFormData(prev => ({ ...prev, number_of_risers: e.target.value }))}
-              placeholder="e.g., 12"
-              disabled={isLoading}
-              required
-            />
-            <p className="text-xs text-muted-foreground">Each riser requires 1 tile</p>
+          {/* Steps Section */}
+          <div className="space-y-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-2 text-blue-800 font-medium">
+              <Ruler className="h-4 w-4" />
+              <span>Step Dimensions</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="steps" className="text-xs">Count *</Label>
+                <Input
+                  id="steps"
+                  type="number"
+                  min="1"
+                  value={formData.number_of_steps}
+                  onChange={(e) => setFormData(prev => ({ ...prev, number_of_steps: e.target.value }))}
+                  placeholder="12"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="step_length" className="text-xs">Length ({formData.unit})</Label>
+                <Input
+                  id="step_length"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.step_length}
+                  onChange={(e) => setFormData(prev => ({ ...prev, step_length: e.target.value }))}
+                  placeholder="900"
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="step_width" className="text-xs">Width ({formData.unit})</Label>
+                <Input
+                  id="step_width"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.step_width}
+                  onChange={(e) => setFormData(prev => ({ ...prev, step_width: e.target.value }))}
+                  placeholder="300"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+            {calculations.stepAreaSqFt > 0 && (
+              <p className="text-xs text-blue-600">
+                Total Step Area: <span className="font-semibold">{calculations.stepAreaSqFt.toFixed(2)} sq ft</span>
+              </p>
+            )}
           </div>
 
-          {/* Tile Calculation Preview */}
-          {totalTilesNeeded > 0 && (
+          {/* Risers Section */}
+          <div className="space-y-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+            <div className="flex items-center gap-2 text-orange-800 font-medium">
+              <Ruler className="h-4 w-4" />
+              <span>Riser Dimensions</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="risers" className="text-xs">Count *</Label>
+                <Input
+                  id="risers"
+                  type="number"
+                  min="1"
+                  value={formData.number_of_risers}
+                  onChange={(e) => setFormData(prev => ({ ...prev, number_of_risers: e.target.value }))}
+                  placeholder="12"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="riser_height" className="text-xs">Height ({formData.unit})</Label>
+                <Input
+                  id="riser_height"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.riser_height}
+                  onChange={(e) => setFormData(prev => ({ ...prev, riser_height: e.target.value }))}
+                  placeholder="150"
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="riser_width" className="text-xs">Width ({formData.unit})</Label>
+                <Input
+                  id="riser_width"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.riser_width}
+                  onChange={(e) => setFormData(prev => ({ ...prev, riser_width: e.target.value }))}
+                  placeholder="900"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+            {calculations.riserAreaSqFt > 0 && (
+              <p className="text-xs text-orange-600">
+                Total Riser Area: <span className="font-semibold">{calculations.riserAreaSqFt.toFixed(2)} sq ft</span>
+              </p>
+            )}
+          </div>
+
+          {/* Wastage Slider */}
+          <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Wastage Percentage</Label>
+              <span className="text-sm font-bold text-primary">{wastagePercentage}%</span>
+            </div>
+            <Slider
+              value={[wastagePercentage]}
+              onValueChange={(value) => setWastagePercentage(value[0])}
+              min={0}
+              max={15}
+              step={1}
+              className="w-full"
+              disabled={isLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              Add extra tiles to account for cutting and fitting waste
+            </p>
+          </div>
+
+          {/* Area Calculation Preview */}
+          {calculations.hasDimensions && calculations.totalAreaSqFt > 0 && (
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2 text-green-800 font-medium mb-2">
+                <Calculator className="h-4 w-4" />
+                <span>Area Summary</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-white rounded p-2 text-center">
+                  <p className="text-lg font-bold text-blue-600">{calculations.stepAreaSqFt.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500">Step Area (sq ft)</p>
+                </div>
+                <div className="bg-white rounded p-2 text-center">
+                  <p className="text-lg font-bold text-orange-600">{calculations.riserAreaSqFt.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500">Riser Area (sq ft)</p>
+                </div>
+                <div className="bg-white rounded p-2 text-center">
+                  <p className="text-lg font-bold text-purple-600">{calculations.totalAreaSqFt.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500">Total Area (sq ft)</p>
+                </div>
+                <div className="bg-white rounded p-2 text-center">
+                  <p className="text-lg font-bold text-green-600">{calculations.totalWithWastage.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500">With Wastage (sq ft)</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fallback: Count-based preview when no dimensions */}
+          {!calculations.hasDimensions && (calculations.steps > 0 || calculations.risers > 0) && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800 font-medium">Tiles Required:</p>
-              <div className="grid grid-cols-3 gap-2 mt-2 text-center">
+              <p className="text-sm text-blue-800 font-medium mb-2">
+                Tile Count Preview <span className="text-xs font-normal">(add dimensions for area-based calculation)</span>
+              </p>
+              <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="bg-white rounded p-2">
-                  <p className="text-lg font-bold text-blue-600">{steps}</p>
-                  <p className="text-xs text-gray-500">Step Tiles</p>
+                  <p className="text-lg font-bold text-blue-600">{calculations.steps}</p>
+                  <p className="text-xs text-gray-500">Steps</p>
                 </div>
                 <div className="bg-white rounded p-2">
-                  <p className="text-lg font-bold text-orange-600">{risers}</p>
-                  <p className="text-xs text-gray-500">Riser Tiles</p>
+                  <p className="text-lg font-bold text-orange-600">{calculations.risers}</p>
+                  <p className="text-xs text-gray-500">Risers</p>
                 </div>
                 <div className="bg-white rounded p-2">
-                  <p className="text-lg font-bold text-green-600">{totalTilesNeeded}</p>
-                  <p className="text-xs text-gray-500">Total Tiles</p>
+                  <p className="text-lg font-bold text-green-600">{calculations.steps + calculations.risers}</p>
+                  <p className="text-xs text-gray-500">Total</p>
                 </div>
               </div>
             </div>

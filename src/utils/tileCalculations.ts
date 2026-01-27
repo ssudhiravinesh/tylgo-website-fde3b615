@@ -41,22 +41,35 @@ export interface StaircaseTileSelection {
   riserTileId?: string;
 }
 
+// Extended staircase type with dimensions for area calculations
+export interface StaircaseWithDimensions {
+  id: string;
+  name: string;
+  number_of_steps: number;
+  number_of_risers: number;
+  step_length?: number;
+  step_width?: number;
+  riser_height?: number;
+  riser_width?: number;
+  unit?: 'mm' | 'inches' | 'feet' | 'metre';
+}
+
 export interface StaircaseTileCalculationResult {
-  staircase: {
-    id: string;
-    name: string;
-    number_of_steps: number;
-    number_of_risers: number;
-  };
+  staircase: StaircaseWithDimensions;
+  // Area calculations in sq ft
+  stepArea?: number;
+  riserArea?: number;
   stepTile?: {
     tile: any;
     tilesNeeded: number;
+    areaInSqFt: number;
     boxesNeeded: number;
     totalPrice: number;
   };
   riserTile?: {
     tile: any;
     tilesNeeded: number;
+    areaInSqFt: number;
     boxesNeeded: number;
     totalPrice: number;
   };
@@ -384,20 +397,36 @@ const getTilesPerUnit = (tile: any): number => {
   return ratio >= 2.5 ? 1 : 3;
 };
 
+// Conversion factors to sq ft for staircase dimensions
+const STAIRCASE_UNIT_TO_SQFT: Record<string, number> = {
+  mm: 0.00328084 * 0.00328084, // mm² to sq ft
+  inches: (1 / 12) * (1 / 12),     // in² to sq ft
+  feet: 1,                      // ft² to sq ft
+  metre: 3.28084 * 3.28084,    // m² to sq ft
+};
+
+/**
+ * Calculate area in sq ft from dimensions
+ */
+const calculateStaircaseAreaSqFt = (
+  dim1: number | undefined,
+  dim2: number | undefined,
+  count: number,
+  unit: string = 'mm'
+): number => {
+  if (!dim1 || !dim2) return 0;
+  const conversionFactor = STAIRCASE_UNIT_TO_SQFT[unit] || STAIRCASE_UNIT_TO_SQFT.mm;
+  return dim1 * dim2 * count * conversionFactor;
+};
+
 /**
  * Calculate staircase tile requirements
- * Tiles per step/riser depend on tile aspect ratio:
- * - 1:3 tiles (e.g., 300x900): 1 tile each
- * - 1:1 tiles (e.g., 600x600): 3 tiles each
+ * Uses area-based calculations when dimensions are available,
+ * falls back to count-based logic (aspect ratio) for backwards compatibility.
  */
 export const calculateStaircaseTileRequirements = (
   staircaseSelections: StaircaseTileSelection[],
-  staircases: Array<{
-    id: string;
-    name: string;
-    number_of_steps: number;
-    number_of_risers: number;
-  }>,
+  staircases: StaircaseWithDimensions[],
   tiles: any[],
   wastagePercentage: number
 ): StaircaseTileCalculationResult[] => {
@@ -412,12 +441,49 @@ export const calculateStaircaseTileRequirements = (
     let stepTileResult;
     let riserTileResult;
 
+    // Check if dimensions are available for area-based calculations
+    const hasStepDimensions = staircase.step_length && staircase.step_width;
+    const hasRiserDimensions = staircase.riser_height && staircase.riser_width;
+
+    // Calculate step area in sq ft (if dimensions available)
+    const stepAreaSqFt = hasStepDimensions
+      ? calculateStaircaseAreaSqFt(
+        staircase.step_length,
+        staircase.step_width,
+        staircase.number_of_steps,
+        staircase.unit
+      )
+      : 0;
+
+    // Calculate riser area in sq ft (if dimensions available)
+    const riserAreaSqFt = hasRiserDimensions
+      ? calculateStaircaseAreaSqFt(
+        staircase.riser_height,
+        staircase.riser_width,
+        staircase.number_of_risers,
+        staircase.unit
+      )
+      : 0;
+
     // Calculate step tiles
     if (selection.stepTileId) {
       const tile = tiles.find(t => t.id === selection.stepTileId);
       if (tile) {
-        const tilesPerUnit = getTilesPerUnit(tile);
-        const rawTilesNeeded = staircase.number_of_steps * tilesPerUnit;
+        let rawTilesNeeded: number;
+        let areaInSqFt = stepAreaSqFt;
+
+        if (hasStepDimensions && stepAreaSqFt > 0) {
+          // Area-based calculation: total step area ÷ single tile area
+          const tileLengthFt = (parseFloat(tile.size_length?.toString()) || 0) / 304.8;
+          const tileBreadthFt = (parseFloat(tile.size_breadth?.toString()) || 0) / 304.8;
+          const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+          rawTilesNeeded = tileAreaSqFt > 0 ? Math.ceil(stepAreaSqFt / tileAreaSqFt) : 0;
+        } else {
+          // Fallback: count-based calculation using aspect ratio
+          const tilesPerUnit = getTilesPerUnit(tile);
+          rawTilesNeeded = staircase.number_of_steps * tilesPerUnit;
+        }
+
         const tilesNeeded = Math.ceil(rawTilesNeeded * (1 + validWastage / 100));
         const piecesPerBox = parseInt(tile.pieces_per_box?.toString() || '1');
         const pricePerBox = parseFloat(tile.price_per_box?.toString() || '0');
@@ -426,7 +492,8 @@ export const calculateStaircaseTileRequirements = (
 
         stepTileResult = {
           tile,
-          tilesNeeded: rawTilesNeeded, // Store raw count (without wastage) for display
+          tilesNeeded: rawTilesNeeded,
+          areaInSqFt: areaInSqFt,
           boxesNeeded,
           totalPrice: price
         };
@@ -438,8 +505,21 @@ export const calculateStaircaseTileRequirements = (
     if (selection.riserTileId) {
       const tile = tiles.find(t => t.id === selection.riserTileId);
       if (tile) {
-        const tilesPerUnit = getTilesPerUnit(tile);
-        const rawTilesNeeded = staircase.number_of_risers * tilesPerUnit;
+        let rawTilesNeeded: number;
+        let areaInSqFt = riserAreaSqFt;
+
+        if (hasRiserDimensions && riserAreaSqFt > 0) {
+          // Area-based calculation: total riser area ÷ single tile area
+          const tileLengthFt = (parseFloat(tile.size_length?.toString()) || 0) / 304.8;
+          const tileBreadthFt = (parseFloat(tile.size_breadth?.toString()) || 0) / 304.8;
+          const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+          rawTilesNeeded = tileAreaSqFt > 0 ? Math.ceil(riserAreaSqFt / tileAreaSqFt) : 0;
+        } else {
+          // Fallback: count-based calculation using aspect ratio
+          const tilesPerUnit = getTilesPerUnit(tile);
+          rawTilesNeeded = staircase.number_of_risers * tilesPerUnit;
+        }
+
         const tilesNeeded = Math.ceil(rawTilesNeeded * (1 + validWastage / 100));
         const piecesPerBox = parseInt(tile.pieces_per_box?.toString() || '1');
         const pricePerBox = parseFloat(tile.price_per_box?.toString() || '0');
@@ -448,7 +528,8 @@ export const calculateStaircaseTileRequirements = (
 
         riserTileResult = {
           tile,
-          tilesNeeded: rawTilesNeeded, // Store raw count (without wastage) for display
+          tilesNeeded: rawTilesNeeded,
+          areaInSqFt: areaInSqFt,
           boxesNeeded,
           totalPrice: price
         };
@@ -458,6 +539,8 @@ export const calculateStaircaseTileRequirements = (
 
     results.push({
       staircase,
+      stepArea: stepAreaSqFt,
+      riserArea: riserAreaSqFt,
       stepTile: stepTileResult,
       riserTile: riserTileResult,
       totalPrice
@@ -473,12 +556,7 @@ export const calculateStaircaseTileRequirements = (
  */
 export const prepareStaircaseQuotationItems = (
   staircaseSelections: StaircaseTileSelection[],
-  staircases: Array<{
-    id: string;
-    name: string;
-    number_of_steps: number;
-    number_of_risers: number;
-  }>,
+  staircases: StaircaseWithDimensions[],
   tiles: any[],
   wastagePercentage: number
 ): Array<{
@@ -487,6 +565,7 @@ export const prepareStaircaseQuotationItems = (
   staircase_name: string;
   tile_type: 'step' | 'riser';
   quantity: number;
+  area?: number;
   price_per_box: number;
   total_price: number;
 }> => {
@@ -496,6 +575,7 @@ export const prepareStaircaseQuotationItems = (
     staircase_name: string;
     tile_type: 'step' | 'riser';
     quantity: number;
+    area?: number;
     price_per_box: number;
     total_price: number;
   }> = [];
@@ -515,6 +595,7 @@ export const prepareStaircaseQuotationItems = (
         staircase_name: calc.staircase.name,
         tile_type: 'step',
         quantity: calc.stepTile.tilesNeeded,
+        area: calc.stepTile.areaInSqFt,
         price_per_box: parseFloat(calc.stepTile.tile.price_per_box?.toString() || '0'),
         total_price: calc.stepTile.totalPrice
       });
@@ -527,6 +608,7 @@ export const prepareStaircaseQuotationItems = (
         staircase_name: calc.staircase.name,
         tile_type: 'riser',
         quantity: calc.riserTile.tilesNeeded,
+        area: calc.riserTile.areaInSqFt,
         price_per_box: parseFloat(calc.riserTile.tile.price_per_box?.toString() || '0'),
         total_price: calc.riserTile.totalPrice
       });
