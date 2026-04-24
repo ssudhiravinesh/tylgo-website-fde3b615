@@ -59,7 +59,7 @@ export const AddWorkerDialog = ({ isOpen, onOpenChange, onSubmit, isLoading }: A
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button className="bg-primary hover:bg-primary/90">
           <UserPlus className="h-4 w-4 mr-2" />
           Add New Worker
         </Button>

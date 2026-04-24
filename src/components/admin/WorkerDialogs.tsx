@@ -71,11 +71,11 @@ export const WorkerDialogs = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'bg-gray-100 text-gray-700';
-      case 'sent': return 'bg-blue-100 text-blue-700';
+      case 'draft': return 'bg-muted text-foreground/80';
+      case 'sent': return 'bg-primary/15 text-primary/80';
       case 'approved': return 'bg-green-100 text-green-700';
       case 'rejected': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
+      default: return 'bg-muted text-foreground/80';
     }
   };
 
@@ -152,23 +152,23 @@ export const WorkerDialogs = ({
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-gray-600">Customer: {quotation.customer?.name}</p>
-                      <p className="text-gray-600">Mobile: {quotation.customer?.mobile}</p>
+                      <p className="text-muted-foreground">Customer: {quotation.customer?.name}</p>
+                      <p className="text-muted-foreground">Mobile: {quotation.customer?.mobile}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Total: ₹{quotation.total_cost}</p>
-                      <p className="text-gray-600">
+                      <p className="text-muted-foreground">Total: ₹{quotation.total_cost}</p>
+                      <p className="text-muted-foreground">
                         Created: {new Date(quotation.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   {quotation.notes && (
-                    <p className="text-sm text-gray-600 mt-2">Notes: {quotation.notes}</p>
+                    <p className="text-sm text-muted-foreground mt-2">Notes: {quotation.notes}</p>
                   )}
                 </div>
               ))}
               {(!workerQuotations || workerQuotations.length === 0) && (
-                <p className="text-center text-gray-500 py-8">No quotations found for this worker</p>
+                <p className="text-center text-muted-foreground py-8">No quotations found for this worker</p>
               )}
             </div>
           </div>

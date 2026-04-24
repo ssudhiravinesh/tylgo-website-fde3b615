@@ -198,16 +198,16 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
           Back
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Add New Customer</h1>
-          <p className="text-gray-600">Enter customer details to create a new record</p>
+          <h1 className="text-2xl font-bold text-foreground">Add New Customer</h1>
+          <p className="text-muted-foreground">Enter customer details to create a new record</p>
         </div>
       </div>
 
-      <Card className="border-gray-200 shadow-sm">
+      <Card className="border-border shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-lg">
-              <User className="h-5 w-5 text-blue-600" />
+              <User className="h-5 w-5 text-primary" />
               Customer Information
             </div>
             <Select
@@ -235,7 +235,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
             <div className="space-y-2">
               <Label htmlFor="name">Full Name *</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
                 <Input
                   id="name"
                   type="text"
@@ -243,7 +243,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   onBlur={() => handleInputBlur("name")}
-                  className={`pl-10 h-12 border-gray-200 ${
+                  className={`pl-10 h-12 border-border ${
                     errors.name ? "border-red-500" : ""
                   }`}
                 />
@@ -270,7 +270,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               <div className="space-y-2">
                 <Label htmlFor="area">Residing Area *</Label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
                   <Input
                     id="area"
                     type="text"
@@ -278,7 +278,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     value={formData.area}
                     onChange={(e) => handleInputChange("area", e.target.value)}
                     onBlur={() => handleInputBlur("area")}
-                    className={`pl-10 h-12 border-gray-200 ${
+                    className={`pl-10 h-12 border-border ${
                       errors.area ? "border-red-500" : ""
                     }`}
                   />
@@ -293,7 +293,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     value={formData.state}
                     onValueChange={(value) => handleInputChange("state", value)}
                   >
-                    <SelectTrigger className={`h-12 border-gray-200 ${errors.state ? "border-red-500" : ""}`}>
+                    <SelectTrigger className={`h-12 border-border ${errors.state ? "border-red-500" : ""}`}>
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
@@ -316,7 +316,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                     placeholder="400001"
                     value={formData.pincode}
                     onChange={(e) => handleInputChange("pincode", e.target.value.replace(/\D/g, ""))}
-                    className={`h-12 border-gray-200 ${errors.pincode ? "border-red-500" : ""}`}
+                    className={`h-12 border-border ${errors.pincode ? "border-red-500" : ""}`}
                   />
                   {errors.pincode && <p className="text-sm text-red-600">{errors.pincode}</p>}
                 </div>
@@ -324,8 +324,8 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
             </div>
 
             {/* Reference Info */}
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-medium text-gray-800 mb-4">Reference Information (Optional)</h3>
+            <div className="pt-6 border-t border-border">
+              <h3 className="text-lg font-medium text-foreground mb-4">Reference Information (Optional)</h3>
               <div className="space-y-4">
                  <div className="space-y-2">
                    <Label htmlFor="reference_name">Reference Name</Label>
@@ -347,7 +347,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               value={formData.reference_mobile_no}
               onChange={(e) => handleInputChange("reference_mobile_no", e.target.value.replace(/\D/g, ""))}
               maxLength={10}
-              className={`h-12 border-gray-200 ${errors.reference_mobile_no ? "border-red-500" : ""}`}
+              className={`h-12 border-border ${errors.reference_mobile_no ? "border-red-500" : ""}`}
             />
             {errors.reference_mobile_no && (
               <p className="text-sm text-red-600">{errors.reference_mobile_no}</p>
@@ -373,7 +373,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   type="button"
                   onClick={handleSaveAndQuote}
                   disabled={createCustomer.isPending}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-white gap-2"
                 >
                   <FileText className="h-4 w-4" />
                   {createCustomer.isPending ? "Saving..." : "New Quote"}

@@ -160,7 +160,7 @@ const { totalBoxes, mrp, discountAmount, finalTotal } = calculateTotals();
                     id="quotation-number"
                     value={quotationNumber}
                     disabled
-                    className="bg-gray-100 cursor-not-allowed"
+                    className="bg-muted cursor-not-allowed"
                   />
                 </div>
 
@@ -227,31 +227,31 @@ const { totalBoxes, mrp, discountAmount, finalTotal } = calculateTotals();
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="p-3 bg-primary/10 rounded-lg">
                   <h4 className="font-medium text-blue-800">{quotation.customer?.name}</h4>
-                  <p className="text-sm text-blue-600">{quotation.customer?.mobile}</p>
+                  <p className="text-sm text-primary">{quotation.customer?.mobile}</p>
                   {quotation.customer?.address && (
-                    <p className="text-xs text-blue-500 mt-1">{quotation.customer.address}</p>
+                    <p className="text-xs text-primary mt-1">{quotation.customer.address}</p>
                   )}
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Items:</span>
+                    <span className="text-muted-foreground">Items:</span>
                     <span className="font-medium">{quotation.quotation_items?.length || 0}</span>
                   </div>
                   
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Total Boxes:</span>
+                    <span className="text-muted-foreground">Total Boxes:</span>
                     <span className="font-medium">{totalBoxes}</span>
                   </div>
                   
                   <div className="border-t pt-2 space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">
+                      <span className="text-muted-foreground">
                         {discountPercentage > 0 ? "MRP (Before Discount):" : "Grand Total:"}
                       </span>
-                      <span className={`font-bold text-lg ${discountPercentage > 0 ? "text-blue-600" : "text-green-600"}`}>
+                      <span className={`font-bold text-lg ${discountPercentage > 0 ? "text-primary" : "text-green-600"}`}>
                         ₹{mrp.toLocaleString()}
                       </span>
                     </div>
@@ -264,7 +264,7 @@ const { totalBoxes, mrp, discountAmount, finalTotal } = calculateTotals();
                         </div>
                         
                         <div className="flex justify-between items-center border-t pt-2">
-                          <span className="text-gray-800 font-semibold">Final Grand Total:</span>
+                          <span className="text-foreground font-semibold">Final Grand Total:</span>
                           <span className="font-bold text-xl text-green-600">₹{finalTotal.toLocaleString()}</span>
                         </div>
                       </>
@@ -272,7 +272,7 @@ const { totalBoxes, mrp, discountAmount, finalTotal } = calculateTotals();
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-500 space-y-1">
+                <div className="text-xs text-muted-foreground space-y-1">
                   <p>Created: {new Date(quotation.created_at).toLocaleDateString()}</p>
                   <p>Created by: {quotation.worker?.name}</p>
                 </div>
@@ -286,7 +286,7 @@ const { totalBoxes, mrp, discountAmount, finalTotal } = calculateTotals();
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button type="submit" disabled={isUpdating} className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" disabled={isUpdating} className="bg-primary hover:bg-primary/90">
               <Save className="h-4 w-4 mr-2" />
               {isUpdating ? 'Saving...' : 'Save Changes'}
             </Button>

@@ -101,14 +101,14 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <IndianRupee className="h-5 w-5 text-green-600" />
+              <IndianRupee className="h-5 w-5 text-primary" />
               Bulk Price Update by Category
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="bg-primary/10 p-4 rounded-lg">
+              <p className="text-sm text-foreground/80">
                 Select a category and new price to update all tiles in that category at once.
               </p>
             </div>
@@ -130,18 +130,18 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
             </div>
 
             {selectedCategory && (
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm text-gray-700 mb-2">
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="text-sm text-foreground/80 mb-2">
                   <strong>{matchingTiles.length} tiles</strong> found in "{selectedCategory}" category
                 </p>
                 <div className="max-h-20 overflow-y-auto space-y-1">
                   {matchingTiles.slice(0, 5).map((tile) => (
-                    <div key={tile.id} className="text-xs text-gray-600">
+                    <div key={tile.id} className="text-xs text-muted-foreground">
                       {tile.code}
                     </div>
                   ))}
                   {matchingTiles.length > 5 && (
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       +{matchingTiles.length - 5} more tiles...
                     </div>
                   )}
@@ -165,17 +165,17 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
             </div>
 
             {pricePerBox && parseFloat(pricePerBox) > 0 && selectedCategory && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium text-sm text-gray-800 mb-2">Preview (Price per sq ft):</h4>
+              <div className="bg-muted p-4 rounded-lg">
+                <h4 className="font-medium text-sm text-foreground mb-2">Preview (Price per sq ft):</h4>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
                   {matchingTiles.slice(0, 3).map((tile) => (
-                    <div key={tile.id} className="text-xs text-gray-600 flex justify-between">
+                    <div key={tile.id} className="text-xs text-muted-foreground flex justify-between">
                       <span>{tile.code} ({tile.size_length}×{tile.size_breadth}mm)</span>
                       <span>₹{calculatePricePerSqFt(tile, parseFloat(pricePerBox)).toFixed(2)}/sq ft</span>
                     </div>
                   ))}
                   {matchingTiles.length > 3 && (
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       +{matchingTiles.length - 3} more tiles...
                     </div>
                   )}
@@ -191,7 +191,7 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
             <Button
               onClick={handleConfirm}
               disabled={!selectedCategory || !pricePerBox || parseFloat(pricePerBox) <= 0}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="btn-primary-craft"
             >
               Continue
             </Button>
@@ -205,25 +205,25 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-orange-600">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <AlertTriangle className="h-5 w-5" />
             Confirm Price Update
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
-            <p className="text-sm text-orange-800">
+          <div className="bg-primary/8 border border-primary/20 p-4 rounded-lg">
+            <p className="text-sm text-foreground/80">
               <strong>Warning:</strong> This action will update the price for all {matchingTiles.length} tiles
               in "{selectedCategory}" category to <strong>₹{pricePerBox} per box</strong>.
             </p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-sm text-gray-800 mb-2">Tiles to be updated:</h4>
+          <div className="bg-muted p-4 rounded-lg">
+            <h4 className="font-medium text-sm text-foreground mb-2">Tiles to be updated:</h4>
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {matchingTiles.map((tile) => (
-                <div key={tile.id} className="text-xs text-gray-600 flex justify-between border-b border-gray-200 pb-1">
+                <div key={tile.id} className="text-xs text-muted-foreground flex justify-between border-b border-border pb-1">
                   <span>{tile.code}</span>
                   <span>₹{tile.price_per_box || 0} → ₹{pricePerBox}</span>
                 </div>
@@ -231,7 +231,7 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
             </div>
           </div>
 
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             This action cannot be undone. Are you sure you want to proceed?
           </p>
         </div>
@@ -243,7 +243,7 @@ export const CategoryBulkPriceUpdateDialog = ({ isOpen, onClose }: CategoryBulkP
           <Button
             onClick={handleUpdate}
             disabled={isUpdating}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-destructive hover:bg-destructive/90 text-white"
           >
             {isUpdating ? "Updating..." : "Yes, Update All Prices"}
           </Button>

@@ -118,7 +118,7 @@ export const QuotationItemsSection = ({
                 <div className="space-y-2">
                   {/* Search Input for Manual Code Entry */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
                     <Input
                       placeholder="Search by tile code or name..."
                       value={tileSearchTerms[index] || ''}
@@ -163,7 +163,7 @@ export const QuotationItemsSection = ({
                   type="number"
                   value={item.price_per_box}
                   readOnly
-                  className="bg-gray-50"
+                  className="bg-muted"
                 />
               </div>
 
@@ -173,7 +173,7 @@ export const QuotationItemsSection = ({
                   type="number"
                   value={item.total_price}
                   readOnly
-                  className="bg-gray-50"
+                  className="bg-muted"
                 />
               </div>
 
@@ -186,7 +186,7 @@ export const QuotationItemsSection = ({
           ))}
 
           {items.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               <p>No items added yet. Click "Add Item" to get started.</p>
             </div>
           )}

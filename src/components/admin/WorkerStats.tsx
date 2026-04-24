@@ -14,10 +14,10 @@ export const WorkerStats = ({ workers, quotationStats }: WorkerStatsProps) => {
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Workers</p>
-              <p className="text-2xl font-bold text-gray-800">{workers?.length || 0}</p>
+              <p className="text-sm text-muted-foreground">Total Workers</p>
+              <p className="text-2xl font-bold text-foreground">{workers?.length || 0}</p>
             </div>
-            <Users className="h-8 w-8 text-blue-600" />
+            <Users className="h-8 w-8 text-primary" />
           </div>
         </CardContent>
       </Card>
@@ -25,8 +25,8 @@ export const WorkerStats = ({ workers, quotationStats }: WorkerStatsProps) => {
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Quotations</p>
-              <p className="text-2xl font-bold text-gray-800">{quotationStats?.totalQuotations || 0}</p>
+              <p className="text-sm text-muted-foreground">Total Quotations</p>
+              <p className="text-2xl font-bold text-foreground">{quotationStats?.totalQuotations || 0}</p>
             </div>
             <FileText className="h-8 w-8 text-green-600" />
           </div>
@@ -36,8 +36,8 @@ export const WorkerStats = ({ workers, quotationStats }: WorkerStatsProps) => {
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Active Quotations</p>
-              <p className="text-2xl font-bold text-gray-800">{quotationStats?.activeQuotations || 0}</p>
+              <p className="text-sm text-muted-foreground">Active Quotations</p>
+              <p className="text-2xl font-bold text-foreground">{quotationStats?.activeQuotations || 0}</p>
             </div>
             <BarChart3 className="h-8 w-8 text-orange-600" />
           </div>

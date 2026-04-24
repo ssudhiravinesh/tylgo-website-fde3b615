@@ -253,7 +253,7 @@ export const AddProductDialog = ({ isOpen, onClose, productToEdit }: AddProductD
                             <div className="space-y-2">
                                 <label
                                     htmlFor="product-image-upload"
-                                    className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                                    className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted hover:bg-muted transition-colors"
                                 >
                                     {imagePreview ? (
                                         <img
@@ -263,8 +263,8 @@ export const AddProductDialog = ({ isOpen, onClose, productToEdit }: AddProductD
                                         />
                                     ) : (
                                         <div className="text-center">
-                                            <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                                            <p className="text-xs text-gray-500">Upload Image</p>
+                                            <Upload className="w-6 h-6 mx-auto mb-1 text-muted-foreground/70" />
+                                            <p className="text-xs text-muted-foreground">Upload Image</p>
                                         </div>
                                     )}
                                     <input
@@ -292,7 +292,7 @@ export const AddProductDialog = ({ isOpen, onClose, productToEdit }: AddProductD
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="image_url" className="text-xs text-gray-500">Or Image URL</Label>
+                                <Label htmlFor="image_url" className="text-xs text-muted-foreground">Or Image URL</Label>
                                 <Input
                                     id="image_url"
                                     name="image_url"
@@ -304,7 +304,7 @@ export const AddProductDialog = ({ isOpen, onClose, productToEdit }: AddProductD
                         </div>
                     </div>
 
-                    <div className="space-y-4 border p-4 rounded-md bg-gray-50">
+                    <div className="space-y-4 border p-4 rounded-md bg-muted">
                         <div className="flex justify-between items-center">
                             <Label className="text-base font-semibold">Dimensions / Specifications</Label>
                             <Button type="button" variant="ghost" size="sm" onClick={addDimensionRow}>
@@ -338,7 +338,7 @@ export const AddProductDialog = ({ isOpen, onClose, productToEdit }: AddProductD
                                 </div>
                             ))}
                         </div>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                             Values will be automatically saved as numbers if possible.
                         </p>
                     </div>

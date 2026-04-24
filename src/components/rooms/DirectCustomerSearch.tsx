@@ -53,12 +53,12 @@ export const DirectCustomerSearch = ({ value, onValueChange, placeholder = "Sear
     <div className="relative w-full">
       {/* Display selected customer or search input */}
       {selectedCustomer && !showResults ? (
-        <div className="flex items-center justify-between p-3 border rounded-lg bg-blue-50 border-blue-200">
+        <div className="flex items-center justify-between p-3 border rounded-lg bg-primary/10 border-primary/20">
           <div className="flex items-center gap-3">
-            <User className="h-5 w-5 text-blue-600" />
+            <User className="h-5 w-5 text-primary" />
             <div>
-              <div className="font-medium text-gray-900">{selectedCustomer.name}</div>
-              <div className="text-sm text-gray-600 flex items-center gap-4">
+              <div className="font-medium text-foreground">{selectedCustomer.name}</div>
+              <div className="text-sm text-muted-foreground flex items-center gap-4">
                 <span className="flex items-center gap-1">
                   <Phone className="h-3 w-3" />
                   {selectedCustomer.mobile}
@@ -74,7 +74,7 @@ export const DirectCustomerSearch = ({ value, onValueChange, placeholder = "Sear
           </div>
           <button
             onClick={handleClearSelection}
-            className="text-gray-400 hover:text-gray-600 text-sm px-2 py-1 rounded hover:bg-white"
+            className="text-muted-foreground/70 hover:text-muted-foreground text-sm px-2 py-1 rounded hover:bg-card"
           >
             Change
           </button>
@@ -82,7 +82,7 @@ export const DirectCustomerSearch = ({ value, onValueChange, placeholder = "Sear
       ) : (
         <div className="relative">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
             <Input
               type="text"
               placeholder={placeholder}
@@ -95,11 +95,11 @@ export const DirectCustomerSearch = ({ value, onValueChange, placeholder = "Sear
 
           {/* Search Results */}
           {showResults && (
-            <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-80 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+            <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-80 overflow-auto bg-card border border-border rounded-lg shadow-lg">
               {isLoading ? (
                 <GridLoader className="py-4 min-h-0" loadingText="Loading customers..." />
               ) : filteredCustomers.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
+                <div className="p-4 text-center text-muted-foreground">
                   No customers found matching "{searchTerm}"
                 </div>
               ) : (
@@ -108,20 +108,20 @@ export const DirectCustomerSearch = ({ value, onValueChange, placeholder = "Sear
                     <div
                       key={customer.id}
                       onClick={() => handleSelectCustomer(customer)}
-                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      className="px-4 py-3 hover:bg-muted cursor-pointer border-b border-border last:border-b-0"
                     >
                       <div className="flex items-start gap-3">
-                        <User className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <User className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">{customer.name}</div>
-                          <div className="text-sm text-gray-600 mt-1">
+                          <div className="font-medium text-foreground">{customer.name}</div>
+                          <div className="text-sm text-muted-foreground mt-1">
                             <div className="flex items-center gap-1 mb-1">
-                              <Phone className="h-3 w-3 text-green-600" />
+                              <Phone className="h-3 w-3 text-primary" />
                               <span>{customer.mobile}</span>
                             </div>
                             {customer.address && (
                               <div className="flex items-start gap-1">
-                                <MapPin className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
+                                <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
                                 <span className="line-clamp-2">{customer.address}</span>
                               </div>
                             )}

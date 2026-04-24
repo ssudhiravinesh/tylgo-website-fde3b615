@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getErrorMessage } from '@/utils/errorUtils';
 import { getShowroomId } from './useShowroom';
 
 export interface QuotationItem {
@@ -167,9 +168,9 @@ export const useCreateQuotationItem = () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       toast.success('Item added to quotation');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Error creating quotation item:', error);
-      toast.error(error.message || 'Error adding item to quotation');
+      toast.error(getErrorMessage(error, 'Error adding item to quotation'));
     },
   });
 };
@@ -200,9 +201,9 @@ export const useUpdateQuotationItem = () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       toast.success('Quotation item updated');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Error updating quotation item:', error);
-      toast.error(error.message || 'Error updating quotation item');
+      toast.error(getErrorMessage(error, 'Error updating quotation item'));
     },
   });
 };
@@ -229,9 +230,9 @@ export const useDeleteQuotationItem = () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       toast.success('Item removed from quotation');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Error deleting quotation item:', error);
-      toast.error(error.message || 'Error removing item from quotation');
+      toast.error(getErrorMessage(error, 'Error removing item from quotation'));
     },
   });
 };

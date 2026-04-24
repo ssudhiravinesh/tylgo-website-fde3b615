@@ -68,7 +68,7 @@ export const EmailDialog = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-blue-600" />
+            <Mail className="h-5 w-5 text-primary" />
             Send Quotation via Email
           </DialogTitle>
           <DialogDescription>

@@ -41,12 +41,12 @@ export const CustomerSearchBar = ({ value, onValueChange, placeholder = "Search 
         >
           {selectedCustomer ? (
             <div className="flex items-center gap-2 text-left">
-              <User className="h-4 w-4 text-blue-600" />
+              <User className="h-4 w-4 text-primary" />
               <span className="font-medium">{selectedCustomer.name}</span>
-              <span className="text-gray-500">- {selectedCustomer.mobile}</span>
+              <span className="text-muted-foreground">- {selectedCustomer.mobile}</span>
             </div>
           ) : (
-            <span className="text-gray-500">{placeholder}</span>
+            <span className="text-muted-foreground">{placeholder}</span>
           )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -78,10 +78,10 @@ export const CustomerSearchBar = ({ value, onValueChange, placeholder = "Search 
                   />
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-blue-600" />
+                      <User className="h-4 w-4 text-primary" />
                       <span className="font-medium">{customer.name}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Phone className="h-3 w-3 text-green-600" />
                       <span>{customer.mobile}</span>
                     </div>

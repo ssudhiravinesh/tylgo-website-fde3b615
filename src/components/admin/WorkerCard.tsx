@@ -13,12 +13,12 @@ export const WorkerCard = ({ worker, onViewQuotations, onResetPassword, onDelete
   return (
     <div className="flex items-center justify-between p-4 border rounded-lg">
       <div className="flex-1">
-        <h3 className="font-medium text-gray-800">{worker.name}</h3>
-        <p className="text-sm text-gray-600">{worker.email}</p>
+        <h3 className="font-medium text-foreground">{worker.name}</h3>
+        <p className="text-sm text-muted-foreground">{worker.email}</p>
         <div className="flex items-center gap-4 mt-2">
           <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-blue-600" />
-            <span className="text-sm text-gray-600">
+            <FileText className="h-4 w-4 text-primary" />
+            <span className="text-sm text-muted-foreground">
               {worker.quotation_count || 0} quotations
             </span>
           </div>

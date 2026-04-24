@@ -39,8 +39,8 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
           Back
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Customer References</h1>
-          <p className="text-gray-600">View all customer reference information</p>
+          <h1 className="text-2xl font-bold text-foreground">Customer References</h1>
+          <p className="text-muted-foreground">View all customer reference information</p>
         </div>
       </div>
 
@@ -48,7 +48,7 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
       <Card>
         <CardContent className="pt-6">
           <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
             <Input
               placeholder="Search by reference name, mobile, or customer name..."
               value={searchTerm}
@@ -70,11 +70,11 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
         <CardContent>
           {filteredReferences.length === 0 ? (
             <div className="text-center py-12">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-600 mb-2">
+              <Users className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">
                 {customersWithReferences.length === 0 ? "No references found" : "No matching references"}
               </h3>
-              <p className="text-gray-500">
+              <p className="text-muted-foreground">
                 {customersWithReferences.length === 0
                   ? "Customers haven't provided reference information yet"
                   : "Try adjusting your search criteria"
@@ -84,36 +84,36 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
           ) : (
             <div className="space-y-4">
               {filteredReferences.map((customer) => (
-                <div key={customer.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                <div key={customer.id} className="p-4 border rounded-lg hover:bg-muted">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                        <User className="h-4 w-4 text-blue-600" />
+                      <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                        <User className="h-4 w-4 text-primary" />
                         Reference Information
                       </h4>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         <strong>Name:</strong> {customer.reference_name}
                       </p>
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <Phone className="h-3 w-3" />
                         <strong>Mobile:</strong> {customer.reference_mobile_no}
                       </p>
                     </div>
 
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-2">Customer Information</h4>
-                      <p className="text-sm text-gray-600">
+                      <h4 className="font-semibold text-foreground mb-2">Customer Information</h4>
+                      <p className="text-sm text-muted-foreground">
                         <strong>Name:</strong> {customer.name}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         <strong>Mobile:</strong> {customer.mobile}
                       </p>
                     </div>
 
                     {customer.address && (
                       <div>
-                        <h4 className="font-semibold text-gray-800 mb-2">Address</h4>
-                        <p className="text-sm text-gray-600">{customer.address}</p>
+                        <h4 className="font-semibold text-foreground mb-2">Address</h4>
+                        <p className="text-sm text-muted-foreground">{customer.address}</p>
                       </div>
                     )}
                   </div>

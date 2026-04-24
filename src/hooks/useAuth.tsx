@@ -2,6 +2,7 @@
 import { useState, createContext, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getErrorMessage } from '@/utils/errorUtils';
 import type { User } from '@supabase/supabase-js';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -133,10 +134,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Auth: Profile loaded successfully for user:', userId);
         setProfile(data);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Auth: Exception while fetching profile:', error);
       // Suppress "Failed to fetch" toast here too
-      if (error.message !== 'Failed to fetch') {
+      if (getErrorMessage(error) !== 'Failed to fetch') {
         toast.error('Error loading user profile');
       }
     } finally {
@@ -169,12 +170,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       toast.success('Account created successfully! Please check your email to verify your account.');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign up error:', error);
-      if (error.message.includes('already registered')) {
+      const msg = getErrorMessage(error, 'Error creating account');
+      if (msg.includes('already registered')) {
         toast.error('This email is already registered. Please try signing in instead.');
       } else {
-        toast.error(error.message || 'Error creating account');
+        toast.error(msg);
       }
       throw error;
     } finally {
@@ -200,12 +202,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // toast.success('Signed in successfully!'); // Moved to component level for better control
       return { user: data.user };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign in error:', error);
-      if (error.message.includes('Invalid login credentials')) {
+      const msg = getErrorMessage(error, 'Error signing in');
+      if (msg.includes('Invalid login credentials')) {
         toast.error('Invalid email or password. Please try again.');
       } else {
-        toast.error(error.message || 'Error signing in');
+        toast.error(msg);
       }
       throw error;
     } finally {
@@ -229,10 +232,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       setProfile(null);
       // toast.success('Signed out successfully!'); // Moved to component level
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign out error:', error);
-      if (!error.message?.includes('session') || !error.message?.includes('missing')) {
-        toast.error(error.message || 'Error signing out');
+      const msg = getErrorMessage(error, 'Error signing out');
+      if (!msg.includes('session') || !msg.includes('missing')) {
+        toast.error(msg);
       }
     } finally {
       setLoading(false);

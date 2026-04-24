@@ -42,15 +42,15 @@ export const DownloadCatalogueDialog = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-gray-800">
-            <Download className="h-5 w-5 text-blue-600" />
+          <DialogTitle className="flex items-center gap-2 text-foreground">
+            <Download className="h-5 w-5 text-primary" />
             Download Catalogue
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6 py-2">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <p className="text-sm text-blue-800">
+          <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
+            <p className="text-sm text-foreground/80">
               Select a specific category to download, or leave as "All Categories" to download the complete catalogue.
             </p>
           </div>
@@ -77,13 +77,13 @@ export const DownloadCatalogueDialog = ({
             </Select>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg flex items-center gap-3 border border-gray-100">
-            <div className="bg-white p-2 rounded-full shadow-sm">
-              <Package className="h-5 w-5 text-gray-600" />
+          <div className="bg-muted p-4 rounded-lg flex items-center gap-3 border border-border">
+            <div className="bg-card p-2 rounded-full shadow-sm">
+              <Package className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900">Summary</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-sm font-medium text-foreground">Summary</p>
+              <p className="text-xs text-muted-foreground">
                 {selectedCategory === "all" ? "Entire Catalogue" : selectedCategory} • {matchingTiles.length} Tiles
               </p>
             </div>
@@ -98,7 +98,7 @@ export const DownloadCatalogueDialog = ({
               <Button 
                 onClick={() => onDownloadExcel(selectedCategory === "all" ? undefined : selectedCategory)}
                 variant="outline"
-                className="flex-1 sm:flex-none gap-2 border-green-200 hover:bg-green-50 text-green-700 hover:text-green-800"
+                className="flex-1 sm:flex-none gap-2 border-border hover:bg-accent text-foreground"
                 disabled={isGenerating}
               >
                 <FileSpreadsheet className="h-4 w-4" />
@@ -106,7 +106,7 @@ export const DownloadCatalogueDialog = ({
               </Button>
               <Button 
                 onClick={() => onDownloadPDF(selectedCategory === "all" ? undefined : selectedCategory)}
-                className="flex-1 sm:flex-none gap-2 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 sm:flex-none gap-2 bg-primary hover:bg-primary/90"
                 disabled={isGenerating}
               >
                 <FileText className="h-4 w-4" />

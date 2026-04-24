@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getErrorMessage } from '@/utils/errorUtils';
 
 const checkAdminPermission = async () => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -48,14 +49,15 @@ export const useWorkerMutations = () => {
       toast.success('Password reset successfully');
       queryClient.invalidateQueries({ queryKey: ['workers'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Error resetting password:', error);
-      if (error.message?.includes('Insufficient privileges')) {
+      const msg = getErrorMessage(error, 'Failed to reset password');
+      if (msg.includes('Insufficient privileges')) {
         toast.error('Admin privileges required to reset passwords');
-      } else if (error.message?.includes('Function not found')) {
+      } else if (msg.includes('Function not found')) {
         toast.error('Password reset feature is not yet implemented on the server');
       } else {
-        toast.error(error.message || 'Failed to reset password');
+        toast.error(msg);
       }
     },
   });
@@ -84,9 +86,9 @@ export const useWorkerMutations = () => {
       toast.success('Worker account created successfully');
       queryClient.invalidateQueries({ queryKey: ['workers'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Error creating worker:', error);
-      toast.error(error.message || 'Error creating worker account');
+      toast.error(getErrorMessage(error, 'Error creating worker account'));
     },
   });
 
@@ -114,9 +116,9 @@ export const useWorkerMutations = () => {
       queryClient.invalidateQueries({ queryKey: ['workers'] });
       queryClient.invalidateQueries({ queryKey: ['quotation-stats'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Error deleting worker:', error);
-      toast.error(error.message || 'Failed to delete worker');
+      toast.error(getErrorMessage(error, 'Failed to delete worker'));
     },
   });
 

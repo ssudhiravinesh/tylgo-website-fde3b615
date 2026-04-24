@@ -86,11 +86,11 @@ export const QuotationFilters = ({
                           endDate !== null;
 
   return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200">
+    <div className="bg-card p-4 rounded-lg border border-border">
       <div className="flex flex-wrap gap-4 items-center">
         {/* Start Date Picker */}
         <div className="flex items-center gap-2">
-          <CalendarIcon className="h-4 w-4 text-gray-500" />
+          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -117,7 +117,7 @@ export const QuotationFilters = ({
 
         {/* End Date Picker */}
         <div className="flex items-center gap-2">
-          <CalendarIcon className="h-4 w-4 text-gray-500" />
+          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -169,11 +169,11 @@ export const QuotationFilters = ({
 
       {/* More Filters - Hidden by default */}
       {showMoreFilters && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="mt-4 pt-4 border-t border-border">
           <div className="flex flex-wrap gap-4 items-center">
             {/* Quick Date Range Filter */}
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               <Select value={currentQuickSort} onValueChange={onQuickSortChange}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Date Range" />
@@ -190,7 +190,7 @@ export const QuotationFilters = ({
 
             {/* Year Filter */}
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Year:</span>
+              <span className="text-sm text-muted-foreground">Year:</span>
               <Select 
                 value={currentYear?.toString() || "all"} 
                 onValueChange={(value) => onPreciseFilterChange(value === "all" ? null : parseInt(value), currentMonth)}
@@ -211,7 +211,7 @@ export const QuotationFilters = ({
 
             {/* Month Filter */}
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Month:</span>
+              <span className="text-sm text-muted-foreground">Month:</span>
               <Select 
                 value={currentMonth?.toString() || "all"} 
                 onValueChange={(value) => onPreciseFilterChange(currentYear, value === "all" ? null : parseInt(value))}
@@ -232,7 +232,7 @@ export const QuotationFilters = ({
 
             {/* Worker Filter */}
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-500" />
+              <Users className="h-4 w-4 text-muted-foreground" />
               <Select value={currentWorker} onValueChange={onWorkerFilterChange}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Select Worker" />
@@ -250,7 +250,7 @@ export const QuotationFilters = ({
 
             {/* Status Filter */}
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-gray-500" />
+              <FileText className="h-4 w-4 text-muted-foreground" />
               <Select value={currentStatus} onValueChange={onStatusFilterChange}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Select Status" />

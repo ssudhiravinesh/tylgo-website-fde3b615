@@ -119,7 +119,7 @@ export const HierarchyWrapper = ({
         return (
             <div className="space-y-4">
                 {/* Breadcrumb Navigation Header */}
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-4 bg-white p-3 rounded-lg border shadow-sm">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4 bg-card p-3 rounded-lg border shadow-sm">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -132,7 +132,7 @@ export const HierarchyWrapper = ({
                     <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-auto p-0 hover:bg-transparent font-normal ${!requireShowroom ? "font-semibold text-gray-900" : ""}`}
+                        className={`h-auto p-0 hover:bg-transparent font-normal ${!requireShowroom ? "font-semibold text-foreground" : ""}`}
                         onClick={requireShowroom ? resetShowroom : undefined}
                         disabled={!requireShowroom}
                     >
@@ -141,7 +141,7 @@ export const HierarchyWrapper = ({
                     {selectedShowroom && (
                         <>
                             <ChevronRight className="h-4 w-4" />
-                            <span className="font-semibold text-gray-900">{selectedShowroom.name}</span>
+                            <span className="font-semibold text-foreground">{selectedShowroom.name}</span>
                         </>
                     )}
                 </div>
@@ -164,7 +164,7 @@ export const HierarchyWrapper = ({
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight text-gray-900">Select Showroom</h2>
+                        <h2 className="text-2xl font-bold tracking-tight text-foreground">Select Showroom</h2>
                         <p className="text-muted-foreground">Select a showroom under {selectedBrand.name} to view {title.toLowerCase()}.</p>
                     </div>
                 </div>
@@ -174,14 +174,14 @@ export const HierarchyWrapper = ({
                         showrooms.map((showroom) => (
                             <Card
                                 key={showroom.id}
-                                className="cursor-pointer hover:border-blue-500 hover:shadow-md transition-all group"
+                                className="cursor-pointer hover:border-primary hover:shadow-md transition-all group"
                                 onClick={() => handleShowroomSelect(showroom)}
                             >
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-base font-medium group-hover:text-blue-600 transition-colors">
+                                    <CardTitle className="text-base font-medium group-hover:text-primary transition-colors">
                                         {showroom.name}
                                     </CardTitle>
-                                    <Store className="h-4 w-4 text-muted-foreground group-hover:text-blue-500" />
+                                    <Store className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
                                 </CardHeader>
                                 <CardContent>
                                     <CardDescription>Click to manage</CardDescription>
@@ -189,8 +189,8 @@ export const HierarchyWrapper = ({
                             </Card>
                         ))
                     ) : (
-                        <div className="col-span-full text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed">
-                            <Store className="h-10 w-10 mx-auto mb-3 text-gray-400" />
+                        <div className="col-span-full text-center py-12 text-muted-foreground bg-muted rounded-lg border border-dashed">
+                            <Store className="h-10 w-10 mx-auto mb-3 text-muted-foreground/70" />
                             <p>No showrooms found for this brand.</p>
                         </div>
                     )}
@@ -203,7 +203,7 @@ export const HierarchyWrapper = ({
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
-                <h2 className="text-3xl font-bold tracking-tight text-gray-900">{title}</h2>
+                <h2 className="text-3xl font-bold tracking-tight text-foreground">{title}</h2>
                 <p className="text-muted-foreground">{description}</p>
             </div>
 
@@ -215,7 +215,7 @@ export const HierarchyWrapper = ({
                         onClick={() => handleBrandSelect(brand)}
                     >
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-lg font-bold group-hover:text-indigo-600 transition-colors">
+                            <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">
                                 {brand.name}
                             </CardTitle>
                             <Building2 className="h-5 w-5 text-muted-foreground group-hover:text-indigo-500" />

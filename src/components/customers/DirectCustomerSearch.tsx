@@ -81,12 +81,12 @@ export const DirectCustomerSearch = ({
   if (selectedCustomer) {
     return (
       <div className="relative">
-        <div className="flex items-center justify-between p-3 border border-gray-200 rounded-md bg-blue-50">
+        <div className="flex items-center justify-between p-3 border border-border rounded-md bg-primary/10">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-blue-600" />
+            <User className="h-4 w-4 text-primary" />
             <div>
-              <p className="font-medium text-sm text-gray-800">{selectedCustomer.name}</p>
-              <p className="text-xs text-gray-600 flex items-center gap-1">
+              <p className="font-medium text-sm text-foreground">{selectedCustomer.name}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Phone className="h-3 w-3" />
                 {selectedCustomer.mobile}
               </p>
@@ -109,13 +109,13 @@ export const DirectCustomerSearch = ({
   return (
     <div className="relative" onClick={(e) => e.stopPropagation()}>
       <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
         <Input
           type="text"
           placeholder={placeholder}
           value={searchTerm}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="pl-10 h-12 border-gray-200"
+          className="pl-10 h-12 border-border"
         />
         {searchTerm && (
           <Button
@@ -132,7 +132,7 @@ export const DirectCustomerSearch = ({
 
       {/* Search Results */}
       {showResults && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
           {filteredCustomers.length > 0 ? (
             <div className="py-1">
               {filteredCustomers.map((customer) => (
@@ -140,19 +140,19 @@ export const DirectCustomerSearch = ({
                   key={customer.id}
                   type="button"
                   onClick={() => handleSelectCustomer(customer)}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                  className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none"
                 >
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <User className="h-4 w-4 text-primary flex-shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm text-gray-800 truncate">
+                      <p className="font-medium text-sm text-foreground truncate">
                         {customer.name}
                       </p>
-                      <p className="text-xs text-gray-600 flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Phone className="h-3 w-3" />
                         {customer.mobile}
                         {customer.category && customer.category !== 'Customer' && (
-                          <span className="text-blue-600 font-medium">• {customer.category}</span>
+                          <span className="text-primary font-medium">• {customer.category}</span>
                         )}
                       </p>
                     </div>
@@ -161,7 +161,7 @@ export const DirectCustomerSearch = ({
               ))}
             </div>
           ) : (
-            <div className="px-3 py-4 text-center text-sm text-gray-500">
+            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
               No customers found
             </div>
           )}

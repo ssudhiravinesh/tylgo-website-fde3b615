@@ -96,8 +96,8 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
       {/* Header with view toggle and Add button */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Customer Management</h1>
-          <p className="text-gray-600">Manage your customer database and quotations</p>
+          <h1 className="text-2xl font-bold text-foreground">Customer Management</h1>
+          <p className="text-muted-foreground">Manage your customer database and quotations</p>
         </div>
         <div className="flex items-center gap-3">
 
@@ -107,7 +107,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
               value={categoryFilter}
               onValueChange={(v) => setCategoryFilter(v)}
             >
-              <SelectTrigger className="h-10 w-32 text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+              <SelectTrigger className="h-10 w-32 text-sm border-border focus:border-primary focus:ring-primary">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent className="max-h-48 overflow-auto">
@@ -128,7 +128,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
                 list="area-list"
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}
-                className="h-10 w-36 text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                className="h-10 w-36 text-sm border-border focus:border-primary focus:ring-primary"
               />
               <datalist id="area-list">
                 {uniqueAreas.map(a => (
@@ -142,7 +142,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
               value={stateFilter}
               onValueChange={(v) => setStateFilter(v)}
             >
-              <SelectTrigger className="h-10 w-32 text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+              <SelectTrigger className="h-10 w-32 text-sm border-border focus:border-primary focus:ring-primary">
                 <SelectValue placeholder="Filter by state" />
               </SelectTrigger>
               <SelectContent className="max-h-48 overflow-auto">
@@ -163,8 +163,8 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
               className={
                 `flex items-center gap-1 px-3 py-2 rounded-md transition-colors ` +
                 (viewMode === 'list'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+                  ? 'bg-primary text-white'
+                  : 'bg-muted text-muted-foreground hover:bg-secondary')
               }
             >
               <LayoutList className="h-5 w-5" />
@@ -177,8 +177,8 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
               className={
                 `flex items-center gap-1 px-3 py-2 rounded-md transition-colors ` +
                 (viewMode === 'card'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+                  ? 'bg-primary text-white'
+                  : 'bg-muted text-muted-foreground hover:bg-secondary')
               }
             >
               <LayoutGrid className="h-5 w-5" />
@@ -187,7 +187,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
           </div>
 
           {userRole === 'worker' && (
-            <Button onClick={onAddCustomer} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+            <Button onClick={onAddCustomer} className="bg-primary hover:bg-primary/90 text-white gap-2">
               <UserPlus className="h-4 w-4" /> Add Customer
             </Button>
           )}
@@ -196,47 +196,47 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
 
       {/* Search bar */}
       <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
         <Input
           placeholder="Search customers by name or mobile..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+          className="pl-10 h-12 border-border focus:border-primary focus:ring-primary"
         />
       </div>
 
       {/* List or Card view */}
       {viewMode === 'list' ? (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Added</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Mobile</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Address</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Added</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {filteredCustomers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50">
+                <tr key={customer.id} className="hover:bg-muted">
                   <td className="px-6 py-4 whitespace-nowrap flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-600" /> {customer.name}
+                    <User className="h-5 w-5 text-primary" /> {customer.name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
                     <Badge variant="outline" className="text-xs">
                       {customer.category || 'Customer'}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.mobile}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{customer.mobile}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
                     <div className="max-w-xs truncate" title={formatAddress(customer)}>
                       {formatAddress(customer)}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                     {new Date(customer.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
@@ -244,7 +244,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
                       <Eye className="h-4 w-4 mr-1" /> View
                     </Button>
                     {userRole === 'worker' && (
-                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => onNewQuote(customer.id)}>
+                      <Button size="sm" className="bg-primary hover:bg-primary/90 text-white" onClick={() => onNewQuote(customer.id)}>
                         <FileText className="h-4 w-4 mr-1" /> Quote
                       </Button>
                     )}
@@ -257,27 +257,27 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredCustomers.map((customer) => (
-            <Card key={customer.id} className="hover:shadow-lg transition-shadow duration-200 border-gray-200">
+            <Card key={customer.id} className="content-card">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-600" />
+                  <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <User className="h-5 w-5 text-primary" />
                     {customer.name}
                   </CardTitle>
                   <Badge variant="outline" className="text-xs">New</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone className="h-4 w-4 text-green-600" /> {customer.mobile}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone className="h-4 w-4 text-primary" /> {customer.mobile}
                 </div>
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
+                <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <span className="line-clamp-2">
                     {formatAddress(customer)}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" /> {new Date(customer.created_at).toLocaleDateString()}
                 </div>
                 <div className="flex gap-2 pt-2">
@@ -285,7 +285,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
                     <Eye className="h-3 w-3 mr-1" /> View Details
                   </Button>
                   {userRole === 'worker' && (
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs" onClick={() => onNewQuote(customer.id)}>
+                    <Button size="sm" className="bg-primary hover:bg-primary/90 text-white text-xs" onClick={() => onNewQuote(customer.id)}>
                       <FileText className="h-3 w-3 mr-1" /> New Quote
                     </Button>
                   )}
@@ -298,13 +298,13 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
 
       {filteredCustomers.length === 0 && (
         <div className="text-center py-12">
-          <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-600 mb-2">No customers found</h3>
-          <p className="text-gray-500 mb-4">
+          <User className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-muted-foreground mb-2">No customers found</h3>
+          <p className="text-muted-foreground mb-4">
             {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first customer"}
           </p>
           {!searchTerm && userRole === 'worker' && (
-            <Button onClick={onAddCustomer} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={onAddCustomer} className="bg-primary hover:bg-primary/90 text-white">
               <UserPlus className="h-4 w-4 mr-2" /> Add Your First Customer
             </Button>
           )}

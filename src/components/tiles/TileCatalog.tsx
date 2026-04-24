@@ -104,27 +104,17 @@ export const TileCatalog = ({
     return '#';  // All other cases (symbols etc.)
   };
 
-  const availableKeys = Array.from(
-    new Set(
-      tiles
-        .map(getAlphaKey)
-        .filter(Boolean)
-    )
-  );
 
-  // Always sort: first digits, then letters, then #
-  const numbers = availableKeys.filter((char) => /[0-9]/.test(char)).sort();
-  const letters = availableKeys.filter((char) => /[A-Z]/.test(char)).sort();
-  const others = availableKeys.filter((char) => !/[0-9A-Z]/.test(char));
-  const displayKeys = [...numbers, ...letters, ...others];
 
 
   const AlphabeticalNavigation = ({
-    tiles,
+    navTiles,
+    displayedCount,
     onLetterClick,
     activeLetter,
   }: {
-    tiles: Tile[];
+    navTiles: Tile[];
+    displayedCount: number;
     onLetterClick: (letter: string) => void;
     activeLetter: string;
   }) => {
@@ -132,7 +122,7 @@ export const TileCatalog = ({
     // Get unique, sorted keys for navigation
     const availableKeys = Array.from(
       new Set(
-        tiles.map(getAlphaKey).filter(Boolean)
+        navTiles.map(getAlphaKey).filter(Boolean)
       )
     );
     const numbers = availableKeys.filter(char => /[0-9]/.test(char)).sort();
@@ -141,10 +131,10 @@ export const TileCatalog = ({
     const displayKeys = [...numbers, ...letters, ...others];
 
     return (
-      <div className="bg-white border rounded-lg p-3 mb-4">
+      <div className="bg-card border rounded-lg p-3 mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">Quick Navigation</span>
-          <Badge variant="outline" className="text-xs">{tiles.length} tiles</Badge>
+          <span className="text-sm font-medium text-foreground/80">Quick Navigation</span>
+          <Badge variant="outline" className="text-xs">{displayedCount} tiles</Badge>
         </div>
         <div className="flex flex-wrap gap-1">
           <Button
@@ -225,9 +215,8 @@ export const TileCatalog = ({
   }, [tiles]);
 
 
-  const filteredAndSortedTiles = useMemo(() => {
-    // 1. FILTERING
-    let filtered = tiles.filter(tile => {
+  const tilesForAlphabetNav = useMemo(() => {
+    return tiles.filter(tile => {
       // Category Filter (Highest Priority if set from Category View)
       if (activeCategoryFilter && activeCategoryFilter !== 'All Tiles') {
         const cat = tile.category || 'Uncategorized';
@@ -241,8 +230,14 @@ export const TileCatalog = ({
 
       const matchesPrice = !tile.price_per_box || (tile.price_per_box >= priceRange[0] && tile.price_per_box <= priceRange[1]);
 
-      const matchesAlphabet = !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
-      return matchesSearch && matchesPrice && matchesAlphabet;
+      return matchesSearch && matchesPrice;
+    });
+  }, [tiles, activeCategoryFilter, searchTerm, priceRange]);
+
+  const filteredAndSortedTiles = useMemo(() => {
+    // 1. FILTERING
+    let filtered = tilesForAlphabetNav.filter(tile => {
+      return !alphabeticalIndex || getAlphaKey(tile) === alphabeticalIndex;
     });
 
     // 2. SORTING
@@ -279,7 +274,7 @@ export const TileCatalog = ({
     });
 
     return filtered;
-  }, [tiles, searchTerm, activeCategoryFilter, priceRange, sortBy, sortOrder, alphabeticalIndex]);
+  }, [tilesForAlphabetNav, searchTerm, sortBy, sortOrder, alphabeticalIndex]);
 
   // Simple view toggle component
   const ViewToggle = ({ viewMode, setViewMode }: { viewMode: "grid" | "list", setViewMode: (mode: "grid" | "list") => void }) => (
@@ -385,7 +380,7 @@ export const TileCatalog = ({
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-red-600 mb-2">Error loading tiles: {error.message}</p>
+          <p className="text-destructive mb-2">Error loading tiles: {error.message}</p>
           <Button onClick={() => window.location.reload()}>
             Try Again
           </Button>
@@ -405,10 +400,10 @@ export const TileCatalog = ({
             </Button>
           )}
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-foreground">
               {activeCategoryFilter ? `${activeCategoryFilter} Tiles` : 'Tile Catalog'}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               {activeCategoryFilter
                 ? `Browsing ${activeCategoryFilter} collection`
                 : 'Browse and search through our tile collection'}
@@ -443,7 +438,7 @@ export const TileCatalog = ({
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                 <Input
                   placeholder="Search all tiles by name, code, or SKU..."
                   value={searchTerm}
@@ -484,15 +479,15 @@ export const TileCatalog = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {/* "All Tiles" Card */}
           <Card
-            className="cursor-pointer hover:shadow-md transition-shadow hover:border-blue-400 border-dashed"
+            className="cursor-pointer hover:shadow-md transition-shadow hover:border-primary/40 border-dashed"
             onClick={() => handleCategoryClick('All Tiles')}
           >
             <CardContent className="p-6 flex flex-col items-center justify-center text-center h-full min-h-[140px]">
-              <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-3">
-                <Grid className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                <Grid className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-gray-800">All Tiles</h3>
-              <p className="text-sm text-gray-500 mt-1">{tiles.length} items</p>
+              <h3 className="font-semibold text-foreground">All Tiles</h3>
+              <p className="text-sm text-muted-foreground mt-1">{tiles.length} items</p>
             </CardContent>
           </Card>
 
@@ -500,16 +495,16 @@ export const TileCatalog = ({
           {categoryStats.map((cat) => (
             <Card
               key={cat.name}
-              className="cursor-pointer hover:shadow-md transition-shadow hover:border-blue-400"
+              className="cursor-pointer hover:shadow-md transition-shadow hover:border-primary/40"
               onClick={() => handleCategoryClick(cat.name)}
             >
               <CardContent className="p-6 flex flex-col items-center justify-center text-center h-full min-h-[140px]">
                 {/* Placeholder Icon based on name? Or just generic */}
-                <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-3">
-                  <Layers className="h-6 w-6 text-gray-600" />
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <Layers className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold text-gray-800 break-words w-full px-2 line-clamp-2">{cat.name}</h3>
-                <p className="text-sm text-gray-500 mt-1">{cat.count} items</p>
+                <h3 className="font-semibold text-foreground break-words w-full px-2 line-clamp-2">{cat.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{cat.count} items</p>
               </CardContent>
             </Card>
           ))}
@@ -521,11 +516,8 @@ export const TileCatalog = ({
         <>
           {/* Alphabetical Navigation */}
           <AlphabeticalNavigation
-            tiles={filteredAndSortedTiles} // Pass filtered tiles so we only see letters relevant to current view? Or original?
-            // Better to pass current filtered context or original?
-            // Usually alphabetical nav should work on the *displayed* list or allow jumping within it.
-            // But normally it's a filter. Let's pass the tiles matching the category.
-
+            navTiles={tilesForAlphabetNav} 
+            displayedCount={filteredAndSortedTiles.length}
             onLetterClick={setAlphabeticalIndex}
             activeLetter={alphabeticalIndex}
           />
@@ -534,15 +526,15 @@ export const TileCatalog = ({
           {/* Active Filters */}
           {(searchTerm || alphabeticalIndex || (activeCategoryFilter && activeCategoryFilter !== 'All Tiles')) && (
             <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-sm text-gray-500">Active filters:</span>
+              <span className="text-sm text-muted-foreground">Active filters:</span>
 
               {activeCategoryFilter && activeCategoryFilter !== 'All Tiles' && (
-                <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+                <Badge variant="default" className="bg-primary hover:bg-primary/90">
                   Category: {activeCategoryFilter}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-4 w-4 p-0 ml-1 hover:bg-blue-500 rounded-full"
+                    className="h-4 w-4 p-0 ml-1 hover:bg-primary rounded-full"
                     onClick={handleBackToCategories}
                   >
                     ×
@@ -580,7 +572,7 @@ export const TileCatalog = ({
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="text-red-600 hover:text-red-700"
+                className="text-destructive hover:text-destructive"
               >
                 Clear All
               </Button>

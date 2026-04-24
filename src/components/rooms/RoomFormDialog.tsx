@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FeetInchInput } from "@/components/ui/feet-inches-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorUtils";
 import { Plus, Trash2, Ruler, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Room } from "@/hooks/useRooms";
@@ -220,9 +221,10 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       }
       
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving room:", error);
-      if (error?.message?.includes("duplicate") || error?.code === "23505") {
+      const msg = getErrorMessage(error, 'Failed to save room');
+      if (msg.includes('duplicate') || (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === '23505')) {
         toast.error("A room with this name already exists for this customer");
       } else {
         toast.error("Failed to save room");
@@ -317,15 +319,15 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       <div className="space-y-3">
         <div className="flex justify-between items-center">
            <Label>Dimensions</Label>
-           <span className="text-xs text-gray-500">
+           <span className="text-xs text-muted-foreground">
              {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
            </span>
         </div>
         
         {measurements.map((m, index) => (
-          <div key={m.id} className="flex items-end gap-2 bg-gray-50 p-2 rounded-md border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div key={m.id} className="flex items-end gap-2 bg-muted p-2 rounded-md border border-border animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="flex-1 space-y-1">
-              <span className="text-xs font-medium text-gray-500">
+              <span className="text-xs font-medium text-muted-foreground">
                 {index + 1}. {labelL}
               </span>
               {formData.unit === "feet" ? (
@@ -348,7 +350,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </div>
 
             <div className="flex-1 space-y-1">
-              <span className="text-xs font-medium text-gray-500">
+              <span className="text-xs font-medium text-muted-foreground">
                 {index + 1}. {labelW}
               </span>
               {formData.unit === "feet" ? (
@@ -376,7 +378,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="mb-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 h-10 w-10 shrink-0"
+                className="mb-0.5 text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 shrink-0"
                 onClick={() => removeMeasurementSet(m.id)}
                 title="Remove shape"
               >
@@ -391,7 +393,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           variant="outline"
           size="sm"
           onClick={addMeasurementSet}
-          className="w-full gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+          className="w-full gap-2 text-primary border-primary/20 hover:bg-primary/10"
         >
           <Plus className="h-4 w-4" />
           Add Another Shape
@@ -431,7 +433,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
               
               {isFetchingNames && (
                 <div className="absolute right-2 top-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/70" />
                 </div>
               )}
               
@@ -483,7 +485,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             <Label htmlFor="unit">Measurement Unit *</Label>
             <Select 
               value={formData.unit} 
-              onValueChange={(value: any) => setFormData(prev => ({ ...prev, unit: value }))}
+              onValueChange={(value: "metre" | "inches" | "mm" | "feet") => setFormData(prev => ({ ...prev, unit: value }))}
               disabled={isLoading}
             >
               <SelectTrigger>
@@ -502,7 +504,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           {renderMeasurementSets()}
 
           {/* Total Area Display */}
-          <div className={`p-3 rounded-lg border ${formData.room_type === 'floor' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+          <div className={`p-3 rounded-lg border bg-primary/8 border-primary/20 text-foreground`}>
             <div className="flex justify-between items-center text-sm">
               <span className="font-medium flex items-center gap-2">
                 <Ruler className="h-4 w-4" />
@@ -531,7 +533,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             <Button
               type="submit"
               disabled={isLoading || !formData.name.trim() || calculateTotalArea() <= 0}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-primary hover:bg-primary/90"
             >
               {isLoading ? "Saving..." : room ? "Update Room" : "Create Room"}
             </Button>

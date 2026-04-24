@@ -24,8 +24,8 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
           Back to Customers
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Customer Details</h1>
-          <p className="text-gray-600">View complete customer information</p>
+          <h1 className="text-2xl font-bold text-foreground">Customer Details</h1>
+          <p className="text-muted-foreground">View complete customer information</p>
         </div>
       </div>
 
@@ -33,7 +33,7 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-blue-600" />
+            <User className="h-5 w-5 text-primary" />
             Personal Information
           </CardTitle>
         </CardHeader>
@@ -41,41 +41,41 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-500">Full Name</label>
-                <p className="text-lg font-semibold text-gray-800">{customer.name}</p>
+                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+                <p className="text-lg font-semibold text-foreground">{customer.name}</p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-500">Mobile Number</label>
+                <label className="text-sm font-medium text-muted-foreground">Mobile Number</label>
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-green-600" />
-                  <p className="text-lg text-gray-800">{customer.mobile}</p>
+                  <p className="text-lg text-foreground">{customer.mobile}</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-500">Customer ID</label>
-                <p className="text-sm font-mono text-gray-600">{customer.id.slice(0, 8)}...</p>
+                <label className="text-sm font-medium text-muted-foreground">Customer ID</label>
+                <p className="text-sm font-mono text-muted-foreground">{customer.id.slice(0, 8)}...</p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-500">Created Date</label>
+                <label className="text-sm font-medium text-muted-foreground">Created Date</label>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <p className="text-gray-800">{new Date(customer.created_at).toLocaleDateString()}</p>
+                  <Calendar className="h-4 w-4 text-muted-foreground/70" />
+                  <p className="text-foreground">{new Date(customer.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {customer.address && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <label className="text-sm font-medium text-gray-500">Address</label>
+            <div className="mt-6 pt-6 border-t border-border">
+              <label className="text-sm font-medium text-muted-foreground">Address</label>
               <div className="flex items-start gap-2 mt-2">
                 <MapPin className="h-4 w-4 text-red-500 mt-1 flex-shrink-0" />
-                <p className="text-gray-800">{customer.address}</p>
+                <p className="text-foreground">{customer.address}</p>
               </div>
             </div>
           )}
@@ -87,7 +87,7 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Building className="h-5 w-5 text-blue-600" />
+              <Building className="h-5 w-5 text-primary" />
               Rooms ({rooms.length})
             </div>
 
@@ -97,22 +97,22 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
           {roomsLoading ? (
             <GridLoader className="py-8 min-h-0" loadingText="Loading rooms..." />
           ) : rooms.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               <Building className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <p>No rooms added for this customer yet.</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {rooms.map((room) => (
-                <div key={room.id} className="border rounded-lg p-4 bg-gray-50">
+                <div key={room.id} className="border rounded-lg p-4 bg-muted">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       {room.room_type === 'wall' ? (
                         <Square className="h-4 w-4 text-orange-600" />
                       ) : (
-                        <Home className="h-4 w-4 text-blue-600" />
+                        <Home className="h-4 w-4 text-primary" />
                       )}
-                      <h4 className="font-medium text-gray-800">{room.name}</h4>
+                      <h4 className="font-medium text-foreground">{room.name}</h4>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <Badge variant="secondary" className="text-xs capitalize">
@@ -127,7 +127,7 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
                     </div>
                   </div>
 
-                  <div className="space-y-2 text-sm text-gray-600">
+                  <div className="space-y-2 text-sm text-muted-foreground">
                     {room.room_type === 'wall' ? (
                       <>
                         {room.wall_height && (

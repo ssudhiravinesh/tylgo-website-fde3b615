@@ -181,7 +181,7 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
         disabled={disabled}
         className="font-mono"
       />
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-muted-foreground">
         Enter feet and inches (e.g., "21 10" for 21 feet 10 inches). Press space after each number for auto-formatting.
       </div>
     </div>

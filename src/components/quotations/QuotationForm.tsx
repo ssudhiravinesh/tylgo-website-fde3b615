@@ -167,8 +167,8 @@ export const QuotationForm = ({
           Back
         </Button>
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Generate Quotation</h2>
-          <p className="text-gray-600">Create a quotation for the selected tiles and rooms</p>
+          <h2 className="text-2xl font-bold text-foreground">Generate Quotation</h2>
+          <p className="text-muted-foreground">Create a quotation for the selected tiles and rooms</p>
         </div>
       </div>
 
@@ -189,7 +189,7 @@ export const QuotationForm = ({
                   id="quotation-number"
                   value={quotationNumber}
                   readOnly
-                  className="bg-gray-50"
+                  className="bg-muted"
                   placeholder={quotationNumberLoading ? "Generating..." : ""}
                 />
                 <Button
@@ -208,11 +208,11 @@ export const QuotationForm = ({
             </div>
 
             {selectedCustomer && (
-              <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="p-3 bg-primary/10 rounded-lg">
                 <h4 className="font-medium text-blue-800">{selectedCustomer.name}</h4>
-                <p className="text-sm text-blue-600">{selectedCustomer.mobile}</p>
+                <p className="text-sm text-primary">{selectedCustomer.mobile}</p>
                 {selectedCustomer.address && (
-                  <p className="text-xs text-blue-500 mt-1">{selectedCustomer.address}</p>
+                  <p className="text-xs text-primary mt-1">{selectedCustomer.address}</p>
                 )}
               </div>
             )}
@@ -253,22 +253,22 @@ export const QuotationForm = ({
                   const tile = tiles.find(t => t.id === item.tile_id);
                   const room = rooms.find(r => r.id === item.room_id);
                   return (
-                    <div key={index} className="border rounded-lg p-3 bg-gray-50">
+                    <div key={index} className="border rounded-lg p-3 bg-muted">
                       <div className="flex justify-between items-start">
                         <div>
                           <h5 className="font-medium">
                             {room?.name || 'Unknown Room'}
                             {item.layer_number && (
-                              <span className="text-sm text-gray-500 ml-2">
+                              <span className="text-sm text-muted-foreground ml-2">
                                 (Layer {item.layer_number})
                               </span>
                             )}
                           </h5>
-                          <p className="text-sm text-gray-600">{tile?.code || 'Unknown Tile'}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-sm text-muted-foreground">{tile?.code || 'Unknown Tile'}</p>
+                          <p className="text-xs text-muted-foreground">
                             Area: {item.area.toFixed(2)} sq ft
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             Price: ₹{item.total_price.toLocaleString()}
                           </p>
                         </div>
@@ -285,10 +285,10 @@ export const QuotationForm = ({
                           <h5 className="font-medium text-purple-900">
                             {item.display_name || 'Product'}
                           </h5>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             Qty: {item.quantity}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             Price: ₹{item.total_price.toLocaleString()}
                           </p>
                         </div>
@@ -320,11 +320,11 @@ export const QuotationForm = ({
                               ({staircaseItem.tile_type === 'step' ? 'Steps' : 'Risers'})
                             </span>
                           </h5>
-                          <p className="text-sm text-gray-600">{tile?.code || 'Unknown Tile'}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-sm text-muted-foreground">{tile?.code || 'Unknown Tile'}</p>
+                          <p className="text-xs text-muted-foreground">
                             Qty: {staircaseItem.quantity} tiles
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             Price: ₹{staircaseItem.total_price.toLocaleString()}
                           </p>
                         </div>

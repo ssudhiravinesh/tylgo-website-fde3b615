@@ -59,7 +59,7 @@ export const ProductCard = ({
         if (!product.dimensions || Object.keys(product.dimensions).length === 0) return null;
 
         return (
-            <div className="text-xs text-gray-500 mt-2 space-y-1">
+            <div className="text-xs text-muted-foreground mt-2 space-y-1">
                 {Object.entries(product.dimensions).map(([key, value]) => {
                     // Try to parse number for conversion
                     const numValue = Number(value);
@@ -75,7 +75,7 @@ export const ProductCard = ({
                                     : value}
 
                                 {isNumber && unit !== 'mm' && (
-                                    <span className="text-gray-400 text-[10px] ml-1">
+                                    <span className="text-muted-foreground/70 text-[10px] ml-1">
                                         ({convertProductDimension(numValue, unit, 'mm').toFixed(1)} mm)
                                     </span>
                                 )}
@@ -90,7 +90,7 @@ export const ProductCard = ({
     return (
         <Card className="hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col h-full">
             <div
-                className="bg-gray-100 h-48 flex items-center justify-center overflow-hidden relative"
+                className="bg-muted h-48 flex items-center justify-center overflow-hidden relative"
             >
                 {product.image_url ? (
                     <img
@@ -99,7 +99,7 @@ export const ProductCard = ({
                         className="w-full h-full object-contain p-4"
                     />
                 ) : (
-                    <div className="text-gray-400 flex flex-col items-center">
+                    <div className="text-muted-foreground/70 flex flex-col items-center">
                         <Box className="h-12 w-12 mb-2" />
                         <span className="text-sm">No Image</span>
                     </div>
@@ -112,42 +112,42 @@ export const ProductCard = ({
             <CardContent className="p-4 flex-1 flex flex-col">
                 <div className="mb-2">
                     {product.code && (
-                        <div className="text-xs text-gray-500 font-mono mb-1">{product.code}</div>
+                        <div className="text-xs text-muted-foreground font-mono mb-1">{product.code}</div>
                     )}
-                    <h3 className="font-semibold text-gray-800 line-clamp-2" title={product.name}>
+                    <h3 className="font-semibold text-foreground line-clamp-2" title={product.name}>
                         {product.name}
                     </h3>
                 </div>
 
                 <div className="mt-auto space-y-3">
-                    <div className="flex items-center text-blue-600 font-bold">
+                    <div className="flex items-center text-primary font-bold">
                         <IndianRupee className="h-4 w-4 mr-1" />
                         {product.price?.toLocaleString()}
                     </div>
 
-                    <div className="bg-gray-50 p-2 rounded text-sm">
-                        <div className="flex items-center gap-1 text-gray-600 mb-1">
+                    <div className="bg-muted p-2 rounded text-sm">
+                        <div className="flex items-center gap-1 text-muted-foreground mb-1">
                             <Ruler className="h-3 w-3" />
                             <span className="font-medium text-xs">Dimensions</span>
                         </div>
-                        {renderDimensions() || <span className="text-xs text-gray-400">N/A</span>}
+                        {renderDimensions() || <span className="text-xs text-muted-foreground/70">N/A</span>}
                     </div>
 
                     {onSelect ? (
-                        <div className="mt-4 pt-2 border-t border-gray-100">
+                        <div className="mt-4 pt-2 border-t border-border">
                             <Button
-                                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                className="w-full btn-primary-craft"
                                 onClick={onSelect}
                             >
                                 Select Product
                             </Button>
                         </div>
                     ) : isAdmin && (
-                        <div className="flex gap-2 mt-4 pt-2 border-t border-gray-100">
+                        <div className="flex gap-2 mt-4 pt-2 border-t border-border">
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                className="text-primary hover:text-primary/80 hover:bg-primary/10"
                                 onClick={() => setShowQRDialog(true)}
                             >
                                 <QrCode className="h-4 w-4 mr-1" />
@@ -184,7 +184,7 @@ export const ProductCard = ({
                     </DialogHeader>
                     <div className="flex flex-col items-center justify-center p-6 space-y-4">
                         {product.qr_code_url ? (
-                            <div className="bg-white p-4 rounded-lg shadow-sm border">
+                            <div className="bg-card p-4 rounded-lg shadow-sm border">
                                 <img
                                     src={product.qr_code_url}
                                     alt={`QR code for ${product.name}`}
@@ -192,7 +192,7 @@ export const ProductCard = ({
                                 />
                             </div>
                         ) : (
-                            <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                            <div className="w-48 h-48 bg-muted rounded-lg flex items-center justify-center text-muted-foreground/70">
                                 <QrCode className="w-12 h-12" />
                             </div>
                         )}

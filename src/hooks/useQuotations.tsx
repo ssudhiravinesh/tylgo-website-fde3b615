@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/utils/errorUtils';
 import { useNotification } from '@/contexts/NotificationContext';
 import { getShowroomId } from './useShowroom';
 
@@ -582,8 +583,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
       showSuccessAnimation(`Quotation "${data.quotation_number}" created successfully!`, 'quotation');
       toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to create quotation');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to create quotation'));
     },
   });
 
@@ -730,8 +731,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
 
       toast.success(`Quotation "${data.quotation.quotation_number}" updated successfully!`);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to update quotation');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to update quotation'));
     },
   });
 
@@ -758,8 +759,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       toast.success('Quotation deleted successfully!');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete quotation');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to delete quotation'));
     },
   });
 
@@ -909,8 +910,8 @@ export const useCreateQuotation = () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       toast.success(`Quotation "${data.quotation_number}" created successfully with ${data.quotation_items?.length || 0} items!`);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to create quotation');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to create quotation'));
     },
   });
 };

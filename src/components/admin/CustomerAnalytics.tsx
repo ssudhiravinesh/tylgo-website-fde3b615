@@ -173,8 +173,8 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
-          <p className="text-gray-600">Overview of business performance and metrics</p>
+          <h1 className="text-2xl font-bold text-foreground">Analytics Dashboard</h1>
+          <p className="text-muted-foreground">Overview of business performance and metrics</p>
         </div>
         <Button variant="outline" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
@@ -186,8 +186,8 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-blue-600">Total Customers</p>
-              <User className="h-4 w-4 text-blue-600" />
+              <p className="text-sm font-medium text-primary">Total Customers</p>
+              <User className="h-4 w-4 text-primary" />
             </div>
             <div className="text-2xl font-bold text-blue-900">{customers.length}</div>
           </CardContent>
@@ -302,21 +302,21 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
           <CardContent>
             <div className="space-y-4">
               {topCustomers.map((customer, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm text-white ${index === 0 ? 'bg-yellow-500' : 'bg-gray-400'}`}>
                       {index + 1}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{customer.name}</p>
-                      <p className="text-xs text-gray-500">{customer.quotationCount} Quotations</p>
+                      <p className="font-medium text-foreground">{customer.name}</p>
+                      <p className="text-xs text-muted-foreground">{customer.quotationCount} Quotations</p>
                     </div>
                   </div>
                   <span className="font-bold text-green-600">{formatCurrency(customer.totalValue)}</span>
                 </div>
               ))}
               {topCustomers.length === 0 && (
-                <p className="text-center text-gray-500 py-4">No data available</p>
+                <p className="text-center text-muted-foreground py-4">No data available</p>
               )}
             </div>
           </CardContent>
@@ -336,13 +336,13 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-medium text-sm bg-gray-100 px-2 py-1 rounded text-gray-800">
+                      <span className="font-mono font-medium text-sm bg-muted px-2 py-1 rounded text-foreground">
                         {tile.code}
                       </span>
                     </div>
-                    <span className="text-xs text-gray-500 font-medium">{tile.usage} quotes</span>
+                    <span className="text-xs text-muted-foreground font-medium">{tile.usage} quotes</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                     <div
                       className="bg-indigo-500 h-full rounded-full"
                       style={{ width: `${(tile.usage / (popularTiles[0]?.usage || 1)) * 100}%` }}
@@ -351,7 +351,7 @@ export const CustomerAnalytics = ({ onBack }: CustomerAnalyticsProps) => {
                 </div>
               ))}
               {popularTiles.length === 0 && (
-                <p className="text-center text-gray-500 py-4">No tile usage data available</p>
+                <p className="text-center text-muted-foreground py-4">No tile usage data available</p>
               )}
             </div>
           </CardContent>

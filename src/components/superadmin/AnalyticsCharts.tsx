@@ -44,7 +44,7 @@ export const AnalyticsCharts = ({ monthlyStats, brandPerformance }: AnalyticsCha
             {/* Revenue Trend Chart */}
             <Card className="border-indigo-100 shadow-sm">
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
+                    <CardTitle className="text-lg flex items-center gap-2 text-foreground">
                         <TrendingUp className="w-5 h-5 text-indigo-500" />
                         Revenue Trend (Last 6 Months)
                     </CardTitle>
@@ -93,7 +93,7 @@ export const AnalyticsCharts = ({ monthlyStats, brandPerformance }: AnalyticsCha
             {/* Quotations & Customers Trend */}
             <Card className="border-emerald-100 shadow-sm">
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
+                    <CardTitle className="text-lg flex items-center gap-2 text-foreground">
                         <BarChart3 className="w-5 h-5 text-emerald-500" />
                         Activity Overview (Quotations & Customers)
                     </CardTitle>
@@ -129,7 +129,7 @@ export const AnalyticsCharts = ({ monthlyStats, brandPerformance }: AnalyticsCha
             {/* Brand Performance Chart - Full Width */}
             <Card className="lg:col-span-2 border-purple-100 shadow-sm">
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
+                    <CardTitle className="text-lg flex items-center gap-2 text-foreground">
                         <PieChart className="w-5 h-5 text-purple-500" />
                         Top Brands Performance Combined
                     </CardTitle>

@@ -54,19 +54,19 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
     // 1. Check for Multi-Shape Data
     if (room.measurements && room.measurements.length > 0) {
       return (
-        <div className="space-y-2 bg-gray-50 p-3 rounded-md border border-gray-100">
+        <div className="space-y-2 bg-muted p-3 rounded-md border border-border">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+            <span className="text-sm font-semibold text-foreground/80 flex items-center gap-1">
               <Layers className="h-4 w-4" />
               Dimensions ({room.measurements.length} Shapes)
             </span>
           </div>
           <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
             {room.measurements.map((m, idx) => (
-              <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1.5 last:pb-0 border-dashed">
-                <span className="text-gray-600 font-medium">Shape {idx + 1}:</span>
+              <div key={idx} className="flex justify-between text-sm border-b border-border last:border-0 pb-1.5 last:pb-0 border-dashed">
+                <span className="text-muted-foreground font-medium">Shape {idx + 1}:</span>
                 {/* FIXED: Applied formatting logic here */}
-                <span className="font-semibold text-gray-900" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                <span className="font-semibold text-foreground" style={{ fontFamily: "'Manrope', sans-serif" }}>
                   {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
                 </span>
               </div>
@@ -84,16 +84,16 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
     const wLabel = isFloor ? "Width" : "Height";
 
     return (
-      <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded border border-dashed border-gray-200">
+      <div className="grid grid-cols-2 gap-2 text-sm bg-card p-2 rounded border border-dashed border-border">
         <div className="flex items-center gap-1">
-          <Ruler className="h-3 w-3 text-gray-400" />
-          <span className="text-gray-500 text-xs">{lLabel}:</span>
+          <Ruler className="h-3 w-3 text-muted-foreground/70" />
+          <span className="text-muted-foreground text-xs">{lLabel}:</span>
         </div>
         <span className="font-medium text-right">{l} {room.unit}</span>
 
         <div className="flex items-center gap-1">
-          <Ruler className="h-3 w-3 text-gray-400" />
-          <span className="text-gray-500 text-xs">{wLabel}:</span>
+          <Ruler className="h-3 w-3 text-muted-foreground/70" />
+          <span className="text-muted-foreground text-xs">{wLabel}:</span>
         </div>
         <span className="font-medium text-right">{w} {room.unit}</span>
       </div>
@@ -110,13 +110,13 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Room Management</h1>
-          <p className="text-gray-600">Manage room details for your projects</p>
+          <h1 className="text-2xl font-bold text-foreground">Room Management</h1>
+          <p className="text-muted-foreground">Manage room details for your projects</p>
         </div>
 
         <Button
           onClick={() => setIsFormOpen(true)}
-          className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+          className="gap-2 bg-primary hover:bg-primary/90 text-white"
           disabled={!customerId}
         >
           <Plus className="h-4 w-4" />
@@ -126,18 +126,18 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
 
       {!customerId ? (
         <div className="text-center py-12">
-          <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-600 mb-2">No customer selected</h3>
-          <p className="text-gray-500">Please select a customer to manage their rooms</p>
+          <Home className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-muted-foreground mb-2">No customer selected</h3>
+          <p className="text-muted-foreground">Please select a customer to manage their rooms</p>
         </div>
       ) : rooms.length === 0 ? (
         <div className="text-center py-12">
-          <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-600 mb-2">No rooms found</h3>
-          <p className="text-gray-500 mb-4">Create your first room to get started</p>
+          <Home className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-muted-foreground mb-2">No rooms found</h3>
+          <p className="text-muted-foreground mb-4">Create your first room to get started</p>
           <Button
             onClick={() => setIsFormOpen(true)}
-            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            className="gap-2 bg-primary hover:bg-primary/90 text-white"
           >
             <Plus className="h-4 w-4" />
             Add Room
@@ -146,11 +146,11 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rooms.map((room) => (
-            <Card key={room.id} className="hover:shadow-lg transition-shadow border-gray-200">
+            <Card key={room.id} className="content-card">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <Home className="h-5 w-5 text-blue-600" />
+                    <Home className="h-5 w-5 text-primary" />
                     {room.name}
                   </CardTitle>
                   <div className="flex gap-1">
@@ -158,23 +158,23 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEdit(room)}
-                      className="h-8 w-8 p-0 hover:bg-blue-100"
+                      className="h-8 w-8 p-0 hover:bg-primary/15"
                     >
-                      <Edit className="h-4 w-4 text-blue-600" />
+                      <Edit className="h-4 w-4 text-primary" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(room.id, room.name)}
-                      className="h-8 w-8 p-0 hover:bg-red-100"
+                      className="h-8 w-8 p-0 hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-4 w-4 text-red-600" />
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />
                   Created: {new Date(room.created_at).toLocaleDateString()}
                 </div>
@@ -186,13 +186,13 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
                 {/* Dimensions Display */}
                 {renderRoomDimensions(room)}
 
-                <div className="pt-2 border-t border-gray-100 mt-2">
+                <div className="pt-2 border-t border-border mt-2">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-1">
-                      <Calculator className="h-3 w-3 text-green-600" />
-                      <span className="text-gray-600">Total Area:</span>
+                      <Calculator className="h-3 w-3 text-primary" />
+                      <span className="text-muted-foreground">Total Area:</span>
                     </div>
-                    <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                    <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
                       {calculateArea(room)} {room.unit}²
                     </Badge>
                   </div>

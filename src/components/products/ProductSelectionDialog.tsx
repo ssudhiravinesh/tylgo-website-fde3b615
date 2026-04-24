@@ -84,7 +84,7 @@ export const ProductSelectionDialog = ({ isOpen, onClose, customerId }: ProductS
 
                 <div className="flex flex-col md:flex-row gap-4 my-4">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                         <Input
                             placeholder="Search by name or code..."
                             value={searchTerm}
@@ -113,33 +113,33 @@ export const ProductSelectionDialog = ({ isOpen, onClose, customerId }: ProductS
                     {isLoading ? (
                         <GridLoader className="py-12 min-h-[300px]" loadingText="Loading products..." />
                     ) : filteredProducts.length === 0 ? (
-                        <div className="text-center py-16 bg-gray-50 rounded-lg border border-dashed">
-                            <Filter className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                            <h3 className="text-lg font-medium text-gray-900">No products found</h3>
-                            <p className="mt-1 text-gray-500">Try adjusting your filters.</p>
+                        <div className="text-center py-16 bg-muted rounded-lg border border-dashed">
+                            <Filter className="mx-auto h-12 w-12 text-muted-foreground/70 mb-3" />
+                            <h3 className="text-lg font-medium text-foreground">No products found</h3>
+                            <p className="mt-1 text-muted-foreground">Try adjusting your filters.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {filteredProducts.map((product) => (
-                                <div key={product.id} className="border rounded-lg p-3 flex flex-col gap-3 hover:shadow-md transition-shadow bg-white">
+                                <div key={product.id} className="border rounded-lg p-3 flex flex-col gap-3 hover:shadow-md transition-shadow bg-card">
                                     <div className="flex gap-3">
                                         {product.image_url ? (
                                             <img
                                                 src={product.image_url}
                                                 alt={product.name}
-                                                className="w-16 h-16 object-cover rounded bg-gray-100"
+                                                className="w-16 h-16 object-cover rounded bg-muted"
                                             />
                                         ) : (
-                                            <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400">
+                                            <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-muted-foreground/70">
                                                 <ShoppingBag className="h-6 w-6" />
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="font-medium text-sm text-gray-900 truncate" title={product.name}>
+                                            <h4 className="font-medium text-sm text-foreground truncate" title={product.name}>
                                                 {product.name}
                                             </h4>
-                                            <p className="text-xs text-gray-500">{product.code}</p>
-                                            <p className="text-sm font-semibold text-blue-600 mt-1">₹{product.price}</p>
+                                            <p className="text-xs text-muted-foreground">{product.code}</p>
+                                            <p className="text-sm font-semibold text-primary mt-1">₹{product.price}</p>
                                         </div>
                                     </div>
 

@@ -312,7 +312,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Camera className="h-5 w-5" />
             Scan Tile QR Code
-            <span className="text-sm text-gray-500 ml-auto">
+            <span className="text-sm text-muted-foreground ml-auto">
               ({currentCameraType} camera)
             </span>
           </DialogTitle>
@@ -337,7 +337,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={toggleTorch}
-                  className="bg-white/90 hover:bg-white text-black border-white/50 h-8 w-8 p-0"
+                  className="bg-card/90 hover:bg-card text-black border-white/50 h-8 w-8 p-0"
                   disabled={isProcessing || currentCameraType === 'front'}
                   title={currentCameraType === 'front' ? 'Flashlight not available on front camera' : 'Toggle flashlight'}
                 >
@@ -353,7 +353,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={toggleCamera}
-                    className="bg-white/90 hover:bg-white text-black border-white/50 h-8 w-8 p-0"
+                    className="bg-card/90 hover:bg-card text-black border-white/50 h-8 w-8 p-0"
                     disabled={isProcessing}
                     title="Switch camera"
                   >
@@ -398,14 +398,14 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           
           {/* Instructions */}
           <div className="text-center px-2">
-            <p className="text-xs sm:text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {isProcessing ? 'Processing your scan...' : `Point your ${currentCameraType} camera at a QR code to scan`}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-muted-foreground/70 mt-1">
               {isProcessing ? 'Please wait...' : 'Ensure good lighting and hold steady'}
             </p>
             {cameras.length > 1 && !isProcessing && (
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-muted-foreground/70 mt-1">
                 Tap the camera icon to switch between front and back camera
               </p>
             )}
@@ -413,7 +413,7 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
           
           {/* Camera Info */}
           {isScanning && selectedCamera && !isProcessing && (
-            <div className="text-xs text-gray-400 text-center">
+            <div className="text-xs text-muted-foreground/70 text-center">
               Using: {cameras.find(cam => cam.id === selectedCamera)?.label || `${currentCameraType} camera`}
             </div>
           )}

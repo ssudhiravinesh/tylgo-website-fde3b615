@@ -13,33 +13,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Edit, Trash2, Plus, Grid3X3, Ruler, IndianRupee, ArrowLeft, QrCode, Download, Upload, Image as ImageIcon, DollarSign, ChevronDown, FileSpreadsheet, Layers } from "lucide-react";
 import { CategoryBulkPriceUpdateDialog } from "@/components/tiles/CategoryBulkPriceUpdateDialog";
+import { TileFormDialog, type TileFormData } from "./TileFormDialog";
 import { useTiles } from "@/hooks/useTiles";
 import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } from "@/hooks/useTileManagement";
-import { useImageUpload } from "@/hooks/useImageUpload";
 import { useExcelExport } from "@/hooks/useExcelExport";
 import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { DownloadCatalogueDialog } from "@/components/tiles/DownloadCatalogueDialog";
-import * as z from "zod";
 
-const tileSchema = z.object({
-  code: z.string().min(1, "Code is required"),
-
-  size_length: z.number().min(1, "Length must be greater than 0"),
-  size_breadth: z.number().min(1, "Breadth must be greater than 0"),
-  price_per_box: z.number().min(0, "Price must be 0 or greater").optional(),
-  pieces_per_box: z.number().min(1, "Pieces per box must be greater than 0").optional(),
-  image_url: z.string().optional(),
-  category: z.string().min(1, "Category is required"),
-}).transform((data) => ({
-  ...data,
-  // Ensure undefined values are handled properly for optional fields
-  price_per_box: data.price_per_box || undefined,
-  pieces_per_box: data.pieces_per_box || undefined,
-}));
-
-type TileFormData = z.infer<typeof tileSchema>;
 
 interface TileManagementProps {
   onBack?: () => void;
@@ -53,37 +33,18 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isPriceUpdateDialogOpen, setIsPriceUpdateDialogOpen] = useState(false);
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [categoryInput, setCategoryInput] = useState("");
-  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
   const [selectedCategoryForView, setSelectedCategoryForView] = useState<string | null>(null);
-  const categoryInputRef = useRef<HTMLInputElement>(null);
 
   const { data: tiles = [], isLoading } = useTiles(false, brandId);
   const createTileMutation = useCreateTile();
   const updateTileMutation = useUpdateTile();
   const deleteTileMutation = useDeleteTile();
   const generateQRMutation = useGenerateQRForTile();
-  const { uploadImage, isUploading } = useImageUpload();
   const { generateTilesPDF, isGenerating: isPDFGenerating } = useUnifiedPDFGeneration();
   const { exportTilesToExcel } = useExcelExport();
 
-  const form = useForm<TileFormData>({
-    resolver: zodResolver(tileSchema),
-    defaultValues: {
-      code: "",
-
-      size_length: undefined,
-      size_breadth: undefined,
-      price_per_box: undefined,
-      pieces_per_box: undefined,
-      image_url: "",
-      category: "",
-    },
-  });
 
   const filteredTiles = tiles.filter(tile => {
     // First filter by selected category if one is set
@@ -116,92 +77,53 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
     categoryStats.push({ name: 'Uncategorized', count: uncategorizedCount });
   }
 
-  // Filter categories based on current input
-  const filteredCategories = categories.filter(cat =>
-    cat.toLowerCase().includes(categoryInput.toLowerCase())
-  );
-
   // Always show bulk price update button if there are categories
   const shouldShowPriceUpdateButton = categories.length > 0;
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImageFile(file);
-
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
-    }
-  };
-
-  const resetImageStates = () => {
-    setSelectedImageFile(null);
-    setImagePreview("");
-  };
-
   const handleAddTile = async (data: TileFormData) => {
-    let imageUrl = data.image_url || null;
-
-    // If user selected a file, upload it first
-    if (selectedImageFile) {
-      const uploadedUrl = await uploadImage(selectedImageFile);
-      if (uploadedUrl) {
-        imageUrl = uploadedUrl;
-      }
-    }
-
     const tileData = {
       code: data.code,
-
       size_length: data.size_length,
       size_breadth: data.size_breadth,
       price_per_box: data.price_per_box || null,
       pieces_per_box: data.pieces_per_box || null,
-      image_url: imageUrl,
+      image_url: data.image_url || null,
       category: data.category,
     };
 
-    createTileMutation.mutate(tileData, {
-      onSuccess: () => {
-        setIsAddDialogOpen(false);
-        form.reset();
-        resetImageStates();
-      },
+    return new Promise<void>((resolve) => {
+      createTileMutation.mutate(tileData, {
+        onSuccess: () => {
+          setIsAddDialogOpen(false);
+          resolve();
+        },
+        onError: () => resolve()
+      });
     });
   };
 
   const handleEditTile = async (data: TileFormData) => {
     if (editingTile) {
-      let imageUrl = data.image_url || null;
-
-      // If user selected a new file, upload it first
-      if (selectedImageFile) {
-        const uploadedUrl = await uploadImage(selectedImageFile);
-        if (uploadedUrl) {
-          imageUrl = uploadedUrl;
-        }
-      }
-
       const updateData = {
         id: editingTile.id,
         code: data.code,
-
         size_length: data.size_length,
         size_breadth: data.size_breadth,
         price_per_box: data.price_per_box || null,
         pieces_per_box: data.pieces_per_box || null,
-        image_url: imageUrl,
+        image_url: data.image_url || null,
         category: data.category,
       };
 
-      updateTileMutation.mutate(updateData, {
-        onSuccess: () => {
-          setIsEditDialogOpen(false);
-          setEditingTile(null);
-          form.reset();
-          resetImageStates();
-        },
+      return new Promise<void>((resolve) => {
+        updateTileMutation.mutate(updateData, {
+          onSuccess: () => {
+            setIsEditDialogOpen(false);
+            setEditingTile(null);
+            resolve();
+          },
+          onError: () => resolve()
+        });
       });
     }
   };
@@ -315,25 +237,6 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
 
   const openEditDialog = (tile: any) => {
     setEditingTile(tile);
-    form.reset({
-      code: tile.code,
-
-      size_length: tile.size_length,
-      size_breadth: tile.size_breadth,
-      price_per_box: tile.price_per_box || undefined,
-      pieces_per_box: tile.pieces_per_box || undefined,
-      image_url: tile.image_url || "",
-      category: tile.category || "",
-    });
-
-    // Reset image states when opening edit dialog
-    resetImageStates();
-
-    // Set current image as preview if exists
-    if (tile.image_url) {
-      setImagePreview(tile.image_url);
-    }
-
     setIsEditDialogOpen(true);
   };
 
@@ -366,19 +269,19 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
           </Button>
         )}
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Tile Management</h1>
-          <p className="text-gray-600">Manage your tile catalog database and QR codes</p>
+          <h1 className="text-2xl font-bold text-foreground">Tile Management</h1>
+          <p className="text-muted-foreground">Manage your tile catalog database and QR codes</p>
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
           <Input
             placeholder="Search by tile code or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
-            className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+            className="pl-10 h-12 border-border focus:border-primary focus:ring-primary"
           />
         </div>
 
@@ -386,7 +289,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
           {shouldShowPriceUpdateButton && (
             <Button
               onClick={() => setIsPriceUpdateDialogOpen(true)}
-              className="bg-green-600 hover:bg-green-700 text-white gap-2"
+              className="btn-primary-craft gap-2"
             >
               <DollarSign className="h-4 w-4" />
               Bulk Price Update
@@ -410,266 +313,18 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
             isGenerating={isPDFGenerating}
           />
 
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+          <Button className="bg-primary hover:bg-primary/90 text-white gap-2" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4" />
                 Add New Tile
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Add New Tile</DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleAddTile)} className="space-y-4">
-                  {/* Basic Info Row */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="code"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tile Code</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="e.g., TH007" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                  </div>
-
-                  {/* Size and Pricing Row */}
-                  <div className="grid grid-cols-4 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="size_length"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Height(mm)</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              placeholder="600"
-                              value={field.value || ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                field.onChange(value === "" ? undefined : Number(value));
-                              }}
-                              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="size_breadth"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Width Length(mm)</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              placeholder="600"
-                              value={field.value || ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                field.onChange(value === "" ? undefined : Number(value));
-                              }}
-                              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="price_per_box"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Price/Box</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              inputMode="decimal"
-                              pattern="[0-9]*\.?[0-9]*"
-                              placeholder="450"
-                              value={field.value || ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                field.onChange(value === "" ? undefined : Number(value));
-                              }}
-                              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="pieces_per_box"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Pieces/Box</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              placeholder="4"
-                              value={field.value || ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                field.onChange(value === "" ? undefined : Number(value));
-                              }}
-                              className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Category Field */}
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem className="relative">
-                        <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            ref={categoryInputRef}
-                            placeholder="e.g., Bathroom, Kitchen, Living Room"
-                            onFocus={() => setShowCategorySuggestions(true)}
-                            onChange={(e) => {
-                              const upperValue = e.target.value.toUpperCase();
-                              field.onChange(upperValue);
-                              setCategoryInput(upperValue);
-                              setShowCategorySuggestions(true);
-                            }}
-                            onBlur={() => {
-                              // Delay to allow click on suggestion
-                              setTimeout(() => setShowCategorySuggestions(false), 200);
-                            }}
-                          />
-                        </FormControl>
-                        {showCategorySuggestions && filteredCategories.length > 0 && (
-                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                            {filteredCategories.map((category) => (
-                              <div
-                                key={category}
-                                className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                                onClick={() => {
-                                  field.onChange(category);
-                                  setCategoryInput(category);
-                                  setShowCategorySuggestions(false);
-                                }}
-                              >
-                                {category}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Image Section */}
-                  <div className="space-y-3">
-                    <FormLabel>Tile Image</FormLabel>
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Image Upload */}
-                      <div className="space-y-2">
-                        <label
-                          htmlFor="image-upload-add"
-                          className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
-                        >
-                          {imagePreview ? (
-                            <img
-                              src={imagePreview}
-                              alt="Preview"
-                              className="w-16 h-16 object-cover rounded-md"
-                            />
-                          ) : (
-                            <div className="text-center">
-                              <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                              <p className="text-xs text-gray-500">Upload Image</p>
-                            </div>
-                          )}
-                          <input
-                            id="image-upload-add"
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleImageFileChange}
-                          />
-                        </label>
-                        {imagePreview && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setImagePreview("");
-                              setSelectedImageFile(null);
-                            }}
-                            className="w-full text-xs"
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* URL Input */}
-                      <FormField
-                        control={form.control}
-                        name="image_url"
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormLabel>Or Image URL</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="https://..." />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsAddDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-700"
-                      disabled={createTileMutation.isPending || isUploading}
-                    >
-                      {isUploading ? "Uploading..." : createTileMutation.isPending ? "Adding..." : "Add Tile"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+              <TileFormDialog
+                isOpen={isAddDialogOpen}
+                onClose={() => setIsAddDialogOpen(false)}
+                mode="add"
+                categories={categories}
+                onSubmit={handleAddTile}
+                isPending={createTileMutation.isPending}
+              />
         </div>
       </div>
 
@@ -686,7 +341,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-blue-600" />
+                <Layers className="h-5 w-5 text-primary" />
                 Tile Categories ({categoryStats.length})
               </CardTitle>
             </CardHeader>
@@ -697,20 +352,20 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
                     <div
                       key={cat.name}
                       onClick={() => setSelectedCategoryForView(cat.name)}
-                      className="group cursor-pointer bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-blue-300 hover:from-blue-50 hover:to-white transition-all duration-200"
+                      className="group cursor-pointer bg-gradient-to-br from-card to-muted/50 border border-border rounded-xl p-5 hover:shadow-lg hover:border-primary/40 hover:from-primary/5 hover:to-card transition-all duration-200"
                     >
                       <div className="flex items-start justify-between mb-3">
-                        <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                          <Grid3X3 className="h-5 w-5 text-blue-600" />
+                        <div className="p-2 bg-primary/15 rounded-lg group-hover:bg-primary/25 transition-colors">
+                          <Grid3X3 className="h-5 w-5 text-primary" />
                         </div>
                         <Badge variant="secondary" className="text-sm font-semibold">
                           {cat.count} {cat.count === 1 ? 'tile' : 'tiles'}
                         </Badge>
                       </div>
-                      <h3 className="font-semibold text-gray-800 text-lg group-hover:text-blue-700 transition-colors">
+                      <h3 className="font-semibold text-foreground text-lg group-hover:text-primary/80 transition-colors">
                         {cat.name}
                       </h3>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         Click to view tiles
                       </p>
                     </div>
@@ -718,9 +373,9 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <Layers className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No categories found</h3>
-                  <p className="text-gray-500">Add tiles with categories to see them here</p>
+                  <Layers className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No categories found</h3>
+                  <p className="text-muted-foreground">Add tiles with categories to see them here</p>
                 </div>
               )}
             </CardContent>
@@ -744,7 +399,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Grid3X3 className="h-5 w-5 text-blue-600" />
+                <Grid3X3 className="h-5 w-5 text-primary" />
                 {selectedCategoryForView} ({filteredTiles.length} tiles)
               </CardTitle>
             </CardHeader>
@@ -790,7 +445,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Ruler className="h-3 w-3" />
                             {tile.size_length} × {tile.size_breadth} mm
                           </div>
@@ -798,18 +453,18 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
                         <TableCell>
                           <div className="space-y-1">
                             {tile.price_per_box && (
-                              <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
+                              <div className="flex items-center gap-1 text-sm font-semibold text-primary">
                                 <IndianRupee className="h-4 w-4" />
                                 {tile.price_per_box}/box
                               </div>
                             )}
                             {pricePerSqFt > 0 && (
-                              <div className="text-xs text-gray-600">
+                              <div className="text-xs text-muted-foreground">
                                 ₹{pricePerSqFt.toFixed(2)}/sq ft
                               </div>
                             )}
                             {tile.pieces_per_box && (
-                              <div className="text-xs text-gray-600">
+                              <div className="text-xs text-muted-foreground">
                                 {tile.pieces_per_box} pcs/box
                               </div>
                             )}
@@ -859,7 +514,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                   Delete
@@ -877,7 +532,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => handleDeleteTile(tile.id)}
-                                    className="bg-red-600 hover:bg-red-700"
+                                    className="bg-destructive hover:bg-destructive/90"
                                   >
                                     Delete
                                   </AlertDialogAction>
@@ -894,9 +549,9 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
 
               {filteredTiles.length === 0 && (
                 <div className="text-center py-12">
-                  <Grid3X3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No tiles found</h3>
-                  <p className="text-gray-500">
+                  <Grid3X3 className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No tiles found</h3>
+                  <p className="text-muted-foreground">
                     {searchTerm ? "Try adjusting your search terms" : "No tiles in this category yet"}
                   </p>
                 </div>
@@ -907,258 +562,15 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Tile</DialogTitle>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleEditTile)} className="space-y-4">
-              {/* Basic Info Row */}
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tile Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="e.g., TH007" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-              </div>
-
-              {/* Size and Pricing Row */}
-              <div className="grid grid-cols-4 gap-3">
-                <FormField
-                  control={form.control}
-                  name="size_length"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Length (mm)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          placeholder="600"
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(value === "" ? undefined : Number(value));
-                          }}
-                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="size_breadth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Breadth (mm)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          placeholder="600"
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(value === "" ? undefined : Number(value));
-                          }}
-                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="price_per_box"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price/Box</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          inputMode="decimal"
-                          pattern="[0-9]*\.?[0-9]*"
-                          placeholder="450"
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(value === "" ? undefined : Number(value));
-                          }}
-                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="pieces_per_box"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pieces/Box</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          placeholder="4"
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(value === "" ? undefined : Number(value));
-                          }}
-                          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Category Field */}
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem className="relative">
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="e.g., Bathroom, Kitchen, Living Room"
-                        onFocus={() => setShowCategorySuggestions(true)}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setCategoryInput(e.target.value);
-                          setShowCategorySuggestions(true);
-                        }}
-                        onBlur={() => {
-                          // Delay to allow click on suggestion
-                          setTimeout(() => setShowCategorySuggestions(false), 200);
-                        }}
-                      />
-                    </FormControl>
-                    {showCategorySuggestions && filteredCategories.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                        {filteredCategories.map((category) => (
-                          <div
-                            key={category}
-                            className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                            onClick={() => {
-                              field.onChange(category);
-                              setCategoryInput(category);
-                              setShowCategorySuggestions(false);
-                            }}
-                          >
-                            {category}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Image Section */}
-              <div className="space-y-3">
-                <FormLabel>Tile Image</FormLabel>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Image Upload */}
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="image-upload-edit"
-                      className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
-                    >
-                      {imagePreview ? (
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-16 h-16 object-cover rounded-md"
-                        />
-                      ) : (
-                        <div className="text-center">
-                          <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                          <p className="text-xs text-gray-500">Upload Image</p>
-                        </div>
-                      )}
-                      <input
-                        id="image-upload-edit"
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleImageFileChange}
-                      />
-                    </label>
-                    {imagePreview && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setImagePreview("");
-                          setSelectedImageFile(null);
-                        }}
-                        className="w-full text-xs"
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* URL Input */}
-                  <FormField
-                    control={form.control}
-                    name="image_url"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>Or Image URL</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="https://..." />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700"
-                  disabled={updateTileMutation.isPending || isUploading}
-                >
-                  {isUploading ? "Uploading..." : updateTileMutation.isPending ? "Updating..." : "Update Tile"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <TileFormDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => { setIsEditDialogOpen(false); setEditingTile(null); }}
+        mode="edit"
+        initialData={editingTile}
+        categories={categories}
+        onSubmit={handleEditTile}
+        isPending={updateTileMutation.isPending}
+      />
     </div>
   );
 };

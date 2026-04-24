@@ -169,7 +169,7 @@ export const useDashboardData = () => {
       value: stats.totalCustomers.toString(),
       icon: Users,
       change: "+12%",
-      color: "text-blue-600"
+      color: "text-primary"
     },
     {
       label: "Active Quotations",
@@ -211,8 +211,8 @@ export const AdminDashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-        <p className="text-gray-600">Monitor your business performance and manage system settings</p>
+        <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
+        <p className="text-muted-foreground">Monitor your business performance and manage system settings</p>
       </div>
 
       {/* Stats Grid */}
@@ -220,12 +220,12 @@ export const AdminDashboard = () => {
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} className="border-gray-200">
+            <Card key={index} className="border-border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <p className="text-sm text-gray-600">{stat.label}</p>
-                    <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
                     <Badge variant="outline" className="text-xs text-green-600 border-green-200">
                       {stat.change}
                     </Badge>

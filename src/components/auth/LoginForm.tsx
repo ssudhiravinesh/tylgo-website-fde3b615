@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Lock, Mail, Loader2, UserPlus } from "lucide-react";
+import { Lock, Mail, Loader2, Building2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner"; // Make sure you have this import
+import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorUtils";
 
 interface LoginFormProps {
   onShowSignUp: () => void;
-  onSuccessfulLogin?: (userId: string) => Promise<void>; // Add this prop
+  onSuccessfulLogin?: (userId: string) => Promise<void>;
 }
 
 export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) => {
@@ -20,48 +19,37 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
   const [showroomName, setShowroomName] = useState<string | null>(null);
   const { signIn } = useAuth();
 
-  // No longer looking up showroom by email.
-  // The showroom name/context is strictly derived from the subdomain logic below.
-
-  // State to store the showroom ID associated with the current subdomain
   const [subdomainShowroomId, setSubdomainShowroomId] = useState<string | null>(null);
 
-  // Check for subdomain on mount
   useEffect(() => {
     const checkSubdomain = async () => {
       const hostname = window.location.hostname;
-      const isRoot = hostname.includes('localhost') ||
-        hostname.endsWith('.vercel.app') ||
-        hostname === 'tylgo.com' ||
-        hostname === 'www.tylgo.com' ||
-        hostname === 'tylgo.store' ||
-        hostname === 'www.tylgo.store';
+      const isRoot =
+        hostname.includes("localhost") ||
+        hostname.endsWith(".vercel.app") ||
+        hostname === "tylgo.com" ||
+        hostname === "www.tylgo.com" ||
+        hostname === "tylgo.store" ||
+        hostname === "www.tylgo.store";
 
       if (!isRoot) {
-        // We are on a subdomain (e.g. anuj.tylgo.store)
-        const subdomain = hostname.split('.')[0];
-        console.log('Detected subdomain:', subdomain);
-
+        const subdomain = hostname.split(".")[0];
         try {
-          // Attempt to fetch showroom details by subdomain
           const { data, error } = await supabase
-            .from('showrooms')
-            .select('id, name')
-            .eq('subdomain', subdomain)
+            .from("showrooms")
+            .select("id, name")
+            .eq("subdomain", subdomain)
             .single();
 
-          if (error) {
-            console.error('Error fetching showroom by subdomain:', error);
-          } else if (data) {
+          if (!error && data) {
             setShowroomName(data.name);
             setSubdomainShowroomId(data.id);
           }
         } catch (err) {
-          console.error('Subdomain lookup error:', err);
+          console.error("Subdomain lookup error:", err);
         }
       }
     };
-
     checkSubdomain();
   }, []);
 
@@ -71,138 +59,131 @@ export const LoginForm = ({ onShowSignUp, onSuccessfulLogin }: LoginFormProps) =
 
     setIsSubmitting(true);
     try {
-      // 1. Perform Authentication
       const result = await signIn(email, password);
 
       if (result?.user) {
-        // 2. Tenant Enforcement Logic
         if (subdomainShowroomId) {
-          console.log('Verifying tenant access for showroom:', subdomainShowroomId);
-
           const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('showroom_id')
-            .eq('id', result.user.id)
+            .from("profiles")
+            .select("showroom_id")
+            .eq("id", result.user.id)
             .single();
 
-          if (profileError) {
-            console.error('Profile fetch error:', profileError);
-            throw new Error('Failed to verify account permissions.');
-          }
+          if (profileError) throw new Error("Failed to verify account permissions.");
 
           if (profile?.showroom_id !== subdomainShowroomId) {
-            console.warn(`Tenant mismatch debug: User Showroom (${profile?.showroom_id}) vs Site Showroom (${subdomainShowroomId})`);
-            console.warn(`User ID: ${result.user.id}`);
-
-            // Mismatch! access denied.
-            console.warn(`Tenant mismatch: User ${profile?.showroom_id} != Site ${subdomainShowroomId}`);
-
-            // Sign out immediately
             await supabase.auth.signOut();
-
-            throw new Error(`Access Denied. Mismatch: User(${profile?.showroom_id}) vs Site(${subdomainShowroomId}). Please contact support.`);
+            throw new Error("Access Denied. You do not belong to this showroom.");
           }
         }
 
-        // 3. Success - Proceed
-        if (onSuccessfulLogin) {
-          await onSuccessfulLogin(result.user.id);
-        }
-
-        toast.success('Login successful!');
+        if (onSuccessfulLogin) await onSuccessfulLogin(result.user.id);
+        toast.success("Welcome back.");
       }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Login failed');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Login failed"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-      <CardHeader className="flex flex-col items-center pb-4">
-        <img src="/tylgo.svg" className="w-8 h-8 mb-2" />
-        <CardTitle className="text-2xl font-bold text-gray-800">
-          TYL
-          <span style={{ color: "#2563eb", fontWeight: "bold" }}>G</span>
-          O
-        </CardTitle>
-        <CardDescription className="text-gray-600 text-center">
+    <div className="login-card p-8 animate-in-up">
+      {/* Header */}
+      <div className="mb-8">
+        {/* Wordmark */}
+        <div className="mb-6 flex items-center gap-3">
+          <img src="/tylgo-logo.png" alt="Tylgo Logo" className="h-10 w-auto dark:hidden drop-shadow-sm" />
+          <img src="/tylgo-logo-dark.png" alt="Tylgo Logo" className="h-10 w-auto hidden dark:block drop-shadow-sm" />
+          <span className="font-extrabold text-2xl tracking-[-0.02em]">
+            TYLGO
+          </span>
+        </div>
+
+        <h1 className="text-2xl font-bold tracking-tight mb-1">Sign in</h1>
+        <p className="text-sm text-muted-foreground">
           {showroomName ? (
-            <span className="font-medium text-blue-600 block mt-1 text-base">
-              {showroomName}
-            </span>
+            <>
+              <Building2 className="inline h-3.5 w-3.5 mr-1 opacity-60" />
+              <span className="font-semibold text-foreground">{showroomName}</span>
+              <span className="ml-1">showroom portal</span>
+            </>
           ) : (
-            "Sign in to your account to continue"
+            "Enter your credentials to access the dashboard."
           )}
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-              Email Address
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter Your Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-              Password
-            </Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
-              </>
-            ) : (
-              "Sign In"
-            )}
-          </Button>
-        </form>
-
-        <div className="mt-6 text-center space-y-4">
-          <div className="pt-4 border-t border-gray-200">
-            <p className="text-xs text-gray-400">
-              For admin access, contact your system administrator
-            </p>
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-[13px] font-semibold">
+            Email address
+          </Label>
+          <div className="relative">
+            <Mail
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"
+              style={{ color: "hsl(var(--muted-foreground))" }}
+            />
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="pl-9 h-11 text-sm font-medium border-border focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+              required
+              disabled={isSubmitting}
+              autoComplete="email"
+            />
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className="text-[13px] font-semibold">
+            Password
+          </Label>
+          <div className="relative">
+            <Lock
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"
+              style={{ color: "hsl(var(--muted-foreground))" }}
+            />
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="pl-9 h-11 text-sm font-medium border-border focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+              required
+              disabled={isSubmitting}
+              autoComplete="current-password"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="btn-primary-craft w-full h-11 mt-2"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Signing in…
+            </>
+          ) : (
+            "Sign in"
+          )}
+        </button>
+      </form>
+
+      {/* Footer note */}
+      <div className="craft-divider mt-6">system access</div>
+      <p className="text-center text-xs text-muted-foreground">
+        For account access, contact your{" "}
+        <span className="font-semibold text-foreground">showroom administrator</span>.
+      </p>
+    </div>
   );
 };

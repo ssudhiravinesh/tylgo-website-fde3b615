@@ -65,11 +65,11 @@ export const ProductCatalog = ({ userRole, onSelect, brandId, showroomId }: Prod
 
     return (
         <div className="space-y-6">
-            <div className="sticky top-0 z-10 bg-white pb-4 pt-1 space-y-4">
+            <div className="sticky top-0 z-10 bg-card pb-4 pt-1 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Product Catalog</h1>
-                        <p className="text-gray-600 mt-1">Manage non-tile inventory items</p>
+                        <h1 className="text-3xl font-bold text-foreground">Product Catalog</h1>
+                        <p className="text-muted-foreground mt-1">Manage non-tile inventory items</p>
                     </div>
                     {isAdmin && (
                         <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
@@ -79,10 +79,10 @@ export const ProductCatalog = ({ userRole, onSelect, brandId, showroomId }: Prod
                     )}
                 </div>
 
-                <Card className="p-4 shadow-sm border-gray-200">
+                <Card className="p-4 shadow-sm border-border">
                     <div className="flex flex-col md:flex-row gap-4">
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                             <Input
                                 placeholder="Search by name or code..."
                                 value={searchTerm}
@@ -120,12 +120,12 @@ export const ProductCatalog = ({ userRole, onSelect, brandId, showroomId }: Prod
                         Failed to load products. Please try again.
                     </div>
                 ) : filteredProducts.length === 0 ? (
-                    <div className="text-center py-16 bg-white rounded-lg border border-dashed">
-                        <div className="mx-auto h-12 w-12 text-gray-400 mb-3">
+                    <div className="text-center py-16 bg-card rounded-lg border border-dashed">
+                        <div className="mx-auto h-12 w-12 text-muted-foreground/70 mb-3">
                             <Filter className="h-12 w-12" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900">No products found</h3>
-                        <p className="mt-1 text-gray-500 mb-6">
+                        <h3 className="text-lg font-medium text-foreground">No products found</h3>
+                        <p className="mt-1 text-muted-foreground mb-6">
                             {searchTerm || selectedCategory !== "All Categories"
                                 ? "Try adjusting your filters or search terms."
                                 : "Get started by adding your first product."}

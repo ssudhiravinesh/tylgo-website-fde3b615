@@ -143,18 +143,18 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
   const renderRoomDimensions = (room: Room) => {
     if (room.measurements && room.measurements.length > 0) {
       return (
-        <div className="space-y-2 bg-gray-50 p-2 rounded-md border border-gray-100">
+        <div className="space-y-2 bg-muted p-2 rounded-md border border-border">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
               <Layers className="h-3 w-3" />
               Dimensions ({room.measurements.length} Shapes)
             </span>
           </div>
           <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
             {room.measurements.map((m, idx) => (
-              <div key={idx} className="flex justify-between text-sm border-b border-gray-200 last:border-0 pb-1 last:pb-0 border-dashed">
-                <span className="text-gray-600 text-xs">Shape {idx + 1}:</span>
-                <span className="text-xs font-medium" style={{ fontFamily: "'Manrope', sans-serif", color: "black" }}>
+              <div key={idx} className="flex justify-between text-sm border-b border-border last:border-0 pb-1 last:pb-0 border-dashed">
+                <span className="text-muted-foreground text-xs">Shape {idx + 1}:</span>
+                <span className="text-xs font-medium text-foreground">
                   {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
                 </span>
               </div>
@@ -171,16 +171,16 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     const wLabel = isFloor ? "Width" : "Height";
 
     return (
-      <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded border border-dashed border-gray-200">
+      <div className="grid grid-cols-2 gap-2 text-sm bg-card p-2 rounded border border-dashed border-border">
         <div className="flex items-center gap-1">
-          <Ruler className="h-3 w-3 text-gray-400" />
-          <span className="text-gray-500 text-xs">{lLabel}:</span>
+          <Ruler className="h-3 w-3 text-muted-foreground/70" />
+          <span className="text-muted-foreground text-xs">{lLabel}:</span>
         </div>
         <span className="font-medium text-right">{l} {room.unit}</span>
 
         <div className="flex items-center gap-1">
-          <Ruler className="h-3 w-3 text-gray-400" />
-          <span className="text-gray-500 text-xs">{wLabel}:</span>
+          <Ruler className="h-3 w-3 text-muted-foreground/70" />
+          <span className="text-muted-foreground text-xs">{wLabel}:</span>
         </div>
         <span className="font-medium text-right">{w} {room.unit}</span>
       </div>
@@ -209,15 +209,23 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-4">
-          {onBack && (
+          {/* Show Back button when:
+              1. User came from another section (preSelectedCustomerId set) → onBack goes to that section
+              2. User selected a customer in-page (no preSelectedCustomerId but has selectedCustomerId) → clear selection */}
+          {(preSelectedCustomerId && onBack) ? (
             <Button variant="outline" onClick={onBack} className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
-          )}
+          ) : (!preSelectedCustomerId && selectedCustomerId) ? (
+            <Button variant="outline" onClick={() => setSelectedCustomerId("")} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+          ) : null}
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Customer Room Management</h1>
-            <p className="text-gray-600">Manage room dimensions for tile calculations</p>
+            <h1 className="text-2xl font-bold text-foreground">Customer Room Management</h1>
+            <p className="text-muted-foreground">Manage room dimensions for tile calculations</p>
           </div>
         </div>
       </div>
@@ -225,7 +233,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
       {!preSelectedCustomerId && (
         <div className="w-full">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Home className="h-5 w-5" />
               Select Customer
             </h2>
@@ -240,9 +248,9 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
 
       {!preSelectedCustomerId && !selectedCustomerId && (
         <div className="mt-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <div className="p-1.5 bg-blue-100 rounded-full">
-              <Home className="h-4 w-4 text-blue-600" />
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <div className="p-1.5 bg-primary/15 rounded-full">
+              <Home className="h-4 w-4 text-primary" />
             </div>
             Recent Customers
           </h3>
@@ -251,36 +259,36 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
             {customers.slice(0, 5).map((customer) => (
               <Card
                 key={customer.id}
-                className="hover:shadow-lg transition-all border-gray-200 cursor-pointer group hover:border-blue-300"
+                className="content-card cursor-pointer group hover:border-primary/40"
                 onClick={() => setSelectedCustomerId(customer.id)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                        <span className="text-blue-600 font-semibold text-lg">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                        <span className="text-primary font-semibold text-lg">
                           {customer.name.charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors">
+                        <h4 className="font-semibold text-foreground group-hover:text-primary/80 transition-colors">
                           {customer.name}
                         </h4>
-                        <p className="text-sm text-gray-500">{customer.mobile}</p>
+                        <p className="text-sm text-muted-foreground">{customer.mobile}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 group-hover:text-blue-600">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/70 group-hover:text-primary">
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
 
                   {customer.address && (
-                    <div className="mt-3 text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">
+                    <div className="mt-3 text-xs text-muted-foreground line-clamp-2 bg-muted p-2 rounded">
                       {customer.address}
                     </div>
                   )}
 
-                  <div className="mt-3 text-xs text-gray-400 flex items-center justify-between">
+                  <div className="mt-3 text-xs text-muted-foreground/70 flex items-center justify-between">
                     <span>Added {new Date(customer.created_at || "").toLocaleDateString()}</span>
                   </div>
                 </CardContent>
@@ -291,32 +299,34 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
       )}
 
       {selectedCustomer && (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-blue-50 rounded-lg border">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-primary/8 rounded-lg border border-primary/20">
           <div>
-            <h3 className="font-semibold text-gray-800">{selectedCustomer.name}</h3>
-            <p className="text-sm text-gray-600">Mobile: {selectedCustomer.mobile}</p>
+            <h3 className="font-semibold text-foreground">{selectedCustomer.name}</h3>
+            <p className="text-sm text-muted-foreground">Mobile: {selectedCustomer.mobile}</p>
             {selectedCustomer.address && (
-              <p className="text-sm text-gray-600">Address: {selectedCustomer.address}</p>
+              <p className="text-sm text-muted-foreground">Address: {selectedCustomer.address}</p>
             )}
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button
               onClick={() => setIsFormOpen(true)}
-              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+              className="btn-primary-craft gap-2"
             >
               <Plus className="h-4 w-4" />
               Add Room
             </Button>
             <Button
               onClick={() => setIsStaircaseFormOpen(true)}
-              className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
+              variant="outline"
+              className="gap-2 border-border hover:bg-accent"
             >
               <Footprints className="h-4 w-4" />
               Add Staircase
             </Button>
             <Button
               onClick={() => setIsProductDialogOpen(true)}
-              className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+              variant="outline"
+              className="gap-2 border-border hover:bg-accent"
             >
               <ShoppingBag className="h-4 w-4" />
               Add Product
@@ -324,7 +334,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
             {(rooms.length > 0 || staircases.length > 0 || customerProducts.length > 0) && (
               <Button
                 onClick={handleProceedToTileSelection}
-                className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                className="btn-primary-craft gap-2"
               >
                 Select Tiles
                 <ArrowRight className="h-4 w-4" />
@@ -340,12 +350,12 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
             <GridLoader loadingText="Loading..." />
           ) : rooms.length === 0 ? (
             <div className="text-center py-12">
-              <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-600 mb-2">No rooms found</h3>
-              <p className="text-gray-500 mb-4">Add the first room for this customer</p>
+              <Home className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">No rooms found</h3>
+              <p className="text-muted-foreground mb-4">Add the first room for this customer</p>
               <Button
                 onClick={() => setIsFormOpen(true)}
-                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                className="btn-primary-craft gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Add Room
@@ -356,12 +366,12 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
               {rooms.map((room) => (
                 <Card
                   key={room.id}
-                  className="hover:shadow-lg transition-all border-gray-200"
+                  className="content-card"
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-lg">
-                        <Home className="h-5 w-5 text-blue-600" />
+                        <Home className="h-5 w-5 text-primary" />
                         {room.name}
                         <Badge
                           variant={room.room_type === "floor" ? "default" : "secondary"}
@@ -375,33 +385,33 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(room)}
-                          className="flex items-center gap-1 px-2 py-1 h-auto hover:bg-blue-100"
+                          className="flex items-center gap-1 px-2 py-1 h-auto hover:bg-primary/15"
                         >
-                          <Edit className="h-4 w-4 text-blue-600" />
-                          <span className="text-blue-600 text-sm">Edit</span>
+                          <Edit className="h-4 w-4 text-primary" />
+                          <span className="text-primary text-sm">Edit</span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteClick(room)}
-                          className="h-8 w-8 p-0 hover:bg-red-100"
+                          className="h-8 w-8 p-0 hover:bg-destructive/10"
                         >
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {renderRoomDimensions(room)}
-                    <div className="pt-2 border-t border-gray-100">
+                    <div className="pt-2 border-t border-border">
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-1">
-                          <Calculator className="h-3 w-3 text-green-600" />
-                          <span className="text-gray-600">
+                          <Calculator className="h-3 w-3 text-primary" />
+                          <span className="text-muted-foreground">
                             {room.room_type === "floor" ? "Total Floor Area:" : "Total Wall Area:"}
                           </span>
                         </div>
-                        <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                        <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
                           {calculateArea(room)} {room.unit}²
                         </Badge>
                       </div>
@@ -414,20 +424,20 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
 
           {staircases.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Footprints className="h-5 w-5 text-orange-600" />
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Footprints className="h-5 w-5 text-primary" />
                 Staircases ({staircases.length})
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {staircases.map((staircase) => (
                   <Card
                     key={staircase.id}
-                    className="hover:shadow-lg transition-all border-orange-200 bg-gradient-to-br from-orange-50 to-white"
+                    className="content-card border-primary/15 bg-gradient-to-br from-primary/5 to-card"
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2 text-lg">
-                          <Footprints className="h-5 w-5 text-orange-600" />
+                          <Footprints className="h-5 w-5 text-primary" />
                           {staircase.name}
                         </CardTitle>
                         <div className="flex gap-1">
@@ -435,40 +445,40 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditStaircase(staircase)}
-                            className="flex items-center gap-1 px-2 py-1 h-auto hover:bg-orange-100"
+                            className="flex items-center gap-1 px-2 py-1 h-auto hover:bg-primary/10"
                           >
-                            <Edit className="h-4 w-4 text-orange-600" />
-                            <span className="text-orange-600 text-sm">Edit</span>
+                            <Edit className="h-4 w-4 text-primary" />
+                            <span className="text-primary text-sm">Edit</span>
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteStaircaseClick(staircase)}
-                            className="h-8 w-8 p-0 hover:bg-red-100"
+                            className="h-8 w-8 p-0 hover:bg-destructive/10"
                           >
-                            <Trash2 className="h-4 w-4 text-red-600" />
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-blue-50 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{staircase.number_of_steps}</p>
-                          <p className="text-xs text-gray-500">Steps</p>
+                        <div className="text-center p-3 bg-primary/10 rounded-lg">
+                          <p className="text-2xl font-bold text-primary">{staircase.number_of_steps}</p>
+                          <p className="text-xs text-muted-foreground">Steps</p>
                         </div>
-                        <div className="text-center p-3 bg-orange-50 rounded-lg">
-                          <p className="text-2xl font-bold text-orange-600">{staircase.number_of_risers}</p>
-                          <p className="text-xs text-gray-500">Risers</p>
+                        <div className="text-center p-3 bg-muted rounded-lg">
+                          <p className="text-2xl font-bold text-foreground">{staircase.number_of_risers}</p>
+                          <p className="text-xs text-muted-foreground">Risers</p>
                         </div>
                       </div>
-                      <div className="pt-2 border-t border-gray-100">
+                      <div className="pt-2 border-t border-border">
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-1">
-                            <Calculator className="h-3 w-3 text-green-600" />
-                            <span className="text-gray-600">Total Tiles Needed:</span>
+                            <Calculator className="h-3 w-3 text-primary" />
+                            <span className="text-muted-foreground">Total Tiles Needed:</span>
                           </div>
-                          <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                          <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
                             {staircase.number_of_steps + staircase.number_of_risers} tiles
                           </Badge>
                         </div>
@@ -482,47 +492,47 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
 
           {customerProducts.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5 text-purple-600" />
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-primary" />
                 Products ({customerProducts.length})
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {customerProducts.map((cp) => (
                   <Card
                     key={cp.id}
-                    className="hover:shadow-lg transition-all border-purple-200 bg-gradient-to-br from-purple-50 to-white"
+                    className="content-card"
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2 text-lg">
-                          <ShoppingBag className="h-5 w-5 text-purple-600" />
+                          <ShoppingBag className="h-5 w-5 text-primary" />
                           {cp.product?.name || 'Unknown Product'}
                         </CardTitle>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteProduct(cp.id)}
-                          className="h-8 w-8 p-0 hover:bg-red-100"
+                          className="h-8 w-8 p-0 hover:bg-destructive/10"
                         >
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-blue-50 rounded-lg">
-                          <p className="text-2xl font-bold text-blue-600">{cp.quantity}</p>
-                          <p className="text-xs text-gray-500">Quantity</p>
+                        <div className="text-center p-3 bg-primary/10 rounded-lg">
+                          <p className="text-2xl font-bold text-primary">{cp.quantity}</p>
+                          <p className="text-xs text-muted-foreground">Quantity</p>
                         </div>
-                        <div className="text-center p-3 bg-purple-50 rounded-lg">
-                          <p className="text-xl font-bold text-purple-600">₹{cp.product?.price || 0}</p>
-                          <p className="text-xs text-gray-500">Unit Price</p>
+                        <div className="text-center p-3 bg-muted rounded-lg">
+                          <p className="text-xl font-bold text-foreground">₹{cp.product?.price || 0}</p>
+                          <p className="text-xs text-muted-foreground">Unit Price</p>
                         </div>
                       </div>
-                      <div className="pt-2 border-t border-gray-100">
+                      <div className="pt-2 border-t border-border">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Total:</span>
-                          <span className="font-semibold text-green-600">
+                          <span className="text-muted-foreground">Total:</span>
+                          <span className="font-semibold text-primary">
                             ₹{(cp.quantity * (cp.product?.price || 0)).toFixed(2)}
                           </span>
                         </div>

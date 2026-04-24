@@ -9,11 +9,11 @@ export const ScanningOverlay: React.FC<ScanningOverlayProps> = ({ isScanning }) 
   return (
     <>
       {/* Scanning frame overlay */}
-      <div className="absolute inset-0 border-2 border-blue-500 rounded-lg pointer-events-none">
-        <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-blue-500"></div>
-        <div className="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-blue-500"></div>
-        <div className="absolute bottom-4 left-4 w-8 h-8 border-l-4 border-b-4 border-blue-500"></div>
-        <div className="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-blue-500"></div>
+      <div className="absolute inset-0 border-2 border-primary rounded-lg pointer-events-none">
+        <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-primary"></div>
+        <div className="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-primary"></div>
+        <div className="absolute bottom-4 left-4 w-8 h-8 border-l-4 border-b-4 border-primary"></div>
+        <div className="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-primary"></div>
       </div>
 
       {/* Scanning status indicator */}

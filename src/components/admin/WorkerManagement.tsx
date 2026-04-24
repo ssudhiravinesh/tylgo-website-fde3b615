@@ -99,8 +99,8 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
           Back to Dashboard
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-800">Worker Management</h1>
-          <p className="text-gray-600">Manage worker accounts and track their quotations</p>
+          <h1 className="text-2xl font-bold text-foreground">Worker Management</h1>
+          <p className="text-muted-foreground">Manage worker accounts and track their quotations</p>
         </div>
         <AddWorkerDialog
           isOpen={isAddWorkerDialogOpen}
@@ -116,7 +116,7 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
       {/* Search */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
           <Input
             placeholder="Search workers by name or email..."
             value={searchTerm}

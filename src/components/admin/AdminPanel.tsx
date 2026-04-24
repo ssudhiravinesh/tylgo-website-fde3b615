@@ -44,17 +44,17 @@ export const AdminPanel = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
-        <Card className="border-gray-200">
+        <Card className="border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UserCog className="h-5 w-5 text-blue-600" />
+              <UserCog className="h-5 w-5 text-primary" />
               Quick Actions
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
 
             <Button
-              className="w-full justify-start gap-3 h-12 bg-green-600 hover:bg-green-700 text-white"
+              className="w-full justify-start gap-3 h-12 btn-primary-craft"
               onClick={() => setActiveView("worker-management")}
             >
               <UserCog className="h-4 w-4" />
@@ -80,26 +80,26 @@ export const AdminPanel = () => {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="border-gray-200">
+        <Card className="border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-green-600" />
+              <Calendar className="h-5 w-5 text-primary" />
               Recent Activity
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {recentActivity.length > 0 ? (
               recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div key={index} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800">{activity.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                    <p className="text-sm text-foreground">{activity.message}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 <p>No recent activity found</p>
                 <p className="text-xs mt-1">Start by adding customers or creating quotations</p>
               </div>

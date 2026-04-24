@@ -1,6 +1,5 @@
 
 import { Toaster } from "@/components/ui/sonner";
-import { Toaster as CustomToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -44,13 +43,12 @@ function App() {
           <NotificationProvider>
             <TooltipProvider>
               <Toaster />
-              <CustomToaster />
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Index />} />
                   <Route path="/tiles/:tileId" element={<TileDetails />} />
-                  <Route path="/seed-users" element={<SeedUsers />} />
+                  {import.meta.env.DEV && <Route path="/seed-users" element={<SeedUsers />} />}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

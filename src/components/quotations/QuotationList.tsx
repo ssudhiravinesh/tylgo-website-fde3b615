@@ -122,7 +122,7 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
       case "closed":
         return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-foreground";
     }
   };
 
@@ -264,8 +264,8 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Quotations</h1>
-            <p className="text-gray-600">Manage customer quotations and proposals</p>
+            <h1 className="text-2xl font-bold text-foreground">Quotations</h1>
+            <p className="text-muted-foreground">Manage customer quotations and proposals</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center space-x-2">
@@ -275,7 +275,7 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
                   list="area-list"
                   value={areaFilter}
                   onChange={(e) => setAreaFilter(e.target.value)}
-                  className="h-10 w-36 px-3 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-blue-500"
+                  className="h-10 w-36 px-3 text-sm border border-border rounded-md focus:border-primary focus:ring-primary"
                 />
                 <datalist id="area-list">
                   {uniqueAreas.map(area => (
@@ -286,7 +286,7 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
               <select
                 value={stateFilter}
                 onChange={(e) => setStateFilter(e.target.value)}
-                className="h-10 w-32 px-3 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-blue-500"
+                className="h-10 w-32 px-3 text-sm border border-border rounded-md focus:border-primary focus:ring-primary"
               >
                 <option value="all">All States</option>
                 {uniqueStates.map(state => (
@@ -300,8 +300,8 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
               <button
                 onClick={() => setViewMode('list')}
                 className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${viewMode === 'list'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-primary text-white'
+                  : 'bg-muted text-muted-foreground hover:bg-secondary'
                   }`}
               >
                 <LayoutList className="h-4 w-4" />
@@ -310,8 +310,8 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
               <button
                 onClick={() => setViewMode('card')}
                 className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${viewMode === 'card'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-primary text-white'
+                  : 'bg-muted text-muted-foreground hover:bg-secondary'
                   }`}
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -322,12 +322,12 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
         </div>
 
         <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
           <Input
             placeholder="Search quotations by customer name, ID, or mobile..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+            className="pl-10 h-12 border-border focus:border-primary focus:ring-primary"
           />
         </div>
 
@@ -354,9 +354,9 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center">
-                <FileText className="h-8 w-8 text-blue-600" />
+                <FileText className="h-8 w-8 text-primary" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Quotations</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Quotations</p>
                   <p className="text-2xl font-bold">{filteredQuotations.length}</p>
                 </div>
               </div>
@@ -368,7 +368,7 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
               <div className="flex items-center">
                 <FileText className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Approved</p>
+                  <p className="text-sm font-medium text-muted-foreground">Approved</p>
                   <p className="text-2xl font-bold">
                     {filteredQuotations.filter(q => q.status === 'approved').length}
                   </p>
@@ -382,7 +382,7 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
               <div className="flex items-center">
                 <FileText className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Pending</p>
+                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
                   <p className="text-2xl font-bold">
                     {filteredQuotations.filter(q => q.status === 'draft').length}
                   </p>
@@ -396,7 +396,7 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
               <div className="flex items-center">
                 <FileText className="h-8 w-8 text-red-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Closed</p>
+                  <p className="text-sm font-medium text-muted-foreground">Closed</p>
                   <p className="text-2xl font-bold">
                     {filteredQuotations.filter(q => q.status === 'closed').length}
                   </p>
@@ -411,7 +411,7 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
               <div className="flex items-center">
                 <IndianRupee className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Value</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Value</p>
                   <p className="text-2xl font-bold">
                     ₹{filteredQuotations.reduce((sum, q) => sum + (q.total_cost || 0), 0).toLocaleString()}
                   </p>
@@ -423,36 +423,36 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
 
         {viewMode === 'list' ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quotation</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Quotation</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Customer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-card divide-y divide-border">
                 {filteredQuotations.map((quotation) => (
-                  <tr key={quotation.id} className="hover:bg-gray-50">
+                  <tr key={quotation.id} className="hover:bg-muted">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium text-gray-800">{quotation.quotation_number}</span>
+                        <FileText className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-foreground">{quotation.quotation_number}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="font-medium text-gray-800">{quotation.customer?.name}</div>
-                        <div className="text-sm text-gray-500">{quotation.customer?.mobile}</div>
+                        <div className="font-medium text-foreground">{quotation.customer?.name}</div>
+                        <div className="text-sm text-muted-foreground">{quotation.customer?.mobile}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600 flex items-start gap-1">
-                        <MapPin className="h-3 w-3 mt-0.5 text-gray-400" />
+                      <div className="text-sm text-muted-foreground flex items-start gap-1">
+                        <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground/70" />
                         <div>
                           {formatAddress(quotation.customer)}
                         </div>
@@ -466,7 +466,7 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
                       ₹{(quotation.total_cost || 0).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {new Date(quotation.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -485,11 +485,11 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {filteredQuotations.map((quotation) => (
-              <Card key={quotation.id} className="hover:shadow-lg transition-shadow duration-200 border-gray-200">
+              <Card key={quotation.id} className="hover:shadow-lg transition-shadow duration-200 border-border">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
                       {quotation.quotation_number}
                     </CardTitle>
                     <Badge className={`text-xs capitalize ${getStatusColor(quotation.status)}`}>
@@ -499,23 +499,23 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
                 </CardHeader>
 
                 <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <User className="h-4 w-4 text-blue-500" />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <User className="h-4 w-4 text-primary" />
                     <div>
-                      <span className="font-medium text-gray-800">{quotation.customer?.name}</span>
-                      <span className="text-gray-500 ml-2">{quotation.customer?.mobile}</span>
+                      <span className="font-medium text-foreground">{quotation.customer?.name}</span>
+                      <span className="text-muted-foreground ml-2">{quotation.customer?.mobile}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 text-muted-foreground/70 mt-0.5" />
                     <span className="line-clamp-2">
                       {formatAddress(quotation.customer)}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="h-4 w-4 text-gray-400" />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-muted-foreground/70" />
                     {new Date(quotation.created_at).toLocaleDateString()}
                   </div>
 
@@ -524,9 +524,9 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
                     {(quotation.total_cost || 0).toLocaleString()}
                   </div>
 
-                  <div className="pt-2 border-t border-gray-100">
-                    <p className="text-xs text-gray-500">
-                      Created by: <span className="font-medium text-gray-700">{quotation.worker?.name}</span>
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Created by: <span className="font-medium text-foreground/80">{quotation.worker?.name}</span>
                     </p>
                   </div>
 
@@ -544,9 +544,9 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
 
         {filteredQuotations.length === 0 && !isLoading && (
           <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No quotations found</h3>
-            <p className="text-gray-500 mb-4">
+            <FileText className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">No quotations found</h3>
+            <p className="text-muted-foreground mb-4">
               {searchTerm || selectedWorker !== "all" || selectedStatus !== "all" || areaFilter || stateFilter !== "all" ?
                 "Try adjusting your search terms or filters" :
                 "No quotations have been created yet"

@@ -47,28 +47,29 @@ export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
   // Regular sign up form (for workers - but this should normally not be accessible)
   if (!showAdminCreation) {
     return (
-      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+      <Card className="w-full max-w-md shadow-2xl border-0 bg-card/90 backdrop-blur-sm">
         <CardHeader className="text-center pb-4">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mb-4">
-            <img src="public/tylgo.png" className="w-8 h-8" />
+          <div className="mx-auto mb-4">
+            <img src="/tylgo-logo.png" alt="Tylgo Logo" className="w-16 h-16 mx-auto dark:hidden drop-shadow-sm" />
+            <img src="/tylgo-logo-dark.png" alt="Tylgo Logo" className="w-16 h-16 mx-auto hidden dark:block drop-shadow-sm" />
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-800">TYLGO</CardTitle>
-          <CardDescription className="text-gray-600">
+          <CardTitle className="text-2xl font-bold text-foreground tracking-[-0.02em]">TYLGO</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Worker Registration
           </CardDescription>
         </CardHeader>
         
         <CardContent>
           <div className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-              <Building2 className="w-8 h-8 text-gray-400" />
+            <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+              <Building2 className="w-8 h-8 text-muted-foreground/70" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Account Creation Restricted</h3>
-              <p className="text-gray-600 text-sm leading-relaxed mb-4">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Account Creation Restricted</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-4">
                 Worker accounts can only be created by system administrators through the admin panel.
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Please contact your system administrator for account access.
               </p>
             </div>
@@ -93,13 +94,13 @@ export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
 
   // Admin creation form
   return (
-    <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+    <Card className="w-full max-w-md shadow-2xl border-0 bg-card/90 backdrop-blur-sm">
       <CardHeader className="text-center pb-4">
         <div className="mx-auto w-16 h-16 bg-gradient-to-br from-amber-600 to-orange-600 rounded-2xl flex items-center justify-center mb-4">
           <Shield className="w-8 h-8 text-white" />
         </div>
-        <CardTitle className="text-2xl font-bold text-gray-800">Create Admin Account</CardTitle>
-        <CardDescription className="text-gray-600">
+        <CardTitle className="text-2xl font-bold text-foreground">Create Admin Account</CardTitle>
+        <CardDescription className="text-muted-foreground">
           Set up the first administrator account
         </CardDescription>
       </CardHeader>
@@ -107,18 +108,18 @@ export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
       <CardContent>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="name" className="text-sm font-medium text-foreground/80">
               Full Name
             </Label>
             <div className="relative">
-              <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
               <Input
                 id="name"
                 type="text"
                 placeholder="Enter your full name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="pl-10 h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
+                className="pl-10 h-12 border-border focus:border-amber-500 focus:ring-amber-500"
                 required
                 disabled={isSubmitting}
               />
@@ -126,18 +127,18 @@ export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="email" className="text-sm font-medium text-foreground/80">
               Email Address
             </Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
+                className="pl-10 h-12 border-border focus:border-amber-500 focus:ring-amber-500"
                 required
                 disabled={isSubmitting}
               />
@@ -145,18 +146,18 @@ export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="password" className="text-sm font-medium text-foreground/80">
               Password
             </Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
               <Input
                 id="password"
                 type="password"
                 placeholder="Create a secure password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
+                className="pl-10 h-12 border-border focus:border-amber-500 focus:ring-amber-500"
                 required
                 disabled={isSubmitting}
                 minLength={6}
@@ -165,18 +166,18 @@ export const SignUpForm = ({ onShowLogin }: SignUpFormProps) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground/80">
               Confirm Password
             </Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
               <Input
                 id="confirmPassword"
                 type="password"
                 placeholder="Confirm your password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="pl-10 h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
+                className="pl-10 h-12 border-border focus:border-amber-500 focus:ring-amber-500"
                 required
                 disabled={isSubmitting}
                 minLength={6}

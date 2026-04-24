@@ -101,7 +101,7 @@ export const TileAssignmentDialog = ({
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
                 {rooms.map((room) => (
-                  <div key={room.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                  <div key={room.id} className="flex items-center space-x-2 p-2 hover:bg-muted rounded">
                     <Checkbox
                       id={room.id}
                       checked={selectedRooms.includes(room.id)}
@@ -109,21 +109,21 @@ export const TileAssignmentDialog = ({
                     />
                     <label htmlFor={room.id} className="text-sm flex-1 cursor-pointer">
                       <span className="font-medium">{room.name}</span>
-                      <span className="text-gray-500 ml-2">
+                      <span className="text-muted-foreground ml-2">
                         ({(room.length * room.width).toFixed(2)} {room.unit}²)
                       </span>
                     </label>
                   </div>
                 ))}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {selectedRooms.length} of {rooms.length} rooms selected
               </div>
             </div>
           )}
 
           {selectedCustomerId && rooms.length === 0 && (
-            <p className="text-sm text-gray-500 py-4 text-center">
+            <p className="text-sm text-muted-foreground py-4 text-center">
               No rooms found for this customer. Please add rooms first.
             </p>
           )}

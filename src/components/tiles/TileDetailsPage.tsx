@@ -70,13 +70,13 @@ export const TileDetailsPage: React.FC = () => {
 
   if (error || !tile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <Card className="max-w-md mx-4">
           <CardHeader>
             <CardTitle className="text-center text-red-600">Tile Not Found</CardTitle>
           </CardHeader>
           <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">
+            <p className="text-muted-foreground mb-4">
               The requested tile could not be found.
             </p>
             <Link to="/">
@@ -108,7 +108,7 @@ export const TileDetailsPage: React.FC = () => {
   const pricePerSqFt = calculatePricePerSqFt();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -128,7 +128,7 @@ export const TileDetailsPage: React.FC = () => {
           {/* Tile Image */}
           <Card>
             <CardContent className="p-6">
-              <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+              <div className="aspect-square bg-muted rounded-lg flex items-center justify-center mb-4">
                 {tile.image_url ? (
                   <img
                     src={tile.image_url}
@@ -136,13 +136,13 @@ export const TileDetailsPage: React.FC = () => {
                     className="w-full h-full object-cover rounded-lg"
                   />
                 ) : (
-                  <Grid3X3 className="h-24 w-24 text-gray-400" />
+                  <Grid3X3 className="h-24 w-24 text-muted-foreground/70" />
                 )}
               </div>
 
               {tile.qr_code_url && (
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-2">QR Code</p>
+                  <p className="text-sm text-muted-foreground mb-2">QR Code</p>
                   <div className="inline-flex flex-col items-center gap-2">
                     <img
                       src={tile.qr_code_url}
@@ -172,7 +172,7 @@ export const TileDetailsPage: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2 text-gray-600">
+                  <div className="flex items-center gap-2 text-muted-foreground">
                     <Ruler className="h-4 w-4" />
                     <span className="text-sm">Dimensions</span>
                   </div>
@@ -186,7 +186,7 @@ export const TileDetailsPage: React.FC = () => {
                 {pricePerSqFt > 0 && (
                   <>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center gap-2 text-gray-600">
+                      <div className="flex items-center gap-2 text-muted-foreground">
                         <IndianRupee className="h-4 w-4" />
                         <span className="text-sm">Price per sq ft</span>
                       </div>
@@ -200,7 +200,7 @@ export const TileDetailsPage: React.FC = () => {
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="text-sm text-gray-600">Area per tile</div>
+                  <div className="text-sm text-muted-foreground">Area per tile</div>
                   <div className="text-sm font-medium">
                     {tileAreaSqFt.toFixed(4)} sq ft
                   </div>
@@ -208,7 +208,7 @@ export const TileDetailsPage: React.FC = () => {
 
                 {pricePerSqFt > 0 && (
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="text-sm text-gray-600">Price per tile</div>
+                    <div className="text-sm text-muted-foreground">Price per tile</div>
                     <div className="text-sm font-medium text-green-600">
                       ₹{(pricePerSqFt * tileAreaSqFt).toFixed(2)}
                     </div>
@@ -229,7 +229,7 @@ export const TileDetailsPage: React.FC = () => {
                       <input
                         type="number"
                         step="0.1"
-                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                         placeholder="0.0"
                         id="length-input"
                       />
@@ -239,7 +239,7 @@ export const TileDetailsPage: React.FC = () => {
                       <input
                         type="number"
                         step="0.1"
-                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                         placeholder="0.0"
                         id="width-input"
                       />

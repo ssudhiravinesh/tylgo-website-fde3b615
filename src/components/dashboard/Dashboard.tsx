@@ -46,7 +46,7 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen flex" style={{ background: "hsl(var(--background))" }}>
       <Sidebar
         isOpen={isSidebarOpen}
         activeView={activeView}
@@ -54,14 +54,14 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
         userRole={user.role}
       />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header
           user={user}
           onLogout={onLogout}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto animate-in-up">
           <DashboardContent
             activeView={activeView}
             userRole={user.role}
@@ -70,7 +70,7 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
               handleNewQuote,
               handleNewQuoteFromForm,
               handleBackFromRooms,
-              selectedCustomerForQuote
+              selectedCustomerForQuote,
             }}
           />
         </main>
@@ -78,4 +78,3 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
     </div>
   );
 };
-

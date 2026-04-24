@@ -92,7 +92,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       case "closed":
         return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-foreground";
     }
   };
 
@@ -343,17 +343,17 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
           </Button>
 
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">
+            <h1 className="text-2xl font-bold text-foreground">
               Edit Quotation {quotation.quotation_number}
             </h1>
-            <p className="text-gray-600">Modify quotation details and tile quantities</p>
+            <p className="text-muted-foreground">Modify quotation details and tile quantities</p>
           </div>
         </div>
 
         <Button
           onClick={handleSave}
           disabled={isUpdating}
-          className="gap-2 bg-blue-600 hover:bg-blue-700"
+          className="gap-2 bg-primary hover:bg-primary/90"
         >
           <Save className="h-4 w-4" />
           {isUpdating ? 'Saving...' : 'Save Changes'}
@@ -361,11 +361,11 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       </div>
 
       {/* Quotation Header with Edit Fields */}
-      <Card className="border-gray-200 shadow-sm">
+      <Card className="border-border shadow-sm">
         <CardHeader>
           <div className="flex items-start justify-between">
-            <CardTitle className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-              <FileText className="h-6 w-6 text-blue-600" />
+            <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+              <FileText className="h-6 w-6 text-primary" />
               Quotation Details
             </CardTitle>
             <Badge className={`text-sm capitalize ${getStatusColor(status)}`}>
@@ -378,22 +378,22 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
           <div className="grid md:grid-cols-2 gap-6">
             {/* Customer Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <User className="h-5 w-5 text-blue-600" />
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
                 Customer Information
               </h3>
               <div className="space-y-3 pl-7">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-500" />
+                  <User className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{quotation.customer?.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-500" />
+                  <Phone className="h-4 w-4 text-muted-foreground" />
                   <span>{quotation.customer?.mobile}</span>
                 </div>
                 {quotation.customer?.address && (
                   <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-gray-500 mt-1" />
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
                     <span className="text-sm">{quotation.customer.address}</span>
                   </div>
                 )}
@@ -402,8 +402,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
             {/* Quotation Information with Edit Fields */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-600" />
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
                 Quotation Information
               </h3>
               <div className="space-y-3">
@@ -435,7 +435,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     onChange={(e) => setWastagePercentage(e.target.value)}
                     onFocus={handleInputFocus} // UPDATED: Select all on focus
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Max: 15%</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-1">Max: 15%</p>
                 </div>
 
                 <div>
@@ -454,8 +454,8 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   />
                 </div>
 
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4 text-gray-400" />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4 text-muted-foreground/70" />
                   <span>Created: {new Date(quotation.created_at).toLocaleDateString()}</span>
                 </div>
 
@@ -481,10 +481,10 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       </Card>
 
       {/* Tile Calculations with Edit Controls */}
-      <Card className="border-gray-200 shadow-sm">
+      <Card className="border-border shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-blue-600" />
+          <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Calculator className="h-5 w-5 text-primary" />
             Tile Calculations ({parseFloat(wastagePercentage) || 0}% wastage included)
           </CardTitle>
         </CardHeader>
@@ -495,12 +495,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
           ) : calculations.length > 0 ? (
             <div className="space-y-4">
               {calculations.map((calc) => (
-                <div key={calc.tile.id} className="border rounded-lg p-4 bg-gray-50">
+                <div key={calc.tile.id} className="border rounded-lg p-4 bg-muted">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="font-semibold text-gray-800">{calc.tile.code}</h4>
-                      <p className="text-sm text-gray-600">Code: {calc.tile.code}</p>
-                      <div className="text-xs text-gray-500 space-y-1 mt-1">
+                      <h4 className="font-semibold text-foreground">{calc.tile.code}</h4>
+                      <p className="text-sm text-muted-foreground">Code: {calc.tile.code}</p>
+                      <div className="text-xs text-muted-foreground space-y-1 mt-1">
                         {/* Rooms Details */}
                         {calc.rooms.length > 0 && (
                           <>
@@ -538,7 +538,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Size: {formatTileSize(calc.tile.size_length, calc.tile.size_breadth)}
                       </p>
                     </div>
@@ -548,9 +548,9 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     {/* Only show Total Area if there are rooms */}
                     {calc.totalArea > 0 && (
                       <div className="flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-gray-400" />
+                        <Layers className="h-4 w-4 text-muted-foreground/70" />
                         <div>
-                          <p className="text-gray-600">Total Area</p>
+                          <p className="text-muted-foreground">Total Area</p>
                           <p className="font-medium">{calc.totalArea.toFixed(2)} sq ft</p>
                         </div>
                       </div>
@@ -559,11 +559,11 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     <div className="flex items-center gap-2">
                       <Calculator className="h-4 w-4 text-green-600" />
                       <div>
-                        <p className="text-gray-600">Tiles Required</p>
+                        <p className="text-muted-foreground">Tiles Required</p>
                         <p className="font-medium text-green-600">
                           {calc.rawTilesNeeded || calc.tilesNeeded} tiles
                           {calc.fullBoxes !== undefined && calc.leftoverTiles !== undefined && (
-                            <span className="text-xs text-gray-500 block">
+                            <span className="text-xs text-muted-foreground block">
                               ({calc.fullBoxes} {calc.fullBoxes === 1 ? 'box' : 'boxes'}{calc.leftoverTiles > 0 ? ` and ${calc.leftoverTiles} ${calc.leftoverTiles === 1 ? 'tile' : 'tiles'}` : ''})
                               {parseFloat(wastagePercentage) > 0 && ` (+${parseFloat(wastagePercentage)}% wastage)`}
                             </span>
@@ -573,9 +573,9 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-blue-600" />
+                      <Package className="h-4 w-4 text-primary" />
                       <div>
-                        <p className="text-gray-600">Boxes Needed</p>
+                        <p className="text-muted-foreground">Boxes Needed</p>
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
@@ -585,7 +585,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="font-medium text-blue-600 min-w-[3rem] text-center">
+                          <span className="font-medium text-primary min-w-[3rem] text-center">
                             {calc.boxesNeeded}
                           </span>
                           <Button
@@ -608,7 +608,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                     <div className="flex items-center gap-2">
                       <IndianRupee className="h-4 w-4 text-purple-600" />
                       <div>
-                        <p className="text-gray-600">Total Cost</p>
+                        <p className="text-muted-foreground">Total Cost</p>
                         <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
                       </div>
                     </div>
@@ -618,13 +618,13 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
               <div className="border-t pt-4 mt-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-800">MRP:</span>
-                  <span className="text-lg font-semibold text-gray-800">₹{mrp.toLocaleString()}</span>
+                  <span className="text-lg font-semibold text-foreground">MRP:</span>
+                  <span className="text-lg font-semibold text-foreground">₹{mrp.toLocaleString()}</span>
                 </div>
 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Discount:</span>
+                    <span className="text-sm text-muted-foreground">Discount:</span>
                     <div className="flex items-center gap-1">
                       <Button
                         size="sm"
@@ -658,13 +658,13 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
                 <div className="flex justify-between items-center border-t pt-2">
                   <div className="flex items-center gap-3">
-                    <span className="text-xl font-bold text-gray-800">Grand Total:</span>
+                    <span className="text-xl font-bold text-foreground">Grand Total:</span>
                     {/* NEW ROUND OFF BUTTON */}
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleRoundOff}
-                      className="h-7 text-xs text-gray-600 hover:text-blue-600 border-gray-300 gap-1"
+                      className="h-7 text-xs text-muted-foreground hover:text-primary border-border gap-1"
                       title="Round down to nearest hundred"
                     >
                       <ArrowDown className="h-3 w-3" />
@@ -674,15 +674,15 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
 
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   All calculations include {parseFloat(wastagePercentage) || 0}% wastage allowance
                 </p>
               </div>
             </div>
           ) : (
             <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No items found in this quotation</p>
+              <FileText className="h-12 w-12 text-muted-foreground/70 mx-auto mb-4" />
+              <p className="text-muted-foreground">No items found in this quotation</p>
             </div>
           )}
         </CardContent>

@@ -143,7 +143,7 @@ export const MobileNumberSearch = ({
       {isOpen && filteredCustomers.length > 0 && (
         <Card 
           ref={dropdownRef}
-          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto shadow-lg bg-white"
+          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto shadow-lg bg-card"
           onMouseDown={handleMouseDown} // Add this to prevent blur
         >
           <div className="py-1">
@@ -152,16 +152,16 @@ export const MobileNumberSearch = ({
                 key={customer.id}
                 className={`px-3 py-2 cursor-pointer transition-colors ${
                   index === selectedIndex 
-                    ? 'bg-blue-50 text-blue-700' 
-                    : 'hover:bg-gray-50'
+                    ? 'bg-primary/10 text-primary/80' 
+                    : 'hover:bg-muted'
                 }`}
                 onClick={() => handleCustomerClick(customer)}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
                 <div className="font-medium text-sm">{customer.name}</div>
-                <div className="text-xs text-gray-600">{customer.mobile}</div>
+                <div className="text-xs text-muted-foreground">{customer.mobile}</div>
                 {customer.address && (
-                  <div className="text-xs text-gray-500 truncate">{customer.address}</div>
+                  <div className="text-xs text-muted-foreground truncate">{customer.address}</div>
                 )}
               </div>
             ))}

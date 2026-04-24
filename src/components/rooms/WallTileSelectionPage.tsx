@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw, Eye, QrCode } from "lucide-react";
+import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw, Eye, QrCode, Box } from "lucide-react";
+import { RoomVisualizer } from "./RoomVisualizer";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { Html5QRScanner } from "@/components/qr/Html5QRScanner";
 import { toast } from "sonner";
@@ -34,7 +35,14 @@ export const WallTileSelectionPage = ({
   } | null>(null);
   const [originalLayers, setOriginalLayers] = useState<WallTileLayer[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [showRoomView, setShowRoomView] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Convert wall layers to VisTile array for the 3D visualizer
+  const wallVisLayers = [...wallSelection.layers]
+    .sort((a, b) => a.layerNumber - b.layerNumber)
+    .map(layer => tiles.find(t => t.id === layer.tileId))
+    .filter((t): t is Tile => !!t);
 
   // Initialize originalLayers from existing wallSelection when component loads
   useEffect(() => {
@@ -277,6 +285,22 @@ export const WallTileSelectionPage = ({
     toast.success("Layers reset to original configuration");
   };
 
+  /* ============================================================
+     Industrial Craft — Wall Preview Canvas Renderer
+     ============================================================ */
+  const WALL_PREVIEW = {
+    grout: { color: '#C8BFB3', width: 2 },
+    backdrop: '#F5F2ED',
+    fallback: {
+      fills: ['#E8E2D9', '#DED6C8', '#D4CCC0', '#E2DDD5', '#DAD3C7', '#E5DFD6'],
+      textColor: '#4A4541',
+      codeBg: 'rgba(74, 69, 65, 0.06)',
+    },
+    font: { family: 'Manrope, system-ui, sans-serif', weight: '600', sizeRatio: 0.11 },
+    padding: 32,
+    labelWidth: 48,
+  } as const;
+
   const generateWallPreview = () => {
     if (!canvasRef.current || wallSelection.layers.length === 0) return;
 
@@ -284,212 +308,266 @@ export const WallTileSelectionPage = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // High-DPI canvas setup
-    const devicePixelRatio = window.devicePixelRatio || 1;
+    const dpr = window.devicePixelRatio || 1;
 
-    // 1. Get the tile dimensions
     const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
     if (!firstTile) return;
 
-    // Length is usually Height, Breadth is usually Width
     const tileLength = firstTile.size_length || 600;
     const tileBreadth = firstTile.size_breadth || 600;
-
-    // Calculate Aspect Ratio
     const aspectRatio = tileBreadth / tileLength;
 
-    // 2. Determine Grid Layout based on Aspect Ratio (Match Floor Preview Logic)
-    let tilesPerLayer = 6;
-
-    // 3. Calculate "Virtual" Pixel Sizes (Base Size Logic)
+    const tilesPerLayer = 6;
     const baseSize = 200;
-    let tileWidth, tileHeight;
+    let tileWidth: number, tileHeight: number;
 
     if (aspectRatio > 1) {
-      // Wide tile
       tileWidth = baseSize;
       tileHeight = baseSize / aspectRatio;
     } else {
-      // Tall tile (Vertical)
       tileHeight = baseSize;
       tileWidth = baseSize * aspectRatio;
     }
 
     const layerCount = wallSelection.layers.length;
+    const groutW = WALL_PREVIEW.grout.width;
+    const pad = WALL_PREVIEW.padding;
+    const labelW = WALL_PREVIEW.labelWidth;
 
-    // 4. Calculate Total Wall Dimensions
-    const requiredWidth = tilesPerLayer * tileWidth;
-    const requiredHeight = layerCount * tileHeight;
+    // Field dimensions including grout
+    const fieldW = tilesPerLayer * tileWidth + (tilesPerLayer + 1) * groutW;
+    const fieldH = layerCount * tileHeight + (layerCount + 1) * groutW;
 
-    // 5. Scale to Fit Dialog Container
-    // Calculate available space in the dialog
-    const maxW = Math.min(window.innerWidth * 0.90, 1200);
-    const maxH = Math.min(window.innerHeight * 0.75, 900);
+    const requiredWidth = labelW + pad + fieldW + pad;
+    const requiredHeight = pad + fieldH + pad;
 
-    const scaleToFitX = maxW / requiredWidth;
-    const scaleToFitY = maxH / requiredHeight;
-    // Use the smaller scale to ensure it fits entirely
-    const scale = Math.min(scaleToFitX, scaleToFitY, 1);
+    const maxW = Math.min(window.innerWidth * 0.85, 1100);
+    const maxH = Math.min(window.innerHeight * 0.65, 800);
 
-    // Final Display Dimensions
+    const scale = Math.min(maxW / requiredWidth, maxH / requiredHeight, 1);
+
     const displayWidth = requiredWidth * scale;
     const displayHeight = requiredHeight * scale;
 
-    // 6. Set Canvas Properties
-    canvas.width = displayWidth * devicePixelRatio;
-    canvas.height = displayHeight * devicePixelRatio;
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
 
-    // Scale Context
-    ctx.scale(devicePixelRatio, devicePixelRatio);
+    ctx.scale(dpr, dpr);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Clear canvas
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Backdrop
+    ctx.fillStyle = WALL_PREVIEW.backdrop;
+    ctx.fillRect(0, 0, displayWidth, displayHeight);
 
-    // Sort layers by number
+    const fieldX = (labelW + pad) * scale;
+    const fieldY = pad * scale;
+    const scaledFieldW = fieldW * scale;
+    const scaledFieldH = fieldH * scale;
+
+    // Drop shadow behind wall
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.14)';
+    ctx.shadowBlur = 28 * scale;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 6 * scale;
+    ctx.fillStyle = WALL_PREVIEW.grout.color;
+    ctx.fillRect(fieldX, fieldY, scaledFieldW, scaledFieldH);
+    ctx.restore();
+
+    // Grout base
+    ctx.fillStyle = WALL_PREVIEW.grout.color;
+    ctx.fillRect(fieldX, fieldY, scaledFieldW, scaledFieldH);
+
+    const scaledTileW = tileWidth * scale;
+    const scaledTileH = tileHeight * scale;
+    const scaledGrout = groutW * scale;
+
+    // Depth helper
+    const addTileDepth = (x: number, y: number, w: number, h: number) => {
+      const topGrad = ctx.createLinearGradient(x, y, x, y + h * 0.12);
+      topGrad.addColorStop(0, 'rgba(255, 255, 255, 0.10)');
+      topGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = topGrad;
+      ctx.fillRect(x, y, w, h * 0.12);
+
+      const btmGrad = ctx.createLinearGradient(x, y + h * 0.88, x, y + h);
+      btmGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      btmGrad.addColorStop(1, 'rgba(0, 0, 0, 0.05)');
+      ctx.fillStyle = btmGrad;
+      ctx.fillRect(x, y + h * 0.88, w, h * 0.12);
+    };
+
+    // Sort layers and reverse for bottom-up (Layer 1 at bottom)
     const sortedLayers = [...wallSelection.layers].sort((a, b) => a.layerNumber - b.layerNumber);
+    const layersToDraw = [...sortedLayers].reverse();
 
     let loadedImages = 0;
-    const totalImages = sortedLayers.length * tilesPerLayer;
+    const totalImages = layersToDraw.length * tilesPerLayer;
 
-    // 7. Helper: Draw Single Tile
-    const drawTile = (x: number, y: number, tile: any, layer: any) => {
-      const scaledTileWidth = tileWidth * scale;
-      const scaledTileHeight = tileHeight * scale;
+    const checkComplete = () => {
+      loadedImages++;
+      if (loadedImages >= totalImages) drawLayerLabels();
+    };
 
-      if (tile.image_url && tile.image_url.trim() !== '') {
+    // Draw layer labels on the left
+    const drawLayerLabels = () => {
+      const fontSize = Math.min(13, 11 * scale) * scale;
+      ctx.font = `600 ${fontSize}px ${WALL_PREVIEW.font.family}`;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      layersToDraw.forEach((layer, layerIndex) => {
+        const y = fieldY + scaledGrout + layerIndex * (scaledTileH + scaledGrout);
+        const labelX = fieldX - 10 * scale;
+        const labelY = y + scaledTileH / 2;
+
+        // Pill background
+        const text = `L${layer.layerNumber}`;
+        const metrics = ctx.measureText(text);
+        const pillW = metrics.width + 10 * scale;
+        const pillH = fontSize * 1.8;
+        const pillX = labelX - pillW;
+        const pillY = labelY - pillH / 2;
+
+        ctx.fillStyle = 'rgba(74, 69, 65, 0.07)';
+        const r = pillH * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(pillX + r, pillY);
+        ctx.lineTo(pillX + pillW - r, pillY);
+        ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + r);
+        ctx.lineTo(pillX + pillW, pillY + pillH - r);
+        ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - r, pillY + pillH);
+        ctx.lineTo(pillX + r, pillY + pillH);
+        ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - r);
+        ctx.lineTo(pillX, pillY + r);
+        ctx.quadraticCurveTo(pillX, pillY, pillX + r, pillY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = WALL_PREVIEW.fallback.textColor;
+        ctx.fillText(text, labelX - 5 * scale, labelY);
+      });
+    };
+
+    const drawWallTile = (x: number, y: number, tileData: Tile, layerIdx: number) => {
+      if (tileData.image_url && tileData.image_url.trim() !== '') {
         const img = new Image();
         img.crossOrigin = 'anonymous';
 
         img.onload = () => {
           try {
             if (img.complete && img.naturalWidth > 0) {
-              // Attempt High Quality Bitmap
               if (window.createImageBitmap) {
                 createImageBitmap(img, {
-                  resizeWidth: Math.max(scaledTileWidth * devicePixelRatio, 256),
-                  resizeHeight: Math.max(scaledTileHeight * devicePixelRatio, 256),
+                  resizeWidth: Math.max(scaledTileW * dpr, 256),
+                  resizeHeight: Math.max(scaledTileH * dpr, 256),
                   resizeQuality: 'high'
                 }).then(bitmap => {
-                  ctx.drawImage(bitmap, x, y, scaledTileWidth, scaledTileHeight);
-                  // Add Border
-                  ctx.strokeStyle = '#000000';
-                  ctx.lineWidth = 3 / devicePixelRatio;
-                  ctx.strokeRect(x, y, scaledTileWidth, scaledTileHeight);
+                  ctx.drawImage(bitmap, x, y, scaledTileW, scaledTileH);
+                  addTileDepth(x, y, scaledTileW, scaledTileH);
                   bitmap.close();
-
-                  loadedImages++;
-                  if (loadedImages === totalImages) addLayerLabels(scale);
+                  checkComplete();
                 }).catch(() => {
-                  fallbackDraw(img, x, y, scaledTileWidth, scaledTileHeight);
+                  ctx.drawImage(img, x, y, scaledTileW, scaledTileH);
+                  addTileDepth(x, y, scaledTileW, scaledTileH);
+                  checkComplete();
                 });
               } else {
-                fallbackDraw(img, x, y, scaledTileWidth, scaledTileHeight);
+                ctx.drawImage(img, x, y, scaledTileW, scaledTileH);
+                addTileDepth(x, y, scaledTileW, scaledTileH);
+                checkComplete();
               }
             } else {
-              drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
+              drawWallFallback(x, y, tileData, layerIdx);
             }
-          } catch (error) {
-            drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
+          } catch {
+            drawWallFallback(x, y, tileData, layerIdx);
           }
         };
 
-        img.onerror = () => {
-          drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
-        };
-
-        // Timeout safety
-        setTimeout(() => {
-          if (!img.complete || img.naturalWidth === 0) {
-            // Only fallback if not already drawn (simplistic check)
-          }
-        }, 5000);
-
-        img.src = tile.image_url;
+        img.onerror = () => drawWallFallback(x, y, tileData, layerIdx);
+        img.src = tileData.image_url;
       } else {
-        drawFallbackTile(x, y, tile, layer, scaledTileWidth, scaledTileHeight);
+        drawWallFallback(x, y, tileData, layerIdx);
       }
     };
 
-    const fallbackDraw = (img: HTMLImageElement, x: number, y: number, w: number, h: number) => {
-      ctx.drawImage(img, x, y, w, h);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3 / devicePixelRatio;
-      ctx.strokeRect(x, y, w, h);
-      loadedImages++;
-      if (loadedImages === totalImages) addLayerLabels(scale);
-    };
+    const drawWallFallback = (x: number, y: number, tileData: Tile, layerIdx: number) => {
+      const fills = WALL_PREVIEW.fallback.fills;
+      ctx.fillStyle = fills[layerIdx % fills.length];
+      ctx.fillRect(x, y, scaledTileW, scaledTileH);
 
-    const drawFallbackTile = (x: number, y: number, tile: any, layer: any, w: number, h: number) => {
-      const hue = (layer.layerNumber * 60) % 360;
-      ctx.fillStyle = `hsl(${hue}, 60%, 75%)`;
-      ctx.fillRect(x, y, w, h);
+      // Subtle grain
+      ctx.strokeStyle = 'rgba(180, 170, 158, 0.4)';
+      ctx.lineWidth = 0.5;
+      const lines = Math.max(3, Math.floor(scaledTileH / 18));
+      for (let i = 0; i < lines; i++) {
+        const ly = y + (i * scaledTileH / lines) + (scaledTileH / lines / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + 8, ly);
+        ctx.lineTo(x + scaledTileW - 8, ly);
+        ctx.stroke();
+      }
 
-      ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 2 / devicePixelRatio;
-      ctx.strokeRect(x, y, w, h);
-
-      ctx.fillStyle = '#374151';
-      const fontSize = Math.min(w, h) * 0.15;
-      ctx.font = `bold ${fontSize}px Arial`;
+      // Code label
+      const fontSize = Math.min(scaledTileW, scaledTileH) * WALL_PREVIEW.font.sizeRatio;
+      ctx.font = `${WALL_PREVIEW.font.weight} ${fontSize}px ${WALL_PREVIEW.font.family}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const code = tile.code || 'Unknown';
-      ctx.fillText(code.substring(0, 8), x + w / 2, y + h / 2);
+      const code = tileData.code || 'TILE';
+      const maxLen = Math.floor(scaledTileW / (fontSize * 0.55));
+      const displayCode = code.length > maxLen ? code.substring(0, maxLen) : code;
 
-      loadedImages++;
-      if (loadedImages === totalImages) addLayerLabels(scale);
+      // Code pill
+      const tm = ctx.measureText(displayCode);
+      const pW = tm.width + fontSize * 0.8;
+      const pH = fontSize * 1.6;
+      const pX = x + scaledTileW / 2 - pW / 2;
+      const pY = y + scaledTileH / 2 - pH / 2;
+      const pr = pH * 0.25;
+
+      ctx.fillStyle = WALL_PREVIEW.fallback.codeBg;
+      ctx.beginPath();
+      ctx.moveTo(pX + pr, pY);
+      ctx.lineTo(pX + pW - pr, pY);
+      ctx.quadraticCurveTo(pX + pW, pY, pX + pW, pY + pr);
+      ctx.lineTo(pX + pW, pY + pH - pr);
+      ctx.quadraticCurveTo(pX + pW, pY + pH, pX + pW - pr, pY + pH);
+      ctx.lineTo(pX + pr, pY + pH);
+      ctx.quadraticCurveTo(pX, pY + pH, pX, pY + pH - pr);
+      ctx.lineTo(pX, pY + pr);
+      ctx.quadraticCurveTo(pX, pY, pX + pr, pY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = WALL_PREVIEW.fallback.textColor;
+      ctx.fillText(displayCode, x + scaledTileW / 2, y + scaledTileH / 2);
+
+      addTileDepth(x, y, scaledTileW, scaledTileH);
+      checkComplete();
     };
 
-    const addLayerLabels = (currentScale: number) => {
-      const scaledTileHeight = tileHeight * currentScale;
-      ctx.fillStyle = '#374151';
-      ctx.font = 'bold 14px Arial';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-
-      // Note: This loop assumes we drew layers from top (y=0) to bottom
-      // If you want to reverse stack (Layer 1 at bottom), the drawing loop below needs reversing too.
-      // Keeping consistent with your original order for now:
-      sortedLayers.forEach((layer, layerIndex) => {
-        // If we reverse the drawing order, we must update this Y calculation
-        // For now, keeping standard top-down drawing
-        const y = layerIndex * scaledTileHeight;
-        ctx.fillText(`L${layer.layerNumber}`, -8, y + scaledTileHeight / 2);
-      });
-    };
-
-    // 8. Main Draw Loop
-    // NOTE: To make Layer 1 appear at the BOTTOM of the wall (physically correct),
-    // we should iterate backwards or calculate Y from bottom. 
-    // However, to keep it simple and match your exact request "Make it look like Floor Preview" (which is a grid),
-    // I will render them in order, but with the correct Shape.
-
-    // If you want Layer 1 at the BOTTOM, use this reversed array:
-    const layersToDraw = [...sortedLayers].reverse();
-
+    // Main draw loop — Layer 1 at bottom
     layersToDraw.forEach((layer, layerIndex) => {
-      const tile = tiles.find(t => t.id === layer.tileId);
-      if (!tile) return;
+      const tileData = tiles.find(t => t.id === layer.tileId);
+      if (!tileData) return;
 
-      const y = layerIndex * (tileHeight * scale);
+      const y = fieldY + scaledGrout + layerIndex * (scaledTileH + scaledGrout);
 
-      for (let tileIndex = 0; tileIndex < tilesPerLayer; tileIndex++) {
-        const x = tileIndex * (tileWidth * scale);
-        drawTile(x, y, tile, layer);
+      for (let col = 0; col < tilesPerLayer; col++) {
+        const x = fieldX + scaledGrout + col * (scaledTileW + scaledGrout);
+        drawWallTile(x, y, tileData, layerIndex);
       }
     });
   };
 
   const handlePreview = () => {
     setShowPreview(true);
-    // Generate preview after a short delay to ensure dialog is open
-    setTimeout(() => generateWallPreview(), 100);
+    setTimeout(() => generateWallPreview(), 120);
   };
 
   return (
@@ -500,8 +578,8 @@ export const WallTileSelectionPage = ({
           Back to Rooms
         </Button>
         <div className="flex-1">
-          <h2 className="text-3xl font-bold text-gray-800">Configure Wall Tiles</h2>
-          <p className="text-gray-600">{room.name} - Layer Management</p>
+          <h2 className="text-3xl font-bold text-foreground">Configure Wall Tiles</h2>
+          <p className="text-muted-foreground">{room.name} - Layer Management</p>
         </div>
       </div>
 
@@ -510,14 +588,14 @@ export const WallTileSelectionPage = ({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-blue-600" />
+              <Layers className="h-5 w-5 text-primary" />
               Room Details
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="bg-primary/10 p-4 rounded-lg">
               <h3 className="font-semibold text-lg">{room.name}</h3>
-              <div className="mt-2 space-y-1 text-sm text-gray-600">
+              <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                 <p>Wall Height: {room.wall_height || 'Not specified'} {room.unit}</p>
                 <p>Wall Length: {room.wall_length || room.length || 'Not specified'} {room.unit}</p>
                 <p>Wall Area: {((room.wall_height || 0) * (room.wall_length || room.length || 0)).toFixed(2)} sq {room.unit}</p>
@@ -590,7 +668,7 @@ export const WallTileSelectionPage = ({
                 <div className="flex justify-center mb-3">
                   <Button
                     onClick={handlePreview}
-                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
                     size="sm"
                   >
                     <Eye className="h-4 w-4 text-white" />
@@ -604,7 +682,7 @@ export const WallTileSelectionPage = ({
                     .map(layer => {
                       const tile = tiles.find(t => t.id === layer.tileId);
                       return tile ? (
-                        <div key={layer.layerNumber} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border">
+                        <div key={layer.layerNumber} className="flex items-center justify-between bg-muted p-3 rounded-lg border">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <Badge variant="outline" className="text-xs">
@@ -612,8 +690,8 @@ export const WallTileSelectionPage = ({
                               </Badge>
                             </div>
                             <p className="font-medium truncate">{tile.code}</p>
-                            <p className="text-sm text-gray-500">{tile.code}</p>
-                            <p className="text-xs text-gray-400">
+                            <p className="text-sm text-muted-foreground">{tile.code}</p>
+                            <p className="text-xs text-muted-foreground/70">
                               {layer.tilesNeeded.toFixed(2)} tiles needed
                             </p>
                           </div>
@@ -664,7 +742,7 @@ export const WallTileSelectionPage = ({
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground/70">
                 <Layers className="h-12 w-12 mx-auto mb-4" />
                 <p>Select a base tile to start configuring layers</p>
               </div>
@@ -702,39 +780,63 @@ export const WallTileSelectionPage = ({
       />
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-4">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="text-xl font-semibold">
-              Wall Preview - {wallSelection.layers.length} Layer{wallSelection.layers.length > 1 ? 's' : ''}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex-1 flex items-center justify-center min-h-0">
-            <div className="w-full h-full flex items-center justify-center p-4">
-              <div className="border-2 border-gray-200 rounded-lg bg-white shadow-lg flex items-center justify-center p-4 max-w-full max-h-full">
-                <canvas
-                  ref={canvasRef}
-                  className="max-w-full max-h-full block"
-                  style={{
-                    imageRendering: 'crisp-edges',
-                    objectFit: 'contain'
-                  }}
-                />
+        <DialogContent className="max-w-[96vw] w-auto h-auto max-h-[94vh] p-0 rounded-xl overflow-hidden border-border/50 shadow-2xl">
+          {/* Header */}
+          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/40 bg-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
+                  Wall Preview
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5 font-medium tracking-wide">
+                  {wallSelection.layers.length} Layer{wallSelection.layers.length > 1 ? 's' : ''} &middot; {room.name}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRoomView(true)}
+                  className="gap-1.5 text-xs h-8"
+                >
+                  <Box className="h-3.5 w-3.5" />
+                  Room View
+                </Button>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 border border-primary/20"
+                      style={{ color: 'hsl(32, 88%, 38%)' }}>
+                  6 tiles/layer
+                </span>
               </div>
             </div>
+          </DialogHeader>
+
+          {/* Canvas area */}
+          <div className="flex items-center justify-center p-6 bg-background min-h-[200px]">
+            <canvas
+              ref={canvasRef}
+              className="block"
+              style={{
+                imageRendering: 'auto',
+                borderRadius: '8px',
+              }}
+            />
           </div>
 
-          <div className="text-sm text-gray-600 text-center pt-4 border-t">
-            <p className="font-medium">
-              Preview shows {tiles.find(t => t.id === wallSelection.layers[0]?.tileId)?.size_breadth! > tiles.find(t => t.id === wallSelection.layers[0]?.tileId)?.size_length! ? '6' : '4'} tiles per layer maintaining actual proportions
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Layers stack from bottom (L1) to top • Auto-scaled for {wallSelection.layers.length} layers
+          {/* Footer */}
+          <div className="px-6 py-3 border-t border-border/40 bg-card">
+            <p className="text-xs text-muted-foreground text-center font-medium">
+              Layer 1 at bottom &middot; Actual proportions &middot; Grout simulation
             </p>
           </div>
         </DialogContent>
       </Dialog>
 
+      <RoomVisualizer
+        isOpen={showRoomView}
+        onClose={() => setShowRoomView(false)}
+        wallLayers={wallVisLayers}
+        roomName={`${room.name} Wall`}
+      />
     </div>
   );
 };

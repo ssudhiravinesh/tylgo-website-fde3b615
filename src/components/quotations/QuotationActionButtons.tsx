@@ -51,7 +51,7 @@ export const QuotationActionButtons = ({
       {/* Both admin and worker can edit and delete */}
       <Button
         size="sm"
-        className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+        className="text-xs bg-primary hover:bg-primary/90 text-white"
         onClick={handleEdit}
       >
         <Edit className="h-3 w-3 mr-1" />

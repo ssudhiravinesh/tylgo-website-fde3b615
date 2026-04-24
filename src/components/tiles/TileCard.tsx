@@ -44,13 +44,13 @@ export const TileCard = ({
 
   return (
     <Card
-      className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-gray-200 ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''
+      className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-border ${isSelected ? 'ring-2 ring-primary border-primary' : ''
         }`}
       onClick={handleCardClick}
     >
       <CardContent className="p-4">
         <div
-          className="bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden w-full"
+          className="bg-muted rounded-lg mb-3 flex items-center justify-center overflow-hidden w-full"
           style={{
             aspectRatio: '2/1',
             minHeight: '100px',
@@ -64,46 +64,46 @@ export const TileCard = ({
               className="w-full h-full object-contain rounded-lg"
             />
           ) : (
-            <div className="text-gray-500">No image available</div>
+            <div className="text-muted-foreground">No image available</div>
           )}
         </div>
 
         <div className="space-y-2">
 
-          <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">
+          <h3 className="font-semibold text-foreground text-sm line-clamp-2">
             <Badge variant="secondary" className="text-xs font-mono">
               {tile.code}
             </Badge>
             {isSelected && (
-              <Badge className="bg-blue-600 text-white text-xs">
+              <Badge className="bg-primary text-white text-xs">
                 <Check className="h-3 w-3 mr-1" />
                 Selected
               </Badge>
             )}
           </h3>
 
-          <div className="flex items-center gap-1 text-xs text-gray-600">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Ruler className="h-3 w-3" />
             {tile.size_length} × {tile.size_breadth} mm
           </div>
 
           <div className="space-y-1">
             {tile.price_per_box && (
-              <div className="flex items-center gap-1 text-sm font-semibold text-blue-600">
+              <div className="flex items-center gap-1 text-sm font-semibold text-primary">
                 <IndianRupee className="h-4 w-4" />
                 {tile.price_per_box.toLocaleString()} per box
               </div>
             )}
 
             {tile.pieces_per_box && (
-              <div className="flex items-center gap-1 text-xs text-gray-600">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Package className="h-3 w-3" />
                 {tile.pieces_per_box} pieces/box
               </div>
             )}
 
             {tile.size_length && tile.size_breadth && tile.pieces_per_box && (
-              <div className="flex items-center gap-1 text-xs text-gray-600">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Square className="h-3 w-3" />
                 {(
                   (tile.size_length *
@@ -146,7 +146,7 @@ export const TileCard = ({
                 variant="ghost"
                 size="sm"
                 onClick={(e) => onViewDetails(tile.id, e)}
-                className="text-blue-600 hover:text-blue-800 px-2"
+                className="text-primary hover:text-blue-800 px-2"
               >
                 View
               </Button>
@@ -160,7 +160,7 @@ export const TileCard = ({
                 variant="outline"
                 size="sm"
                 onClick={(e) => onViewDetails(tile.id, e)}
-                className="w-full text-blue-600 hover:text-blue-800"
+                className="w-full text-primary hover:text-blue-800"
               >
                 View Details
               </Button>

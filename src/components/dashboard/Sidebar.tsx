@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Users,
   UserPlus,
@@ -7,7 +6,8 @@ import {
   FileText,
   Settings,
   Home,
-  Package
+  Package,
+  ChevronRight,
 } from "lucide-react";
 import { ActiveView } from "./Dashboard";
 
@@ -23,7 +23,7 @@ const sidebarItems = [
   { id: "add-customer" as ActiveView, label: "Add Customer", icon: UserPlus, roles: ["worker"] },
   { id: "rooms" as ActiveView, label: "Rooms", icon: Home, roles: ["worker"] },
   { id: "tiles" as ActiveView, label: "Tile Catalog", icon: Grid3X3, roles: ["worker"] },
-  { id: "products" as ActiveView, label: "Manage Products", icon: Package, roles: ["admin", "worker", "super_admin"] },
+  { id: "products" as ActiveView, label: "Products", icon: Package, roles: ["admin", "worker", "super_admin"] },
   { id: "manage-tiles" as ActiveView, label: "Manage Tiles", icon: Grid3X3, roles: ["admin", "super_admin"] },
   { id: "quotations" as ActiveView, label: "Quotations", icon: FileText, roles: ["admin", "worker", "super_admin"] },
   { id: "admin" as ActiveView, label: "Admin Panel", icon: Settings, roles: ["admin", "super_admin"] },
@@ -33,43 +33,91 @@ export const Sidebar = ({ isOpen, activeView, onViewChange, userRole }: SidebarP
   const filteredItems = sidebarItems.filter(item => item.roles.includes(userRole));
 
   return (
-    <aside className={cn(
-      "bg-white border-r border-gray-200 transition-all duration-300 flex flex-col",
-      isOpen ? "w-64" : "w-0 lg:w-16",
-      isOpen && "shadow-lg lg:shadow-none"
-    )}>
-      <div className={cn(
-        "p-4 flex-1",
-        isOpen && "overflow-visible",
-        // Hide content completely on small screens when sidebar is closed
-        !isOpen && "hidden lg:block"
-      )}>
-        <nav className="space-y-2">
-          {filteredItems.map((item) => {
+    <aside
+      className={cn(
+        "tylgo-sidebar flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out",
+        isOpen ? "w-56" : "w-0 lg:w-[60px]",
+        isOpen && "shadow-xl lg:shadow-none"
+      )}
+      style={{ position: "relative", zIndex: 1 }}
+    >
+      {/* Logo area inside sidebar */}
+      <div
+        className={cn(
+          "h-[60px] flex items-center flex-shrink-0 border-b transition-all",
+          "border-[hsl(var(--sidebar-border))]",
+          isOpen ? "px-4 justify-start" : "px-0 justify-center"
+        )}
+      >
+        <div className="flex items-center gap-2.5">
+          <img src="/tylgo-logo.png" alt="Tylgo Logo" className="h-7 w-auto dark:hidden" />
+          <img src="/tylgo-logo-dark.png" alt="Tylgo Logo" className="h-7 w-auto hidden dark:block" />
+          {isOpen && (
+            <span className="font-extrabold text-lg tracking-[-0.02em] text-[hsl(var(--sidebar-foreground-active))]">
+              TYLGO
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Nav items */}
+      <div
+        className={cn(
+          "flex-1 py-4 relative z-10",
+          isOpen ? "px-3" : "px-0 lg:px-2",
+          !isOpen && "hidden lg:block"
+        )}
+      >
+        {isOpen && (
+          <p className="section-label mb-3 px-1" style={{ color: "hsl(var(--sidebar-foreground))", opacity: 0.45 }}>
+            Navigation
+          </p>
+        )}
+
+        <nav className="space-y-0.5">
+          {filteredItems.map((item, idx) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
 
             return (
-              <Button
+              <button
                 key={item.id}
-                variant={isActive ? "default" : "ghost"}
-                className={cn(
-                  "w-full justify-start gap-3 h-11 transition-all duration-200",
-                  isActive && "bg-blue-600 hover:bg-blue-700 text-white",
-                  !isActive && "text-gray-600 hover:text-gray-800 hover:bg-gray-100",
-                  !isOpen && "lg:justify-center lg:px-2"
-                )}
                 onClick={() => onViewChange(item.id)}
-              >
-                <Icon className={cn("h-5 w-5 flex-shrink-0")} />
-                {(isOpen) && (
-                  <span className="font-medium">{item.label}</span>
+                className={cn(
+                  "sidebar-nav-item w-full",
+                  isActive && "active",
+                  !isOpen && "lg:justify-center lg:px-0 lg:py-2.5"
                 )}
-              </Button>
+                style={{ animationDelay: `${idx * 40}ms` }}
+                title={!isOpen ? item.label : undefined}
+              >
+                <Icon
+                  className="sidebar-icon"
+                  style={{ color: isActive ? "hsl(var(--sidebar-primary-foreground))" : undefined }}
+                />
+                {isOpen && (
+                  <span className="flex-1 text-left text-[13px]">{item.label}</span>
+                )}
+                {isOpen && isActive && (
+                  <ChevronRight
+                    className="h-3.5 w-3.5 opacity-60 flex-shrink-0"
+                    style={{ color: "hsl(var(--sidebar-primary-foreground))" }}
+                  />
+                )}
+              </button>
             );
           })}
         </nav>
       </div>
+
+      {/* Bottom brand mark */}
+      {isOpen && (
+        <div className="relative z-10 px-4 py-3 border-t border-[hsl(var(--sidebar-border))]">
+          <p className="text-[11px] font-medium tracking-wide" style={{ color: "hsl(var(--sidebar-foreground))", opacity: 0.35 }}>
+            ANUJ Tiles · Tylgo v1
+          </p>
+        </div>
+      )}
     </aside>
   );
 };

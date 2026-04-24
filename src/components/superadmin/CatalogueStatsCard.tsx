@@ -12,14 +12,8 @@ interface CatalogueStatsCardProps {
 }
 
 const CATEGORY_COLORS = [
-    "bg-blue-100 text-blue-700",
-    "bg-green-100 text-green-700",
-    "bg-purple-100 text-purple-700",
-    "bg-orange-100 text-orange-700",
-    "bg-pink-100 text-pink-700",
-    "bg-cyan-100 text-cyan-700",
-    "bg-yellow-100 text-yellow-700",
-    "bg-red-100 text-red-700",
+    "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20",
+    "bg-muted text-foreground border-border hover:bg-muted/80",
 ];
 
 export const CatalogueStatsCard = ({
@@ -30,9 +24,9 @@ export const CatalogueStatsCard = ({
     recentItems
 }: CatalogueStatsCardProps) => {
     const IconComponent = icon === "tiles" ? Grid3X3 : Package;
-    const iconBgColor = icon === "tiles" ? "bg-cyan-100" : "bg-pink-100";
-    const iconColor = icon === "tiles" ? "text-cyan-600" : "text-pink-600";
-    const headerBg = icon === "tiles" ? "from-cyan-500 to-blue-600" : "from-pink-500 to-purple-600";
+    const iconBgColor = "bg-primary/10";
+    const iconColor = "text-primary";
+    const headerBg = "bg-card border-b border-border";
 
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
@@ -53,20 +47,20 @@ export const CatalogueStatsCard = ({
     return (
         <Card className="border-slate-200 shadow-sm overflow-hidden">
             {/* Header with gradient */}
-            <div className={`bg-gradient-to-r ${headerBg} p-4`}>
+            <div className={`${headerBg} p-4`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                            <IconComponent className="w-6 h-6 text-white" />
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                            <IconComponent className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-white">{title}</h3>
-                            <p className="text-white/80 text-sm">Catalogue Overview</p>
+                            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+                            <p className="text-muted-foreground text-sm">Catalogue Overview</p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-3xl font-bold text-white">{totalCount.toLocaleString()}</p>
-                        <p className="text-white/80 text-sm">Total Items</p>
+                        <p className="text-3xl font-bold text-foreground">{totalCount.toLocaleString()}</p>
+                        <p className="text-muted-foreground text-sm">Total Items</p>
                     </div>
                 </div>
             </div>
@@ -75,8 +69,8 @@ export const CatalogueStatsCard = ({
                 {/* Category Breakdown */}
                 <div className="mb-4">
                     <div className="flex items-center gap-2 mb-3">
-                        <Folder className="w-4 h-4 text-gray-500" />
-                        <h4 className="font-medium text-gray-700">By Category</h4>
+                        <Folder className="w-4 h-4 text-muted-foreground" />
+                        <h4 className="font-medium text-foreground/80">By Category</h4>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {displayCategories.map((cat, index) => (
@@ -94,7 +88,7 @@ export const CatalogueStatsCard = ({
                             </Badge>
                         )}
                         {categoryBreakdown.length === 0 && (
-                            <p className="text-sm text-gray-400">No categories yet</p>
+                            <p className="text-sm text-muted-foreground/70">No categories yet</p>
                         )}
                     </div>
                 </div>
@@ -102,35 +96,35 @@ export const CatalogueStatsCard = ({
                 {/* Recently Added */}
                 <div>
                     <div className="flex items-center gap-2 mb-3">
-                        <Clock className="w-4 h-4 text-gray-500" />
-                        <h4 className="font-medium text-gray-700">Recently Added (Last 7 Days)</h4>
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <h4 className="font-medium text-foreground/80">Recently Added (Last 7 Days)</h4>
                     </div>
                     {recentItems.length > 0 ? (
                         <div className="space-y-2">
                             {recentItems.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                                    className="flex items-center justify-between p-2 bg-muted rounded-lg"
                                 >
                                     <div className="flex items-center gap-2">
                                         <div className={`w-8 h-8 ${iconBgColor} rounded flex items-center justify-center`}>
                                             <IconComponent className={`w-4 h-4 ${iconColor}`} />
                                         </div>
-                                        <span className="font-medium text-gray-800 text-sm">
+                                        <span className="font-medium text-foreground text-sm">
                                             {item.code || item.name}
                                         </span>
                                         <Badge variant="outline" className="text-xs">
                                             {item.category}
                                         </Badge>
                                     </div>
-                                    <span className="text-xs text-gray-400">
+                                    <span className="text-xs text-muted-foreground/70">
                                         {formatDate(item.created_at)}
                                     </span>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-sm text-gray-400 text-center py-3">
+                        <p className="text-sm text-muted-foreground/70 text-center py-3">
                             No items added in the last 7 days
                         </p>
                     )}

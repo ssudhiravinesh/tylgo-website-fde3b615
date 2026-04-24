@@ -91,7 +91,7 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
 
         <div className="space-y-4">
           {/* Tile Image */}
-          <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+          <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
             {tile.image_url ? (
               <img
                 src={tile.image_url}
@@ -99,35 +99,35 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
                 className="w-full h-full object-cover rounded-lg"
               />
             ) : (
-              <Grid3X3 className="h-16 w-16 text-gray-400" />
+              <Grid3X3 className="h-16 w-16 text-muted-foreground/70" />
             )}
           </div>
 
           {/* Tile Information */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">{tile.code}</h3>
+              <h3 className="text-lg font-semibold text-foreground">{tile.code}</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2">
-                <Ruler className="h-4 w-4 text-gray-500" />
-                <span className="text-gray-600">Size:</span>
+                <Ruler className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Size:</span>
                 <span className="font-medium">{formatTileSize()}</span>
               </div>
 
               {tile.pieces_per_box && (
                 <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">Pieces/Box:</span>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Pieces/Box:</span>
                   <span className="font-medium">{tile.pieces_per_box}</span>
                 </div>
               )}
 
               {tile.price_per_box && (
                 <div className="flex items-center gap-2">
-                  <IndianRupee className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">Price/Box:</span>
+                  <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Price/Box:</span>
                   <span className="font-medium text-green-600">
                     ₹{tile.price_per_box.toLocaleString()}
                   </span>
@@ -136,9 +136,9 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
 
               {pricePerSqFt > 0 && (
                 <div className="flex items-center gap-2">
-                  <Square className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">Price/sq ft:</span>
-                  <span className="font-medium text-blue-600">
+                  <Square className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Price/sq ft:</span>
+                  <span className="font-medium text-primary">
                     ₹{pricePerSqFt.toFixed(2)}
                   </span>
                 </div>
@@ -146,8 +146,8 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
 
               {boxCoverage > 0 && (
                 <div className="flex items-center gap-2 col-span-2">
-                  <Square className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">Coverage per box:</span>
+                  <Square className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Coverage per box:</span>
                   <span className="font-medium">{boxCoverage.toFixed(2)} sq ft</span>
                 </div>
               )}
@@ -158,7 +158,7 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
           {(userRole === "admin" || userRole === "super_admin") && (
             <div className="border-t pt-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">QR Code</span>
+                <span className="text-sm font-medium text-foreground/80">QR Code</span>
                 <div className="flex gap-2">
                   {tile.qr_code_url ? (
                     <Button
@@ -183,7 +183,7 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
                 </div>
               </div>
               {tile.qr_code_url && (
-                <div className="mt-2 p-2 bg-gray-50 rounded text-center">
+                <div className="mt-2 p-2 bg-muted rounded text-center">
                   <img
                     src={tile.qr_code_url}
                     alt={`QR Code for ${tile.code}`}

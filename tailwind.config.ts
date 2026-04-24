@@ -68,6 +68,35 @@ export default {
 				border: 'hsl(var(--sidebar-border))',
 				ring: 'hsl(var(--sidebar-ring))'
 			},
+			// ── Palette overrides ──────────────────────────────────────────
+			// Remap `blue-*` → amber so all hardcoded `bg-blue-600` etc
+			// across inner components auto-inherit the new primary.
+			blue: {
+				50:  '#fffbeb',
+				100: '#fef3c7',
+				200: '#fde68a',
+				300: '#fcd34d',
+				400: '#fbbf24',
+				500: '#f59e0b',
+				600: '#d97706',   // was blue-600 → now amber-600
+				700: '#b45309',
+				800: '#92400e',
+				900: '#78350f',
+				950: '#451a03',
+			},
+			// Remap `gray-*` → warm neutrals matching --background token
+			gray: {
+				50:  'hsl(36, 18%, 97%)',
+				100: 'hsl(36, 14%, 93%)',
+				200: 'hsl(36, 12%, 87%)',
+				300: 'hsl(36, 10%, 78%)',
+				400: 'hsl(36,  8%, 62%)',
+				500: 'hsl(220, 10%, 48%)',
+				600: 'hsl(220, 12%, 36%)',
+				700: 'hsl(220, 13%, 26%)',
+				800: 'hsl(220, 15%, 18%)',
+				900: 'hsl(220, 15%, 13%)',
+			},
 			// Neumorphism and glassmorphism colors
 			shadow: {
 				light: 'hsl(var(--shadow-light))',

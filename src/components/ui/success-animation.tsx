@@ -28,13 +28,13 @@ export const SuccessAnimation = ({ isVisible, onComplete, message, type }: Succe
   const getGradientColors = () => {
     switch (type) {
       case 'customer':
-        return 'from-blue-400 via-blue-500 to-blue-600';
+        return 'from-blue-400 via-blue-500 to-primary/80';
       case 'quotation':
         return 'from-blue-400 via-slate-500 to-amber-200';
       case 'success':
         return 'from-blue-500 via-blue-600 to-amber-100';
       default:
-        return 'from-blue-400 via-blue-500 to-blue-600';
+        return 'from-blue-400 via-blue-500 to-primary/80';
     }
   };
 
@@ -76,16 +76,16 @@ export const SuccessAnimation = ({ isVisible, onComplete, message, type }: Succe
           </div>
           
           {/* Multiple ripple effects */}
-          <div className="absolute inset-0 rounded-full bg-blue-400 opacity-30 animate-[ripple_2s_ease-out_0.5s_both]" />
+          <div className="absolute inset-0 rounded-full bg-primary/60 opacity-30 animate-[ripple_2s_ease-out_0.5s_both]" />
           <div className="absolute inset-2 rounded-full bg-amber-200 opacity-25 animate-[ripple_2.5s_ease-out_0.8s_both]" />
         </div>
 
         {/* Message with enhanced glassmorphism */}
         <div className="bg-gradient-to-r from-blue-50/80 to-amber-50/80 backdrop-blur-lg rounded-3xl px-10 py-6 shadow-2xl border-2 border-blue-200/30 animate-[fade-in_0.8s_ease-in-out_1.2s_both] opacity-0">
-          <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent text-center mb-2 drop-shadow-sm">
+          <h3 className="text-xl font-bold bg-gradient-to-r from-primary to-blue-800 bg-clip-text text-transparent text-center mb-2 drop-shadow-sm">
             Success!
           </h3>
-          <p className="text-lg font-medium text-gray-700 text-center leading-relaxed">
+          <p className="text-lg font-medium text-foreground/80 text-center leading-relaxed">
             {message}
           </p>
         </div>

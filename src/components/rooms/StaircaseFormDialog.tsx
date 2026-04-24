@@ -155,7 +155,7 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
       }
 
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving staircase:", error);
       toast.error("Failed to save staircase");
     } finally {
@@ -214,8 +214,8 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
           </div>
 
           {/* Steps Section */}
-          <div className="space-y-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2 text-blue-800 font-medium">
+          <div className="space-y-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+            <div className="flex items-center gap-2 text-foreground font-medium">
               <Ruler className="h-4 w-4" />
               <span>Step Dimensions</span>
             </div>
@@ -262,15 +262,15 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
               </div>
             </div>
             {calculations.stepAreaSqFt > 0 && (
-              <p className="text-xs text-blue-600">
+              <p className="text-xs text-primary">
                 Total Step Area: <span className="font-semibold">{calculations.stepAreaSqFt.toFixed(2)} sq ft</span>
               </p>
             )}
           </div>
 
           {/* Risers Section */}
-          <div className="space-y-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
-            <div className="flex items-center gap-2 text-orange-800 font-medium">
+          <div className="space-y-3 p-3 bg-muted rounded-lg border border-border">
+            <div className="flex items-center gap-2 text-foreground font-medium">
               <Ruler className="h-4 w-4" />
               <span>Riser Dimensions</span>
             </div>
@@ -317,14 +317,14 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
               </div>
             </div>
             {calculations.riserAreaSqFt > 0 && (
-              <p className="text-xs text-orange-600">
+              <p className="text-xs text-muted-foreground">
                 Total Riser Area: <span className="font-semibold">{calculations.riserAreaSqFt.toFixed(2)} sq ft</span>
               </p>
             )}
           </div>
 
           {/* Wastage Slider */}
-          <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="space-y-3 p-3 bg-muted rounded-lg border border-border">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Wastage Percentage</Label>
               <span className="text-sm font-bold text-primary">{wastagePercentage}%</span>
@@ -345,27 +345,27 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
 
           {/* Area Calculation Preview */}
           {calculations.hasDimensions && calculations.totalAreaSqFt > 0 && (
-            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center gap-2 text-green-800 font-medium mb-2">
+            <div className="p-3 bg-primary/8 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2 text-foreground font-medium mb-2">
                 <Calculator className="h-4 w-4" />
                 <span>Area Summary</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="bg-white rounded p-2 text-center">
-                  <p className="text-lg font-bold text-blue-600">{calculations.stepAreaSqFt.toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">Step Area (sq ft)</p>
+                <div className="bg-card rounded p-2 text-center">
+                  <p className="text-lg font-bold text-primary">{calculations.stepAreaSqFt.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Step Area (sq ft)</p>
                 </div>
-                <div className="bg-white rounded p-2 text-center">
-                  <p className="text-lg font-bold text-orange-600">{calculations.riserAreaSqFt.toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">Riser Area (sq ft)</p>
+                <div className="bg-card rounded p-2 text-center">
+                  <p className="text-lg font-bold text-foreground">{calculations.riserAreaSqFt.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Riser Area (sq ft)</p>
                 </div>
-                <div className="bg-white rounded p-2 text-center">
-                  <p className="text-lg font-bold text-purple-600">{calculations.totalAreaSqFt.toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">Total Area (sq ft)</p>
+                <div className="bg-card rounded p-2 text-center">
+                  <p className="text-lg font-bold text-foreground">{calculations.totalAreaSqFt.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Total Area (sq ft)</p>
                 </div>
-                <div className="bg-white rounded p-2 text-center">
-                  <p className="text-lg font-bold text-green-600">{calculations.totalWithWastage.toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">With Wastage (sq ft)</p>
+                <div className="bg-card rounded p-2 text-center">
+                  <p className="text-lg font-bold text-primary">{calculations.totalWithWastage.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">With Wastage (sq ft)</p>
                 </div>
               </div>
             </div>
@@ -373,22 +373,22 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
 
           {/* Fallback: Count-based preview when no dimensions */}
           {!calculations.hasDimensions && (calculations.steps > 0 || calculations.risers > 0) && (
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800 font-medium mb-2">
+            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <p className="text-sm text-foreground font-medium mb-2">
                 Tile Count Preview <span className="text-xs font-normal">(add dimensions for area-based calculation)</span>
               </p>
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-white rounded p-2">
-                  <p className="text-lg font-bold text-blue-600">{calculations.steps}</p>
-                  <p className="text-xs text-gray-500">Steps</p>
+                <div className="bg-card rounded p-2">
+                  <p className="text-lg font-bold text-primary">{calculations.steps}</p>
+                  <p className="text-xs text-muted-foreground">Steps</p>
                 </div>
-                <div className="bg-white rounded p-2">
-                  <p className="text-lg font-bold text-orange-600">{calculations.risers}</p>
-                  <p className="text-xs text-gray-500">Risers</p>
+                <div className="bg-card rounded p-2">
+                  <p className="text-lg font-bold text-foreground">{calculations.risers}</p>
+                  <p className="text-xs text-muted-foreground">Risers</p>
                 </div>
-                <div className="bg-white rounded p-2">
-                  <p className="text-lg font-bold text-green-600">{calculations.steps + calculations.risers}</p>
-                  <p className="text-xs text-gray-500">Total</p>
+                <div className="bg-card rounded p-2">
+                  <p className="text-lg font-bold text-primary">{calculations.steps + calculations.risers}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
                 </div>
               </div>
             </div>

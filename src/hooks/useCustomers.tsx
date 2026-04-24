@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/utils/errorUtils';
 import { useNotification } from '@/contexts/NotificationContext';
 import { getShowroomId } from './useShowroom';
 
@@ -145,8 +146,8 @@ export const useCustomers = (overrideShowroomId?: string) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success(`Customer "${data.name}" created successfully!`);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to create customer');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to create customer'));
     },
   });
 
@@ -172,9 +173,9 @@ export const useCustomers = (overrideShowroomId?: string) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success(`Customer "${data.name}" updated successfully!`);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
 
-      toast.error(error.message || 'Failed to update customer');
+      toast.error(getErrorMessage(error, 'Failed to update customer'));
     },
   });
 
@@ -198,9 +199,9 @@ export const useCustomers = (overrideShowroomId?: string) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer deleted successfully!');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
 
-      toast.error(error.message || 'Failed to delete customer');
+      toast.error(getErrorMessage(error, 'Failed to delete customer'));
     },
   });
 
@@ -266,8 +267,8 @@ export const useCreateCustomer = () => {
 
       toast.success(`Customer "${data.name}" created successfully!`);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to create customer');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to create customer'));
     },
   });
 };
