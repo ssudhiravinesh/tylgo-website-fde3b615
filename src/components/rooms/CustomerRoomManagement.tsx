@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridLoader } from "@/components/ui/GridLoader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Edit, Trash2, Ruler, Calculator, ArrowRight, ArrowLeft, Layers, Footprints, ShoppingBag } from "lucide-react";
+import { Home, Plus, Edit, Trash2, Calculator, ArrowRight, ArrowLeft, Footprints, ShoppingBag } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { useStaircasesByCustomer, useDeleteStaircase } from "@/hooks/useStaircases";
@@ -14,6 +14,7 @@ import { ProductSelectionDialog } from "@/components/products/ProductSelectionDi
 import { TileSelectionStep } from "./TileSelectionStep";
 import { DirectCustomerSearch } from "./DirectCustomerSearch";
 import { DeleteRoomDialog } from "./DeleteRoomDialog";
+import { RoomDimensions } from "./RoomDimensions";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 import type { Staircase } from "@/hooks/useStaircases";
@@ -121,11 +122,14 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     }
   };
 
-  const calculateArea = (room: Room) => {
-    if (room.room_type === "wall") {
-      return ((room.wall_height || 0) * (room.wall_length || 0)).toFixed(2);
-    }
-    return (room.length * room.width).toFixed(2);
+  const calculateFloorArea = (room: Room) => {
+    if (!room.has_floor) return 0;
+    return room.length * room.width;
+  };
+
+  const calculateWallArea = (room: Room) => {
+    if (!room.has_wall) return 0;
+    return (room.wall_height || 0) * (room.wall_length || 0);
   };
 
   const handleProceedToTileSelection = () => {
@@ -140,52 +144,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
     setShowTileSelection(false);
   };
 
-  const renderRoomDimensions = (room: Room) => {
-    if (room.measurements && room.measurements.length > 0) {
-      return (
-        <div className="space-y-2 bg-muted p-2 rounded-md border border-border">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-              <Layers className="h-3 w-3" />
-              Dimensions ({room.measurements.length} Shapes)
-            </span>
-          </div>
-          <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
-            {room.measurements.map((m, idx) => (
-              <div key={idx} className="flex justify-between text-sm border-b border-border last:border-0 pb-1 last:pb-0 border-dashed">
-                <span className="text-muted-foreground text-xs">Shape {idx + 1}:</span>
-                <span className="text-xs font-medium text-foreground">
-                  {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
 
-    const isFloor = room.room_type === "floor";
-    const l = isFloor ? room.length : room.wall_length;
-    const w = isFloor ? room.width : room.wall_height;
-    const lLabel = isFloor ? "Length" : "Length";
-    const wLabel = isFloor ? "Width" : "Height";
-
-    return (
-      <div className="grid grid-cols-2 gap-2 text-sm bg-card p-2 rounded border border-dashed border-border">
-        <div className="flex items-center gap-1">
-          <Ruler className="h-3 w-3 text-muted-foreground/70" />
-          <span className="text-muted-foreground text-xs">{lLabel}:</span>
-        </div>
-        <span className="font-medium text-right">{l} {room.unit}</span>
-
-        <div className="flex items-center gap-1">
-          <Ruler className="h-3 w-3 text-muted-foreground/70" />
-          <span className="text-muted-foreground text-xs">{wLabel}:</span>
-        </div>
-        <span className="font-medium text-right">{w} {room.unit}</span>
-      </div>
-    );
-  };
 
 
 
@@ -373,12 +332,14 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Home className="h-5 w-5 text-primary" />
                         {room.name}
-                        <Badge
-                          variant={room.room_type === "floor" ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {room.room_type === "floor" ? "Floor" : "Wall"}
-                        </Badge>
+                        <div className="flex gap-1">
+                          {room.has_floor && (
+                            <Badge variant="default" className="text-xs">Floor</Badge>
+                          )}
+                          {room.has_wall && (
+                            <Badge variant="secondary" className="text-xs">Wall</Badge>
+                          )}
+                        </div>
                       </CardTitle>
                       <div className="flex gap-1">
                         <Button
@@ -402,19 +363,30 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {renderRoomDimensions(room)}
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-1">
-                          <Calculator className="h-3 w-3 text-primary" />
-                          <span className="text-muted-foreground">
-                            {room.room_type === "floor" ? "Total Floor Area:" : "Total Wall Area:"}
-                          </span>
+                    <RoomDimensions room={room} variant="detailed" />
+                    <div className="pt-2 border-t border-border space-y-1">
+                      {room.has_floor && (
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1">
+                            <Calculator className="h-3 w-3 text-primary" />
+                            <span className="text-muted-foreground">Floor Area:</span>
+                          </div>
+                          <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
+                            {calculateFloorArea(room).toFixed(2)} {room.unit}²
+                          </Badge>
                         </div>
-                        <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
-                          {calculateArea(room)} {room.unit}²
-                        </Badge>
-                      </div>
+                      )}
+                      {room.has_wall && (
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1">
+                            <Calculator className="h-3 w-3 text-primary" />
+                            <span className="text-muted-foreground">Wall Area:</span>
+                          </div>
+                          <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
+                            {calculateWallArea(room).toFixed(2)} {room.unit}²
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -46,7 +46,7 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: "hsl(var(--background))" }}>
+    <div className="h-screen flex overflow-hidden" style={{ background: "hsl(var(--background))" }}>
       <Sidebar
         isOpen={isSidebarOpen}
         activeView={activeView}

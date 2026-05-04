@@ -63,7 +63,7 @@ export const Sidebar = ({ isOpen, activeView, onViewChange, userRole }: SidebarP
       {/* Nav items */}
       <div
         className={cn(
-          "flex-1 py-4 relative z-10",
+          "flex-1 overflow-y-auto py-4 relative z-10 scrollbar-hide",
           isOpen ? "px-3" : "px-0 lg:px-2",
           !isOpen && "hidden lg:block"
         )}

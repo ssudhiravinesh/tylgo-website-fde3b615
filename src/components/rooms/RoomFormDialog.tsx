@@ -4,25 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FeetInchInput } from "@/components/ui/feet-inches-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorUtils";
-import { Plus, Trash2, Ruler, Loader2 } from "lucide-react";
+import { Plus, Trash2, Ruler, Loader2, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Room } from "@/hooks/useRooms";
 
+// Room name suggestions — no more FLOOR/WALL suffixes
 const DEFAULT_ROOM_OPTIONS = [
-  "HALL FLOOR", "HALL WALL", 
-  "BATHROOM FLOOR", "BATHROOM WALL",
-  "KITCHEN WALL", "KITCHEN FLOOR",
-  "BEDROOM WALL", "BEDROOM FLOOR",
-  "STORE WALL", "STORE FLOOR",
-  "GARAGE WALL", "GARAGE FLOOR",
-  "LIVING ROOM WALL", "LIVING ROOM FLOOR",
-  "DINING ROOM FLOOR", "DINING ROOM WALL",
-  "TOILET FLOOR", "TOILET WALL",
-  "BALCONY FLOOR", "BALCONY WALL"
+  "HALL",
+  "BATHROOM",
+  "KITCHEN",
+  "BEDROOM",
+  "STORE",
+  "GARAGE",
+  "LIVING ROOM",
+  "DINING ROOM",
+  "TOILET",
+  "BALCONY",
+  "GUEST ROOM",
+  "STUDY ROOM",
+  "POOJA ROOM",
+  "LOBBY",
 ];
 
 // Define the shape of a single measurement row
@@ -40,15 +46,21 @@ interface RoomFormDialogProps {
 }
 
 export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDialogProps) => {
-  // State for the dynamic list of measurements
-  const [measurements, setMeasurements] = useState<MeasurementSet[]>([
+  // State for floor measurements
+  const [floorMeasurements, setFloorMeasurements] = useState<MeasurementSet[]>([
+    { id: 1, length: "", width: "" }
+  ]);
+
+  // State for wall measurements
+  const [wallMeasurements, setWallMeasurements] = useState<MeasurementSet[]>([
     { id: 1, length: "", width: "" }
   ]);
 
   const [formData, setFormData] = useState({
     name: "",
     unit: "feet" as "metre" | "inches" | "mm" | "feet",
-    room_type: "floor" as "floor" | "wall",
+    has_floor: true,
+    has_wall: false,
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -97,63 +109,84 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     return Array.from(new Set([...DEFAULT_ROOM_OPTIONS, ...dbRoomNames])).sort();
   };
 
+  // Initialize form state when dialog opens or room changes
   useEffect(() => {
     if (room) {
       setFormData({
         name: room.name,
         unit: room.unit,
-        room_type: room.room_type,
+        has_floor: room.has_floor,
+        has_wall: room.has_wall,
       });
       
-      // PERSISTENCE LOGIC:
-      // 1. Try to load from the new 'measurements' JSON column
-      if (room.measurements && Array.isArray(room.measurements) && room.measurements.length > 0) {
-        setMeasurements(room.measurements);
-      } 
-      // 2. Fallback for legacy data: Load from the single length/width columns
-      else {
-        const legacyLength = room.room_type === "wall" ? room.wall_length : room.length;
-        const legacyWidth = room.room_type === "wall" ? room.wall_height : room.width;
-        
-        setMeasurements([{ 
-           id: 1, 
-           length: legacyLength?.toString() || "", 
-           width: legacyWidth?.toString() || "" 
-        }]);
+      // Load floor measurements
+      if (room.has_floor) {
+        if (room.measurements && Array.isArray(room.measurements) && room.measurements.length > 0) {
+          setFloorMeasurements(room.measurements);
+        } else if (room.length > 0) {
+          setFloorMeasurements([{ 
+            id: 1, 
+            length: room.length.toString(), 
+            width: room.width.toString() 
+          }]);
+        } else {
+          setFloorMeasurements([{ id: Date.now(), length: "", width: "" }]);
+        }
+      }
+
+      // Load wall measurements
+      if (room.has_wall) {
+        if (room.wall_measurements && Array.isArray(room.wall_measurements) && room.wall_measurements.length > 0) {
+          setWallMeasurements(room.wall_measurements);
+        } else if (room.wall_length && room.wall_height) {
+          setWallMeasurements([{ 
+            id: 1, 
+            length: room.wall_length.toString(), 
+            width: room.wall_height.toString() 
+          }]);
+        } else {
+          setWallMeasurements([{ id: Date.now(), length: "", width: "" }]);
+        }
       }
     } else {
       // Reset for new room
       setFormData({
         name: "",
         unit: "feet",
-        room_type: "floor",
+        has_floor: true,
+        has_wall: false,
       });
-      setMeasurements([{ id: Date.now(), length: "", width: "" }]);
+      setFloorMeasurements([{ id: Date.now(), length: "", width: "" }]);
+      setWallMeasurements([{ id: Date.now() + 1, length: "", width: "" }]);
     }
   }, [room, isOpen]);
 
   // --- Dynamic Measurement Handlers ---
 
-  const addMeasurementSet = () => {
-    setMeasurements(prev => [
+  const addMeasurementSet = (type: 'floor' | 'wall') => {
+    const setter = type === 'floor' ? setFloorMeasurements : setWallMeasurements;
+    setter(prev => [
       ...prev, 
-      { id: Date.now(), length: "", width: "" } // Unique ID
+      { id: Date.now(), length: "", width: "" }
     ]);
   };
 
-  const removeMeasurementSet = (id: number) => {
+  const removeMeasurementSet = (type: 'floor' | 'wall', id: number) => {
+    const setter = type === 'floor' ? setFloorMeasurements : setWallMeasurements;
+    const measurements = type === 'floor' ? floorMeasurements : wallMeasurements;
     if (measurements.length === 1) return; 
-    setMeasurements(prev => prev.filter(m => m.id !== id));
+    setter(prev => prev.filter(m => m.id !== id));
   };
 
-  const updateMeasurement = (id: number, field: 'length' | 'width', value: string) => {
-    setMeasurements(prev => prev.map(m => 
+  const updateMeasurement = (type: 'floor' | 'wall', id: number, field: 'length' | 'width', value: string) => {
+    const setter = type === 'floor' ? setFloorMeasurements : setWallMeasurements;
+    setter(prev => prev.map(m => 
       m.id === id ? { ...m, [field]: value } : m
     ));
   };
 
-  // --- Area Calculation Helper ---
-  const calculateTotalArea = () => {
+  // --- Area Calculation Helpers ---
+  const calculateTotalArea = (measurements: MeasurementSet[]) => {
     let totalArea = 0;
     measurements.forEach(m => {
       const l = parseFloat(m.length) || 0;
@@ -161,6 +194,22 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       totalArea += (l * w);
     });
     return totalArea;
+  };
+
+  const floorArea = formData.has_floor ? calculateTotalArea(floorMeasurements) : 0;
+  const wallArea = formData.has_wall ? calculateTotalArea(wallMeasurements) : 0;
+
+  // --- Validation ---
+  const validateMeasurements = (measurements: MeasurementSet[], label: string): boolean => {
+    for (const m of measurements) {
+      const l = parseFloat(m.length);
+      const w = parseFloat(m.width);
+      if (isNaN(l) || l <= 0 || isNaN(w) || w <= 0) {
+        toast.error(`All ${label} dimensions must be valid numbers greater than 0`);
+        return false;
+      }
+    }
+    return true;
   };
 
   // --- Submission Handler ---
@@ -177,36 +226,36 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       return;
     }
 
-    // Validate all inputs
-    for (const m of measurements) {
-      const l = parseFloat(m.length);
-      const w = parseFloat(m.width);
-      if (isNaN(l) || l <= 0 || isNaN(w) || w <= 0) {
-        toast.error("All dimensions must be valid numbers greater than 0");
-        return;
-      }
+    if (!formData.has_floor && !formData.has_wall) {
+      toast.error("Please enable at least one surface (Floor or Wall)");
+      return;
     }
+
+    // Validate enabled surfaces
+    if (formData.has_floor && !validateMeasurements(floorMeasurements, "floor")) return;
+    if (formData.has_wall && !validateMeasurements(wallMeasurements, "wall")) return;
 
     setIsLoading(true);
 
     try {
-      const totalArea = calculateTotalArea();
-      
-      const finalLength = totalArea; 
-      const finalWidth = 1; 
-
       const roomData = {
         name: formData.name.trim().toUpperCase(),
         customer_id: customerId,
-        // For Tile Calculation Logic (Aggregated)
-        length: formData.room_type === "floor" ? finalLength : 0,
-        width: formData.room_type === "floor" ? finalWidth : 0,
-        wall_length: formData.room_type === "wall" ? finalLength : undefined,
-        wall_height: formData.room_type === "wall" ? finalWidth : undefined,
-        // For UI Persistence (Detailed)
-        measurements: measurements, 
         unit: formData.unit,
-        room_type: formData.room_type,
+        room_type: 'room' as const,
+        has_floor: formData.has_floor,
+        has_wall: formData.has_wall,
+        
+        // Floor dimensions (aggregated total area as length, width=1)
+        length: formData.has_floor ? floorArea : 0,
+        width: formData.has_floor ? 1 : 0,
+        measurements: formData.has_floor ? floorMeasurements : undefined,
+        
+        // Wall dimensions: wall_length = perimeter, wall_height = actual height
+        // NOT aggregated area — the layer calculator needs real height for row count
+        wall_length: formData.has_wall ? parseFloat(wallMeasurements[0]?.length || '0') : undefined,
+        wall_height: formData.has_wall ? parseFloat(wallMeasurements[0]?.width || '0') : undefined,
+        wall_measurements: formData.has_wall ? wallMeasurements : undefined,
       };
 
       if (room) {
@@ -257,11 +306,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
   };
   
   const handleSuggestionClick = (suggestion: string) => {
-    const roomType = suggestion.toLowerCase().includes('wall') ? 'wall' : 
-                    suggestion.toLowerCase().includes('floor') ? 'floor' : 
-                    formData.room_type;
-    
-    setFormData(prev => ({ ...prev, name: suggestion, room_type: roomType }));
+    setFormData(prev => ({ ...prev, name: suggestion }));
     setShowSuggestions(false);
     setSelectedSuggestionIndex(-1);
     inputRef.current?.focus();
@@ -311,29 +356,25 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
   // --- UI Renderers ---
 
-  const renderMeasurementSets = () => {
-    const labelL = formData.room_type === 'wall' ? 'Wall Length' : 'Length';
-    const labelW = formData.room_type === 'wall' ? 'Wall Height' : 'Width';
-
+  const renderMeasurementSection = (
+    type: 'floor' | 'wall',
+    measurements: MeasurementSet[],
+    labelL: string,
+    labelW: string,
+    singleShapeOnly: boolean = false,
+  ) => {
     return (
       <div className="space-y-3">
-        <div className="flex justify-between items-center">
-           <Label>Dimensions</Label>
-           <span className="text-xs text-muted-foreground">
-             {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
-           </span>
-        </div>
-        
         {measurements.map((m, index) => (
           <div key={m.id} className="flex items-end gap-2 bg-muted p-2 rounded-md border border-border animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="flex-1 space-y-1">
               <span className="text-xs font-medium text-muted-foreground">
-                {index + 1}. {labelL}
+                {singleShapeOnly ? labelL : `${index + 1}. ${labelL}`}
               </span>
               {formData.unit === "feet" ? (
                 <FeetInchInput
                   value={m.length}
-                  onChange={(val) => updateMeasurement(m.id, 'length', val)}
+                  onChange={(val) => updateMeasurement(type, m.id, 'length', val)}
                   placeholder="10 0"
                   disabled={isLoading}
                 />
@@ -342,7 +383,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                   type="text"
                   inputMode="decimal"
                   value={m.length}
-                  onChange={(e) => updateMeasurement(m.id, 'length', e.target.value)}
+                  onChange={(e) => updateMeasurement(type, m.id, 'length', e.target.value)}
                   placeholder="0.00"
                   disabled={isLoading}
                 />
@@ -351,12 +392,12 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
             <div className="flex-1 space-y-1">
               <span className="text-xs font-medium text-muted-foreground">
-                {index + 1}. {labelW}
+                {singleShapeOnly ? labelW : `${index + 1}. ${labelW}`}
               </span>
               {formData.unit === "feet" ? (
                 <FeetInchInput
                   value={m.width}
-                  onChange={(val) => updateMeasurement(m.id, 'width', val)}
+                  onChange={(val) => updateMeasurement(type, m.id, 'width', val)}
                   placeholder="10 0"
                   disabled={isLoading}
                 />
@@ -365,7 +406,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                   type="text"
                   inputMode="decimal"
                   value={m.width}
-                  onChange={(e) => updateMeasurement(m.id, 'width', e.target.value)}
+                  onChange={(e) => updateMeasurement(type, m.id, 'width', e.target.value)}
                   placeholder="0.00"
                   disabled={isLoading}
                 />
@@ -379,7 +420,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 variant="ghost"
                 size="icon"
                 className="mb-0.5 text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 shrink-0"
-                onClick={() => removeMeasurementSet(m.id)}
+                onClick={() => removeMeasurementSet(type, m.id)}
                 title="Remove shape"
               >
                 <Trash2 className="h-4 w-4" />
@@ -388,23 +429,31 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           </div>
         ))}
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={addMeasurementSet}
-          className="w-full gap-2 text-primary border-primary/20 hover:bg-primary/10"
-        >
-          <Plus className="h-4 w-4" />
-          Add Another Shape
-        </Button>
+        {!singleShapeOnly && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => addMeasurementSet(type)}
+            className="w-full gap-2 text-primary border-primary/20 hover:bg-primary/10"
+          >
+            <Plus className="h-4 w-4" />
+            Add Another Shape
+          </Button>
+        )}
       </div>
     );
   };
 
+  // Check if form can submit
+  const canSubmit = formData.name.trim().length > 0 &&
+    (formData.has_floor || formData.has_wall) &&
+    (!formData.has_floor || floorArea > 0) &&
+    (!formData.has_wall || wallArea > 0);
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {room ? "Edit Room" : "Add New Room"}
@@ -426,7 +475,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                 onKeyDown={handleKeyDown}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
-                placeholder="e.g., LIVING ROOM"
+                placeholder="e.g., BATHROOM"
                 disabled={isLoading}
                 required
               />
@@ -462,24 +511,6 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </div>
           </div>
 
-          {/* Room Type Select */}
-          <div className="space-y-2">
-            <Label htmlFor="room-type">Room Type *</Label>
-            <Select 
-              value={formData.room_type} 
-              onValueChange={(value: "floor" | "wall") => setFormData(prev => ({ ...prev, room_type: value }))}
-              disabled={isLoading}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="floor">FLOOR ROOM</SelectItem>
-                <SelectItem value="wall">WALL ROOM</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Unit Select */}
           <div className="space-y-2">
             <Label htmlFor="unit">Measurement Unit *</Label>
@@ -500,26 +531,113 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Select>
           </div>
 
-          {/* Dynamic Measurement Sets */}
-          {renderMeasurementSets()}
+          {/* ═══ Surface Toggles + Dimensions ═══ */}
+          <div className="space-y-4">
+            <Label className="text-sm font-semibold">Room Surfaces</Label>
 
-          {/* Total Area Display */}
-          <div className={`p-3 rounded-lg border bg-primary/8 border-primary/20 text-foreground`}>
-            <div className="flex justify-between items-center text-sm">
-              <span className="font-medium flex items-center gap-2">
-                <Ruler className="h-4 w-4" />
-                Total Calculated Area:
-              </span>
-              <span className="font-bold text-lg">
-                {calculateTotalArea().toFixed(2)} {formData.unit}²
-              </span>
+            {/* --- Floor Surface Section --- */}
+            <div className={`rounded-lg border transition-colors ${formData.has_floor ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
+              <div className="flex items-center gap-3 p-3">
+                <Checkbox
+                  id="has_floor"
+                  checked={formData.has_floor}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_floor: checked === true }))}
+                  disabled={isLoading}
+                />
+                <Label htmlFor="has_floor" className="flex items-center gap-2 cursor-pointer text-sm font-semibold">
+                  <Layers className="h-4 w-4 text-primary" />
+                  Floor Surface
+                </Label>
+                {formData.has_floor && floorArea > 0 && (
+                  <span className="ml-auto text-xs font-medium text-primary">
+                    {floorArea.toFixed(2)} {formData.unit}²
+                  </span>
+                )}
+              </div>
+              
+              {formData.has_floor && (
+                <div className="px-3 pb-3 pt-1 border-t border-border/50">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-muted-foreground">Floor Dimensions</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
+                    </span>
+                  </div>
+                  {renderMeasurementSection('floor', floorMeasurements, 'Length', 'Width')}
+                </div>
+              )}
             </div>
-            {measurements.length > 1 && (
-              <p className="text-xs mt-1 opacity-80">
-                Calculated from {measurements.length} shape segments
+
+            {/* --- Wall Surface Section --- */}
+            <div className={`rounded-lg border transition-colors ${formData.has_wall ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
+              <div className="flex items-center gap-3 p-3">
+                <Checkbox
+                  id="has_wall"
+                  checked={formData.has_wall}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_wall: checked === true }))}
+                  disabled={isLoading}
+                />
+                <Label htmlFor="has_wall" className="flex items-center gap-2 cursor-pointer text-sm font-semibold">
+                  <Layers className="h-4 w-4 text-primary" />
+                  Wall Surface
+                </Label>
+                {formData.has_wall && wallArea > 0 && (
+                  <span className="ml-auto text-xs font-medium text-primary">
+                    {wallArea.toFixed(2)} {formData.unit}²
+                  </span>
+                )}
+              </div>
+              
+              {formData.has_wall && (
+                <div className="px-3 pb-3 pt-1 border-t border-border/50">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-muted-foreground">Wall Dimensions</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
+                    </span>
+                  </div>
+                  {renderMeasurementSection('wall', wallMeasurements, 'Wall Perimeter', 'Wall Height', true)}
+                </div>
+              )}
+            </div>
+
+            {/* Validation hint */}
+            {!formData.has_floor && !formData.has_wall && (
+              <p className="text-xs text-destructive font-medium">
+                At least one surface must be enabled
               </p>
             )}
           </div>
+
+          {/* Total Area Summary */}
+          {(formData.has_floor || formData.has_wall) && (floorArea > 0 || wallArea > 0) && (
+            <div className="p-3 rounded-lg border bg-primary/8 border-primary/20 text-foreground">
+              <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                <Ruler className="h-4 w-4" />
+                Area Summary
+              </div>
+              <div className="space-y-1">
+                {formData.has_floor && floorArea > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Floor Area:</span>
+                    <span className="font-bold">{floorArea.toFixed(2)} {formData.unit}²</span>
+                  </div>
+                )}
+                {formData.has_wall && wallArea > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Wall Area:</span>
+                    <span className="font-bold">{wallArea.toFixed(2)} {formData.unit}²</span>
+                  </div>
+                )}
+                {formData.has_floor && formData.has_wall && floorArea > 0 && wallArea > 0 && (
+                  <div className="flex justify-between text-sm pt-1 mt-1 border-t border-primary/20">
+                    <span className="font-medium">Combined:</span>
+                    <span className="font-bold text-primary">{(floorArea + wallArea).toFixed(2)} {formData.unit}²</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button
@@ -532,7 +650,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !formData.name.trim() || calculateTotalArea() <= 0}
+              disabled={isLoading || !canSubmit}
               className="bg-primary hover:bg-primary/90"
             >
               {isLoading ? "Saving..." : room ? "Update Room" : "Create Room"}

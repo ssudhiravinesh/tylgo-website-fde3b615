@@ -12,13 +12,21 @@ export interface Room {
   id: string;
   name: string;
   customer_id: string;
+  room_type: 'room'; // Always 'room' — unified model
+  
+  // Floor surface
+  has_floor: boolean;
   length: number;
   width: number;
-  unit: 'metre' | 'inches' | 'mm' | 'feet';
-  room_type: 'floor' | 'wall';
+  measurements?: any; // JSON field from database
+  
+  // Wall surface
+  has_wall: boolean;
   wall_height?: number;
   wall_length?: number;
-  measurements?: any; // JSON field from database
+  wall_measurements?: any; // JSON field from database
+  
+  unit: 'metre' | 'inches' | 'mm' | 'feet';
   showroom_id?: string;
   created_at: string;
 }
@@ -26,12 +34,16 @@ export interface Room {
 export interface CreateRoomData {
   name: string;
   customer_id: string;
+  has_floor: boolean;
+  has_wall: boolean;
   length: number;
   width: number;
-  unit: 'metre' | 'inches' | 'mm' | 'feet';
-  room_type: 'floor' | 'wall';
+  measurements?: MeasurementSet[];
   wall_height?: number;
   wall_length?: number;
+  wall_measurements?: MeasurementSet[];
+  unit: 'metre' | 'inches' | 'mm' | 'feet';
+  room_type: 'room';
 }
 
 export interface UpdateRoomData extends CreateRoomData {
@@ -87,7 +99,9 @@ const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
   return (data || []).map(room => ({
     ...room,
     unit: room.unit as 'metre' | 'inches' | 'mm' | 'feet',
-    room_type: room.room_type as 'floor' | 'wall'
+    room_type: 'room' as const,
+    has_floor: room.has_floor ?? true,
+    has_wall: room.has_wall ?? false,
   }));
 };
 
@@ -112,7 +126,9 @@ const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
   return {
     ...data,
     unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet',
-    room_type: data.room_type as 'floor' | 'wall'
+    room_type: 'room' as const,
+    has_floor: data.has_floor ?? true,
+    has_wall: data.has_wall ?? false,
   };
 };
 
@@ -134,7 +150,9 @@ const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
   return {
     ...data,
     unit: data.unit as 'metre' | 'inches' | 'mm' | 'feet',
-    room_type: data.room_type as 'floor' | 'wall'
+    room_type: 'room' as const,
+    has_floor: data.has_floor ?? true,
+    has_wall: data.has_wall ?? false,
   };
 };
 

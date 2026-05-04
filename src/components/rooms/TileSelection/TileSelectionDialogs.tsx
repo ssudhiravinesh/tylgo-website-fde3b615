@@ -1,13 +1,12 @@
 /**
- * Dialogs used in TileSelectionStep — tile catalog, product catalog, floor preview.
+ * Dialogs used in TileSelectionStep — tile catalog, product catalog, room preview.
  * Extracted from TileSelectionStep.tsx (lines 1345-1394).
  */
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { ProductCatalog } from "@/components/products/ProductCatalog";
-import { FloorTilePreview } from "@/components/tiles/FloorTilePreview";
-import { calculateAreaInSquareFeet } from "@/utils/unitConversions";
+import { RoomVisualizer } from "@/components/rooms/RoomVisualizer";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 import type { CatalogContext } from "./useTileSelectionState";
@@ -26,9 +25,9 @@ interface TileSelectionDialogsProps {
   onShowProductCatalogChange: (open: boolean) => void;
   onProductSelected: (product: { id: string; name: string; price: number }) => void;
   
-  // Floor preview
-  showFloorPreview: { room: Room; tile: Tile | null } | null;
-  onCloseFloorPreview: () => void;
+  // Unified room preview (3D visualizer)
+  showRoomPreview: { room: Room; floorTile: Tile | null; wallLayers: Tile[] } | null;
+  onCloseRoomPreview: () => void;
 }
 
 export const TileSelectionDialogs = ({
@@ -41,8 +40,8 @@ export const TileSelectionDialogs = ({
   showProductCatalog,
   onShowProductCatalogChange,
   onProductSelected,
-  showFloorPreview,
-  onCloseFloorPreview,
+  showRoomPreview,
+  onCloseRoomPreview,
 }: TileSelectionDialogsProps) => {
   return (
     <>
@@ -84,12 +83,14 @@ export const TileSelectionDialogs = ({
         </DialogContent>
       </Dialog>
 
-      <FloorTilePreview
-        isOpen={!!showFloorPreview}
-        onClose={onCloseFloorPreview}
-        tile={showFloorPreview?.tile || null}
-        area={showFloorPreview ? calculateAreaInSquareFeet(showFloorPreview.room.length, showFloorPreview.room.width, showFloorPreview.room.unit) : 0}
-        unit="ft"
+      {/* Unified 3D Room Preview — shows floor + wall tiles together */}
+      <RoomVisualizer
+        isOpen={!!showRoomPreview}
+        onClose={onCloseRoomPreview}
+        floorTile={showRoomPreview?.floorTile || null}
+        wallTile={showRoomPreview?.wallLayers?.[0] || null}
+        wallLayers={showRoomPreview?.wallLayers}
+        roomName={showRoomPreview?.room?.name}
       />
     </>
   );

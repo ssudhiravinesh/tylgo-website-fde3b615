@@ -54,8 +54,8 @@ interface CustomerProduct {
 }
 
 interface TileSelectionSummaryProps {
-  // Floor room selection
-  floorRooms: Room[];
+  // Room selection for bulk tile add
+  rooms: Room[];
   selectedFloorRooms: Set<string>;
   onBulkAddTile: () => void;
   
@@ -72,7 +72,6 @@ interface TileSelectionSummaryProps {
   // Products
   productSelections: RoomProductSelection[];
   customerProducts: CustomerProduct[];
-  rooms: Room[];
   
   // Actions
   hasFloorSelections: boolean;
@@ -82,7 +81,7 @@ interface TileSelectionSummaryProps {
 }
 
 export const TileSelectionSummary = ({
-  floorRooms,
+  rooms,
   selectedFloorRooms,
   onBulkAddTile,
   wastagePercentage,
@@ -93,7 +92,6 @@ export const TileSelectionSummary = ({
   grandTotal,
   productSelections,
   customerProducts,
-  rooms,
   hasFloorSelections,
   hasWallSelections,
   onSaveSelections,
@@ -106,7 +104,7 @@ export const TileSelectionSummary = ({
   return (
     <div className="lg:col-span-1 space-y-6">
       {/* Bulk add tile button */}
-      {floorRooms.length > 0 && (
+      {rooms.filter(r => r.has_floor).length > 0 && (
         <Button
           onClick={onBulkAddTile}
           disabled={selectedFloorRooms.size === 0}

@@ -32,7 +32,8 @@ export interface QuotationItem {
     length: number;
     width: number;
     unit: string;
-    room_type?: string;
+    has_floor?: boolean;
+    has_wall?: boolean;
     wall_length?: number;
     wall_height?: number;
     measurements?: Array<{ length: string; width: string }>;

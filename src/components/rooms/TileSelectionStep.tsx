@@ -1,10 +1,9 @@
 /**
  * TileSelectionStep — Orchestrator component for tile/product selection workflow.
  * 
- * Previously 1,397 lines. Now a thin orchestrator that delegates:
+ * A thin orchestrator that delegates:
  * - State management → useTileSelectionState hook
- * - Floor room rendering → FloorRoomsCard
- * - Wall room rendering → WallRoomsCard
+ * - Room rendering → UnifiedRoomCard (handles both floor and wall surfaces)
  * - Summary sidebar → TileSelectionSummary
  * - Dialog modals → TileSelectionDialogs
  * - Staircase section → StaircasesSection (already extracted)
@@ -22,8 +21,7 @@ import { WallTileSelectionPage } from "./WallTileSelectionPage";
 import { GlobalProductsSection } from "./TileSelection/GlobalProductsSection";
 import { StaircasesSection } from "./TileSelection/StaircasesSection";
 
-import { FloorRoomsCard } from "./TileSelection/FloorRoomsCard";
-import { WallRoomsCard } from "./TileSelection/WallRoomsCard";
+import { UnifiedRoomCard } from "./TileSelection/UnifiedRoomCard";
 import { TileSelectionSummary } from "./TileSelection/TileSelectionSummary";
 import { TileSelectionDialogs } from "./TileSelection/TileSelectionDialogs";
 import { useTileSelectionState } from "./TileSelection/useTileSelectionState";
@@ -170,7 +168,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   // ── Handlers: Wall Tiles ──────────────────────────────────────────
 
   const handleConfigureWallTiles = (roomId: string) => {
-    const room = state.wallRooms.find(r => r.id === roomId);
+    const room = rooms.find(r => r.id === roomId && r.has_wall);
     if (!room) return;
 
     let wallSelection = state.wallTileSelections.find(ws => ws.roomId === roomId);
@@ -181,8 +179,18 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     state.setShowWallTileSelection({ roomId, room });
   };
 
+  const handleClearWallTiles = (roomId: string) => {
+    state.setWallTileSelections(prev =>
+      prev.map(ws =>
+        ws.roomId === roomId
+          ? { ...ws, baseTileId: null, layers: [], totalLayers: 0 }
+          : ws
+      )
+    );
+  };
+
   const calculateWallLayers = (roomId: string, baseTileId: string) => {
-    const room = state.wallRooms.find(r => r.id === roomId);
+    const room = rooms.find(r => r.id === roomId && r.has_wall);
     const baseTile = state.tiles.find(t => t.id === baseTileId);
     if (!room || !baseTile) return;
 
@@ -523,25 +531,21 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Left: Room sections */}
         <div className="space-y-6 lg:col-span-2">
-          <FloorRoomsCard
-            floorRooms={state.floorRooms}
+          <UnifiedRoomCard
+            rooms={rooms}
             floorTileSelections={state.floorTileSelections}
+            wallTileSelections={state.wallTileSelections}
             tiles={state.tiles}
             selectedFloorRooms={state.selectedFloorRooms}
             productSelections={state.productSelections}
             onToggleRoomSelection={toggleFloorRoomSelection}
             onAddFloorTile={handleAddFloorTile}
             onRemoveFloorTile={handleRemoveFloorTile}
+            onConfigureWallTiles={handleConfigureWallTiles}
+            onClearWallTiles={handleClearWallTiles}
             onAddProduct={handleAddProduct}
             onRemoveProduct={handleRemoveProduct}
-            onShowFloorPreview={(room, tile) => state.setShowFloorPreview({ room, tile })}
-          />
-
-          <WallRoomsCard
-            wallRooms={state.wallRooms}
-            wallTileSelections={state.wallTileSelections}
-            tiles={state.tiles}
-            onConfigureWallTiles={handleConfigureWallTiles}
+            onShowPreview={(room, floorTile, wallLayers) => state.setShowRoomPreview({ room, floorTile, wallLayers })}
           />
 
           <StaircasesSection
@@ -554,7 +558,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
         {/* Right: Summary sidebar */}
         <TileSelectionSummary
-          floorRooms={state.floorRooms}
+          rooms={rooms}
           selectedFloorRooms={state.selectedFloorRooms}
           onBulkAddTile={handleBulkAddTile}
           wastagePercentage={state.wastagePercentage}
@@ -585,8 +589,8 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         showProductCatalog={state.showProductCatalog}
         onShowProductCatalogChange={state.setShowProductCatalog}
         onProductSelected={handleProductSelected}
-        showFloorPreview={state.showFloorPreview}
-        onCloseFloorPreview={() => state.setShowFloorPreview(null)}
+        showRoomPreview={state.showRoomPreview}
+        onCloseRoomPreview={() => state.setShowRoomPreview(null)}
       />
     </div>
   );

@@ -123,7 +123,8 @@ export interface QuotationItem {
     length: number;
     width: number;
     unit: string;
-    room_type?: string;
+    has_floor?: boolean;
+    has_wall?: boolean;
     wall_length?: number;
     wall_height?: number;
     measurements?: any[];
@@ -374,7 +375,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
               length,
               width,
               unit,
-              room_type,
+              has_floor,
+              has_wall,
               wall_length,
               wall_height,
               measurements
@@ -473,7 +475,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
               length,
               width,
               unit,
-              room_type,
+              has_floor,
+              has_wall,
               wall_length,
               wall_height,
               measurements
@@ -540,7 +543,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
             length,
             width,
             unit,
-            room_type,
+            has_floor,
+            has_wall,
             wall_length,
             wall_height,
             measurements
@@ -684,7 +688,8 @@ export const useQuotations = (filters?: QuotationFilters) => {
             length,
             width,
             unit,
-            room_type,
+            has_floor,
+            has_wall,
             wall_length,
             wall_height,
             measurements
@@ -869,7 +874,8 @@ export const useCreateQuotation = () => {
               length,
               width,
               unit,
-              room_type,
+              has_floor,
+              has_wall,
               wall_length,
               wall_height,
               measurements
@@ -942,7 +948,8 @@ export const useQuotationItems = (quotationId?: string) => {
             length,
             width,
             unit,
-            room_type,
+            has_floor,
+            has_wall,
             wall_length,
             wall_height,
             measurements

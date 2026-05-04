@@ -46,7 +46,8 @@ export interface StoredQuotationItem {
     length: number;
     width: number;
     unit: string;
-    room_type?: string;
+    has_floor?: boolean;
+    has_wall?: boolean;
     wall_length?: number;
     wall_height?: number;
     measurements?: Array<{ length: string; width: string }>;
@@ -84,7 +85,8 @@ export interface TileCalcResult {
     length: number;
     width: number;
     unit: string;
-    room_type?: string;
+    has_floor?: boolean;
+    has_wall?: boolean;
     wall_length?: number;
     wall_height?: number;
     measurements?: Array<{ length: string; width: string }>;
@@ -202,7 +204,8 @@ export function calculateFromQuotationItems(
         length: room.length,
         width: room.width,
         unit: room.unit,
-        room_type: room.room_type,
+        has_floor: room.has_floor,
+        has_wall: room.has_wall,
         wall_length: room.wall_length,
         wall_height: room.wall_height,
         measurements: room.measurements,

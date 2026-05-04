@@ -575,9 +575,10 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
               });
               roomDisplay += `</div>`;
             } else {
-              const isWall = room.room_type === 'wall';
-              const l = isWall ? (room.wall_length || room.length || 0) : (room.length || 0);
-              const w = isWall ? (room.wall_height || room.width || 0) : (room.width || 0);
+              // Determine if this is a wall entry by checking if layers were recorded
+              const isWallEntry = layers.length > 0;
+              const l = isWallEntry ? (room.wall_length || room.length || 0) : (room.length || 0);
+              const w = isWallEntry ? (room.wall_height || room.width || 0) : (room.width || 0);
               const isAreaHack = w == 1 || w == '1';
               if (!isAreaHack && l > 0 && w > 0) {
                 const dims = `${l} × ${w} ${room.unit || 'ft'}`;

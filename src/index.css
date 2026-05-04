@@ -175,6 +175,7 @@
     top: 0;
     z-index: 10;
     box-shadow: 0 1px 0 hsl(var(--border));
+    flex-shrink: 0;
   }
 
   /* --- Wordmark --- */
@@ -357,6 +358,15 @@
 
   /* Text balance for headings */
   .text-balance { text-wrap: balance; }
+
+  /* Hide scrollbar for cleaner sidebar */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 /* ============================================================

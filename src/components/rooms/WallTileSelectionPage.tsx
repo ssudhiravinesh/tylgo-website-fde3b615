@@ -44,12 +44,15 @@ export const WallTileSelectionPage = ({
     .map(layer => tiles.find(t => t.id === layer.tileId))
     .filter((t): t is Tile => !!t);
 
-  // Initialize originalLayers from existing wallSelection when component loads
+  // Initialize originalLayers from existing wallSelection when component mounts
+  // Use a ref to track whether we've captured the initial snapshot
+  const hasInitializedRef = useRef(false);
   useEffect(() => {
-    if (wallSelection.layers.length > 0 && originalLayers.length === 0) {
+    if (!hasInitializedRef.current && wallSelection.layers.length > 0) {
       setOriginalLayers([...wallSelection.layers]);
+      hasInitializedRef.current = true;
     }
-  }, [wallSelection.layers, originalLayers.length]);
+  }, [wallSelection.layers]);
 
   const calculateWallLayers = (baseTileId: string) => {
     const baseTile = tiles.find(t => t.id === baseTileId);
@@ -597,7 +600,7 @@ export const WallTileSelectionPage = ({
               <h3 className="font-semibold text-lg">{room.name}</h3>
               <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                 <p>Wall Height: {room.wall_height || 'Not specified'} {room.unit}</p>
-                <p>Wall Length: {room.wall_length || room.length || 'Not specified'} {room.unit}</p>
+                <p>Wall Perimeter: {room.wall_length || room.length || 'Not specified'} {room.unit}</p>
                 <p>Wall Area: {((room.wall_height || 0) * (room.wall_length || room.length || 0)).toFixed(2)} sq {room.unit}</p>
               </div>
             </div>

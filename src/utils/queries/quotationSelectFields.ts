@@ -54,7 +54,8 @@ export const QUOTATION_ITEMS_SELECT = `
     length,
     width,
     unit,
-    room_type,
+    has_floor,
+    has_wall,
     wall_length,
     wall_height,
     measurements
@@ -111,7 +112,8 @@ export const QUOTATION_FULL_SELECT = `
       length,
       width,
       unit,
-      room_type,
+      has_floor,
+      has_wall,
       wall_length,
       wall_height,
       measurements

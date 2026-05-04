@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridLoader } from "@/components/ui/GridLoader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Home, Plus, Calendar, Edit, Trash2, Layers, Ruler, Calculator } from "lucide-react";
+import { Home, Plus, Calendar, Edit, Trash2, Calculator } from "lucide-react";
 import { useRoomsByCustomer, useDeleteRoom } from "@/hooks/useRooms";
 import { RoomFormDialog } from "./RoomFormDialog";
+import { RoomDimensions } from "./RoomDimensions";
 import { toast } from "sonner";
 import type { Room } from "@/hooks/useRooms";
 
@@ -42,63 +43,17 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
     setEditingRoom(null);
   };
 
-  const calculateArea = (room: Room) => {
-    if (room.room_type === "wall") {
-      return ((room.wall_height || 0) * (room.wall_length || 0)).toFixed(2);
-    }
-    return (room.length * room.width).toFixed(2);
+  const calculateFloorArea = (room: Room) => {
+    if (!room.has_floor) return 0;
+    return room.length * room.width;
   };
 
-  // Helper to render dimensions correctly (handling both Multi-Shape and Legacy)
-  const renderRoomDimensions = (room: Room) => {
-    // 1. Check for Multi-Shape Data
-    if (room.measurements && room.measurements.length > 0) {
-      return (
-        <div className="space-y-2 bg-muted p-3 rounded-md border border-border">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-semibold text-foreground/80 flex items-center gap-1">
-              <Layers className="h-4 w-4" />
-              Dimensions ({room.measurements.length} Shapes)
-            </span>
-          </div>
-          <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-            {room.measurements.map((m, idx) => (
-              <div key={idx} className="flex justify-between text-sm border-b border-border last:border-0 pb-1.5 last:pb-0 border-dashed">
-                <span className="text-muted-foreground font-medium">Shape {idx + 1}:</span>
-                {/* FIXED: Applied formatting logic here */}
-                <span className="font-semibold text-foreground" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                  {parseFloat(m.length).toFixed(2)} × {parseFloat(m.width).toFixed(2)} {room.unit}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    // 2. Fallback for Legacy Data
-    const isFloor = room.room_type === "floor";
-    const l = isFloor ? room.length : room.wall_length;
-    const w = isFloor ? room.width : room.wall_height;
-    const lLabel = isFloor ? "Length" : "Length";
-    const wLabel = isFloor ? "Width" : "Height";
-
-    return (
-      <div className="grid grid-cols-2 gap-2 text-sm bg-card p-2 rounded border border-dashed border-border">
-        <div className="flex items-center gap-1">
-          <Ruler className="h-3 w-3 text-muted-foreground/70" />
-          <span className="text-muted-foreground text-xs">{lLabel}:</span>
-        </div>
-        <span className="font-medium text-right">{l} {room.unit}</span>
-
-        <div className="flex items-center gap-1">
-          <Ruler className="h-3 w-3 text-muted-foreground/70" />
-          <span className="text-muted-foreground text-xs">{wLabel}:</span>
-        </div>
-        <span className="font-medium text-right">{w} {room.unit}</span>
-      </div>
-    );
+  const calculateWallArea = (room: Room) => {
+    if (!room.has_wall) return 0;
+    return (room.wall_height || 0) * (room.wall_length || 0);
   };
+
+
 
 
 
@@ -184,18 +139,31 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
                 </Badge>
 
                 {/* Dimensions Display */}
-                {renderRoomDimensions(room)}
+                <RoomDimensions room={room} variant="detailed" />
 
-                <div className="pt-2 border-t border-border mt-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-1">
-                      <Calculator className="h-3 w-3 text-primary" />
-                      <span className="text-muted-foreground">Total Area:</span>
+                <div className="pt-2 border-t border-border mt-2 space-y-1">
+                  {room.has_floor && (
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1">
+                        <Calculator className="h-3 w-3 text-primary" />
+                        <span className="text-muted-foreground">Floor Area:</span>
+                      </div>
+                      <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
+                        {calculateFloorArea(room).toFixed(2)} {room.unit}²
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
-                      {calculateArea(room)} {room.unit}²
-                    </Badge>
-                  </div>
+                  )}
+                  {room.has_wall && (
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1">
+                        <Calculator className="h-3 w-3 text-primary" />
+                        <span className="text-muted-foreground">Wall Area:</span>
+                      </div>
+                      <Badge variant="outline" className="text-primary border-primary/25 bg-primary/8">
+                        {calculateWallArea(room).toFixed(2)} {room.unit}²
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
               </CardContent>

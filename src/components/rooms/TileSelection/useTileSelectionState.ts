@@ -1,11 +1,9 @@
 /**
  * Custom hook encapsulating all state and DB-sync logic for TileSelectionStep.
  * 
- * Extracted from TileSelectionStep.tsx to separate state management
- * from rendering. Contains:
- * - All useState declarations
- * - DB → local state synchronization effects
- * - Derived values (floorRooms, wallRooms, wastage)
+ * Updated for unified room model: rooms can have both floor and wall surfaces.
+ * Instead of splitting into floorRooms/wallRooms, we operate on the full room list
+ * and check has_floor/has_wall flags per room.
  */
 
 import { useState, useEffect } from "react";
@@ -60,14 +58,17 @@ export function useTileSelectionState(
     roomId: string;
     room: Room;
   } | null>(null);
-  const [showFloorPreview, setShowFloorPreview] = useState<{
+  const [showRoomPreview, setShowRoomPreview] = useState<{
     room: Room;
-    tile: Tile | null;
+    floorTile: Tile | null;
+    wallLayers: Tile[];
   } | null>(null);
 
   // ── Derived values ─────────────────────────────────────────────────
-  const floorRooms = rooms.filter(room => room.room_type === "floor");
-  const wallRooms = rooms.filter(room => room.room_type === "wall");
+  // Rooms with floor surface enabled (for floor tile selection)
+  const floorRooms = rooms.filter(room => room.has_floor);
+  // Rooms with wall surface enabled (for wall tile configuration)
+  const wallRooms = rooms.filter(room => room.has_wall);
 
   const getWastagePercentage = (): number => {
     const parsed = parseFloat(wastagePercentage);
@@ -113,7 +114,11 @@ export function useTileSelectionState(
       const room = rooms.find(r => r.id === selection.room_id);
       if (!room) return;
 
-      if (room.room_type === "floor") {
+      const layerNumber = selection.layer_number;
+      const isWallSelection = layerNumber !== null && layerNumber !== undefined && layerNumber > 0;
+
+      if (!isWallSelection && room.has_floor) {
+        // Floor tile selection (no layer_number or layer_number=0/null)
         const existingFloorSelection = floorSelections.find(
           fs => fs.roomId === selection.room_id && fs.tileId === selection.tile_id
         );
@@ -123,7 +128,8 @@ export function useTileSelectionState(
             tileId: selection.tile_id
           });
         }
-      } else {
+      } else if (isWallSelection && room.has_wall) {
+        // Wall tile selection (has layer_number > 0)
         let wallSelection = wallSelections.find(ws => ws.roomId === selection.room_id);
         if (!wallSelection) {
           wallSelection = {
@@ -135,7 +141,6 @@ export function useTileSelectionState(
           wallSelections.push(wallSelection);
         }
 
-        const layerNumber = selection.layer_number || 1;
         const existingLayer = wallSelection.layers.find(l => l.layerNumber === layerNumber);
         if (!existingLayer) {
           const baseTile = tiles.find(t => t.id === selection.tile_id);
@@ -169,7 +174,7 @@ export function useTileSelectionState(
           }
 
           wallSelection.layers.push({
-            layerNumber,
+            layerNumber: layerNumber!,
             tileId: selection.tile_id,
             tilesNeeded
           });
@@ -229,8 +234,8 @@ export function useTileSelectionState(
     setShowQuotationForm,
     showWallTileSelection,
     setShowWallTileSelection,
-    showFloorPreview,
-    setShowFloorPreview,
+    showRoomPreview,
+    setShowRoomPreview,
     
     // Derived
     floorRooms,
