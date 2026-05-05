@@ -38,6 +38,8 @@ const AlertDialogContent = React.forwardRef<
         className
       )}
       {...props}
+      onPointerDownOutside={(e) => e.preventDefault()}
+      onInteractOutside={(e) => e.preventDefault()}
     />
   </AlertDialogPortal>
 ))

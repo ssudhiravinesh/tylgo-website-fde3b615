@@ -45,6 +45,8 @@ const DrawerContent = React.forwardRef<
         className
       )}
       {...props}
+      onPointerDownOutside={(e) => e.preventDefault()}
+      onInteractOutside={(e) => e.preventDefault()}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
       {children}
