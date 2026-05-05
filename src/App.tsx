@@ -35,7 +35,11 @@ function App() {
       hostname === 'tylgo.store' ||
       hostname === 'www.tylgo.store');
 
-  if (isRootContext && !showroomParam && window.location.pathname === '/') {
+  // OAuth callback: Google redirects back with #access_token=... in the hash.
+  // We must let AuthProvider mount so Supabase can process the token.
+  const isOAuthCallback = window.location.hash.includes('access_token');
+
+  if (isRootContext && !showroomParam && window.location.pathname === '/' && !isOAuthCallback) {
     return (
       <>
         <LandingPage />
