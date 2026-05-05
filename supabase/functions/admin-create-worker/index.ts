@@ -191,7 +191,9 @@ serve(async (req) => {
       });
     }
     
-    // ── Check if user with this email already exists ─────────────
+    // ── Check email uniqueness — handle orphaned auth users ────
+    // An orphan is an auth.users entry with no corresponding profile row
+    // (caused by previous buggy delete that only removed the profile).
     console.log('Checking if user already exists:', email);
     const { data: existingUser, error: existingUserError } = await supabaseAdmin.auth.admin.listUsers();
     
@@ -208,18 +210,42 @@ serve(async (req) => {
       });
     }
     
-    const userExists = existingUser.users.some(u => u.email === email);
-    if (userExists) {
-      console.log('User already exists:', email);
-      return new Response(JSON.stringify({
-        error: 'User with this email already exists'
-      }), {
-        status: 409,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
+    const matchingUser = existingUser.users.find(u => u.email === email);
+    if (matchingUser) {
+      // Check if this is an orphaned auth user (no profile exists)
+      const { data: orphanProfile } = await supabaseAdmin
+        .from('profiles').select('id').eq('id', matchingUser.id).maybeSingle();
+      
+      if (orphanProfile) {
+        // Real active user — block creation
+        console.log('User already exists:', email);
+        return new Response(JSON.stringify({
+          error: 'User with this email already exists'
+        }), {
+          status: 409,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+      
+      // Orphaned auth user — clean it up so we can re-create
+      console.log(`Cleaning up orphaned auth user ${matchingUser.id} (${email}) before re-creation`);
+      const { error: cleanupError } = await supabaseAdmin.auth.admin.deleteUser(matchingUser.id);
+      if (cleanupError) {
+        console.error('Failed to clean up orphaned auth user:', cleanupError);
+        return new Response(JSON.stringify({
+          error: 'Failed to clean up stale account data. Please contact support.'
+        }), {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+      console.log(`Orphaned auth user ${matchingUser.id} cleaned up successfully`);
     }
     
     // ── Create the worker account ────────────────────────────────
