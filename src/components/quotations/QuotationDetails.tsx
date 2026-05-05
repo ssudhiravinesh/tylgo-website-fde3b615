@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers, Footprints } from "lucide-react";
+import { ArrowLeft, FileText, User, Phone, MapPin, Calendar, IndianRupee, Download, Calculator, Package, Layers, Footprints, Send, RefreshCw, CheckCircle2, XCircle, Clock, Ban } from "lucide-react";
 import { formatDimensions, formatArea, calculateAreaInSquareFeet, Unit } from "@/utils/unitConversions";
 import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
 import { useQuotationItems, useUpdateQuotationItem } from '@/hooks/useQuotationItems';
+import { useTallySync, type TallySyncStatus } from '@/hooks/useTallySync';
 import type { Quotation } from "@/hooks/useQuotations";
 import { toast } from "sonner";
 import { GridLoader } from "@/components/ui/GridLoader";
@@ -20,9 +21,34 @@ interface QuotationDetailsProps {
   onBack: () => void;
 }
 
+// Tally sync status helpers
+const getTallySyncBadge = (status: TallySyncStatus | undefined) => {
+  switch (status) {
+    case 'synced':
+      return { icon: CheckCircle2, label: 'Synced to Tally', className: 'bg-green-100 text-green-700 border-green-200' };
+    case 'queued':
+      return { icon: Clock, label: 'Queued', className: 'bg-blue-100 text-blue-700 border-blue-200' };
+    case 'failed':
+      return { icon: XCircle, label: 'Sync Failed', className: 'bg-red-100 text-red-700 border-red-200' };
+    case 'ignored':
+      return { icon: Ban, label: 'Excluded', className: 'bg-gray-100 text-gray-600 border-gray-200' };
+    default:
+      return { icon: Clock, label: 'Pending', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+  }
+};
+
 export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) => {
   const { generateQuotationPDF, isGenerating } = useUnifiedPDFGeneration();
   const { data: quotationItems = [], isLoading: isLoadingItems } = useQuotationItems(quotation.id);
+  const { queueForTally, retryTallySync, isQueuing, isRetrying } = useTallySync();
+
+  // Cast quotation to access tally fields (added by migration)
+  const tallyStatus = (quotation as any).tally_sync_status as TallySyncStatus | undefined;
+  const tallyError = (quotation as any).tally_sync_error as string | undefined;
+  const tallySyncedAt = (quotation as any).tally_synced_at as string | undefined;
+  const tallyVoucherNumber = (quotation as any).tally_voucher_number as string | undefined;
+  const tallySyncBadge = getTallySyncBadge(tallyStatus);
+  const TallySyncIcon = tallySyncBadge.icon;
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
@@ -106,6 +132,30 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         </div>
 
         <div className="flex gap-2">
+          {/* Tally Sync Button */}
+          {(!tallyStatus || tallyStatus === 'pending') && (
+            <Button
+              onClick={() => queueForTally(quotation.id)}
+              disabled={isQueuing}
+              variant="outline"
+              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <Send className="h-4 w-4" />
+              {isQueuing ? 'Sending...' : 'Send to Billing'}
+            </Button>
+          )}
+          {tallyStatus === 'failed' && (
+            <Button
+              onClick={() => retryTallySync(quotation.id)}
+              disabled={isRetrying}
+              variant="outline"
+              className="gap-2 border-red-300 text-red-700 hover:bg-red-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {isRetrying ? 'Retrying...' : 'Retry Sync'}
+            </Button>
+          )}
+
           <Button
             onClick={handleDownloadPDF}
             disabled={isGenerating}
@@ -209,6 +259,31 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                       Total: ₹{grandTotal > 0 ? grandTotal.toLocaleString() : (quotation.total_cost || 0).toLocaleString()}
                     </span>
                   </div>
+                </div>
+
+                {/* Tally Sync Status */}
+                <div className="mt-3 pt-3 border-t border-dashed">
+                  <div className="flex items-center gap-2">
+                    <TallySyncIcon className="h-4 w-4" />
+                    <Badge variant="outline" className={`text-xs ${tallySyncBadge.className}`}>
+                      {tallySyncBadge.label}
+                    </Badge>
+                  </div>
+                  {tallyVoucherNumber && (
+                    <p className="text-xs text-muted-foreground mt-1 ml-6">
+                      Voucher: {tallyVoucherNumber}
+                    </p>
+                  )}
+                  {tallySyncedAt && (
+                    <p className="text-xs text-muted-foreground ml-6">
+                      Synced: {new Date(tallySyncedAt).toLocaleString()}
+                    </p>
+                  )}
+                  {tallyStatus === 'failed' && tallyError && (
+                    <p className="text-xs text-red-600 mt-1 ml-6">
+                      Error: {tallyError}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

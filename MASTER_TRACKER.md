@@ -1,6 +1,6 @@
 # MASTER_TRACKER.md — Tylgo Feature & Status Registry
 
-> **Last Updated**: 2026-04-24
+> **Last Updated**: 2026-05-05
 > **Rule**: Every new feature, fix, or enhancement must be logged here with its status before it's considered "done."
 
 ---
@@ -14,7 +14,7 @@
 | **Current Phase** | Phase 2 — Tally Prime ERP Integration (Active) |
 | **Tech Stack** | React 18 / TypeScript / Vite / Supabase / Tailwind / shadcn/ui |
 | **Deployment** | Vercel (SPA) |
-| **Database** | Supabase PostgreSQL (65 migrations) |
+| **Database** | Supabase PostgreSQL (66 migrations) |
 | **Domains** | tylgo.com, tylgo.store, {showroom}.tylgo.store |
 
 ---
@@ -203,47 +203,55 @@
 ### 2A. Prerequisites & Discovery
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
-| Document ANUJ's stock naming convention | ⬜ Not Started | 🔴 Critical | **ACTION: Maverick must collect this from ANUJ** |
-| Get Tally Cloud endpoint URL + port | ⬜ Not Started | 🔴 Critical | Need the actual `http://<IP>:<port>` |
-| Get sample stock item XML export from Tally | ⬜ Not Started | 🔴 Critical | To understand field names (STOCKITEMNAME, PARTNO, etc.) |
-| Get ANUJ's ledger structure | ⬜ Not Started | 🔴 Critical | Sales Account name, tax ledgers, godown names |
+| Document ANUJ's stock naming convention | ✅ Done | 🔴 Critical | 21 stock items extracted via XML API. Pattern: `[TYPE] [SIZE] [BRAND] [CODE] [SHADE] PRE [TILES/BOX]` |
+| Get Tally Cloud endpoint URL + port | ✅ Done | 🔴 Critical | Elcom Digital cloud → VCC tunnel → `localhost:9000` |
+| Get sample stock item XML export from Tally | ✅ Done | 🔴 Critical | `List of Stock Items` COLLECTION export confirmed working |
+| Get ANUJ's ledger structure | ✅ Done | 🔴 Critical | Test company "Tylgo" created. Sales Account + customer ledger created via API |
+| Verify VCC tunnel connectivity | ✅ Done | 🔴 Critical | Confirmed: PowerShell → localhost:9000 → VCC → Elcom → TallyPrime |
+| Verify XML import format | ✅ Done | 🔴 Critical | `Import Data` with `IMPORTDATA/REQUESTDESC/REQUESTDATA` structure confirmed |
+| Create Sales Voucher via API (proof of concept) | ✅ Done | 🔴 Critical | `CREATED=1, LASTVCHID=1, ERRORS=0` — invoice created in Tally from CLI |
 
 ### 2B. Database & SKU Mapping
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
-| `tally_stock_mappings` table | ⬜ Not Started | 🔴 Critical | tile.code ↔ Tally STOCKITEMNAME mapping |
-| `tally_sync_log` table | ⬜ Not Started | 🔴 Critical | Audit trail for all sync operations |
-| `stock_quantity` column on tiles | ⬜ Not Started | 🔴 Critical | Track current inventory from Tally |
-| Admin UI for SKU mapping management | ⬜ Not Started | 🔴 Critical | Map each Tylgo tile to its Tally stock item name |
-| Bulk import mappings | ⬜ Not Started | 🟡 Medium | CSV/Excel upload for initial mapping |
+| `tally_stock_mappings` table | ✅ Done | 🔴 Critical | Migration applied. tile_id ↔ tally_stock_item_name with RLS |
+| `tally_sync_log` table | ✅ Done | 🔴 Critical | Audit trail with request/response payloads, RLS enabled |
+| `stock_quantity` + `last_stock_sync` on tiles | ✅ Done | 🔴 Critical | Columns added via migration |
+| `tally_sync_status` + tracking on quotations | ✅ Done | 🔴 Critical | status, voucher_number, error, synced_at columns added |
+| Admin UI for SKU mapping management | ⬜ Not Started | 🟡 Medium | Map each Tylgo tile to its Tally stock item name |
+| Bulk import mappings | ⬜ Not Started | 🟢 Low | CSV/Excel upload for initial mapping |
 
 ### 2C. Stock Sync (Tally → Tylgo)
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
-| Edge Function: `tally-sync-stock` | ⬜ Not Started | 🔴 Critical | Pull inventory levels via XML API export |
-| XML request/response parsing | ⬜ Not Started | 🔴 Critical | Parse Tally's Stock Summary XML |
-| Scheduled sync (pg_cron or external) | ⬜ Not Started | 🔴 Critical | Every 15-30 min |
+| XML export builder (stock items, ledgers) | ✅ Done | 🔴 Critical | `buildExportXml()` in `tallyXmlBuilder.ts` |
+| XML response parsers | ✅ Done | 🔴 Critical | `parseStockItemsResponse()`, `parseLedgerNamesResponse()` |
+| Edge Function: `tally-sync-stock` | ⬜ Not Started | 🟡 Medium | Will use relay pattern, not edge function (VCC is local) |
+| Scheduled sync (relay-based) | ⬜ Not Started | 🟡 Medium | Relay already polls — add stock pull on interval |
 | Stock display in admin dashboard | ⬜ Not Started | 🟡 Medium | Show current stock per tile |
-| Low stock alerts | ⬜ Not Started | 🟡 Medium | Notify admin when stock drops below threshold |
-| `last_stock_sync` timestamp on tiles | ⬜ Not Started | 🟡 Medium | Track freshness of stock data |
+| Low stock alerts | ⬜ Not Started | 🟢 Low | Notify admin when stock drops below threshold |
 
 ### 2D. Sales Voucher Push (Tylgo → Tally)
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
-| Edge Function: `tally-push-voucher` | ⬜ Not Started | 🔴 Critical | Create Sales Voucher in Tally on quotation finalization |
-| XML voucher builder | ⬜ Not Started | 🔴 Critical | Build valid Tally XML from quotation data |
-| Queue + retry logic | ⬜ Not Started | 🔴 Critical | Handle Tally downtime gracefully |
-| Tally voucher ID stored on quotation | ⬜ Not Started | 🔴 Critical | Link Tylgo quotation ↔ Tally voucher |
-| Error handling & logging | ⬜ Not Started | 🔴 Critical | Surface sync failures to admin |
+| XML voucher builder | ✅ Done | 🔴 Critical | `buildSalesVoucherXml()` in `tallyXmlBuilder.ts` — confirmed working format |
+| Ledger creation builder | ✅ Done | 🔴 Critical | `buildCreateLedgerXml()` — auto-creates customer parties |
+| Response parser | ✅ Done | 🔴 Critical | `parseTallyImportResponse()` — extracts CREATED/ERRORS/LASTVCHID |
+| Node.js Relay Service | ✅ Done | 🔴 Critical | `tally-relay/index.js` — polls Supabase, pushes to Tally |
+| Queue + retry logic | ✅ Done | 🔴 Critical | Status lifecycle: pending → queued → synced/failed, with retry |
+| Tally voucher ID stored on quotation | ✅ Done | 🔴 Critical | `tally_voucher_number` column, updated by relay on success |
+| Error handling & logging | ✅ Done | 🔴 Critical | Errors logged to `tally_sync_log` + displayed in UI |
+| `useTallySync` hook | ✅ Done | 🔴 Critical | Queue, retry, ignore mutations + pending/log queries |
+| "Send to Billing" button on QuotationDetails | ✅ Done | 🔴 Critical | With status badge, error display, retry button |
 
 ### 2E. Sync Dashboard & Monitoring
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
-| Sync status dashboard (admin) | ⬜ Not Started | 🟡 Medium | Last sync time, success/fail counts |
+| Tally sync status on QuotationDetails | ✅ Done | 🟡 Medium | Badge + voucher number + error message |
+| Failed sync retry button | ✅ Done | 🟡 Medium | "Retry Sync" button when status = failed |
+| Sync status dashboard (admin) | ⬜ Not Started | 🟡 Medium | Dedicated page with sync log table |
 | Manual sync trigger button | ⬜ Not Started | 🟡 Medium | Admin can force a stock sync |
-| Failed sync retry UI | ⬜ Not Started | 🟡 Medium | View and retry failed voucher pushes |
 | Price sync (Tally → Tylgo) | ⬜ Not Started | 🟢 Low | Optional: pull MRP from Tally |
-| Ledger auto-creation | ⬜ Not Started | 🟢 Low | Auto-create customer ledger in Tally on first interaction |
 
 ---
 
@@ -344,6 +352,8 @@
 | `products` | Non-tile products (belong to brands) |
 | `room_product_selections` | Product-to-room assignments |
 | `customer_products` | Product-to-customer assignments |
+| `tally_stock_mappings` | Tylgo tile ↔ Tally stock item name mapping |
+| `tally_sync_log` | Audit trail for all Tally sync operations |
 
 ### Key Relationships
 ```
@@ -356,6 +366,7 @@ Customer (1) ──→ (N) Quotations
 Quotation (1) ──→ (N) Quotation Items
 Brand (1) ──→ (N) Tiles
 Brand (1) ──→ (N) Products
+Tile (1) ──→ (1) Tally Stock Mapping
 ```
 
 ### Supabase Edge Functions
@@ -373,6 +384,7 @@ Brand (1) ──→ (N) Products
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-05-05 | Phase 2 Tally integration: VCC tunnel verified, XML API format confirmed, migration applied, XML builder + relay script + useTallySync hook + QuotationDetails UI built | Lyra (AI) |
 | 2026-05-04 | Phase 2 refocused to Tally Prime integration only. E-commerce → Phase 3, Visualizer → Phase 4, Orders → Phase 5 | Lyra (AI) |
 | 2026-04-24 | Phase 1 marked COMPLETE. Phase 2 expanded with Tally integration, storefront, cart, checkout, order mgmt | Lyra (AI) |
 | 2026-04-24 | Phase 4: TileSelectionStep decomposition (1,397→593L), error:any elimination (20 instances) | Lyra (AI) |

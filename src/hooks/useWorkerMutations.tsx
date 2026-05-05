@@ -1,7 +1,28 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getErrorMessage } from '@/utils/errorUtils';
+
+/**
+ * Extracts the actual error message from a Supabase Edge Function error.
+ * When the function returns a non-2xx status, supabase-js wraps it in a
+ * FunctionsHttpError with a generic message. The real error body is inside
+ * error.context (a Response object) that needs to be parsed as JSON.
+ */
+const extractEdgeFunctionError = async (error: unknown): Promise<string> => {
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const errorData = await error.context.json();
+      if (errorData && errorData.error) {
+        return errorData.error;
+      }
+    } catch {
+      // JSON parse failed, fall through to default
+    }
+  }
+  return getErrorMessage(error, 'An unexpected error occurred');
+};
 
 const checkAdminPermission = async () => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -40,18 +61,9 @@ export const useWorkerMutations = () => {
 
       if (error) {
         console.error('Edge function error:', error);
-        // Try to extract the JSON body if it's an HTTP error
-        if (error.context && typeof error.context.json === 'function') {
-          try {
-            const errorData = await error.context.json();
-            if (errorData && errorData.error) {
-              throw new Error(errorData.error);
-            }
-          } catch (e) {
-            // Ignore parse errors
-          }
-        }
-        throw error;
+        // Extract the actual error message from the edge function response
+        const errorMsg = await extractEdgeFunctionError(error);
+        throw new Error(errorMsg);
       }
 
       return data;
@@ -88,18 +100,9 @@ export const useWorkerMutations = () => {
 
       if (error) {
         console.error('Edge function error:', error);
-        // Try to extract the JSON body if it's an HTTP error
-        if (error.context && typeof error.context.json === 'function') {
-          try {
-            const errorData = await error.context.json();
-            if (errorData && errorData.error) {
-              throw new Error(errorData.error);
-            }
-          } catch (e) {
-            // Ignore parse errors
-          }
-        }
-        throw error;
+        // Extract the actual error message from the edge function response
+        const errorMsg = await extractEdgeFunctionError(error);
+        throw new Error(errorMsg);
       }
 
       return data;
