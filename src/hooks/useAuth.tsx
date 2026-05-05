@@ -1,10 +1,10 @@
 
-import { useState, createContext, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
+import { useState, createContext, useContext, ReactNode, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getErrorMessage } from '@/utils/errorUtils';
 import type { User } from '@supabase/supabase-js';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+
 
 interface Profile {
   id: string;
@@ -26,23 +26,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Session management utilities
-const SESSION_TOKEN_KEY = 'tylgo-session-token';
-const SESSION_DURATION_HOURS = 24;
-const SESSION_POLL_INTERVAL = 30 * 1000; // 30 seconds - check if session is still valid
-
-const generateSessionToken = (): string => {
-  return `${Date.now()}-${crypto.randomUUID()}`;
-};
-
-const getDeviceInfo = () => ({
-  userAgent: navigator.userAgent,
-  platform: navigator.platform,
-  language: navigator.language,
-  timestamp: new Date().toISOString(),
-});
-
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -207,9 +190,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (emailOrUsername: string, password: string) => {
     try {
       setLoading(true);
-
-      // Clear any existing session token before new login
-      sessionStorage.removeItem(SESSION_TOKEN_KEY);
 
       let email = emailOrUsername;
 

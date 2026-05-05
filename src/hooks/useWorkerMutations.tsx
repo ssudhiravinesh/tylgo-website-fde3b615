@@ -123,18 +123,19 @@ export const useWorkerMutations = () => {
       
       await checkAdminPermission();
 
-      // Delete from profiles table (this will cascade delete from auth.users due to trigger)
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', workerId);
+      // Call Edge Function to delete both profile AND auth.users entry
+      // Direct profile delete doesn't cascade to auth.users — there's no trigger for that.
+      const { data, error } = await supabase.functions.invoke('admin-delete-worker', {
+        body: { workerId }
+      });
 
       if (error) {
-        console.error('Error deleting worker profile:', error);
-        throw error;
+        console.error('Edge function error:', error);
+        const errorMsg = await extractEdgeFunctionError(error);
+        throw new Error(errorMsg);
       }
 
-      return { success: true };
+      return data;
     },
     onSuccess: () => {
       toast.success('Worker deleted successfully');

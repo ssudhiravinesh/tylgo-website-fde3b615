@@ -15,7 +15,7 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-        storage: sessionStorage, // Use sessionStorage for tab isolation - each tab gets its own session
+        storage: localStorage, // Persist sessions across tabs and browser restarts
         storageKey: 'sb-tylgo-auth',
         autoRefreshToken: true,
         persistSession: true,
