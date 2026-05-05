@@ -40,6 +40,17 @@ export const useWorkerMutations = () => {
 
       if (error) {
         console.error('Edge function error:', error);
+        // Try to extract the JSON body if it's an HTTP error
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errorData = await error.context.json();
+            if (errorData && errorData.error) {
+              throw new Error(errorData.error);
+            }
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
         throw error;
       }
 
@@ -77,6 +88,17 @@ export const useWorkerMutations = () => {
 
       if (error) {
         console.error('Edge function error:', error);
+        // Try to extract the JSON body if it's an HTTP error
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errorData = await error.context.json();
+            if (errorData && errorData.error) {
+              throw new Error(errorData.error);
+            }
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
         throw error;
       }
 
