@@ -140,7 +140,7 @@ export const AddWorkerDialog = ({ isOpen, onOpenChange, onSubmit, isLoading }: A
           Add New Worker
         </Button>
       </DialogTrigger>
-      <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Worker</DialogTitle>
           <DialogDescription>
