@@ -11,7 +11,7 @@
 |--------|-------|
 | **Project** | Tylgo — Tile Business Operating System |
 | **Client** | ANUJ Tiles |
-| **Current Phase** | Phase 2 — Public E-Commerce (Active) |
+| **Current Phase** | Phase 2 — Tally Prime ERP Integration (Active) |
 | **Tech Stack** | React 18 / TypeScript / Vite / Supabase / Tailwind / shadcn/ui |
 | **Deployment** | Vercel (SPA) |
 | **Database** | Supabase PostgreSQL (65 migrations) |
@@ -198,65 +198,88 @@
 
 ---
 
-## 🚧 Phase 2 — Public E-Commerce (ACTIVE)
+## 🚧 Phase 2 — Tally Prime ERP Integration (ACTIVE)
 
-### 2A. Public Storefront
-| Feature | Status | Priority | Notes |
-|---------|--------|----------|-------|
-| Public tile/product browsing (no auth) | ⬜ Not Started | 🔴 Critical | Customers browse catalog on `{showroom}.tylgo.store` |
-| Tile detail pages (public) | ⬜ Not Started | 🔴 Critical | Size, price, images, stock availability |
-| Product detail pages (public) | ⬜ Not Started | 🔴 Critical | |
-| Category/filter/search (public) | ⬜ Not Started | 🔴 Critical | By size, type, price range, color |
-| Responsive storefront layout | ⬜ Not Started | 🔴 Critical | Mobile-first — most customers will browse on phone |
-| SEO meta tags per product | ⬜ Not Started | 🟡 Medium | |
-
-### 2B. Customer Auth (Separate from Staff)
-| Feature | Status | Priority | Notes |
-|---------|--------|----------|-------|
-| Customer registration (phone/email) | ⬜ Not Started | 🔴 Critical | New role: `customer` in profiles |
-| Customer login | ⬜ Not Started | 🔴 Critical | |
-| OTP-based phone verification | ⬜ Not Started | 🟡 Medium | Indian market — phone is primary |
-| Guest checkout (no login required) | ⬜ Not Started | 🟡 Medium | Reduces friction |
-
-### 2C. Shopping Cart & Checkout
-| Feature | Status | Priority | Notes |
-|---------|--------|----------|-------|
-| Add to cart (tiles — specify boxes/qty) | ⬜ Not Started | 🔴 Critical | |
-| Cart persistence (localStorage + DB) | ⬜ Not Started | 🔴 Critical | Guest = localStorage, logged in = DB |
-| Cart summary with pricing | ⬜ Not Started | 🔴 Critical | |
-| Checkout flow (address, delivery) | ⬜ Not Started | 🔴 Critical | |
-| Payment integration (Razorpay) | ⬜ Not Started | 🔴 Critical | Indian market — Razorpay is standard |
-| Order confirmation & receipt | ⬜ Not Started | 🔴 Critical | |
-
-### 2D. Order Management
-| Feature | Status | Priority | Notes |
-|---------|--------|----------|-------|
-| Orders table + RLS policies | ⬜ Not Started | 🔴 Critical | |
-| Order status flow (placed → confirmed → shipped → delivered) | ⬜ Not Started | 🔴 Critical | |
-| Customer order history | ⬜ Not Started | 🔴 Critical | |
-| Admin order dashboard | ⬜ Not Started | 🔴 Critical | |
-| Order notification emails | ⬜ Not Started | 🟡 Medium | |
-| Order tracking page | ⬜ Not Started | 🟡 Medium | |
-
-### 2E. Tally Prime Integration
+### 2A. Prerequisites & Discovery
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
 | Document ANUJ's stock naming convention | ⬜ Not Started | 🔴 Critical | **ACTION: Maverick must collect this from ANUJ** |
-| Tally middleware service (Edge Function) | ⬜ Not Started | 🔴 Critical | Supabase Edge Function → Tally Cloud endpoint |
-| Stock item sync (Tally → Supabase) | ⬜ Not Started | 🔴 Critical | Scheduled pull of inventory levels |
-| Sales voucher push (Tylgo → Tally) | ⬜ Not Started | 🔴 Critical | Auto-create Tally voucher on order placement |
-| SKU/code mapping table | ⬜ Not Started | 🔴 Critical | `tally_stock_mappings` table: tile.code ↔ Tally STOCKITEMNAME |
-| Sync status dashboard (admin) | ⬜ Not Started | 🟡 Medium | Last sync time, failed syncs, retry |
-| Price sync (Tally → Tylgo) | ⬜ Not Started | 🟡 Medium | Optional: pull MRP from Tally |
-| Ledger auto-creation | ⬜ Not Started | 🟢 Low | Auto-create customer ledger in Tally on first order |
+| Get Tally Cloud endpoint URL + port | ⬜ Not Started | 🔴 Critical | Need the actual `http://<IP>:<port>` |
+| Get sample stock item XML export from Tally | ⬜ Not Started | 🔴 Critical | To understand field names (STOCKITEMNAME, PARTNO, etc.) |
+| Get ANUJ's ledger structure | ⬜ Not Started | 🔴 Critical | Sales Account name, tax ledgers, godown names |
 
-### 2F. Nice-to-Haves
+### 2B. Database & SKU Mapping
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
+| `tally_stock_mappings` table | ⬜ Not Started | 🔴 Critical | tile.code ↔ Tally STOCKITEMNAME mapping |
+| `tally_sync_log` table | ⬜ Not Started | 🔴 Critical | Audit trail for all sync operations |
+| `stock_quantity` column on tiles | ⬜ Not Started | 🔴 Critical | Track current inventory from Tally |
+| Admin UI for SKU mapping management | ⬜ Not Started | 🔴 Critical | Map each Tylgo tile to its Tally stock item name |
+| Bulk import mappings | ⬜ Not Started | 🟡 Medium | CSV/Excel upload for initial mapping |
+
+### 2C. Stock Sync (Tally → Tylgo)
+| Feature | Status | Priority | Notes |
+|---------|--------|----------|-------|
+| Edge Function: `tally-sync-stock` | ⬜ Not Started | 🔴 Critical | Pull inventory levels via XML API export |
+| XML request/response parsing | ⬜ Not Started | 🔴 Critical | Parse Tally's Stock Summary XML |
+| Scheduled sync (pg_cron or external) | ⬜ Not Started | 🔴 Critical | Every 15-30 min |
+| Stock display in admin dashboard | ⬜ Not Started | 🟡 Medium | Show current stock per tile |
+| Low stock alerts | ⬜ Not Started | 🟡 Medium | Notify admin when stock drops below threshold |
+| `last_stock_sync` timestamp on tiles | ⬜ Not Started | 🟡 Medium | Track freshness of stock data |
+
+### 2D. Sales Voucher Push (Tylgo → Tally)
+| Feature | Status | Priority | Notes |
+|---------|--------|----------|-------|
+| Edge Function: `tally-push-voucher` | ⬜ Not Started | 🔴 Critical | Create Sales Voucher in Tally on quotation finalization |
+| XML voucher builder | ⬜ Not Started | 🔴 Critical | Build valid Tally XML from quotation data |
+| Queue + retry logic | ⬜ Not Started | 🔴 Critical | Handle Tally downtime gracefully |
+| Tally voucher ID stored on quotation | ⬜ Not Started | 🔴 Critical | Link Tylgo quotation ↔ Tally voucher |
+| Error handling & logging | ⬜ Not Started | 🔴 Critical | Surface sync failures to admin |
+
+### 2E. Sync Dashboard & Monitoring
+| Feature | Status | Priority | Notes |
+|---------|--------|----------|-------|
+| Sync status dashboard (admin) | ⬜ Not Started | 🟡 Medium | Last sync time, success/fail counts |
+| Manual sync trigger button | ⬜ Not Started | 🟡 Medium | Admin can force a stock sync |
+| Failed sync retry UI | ⬜ Not Started | 🟡 Medium | View and retry failed voucher pushes |
+| Price sync (Tally → Tylgo) | ⬜ Not Started | 🟢 Low | Optional: pull MRP from Tally |
+| Ledger auto-creation | ⬜ Not Started | 🟢 Low | Auto-create customer ledger in Tally on first interaction |
+
+---
+
+## 🔜 Phase 3 — Public E-Commerce (Planned)
+
+### 3A. Public Storefront
+| Feature | Status | Priority | Notes |
+|---------|--------|----------|-------|
+| Public tile/product browsing (no auth) | ⬜ Not Started | 🔴 High | Customers browse catalog on `{showroom}.tylgo.store` |
+| Tile detail pages (public) | ⬜ Not Started | 🔴 High | Size, price, images, stock availability |
+| Product detail pages (public) | ⬜ Not Started | 🔴 High | |
+| Category/filter/search (public) | ⬜ Not Started | 🔴 High | By size, type, price range, color |
+| Responsive storefront layout | ⬜ Not Started | 🔴 High | Mobile-first |
+| SEO meta tags per product | ⬜ Not Started | 🟡 Medium | |
+
+### 3B. Customer Auth
+| Feature | Status | Priority | Notes |
+|---------|--------|----------|-------|
+| Customer registration (phone/email) | ⬜ Not Started | 🔴 High | New role: `customer` in profiles |
+| Customer login | ⬜ Not Started | 🔴 High | |
+| OTP-based phone verification | ⬜ Not Started | 🟡 Medium | Indian market — phone is primary |
+| Guest checkout (no login required) | ⬜ Not Started | 🟡 Medium | Reduces friction |
+
+### 3C. Shopping Cart & Checkout
+| Feature | Status | Priority | Notes |
+|---------|--------|----------|-------|
+| Add to cart (tiles — specify boxes/qty) | ⬜ Not Started | 🔴 High | |
+| Cart persistence (localStorage + DB) | ⬜ Not Started | 🔴 High | Guest = localStorage, logged in = DB |
+| Cart summary with pricing | ⬜ Not Started | 🔴 High | |
+| Checkout flow (address, delivery) | ⬜ Not Started | 🔴 High | |
+| Payment integration (Razorpay) | ⬜ Not Started | 🔴 High | Indian market — Razorpay is standard |
+| Order confirmation & receipt | ⬜ Not Started | 🔴 High | |
 | Wishlist / favorites | ⬜ Not Started | 🟢 Low | |
 | Product reviews & ratings | ⬜ Not Started | 🟢 Low | |
 
-## 🔜 Phase 3 — Custom Room Visualizer (Planned)
+## 🔜 Phase 4 — Custom Room Visualizer (Planned)
 
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
@@ -268,7 +291,7 @@
 | "Order this design" flow | ⬜ Not Started | 🟡 Medium | Direct to cart from visualizer |
 | AR preview (stretch goal) | ⬜ Not Started | 🟢 Low | Mobile AR tile preview |
 
-## 🔜 Phase 4 — Order & Delivery Management (Planned)
+## 🔜 Phase 5 — Order & Delivery Management (Planned)
 
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
@@ -350,6 +373,7 @@ Brand (1) ──→ (N) Products
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-05-04 | Phase 2 refocused to Tally Prime integration only. E-commerce → Phase 3, Visualizer → Phase 4, Orders → Phase 5 | Lyra (AI) |
 | 2026-04-24 | Phase 1 marked COMPLETE. Phase 2 expanded with Tally integration, storefront, cart, checkout, order mgmt | Lyra (AI) |
 | 2026-04-24 | Phase 4: TileSelectionStep decomposition (1,397→593L), error:any elimination (20 instances) | Lyra (AI) |
 | 2026-04-24 | Refactoring Phase 1+3: Centralized types, unified calculator, logger, cleanup | Lyra (AI) |

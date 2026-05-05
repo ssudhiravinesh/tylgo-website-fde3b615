@@ -10,6 +10,7 @@ interface Profile {
   id: string;
   name: string;
   email: string;
+  username?: string;
   role: 'admin' | 'worker' | 'super_admin';
   showroom_id?: string;
 }
@@ -19,7 +20,8 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string, role: 'admin' | 'worker' | 'super_admin', showroomId?: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ user: User | null }>;
+  signIn: (emailOrUsername: string, password: string) => Promise<{ user: User | null }>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -47,6 +49,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Guard: prevent concurrent/duplicate fetchProfile calls (OAuth fires multiple events)
+  const fetchingForUserRef = useRef<string | null>(null);
+
   useEffect(() => {
     console.log('Auth: Setting up auth state listener');
 
@@ -58,6 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => fetchProfile(session.user.id), 0);
       } else if (event === 'SIGNED_OUT') {
         console.log('Auth: User signed out');
+        fetchingForUserRef.current = null;
         setUser(null);
         setProfile(null);
         setLoading(false);
@@ -106,6 +112,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchProfile = async (userId: string) => {
+    // Skip if we're already fetching/fetched for this user
+    if (fetchingForUserRef.current === userId) {
+      console.log('Auth: Already fetching/fetched profile for:', userId, '— skipping');
+      return;
+    }
+    fetchingForUserRef.current = userId;
+
     try {
       console.log('Auth: Fetching profile for user:', userId);
 
@@ -117,14 +130,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error('Auth: Error fetching profile:', error);
-        // "Failed to fetch" is often a network blip or race condition. We shouldn't toast immediately if it's transient.
-        // But for persistent errors, we should notify.
         if (error.code === 'PGRST116') {
-          console.log('Auth: Profile not found for user:', userId);
-          toast.error('Profile not found. Please contact your administrator.');
+          // Profile not found — this happens when a Google OAuth user signs in
+          // but was never created by an admin. We must reject them.
+          console.log('Auth: Profile not found for user:', userId, '— signing out (unauthorized)');
+          toast.error('Account not found. Please contact your showroom administrator to get access.', { id: 'no-profile' });
+          fetchingForUserRef.current = null; // Reset before sign out so the SIGNED_OUT handler works
+          await supabase.auth.signOut();
         } else if (error.message !== 'Failed to fetch') {
-          // Only toast for non-network errors to avoid spamming "Failed to fetch" during potential re-auths
-          toast.error('Error loading profile: ' + error.message);
+          toast.error('Error loading profile: ' + error.message, { id: 'profile-error' });
+          fetchingForUserRef.current = null;
         }
         setLoading(false);
         return;
@@ -136,10 +151,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: unknown) {
       console.error('Auth: Exception while fetching profile:', error);
-      // Suppress "Failed to fetch" toast here too
       if (getErrorMessage(error) !== 'Failed to fetch') {
-        toast.error('Error loading user profile');
+        toast.error('Error loading user profile', { id: 'profile-error' });
       }
+      fetchingForUserRef.current = null;
     } finally {
       console.log('Auth: Profile fetch completed, setting loading to false');
       setLoading(false);
@@ -184,12 +199,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  /**
+   * Sign in with username or email + password.
+   * If the input doesn't contain '@', we treat it as a username and
+   * resolve the associated email first.
+   */
+  const signIn = async (emailOrUsername: string, password: string) => {
     try {
       setLoading(true);
 
       // Clear any existing session token before new login
       sessionStorage.removeItem(SESSION_TOKEN_KEY);
+
+      let email = emailOrUsername;
+
+      // If input doesn't look like an email, resolve username → email
+      if (!emailOrUsername.includes('@')) {
+        console.log('Auth: Resolving username to email:', emailOrUsername);
+        const { data: profileData, error: lookupError } = await supabase
+          .from('profiles')
+          .select('email')
+          .ilike('username', emailOrUsername)
+          .maybeSingle();
+
+        if (lookupError || !profileData) {
+          throw new Error('Invalid username or password. Please try again.');
+        }
+
+        email = profileData.email;
+      }
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -200,18 +238,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
 
-      // toast.success('Signed in successfully!'); // Moved to component level for better control
       return { user: data.user };
     } catch (error: unknown) {
       console.error('Sign in error:', error);
       const msg = getErrorMessage(error, 'Error signing in');
-      if (msg.includes('Invalid login credentials')) {
-        toast.error('Invalid email or password. Please try again.');
+      if (msg.includes('Invalid login credentials') || msg.includes('Invalid username or password')) {
+        toast.error('Invalid username/email or password. Please try again.');
       } else {
         toast.error(msg);
       }
       throw error;
     } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Sign in with Google OAuth.
+   * After redirect, the auth state listener picks up the session.
+   * If the user doesn't have a profile (wasn't admin-created), fetchProfile
+   * will sign them out automatically.
+   */
+  const signInWithGoogle = async () => {
+    try {
+      setLoading(true);
+
+      // Preserve the full URL (including ?showroom= param) so the user
+      // lands back on the login page — not the landing page — after OAuth.
+      // This ensures error toasts ("Account not found") are visible.
+      const redirectUrl = window.location.origin + window.location.pathname + window.location.search;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Browser will redirect to Google — loading state is intentional
+    } catch (error: unknown) {
+      console.error('Google sign in error:', error);
+      const msg = getErrorMessage(error, 'Error signing in with Google');
+      toast.error(msg);
       setLoading(false);
     }
   };
@@ -249,6 +320,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loading,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
   };
 

@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { QRScanningProvider } from "@/contexts/QRScanningContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
+import { PWAUpdatePrompt } from "@/components/pwa/PWAUpdatePrompt";
+import { PWAOfflineReady } from "@/components/pwa/PWAOfflineReady";
 import Index from "./pages/Index";
 import TileDetails from "./pages/TileDetails";
 import NotFound from "./pages/NotFound";
@@ -33,7 +36,14 @@ function App() {
       hostname === 'www.tylgo.store');
 
   if (isRootContext && !showroomParam && window.location.pathname === '/') {
-    return <LandingPage />;
+    return (
+      <>
+        <LandingPage />
+        <PWAInstallPrompt />
+        <PWAUpdatePrompt />
+        <PWAOfflineReady />
+      </>
+    );
   }
 
   return (
@@ -52,6 +62,9 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
+              <PWAInstallPrompt />
+              <PWAUpdatePrompt />
+              <PWAOfflineReady />
             </TooltipProvider>
           </NotificationProvider>
         </QRScanningProvider>
@@ -61,3 +74,4 @@ function App() {
 }
 
 export default App;
+

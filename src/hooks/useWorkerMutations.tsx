@@ -63,14 +63,14 @@ export const useWorkerMutations = () => {
   });
 
   const addWorkerMutation = useMutation({
-    mutationFn: async ({ name, email, password }: { name: string; email: string; password: string }) => {
-      console.log('Creating new worker account:', email);
+    mutationFn: async ({ name, email, password, username }: { name: string; email: string; password: string; username: string }) => {
+      console.log('Creating new worker account:', email, 'username:', username);
       
       await checkAdminPermission();
 
       // Call Supabase edge function for worker creation (admin function)
       const { data, error } = await supabase.functions.invoke('admin-create-worker', {
-        body: { name, email, password }
+        body: { name, email, password, username }
       });
 
       console.log('Create worker response:', { data, error });

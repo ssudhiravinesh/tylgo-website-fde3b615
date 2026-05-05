@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
 
+// Password policy: min 8 chars, at least 1 letter, at least 1 number, no spaces
+const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[^\s]{8,}$/;
+
+// Username policy: 3-30 chars, alphanumeric + dots/underscores/hyphens
+const USERNAME_REGEX = /^[a-zA-Z0-9._-]{3,30}$/;
+
 serve(async (req) => {
   console.log(`${req.method} ${req.url}`);
   
@@ -104,17 +110,19 @@ serve(async (req) => {
     
     // Parse the request body
     const body = await req.json();
-    const { name, email, password } = body;
+    const { name, email, password, username } = body;
     
     console.log('Request data:', {
       name: !!name,
       email: !!email,
+      username: !!username,
       passwordLength: password?.length
     });
     
-    if (!name || !email || !password) {
+    // ── Validate required fields ──────────────────────────────────
+    if (!name || !email || !password || !username) {
       return new Response(JSON.stringify({
-        error: 'Missing required fields: name, email, password'
+        error: 'Missing required fields: name, email, username, password'
       }), {
         status: 400,
         headers: {
@@ -124,9 +132,10 @@ serve(async (req) => {
       });
     }
     
-    if (password.length < 6) {
+    // ── Validate username format ──────────────────────────────────
+    if (!USERNAME_REGEX.test(username)) {
       return new Response(JSON.stringify({
-        error: 'Password must be at least 6 characters long'
+        error: 'Username must be 3-30 characters and contain only letters, numbers, dots, underscores, or hyphens'
       }), {
         status: 400,
         headers: {
@@ -136,7 +145,53 @@ serve(async (req) => {
       });
     }
     
-    // Check if user with this email already exists
+    // ── Validate password strength ───────────────────────────────
+    if (!PASSWORD_REGEX.test(password)) {
+      return new Response(JSON.stringify({
+        error: 'Password must be at least 8 characters with at least 1 letter and 1 number'
+      }), {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    
+    // ── Check username uniqueness (case-insensitive) ─────────────
+    console.log('Checking username uniqueness:', username);
+    const { data: existingUsername, error: usernameCheckError } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .ilike('username', username)
+      .maybeSingle();
+    
+    if (usernameCheckError) {
+      console.error('Error checking username:', usernameCheckError);
+      return new Response(JSON.stringify({
+        error: 'Failed to check username availability'
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    
+    if (existingUsername) {
+      return new Response(JSON.stringify({
+        error: 'This username is already taken. Please choose a different one.'
+      }), {
+        status: 409,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    
+    // ── Check if user with this email already exists ─────────────
     console.log('Checking if user already exists:', email);
     const { data: existingUser, error: existingUserError } = await supabaseAdmin.auth.admin.listUsers();
     
@@ -167,16 +222,16 @@ serve(async (req) => {
       });
     }
     
-    // Create the worker account using admin privileges
-    // Include the admin's showroom_id in the user metadata
-    console.log('Creating worker account for:', email, 'in showroom:', adminShowroomId);
+    // ── Create the worker account ────────────────────────────────
+    console.log('Creating worker account for:', email, 'username:', username, 'in showroom:', adminShowroomId);
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       user_metadata: {
         name,
         role: 'worker',
-        showroom_id: adminShowroomId
+        showroom_id: adminShowroomId,
+        username
       },
       email_confirm: true // Auto-confirm email
     });
@@ -208,8 +263,8 @@ serve(async (req) => {
     
     console.log('User created successfully:', authData.user.id);
     
-    // Create profile record using UPSERT to handle duplicates gracefully
-    // Include the admin's showroom_id so the worker belongs to the same showroom
+    // ── Create profile record ────────────────────────────────────
+    // The trigger should handle this, but we upsert to be safe
     console.log('Creating profile for user:', authData.user.id, 'with showroom:', adminShowroomId);
     const { error: profileInsertError } = await supabaseAdmin
       .from('profiles')
@@ -217,6 +272,7 @@ serve(async (req) => {
         id: authData.user.id,
         name,
         email,
+        username,
         role: 'worker',
         showroom_id: adminShowroomId
       }, {
@@ -255,6 +311,7 @@ serve(async (req) => {
       user: {
         id: authData.user.id,
         email: authData.user.email,
+        username,
         name
       }
     }), {

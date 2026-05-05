@@ -54,12 +54,13 @@ export const WorkerManagement = ({ onBack }: WorkerManagementProps) => {
     }
   };
 
-  const handleAddWorker = (data: { name: string; email: string; password: string }) => {
+  const handleAddWorker = (data: { name: string; email: string; password: string; username: string }) => {
     addWorkerMutation.mutate(
       {
         name: data.name,
         email: data.email,
-        password: data.password
+        password: data.password,
+        username: data.username
       },
       {
         onSuccess: () => {

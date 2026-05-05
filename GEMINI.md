@@ -11,16 +11,17 @@
 
 ## 🎯 Project Vision
 
-Tylgo is the **operating system for tile businesses**. Phase 1 (internal showroom tool) is **complete**. We are now building Phase 2 — the public-facing e-commerce platform with Tally Prime ERP integration.
+Tylgo is the **operating system for tile businesses**. Phase 1 (internal showroom tool) is **complete**. We are now building Phase 2 — Tally Prime ERP integration to unify ANUJ's inventory, pricing, and sales data between Tylgo and their existing accounting system.
 
 ### The Roadmap
 
 | Phase | Description | Status |
 |-------|-------------|--------|
 | **Phase 1** | Internal tool — showroom staff manage customers, rooms, tiles, quotations | ✅ Complete |
-| **Phase 2** | Public-facing e-commerce + Tally Prime ERP integration | 🚧 Active |
-| **Phase 3** | Custom Room Visualizer — customers input room dimensions, select tiles, and preview before purchase | 🔜 Planned |
-| **Phase 4** | Full order management — shopping cart, payment integration, order tracking, delivery | 🔜 Planned |
+| **Phase 2** | Tally Prime ERP integration — stock sync, sales voucher push, SKU mapping | 🚧 Active |
+| **Phase 3** | Public-facing e-commerce — customers browse and purchase tiles/products online | 🔜 Planned |
+| **Phase 4** | Custom Room Visualizer — customers input room dimensions, select tiles, and preview before purchase | 🔜 Planned |
+| **Phase 5** | Full order management — shopping cart, payment integration, order tracking, delivery | 🔜 Planned |
 
 ---
 

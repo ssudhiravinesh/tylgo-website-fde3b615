@@ -6,6 +6,7 @@ export interface Profile {
   id: string;
   name: string;
   email: string;
+  username?: string;
   role: UserRole;
   showroom_id?: string;
 }
@@ -15,6 +16,7 @@ export interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string, role: UserRole, showroomId?: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ user: User | null }>;
+  signIn: (emailOrUsername: string, password: string) => Promise<{ user: User | null }>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
