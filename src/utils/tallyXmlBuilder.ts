@@ -88,45 +88,35 @@ export const buildSalesVoucherXml = (voucher: TallySalesVoucher): string => {
           <STOCKITEMNAME>${escapeXml(item.stockItemName)}</STOCKITEMNAME>
           <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
           <RATE>${item.rate}${item.unit ? `/${item.unit}` : ''}</RATE>
-          <AMOUNT>${-Math.abs(item.amount)}</AMOUNT>
+          <AMOUNT>-${Math.abs(item.amount)}</AMOUNT>
           <ACTUALQTY>${item.quantity}${item.unit ? ` ${item.unit}` : ''}</ACTUALQTY>
           <BILLEDQTY>${item.quantity}${item.unit ? ` ${item.unit}` : ''}</BILLEDQTY>
           <ACCOUNTINGALLOCATIONS.LIST>
             <LEDGERNAME>${salesName}</LEDGERNAME>
             <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-            <AMOUNT>${-Math.abs(item.amount)}</AMOUNT>
+            <AMOUNT>-${Math.abs(item.amount)}</AMOUNT>
           </ACCOUNTINGALLOCATIONS.LIST>
         </ALLINVENTORYENTRIES.LIST>`).join('');
   }
 
   // Build the voucher XML
-  // Note: If items are present, we use ALLINVENTORYENTRIES for stock tracking.
-  // If no items, we use simple ALLLEDGERENTRIES (accounting-only mode).
+  // TallyPrime Sales vouchers require ALL amounts as NEGATIVE.
+  // ISDEEMEDPOSITIVE=Yes + negative amount = Debit entry
+  // ISDEEMEDPOSITIVE=No  + negative amount = Credit entry
   const hasInventory = voucher.items && voucher.items.length > 0;
 
-  let ledgerEntries: string;
-  if (hasInventory) {
-    // With inventory: party debit + sales credit handled via inventory allocations
-    ledgerEntries = `
+  // Ledger entries: Party debit + Sales credit (ALWAYS present, ALWAYS balance)
+  let ledgerEntries: string = `
         <ALLLEDGERENTRIES.LIST>
           <LEDGERNAME>${partyName}</LEDGERNAME>
           <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-          <AMOUNT>${Math.abs(voucher.totalAmount)}</AMOUNT>
-        </ALLLEDGERENTRIES.LIST>`;
-  } else {
-    // Without inventory: simple double-entry
-    ledgerEntries = `
-        <ALLLEDGERENTRIES.LIST>
-          <LEDGERNAME>${partyName}</LEDGERNAME>
-          <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-          <AMOUNT>${Math.abs(voucher.totalAmount)}</AMOUNT>
+          <AMOUNT>-${Math.abs(voucher.totalAmount)}</AMOUNT>
         </ALLLEDGERENTRIES.LIST>
         <ALLLEDGERENTRIES.LIST>
           <LEDGERNAME>${salesName}</LEDGERNAME>
           <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-          <AMOUNT>${-Math.abs(voucher.totalAmount)}</AMOUNT>
+          <AMOUNT>-${Math.abs(voucher.totalAmount)}</AMOUNT>
         </ALLLEDGERENTRIES.LIST>`;
-  }
 
   return `<ENVELOPE>
   <HEADER>

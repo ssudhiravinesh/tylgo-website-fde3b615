@@ -48,7 +48,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    const isTextField = ["name", "reference_name", "area", "state"].includes(field);
+    const isTextField = ["name", "reference_name", "area"].includes(field);
 
     setFormData(prev => ({
       ...prev,
@@ -58,7 +58,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     if (field === "pincode" && value.length === 6) {
       const detectedState = getStateByPincode(value);
       if (detectedState) {
-        setFormData(prev => ({ ...prev, state: detectedState.toUpperCase() }));
+        setFormData(prev => ({ ...prev, state: detectedState }));
         if (errors.state) {
           setErrors(prev => ({ ...prev, state: "" }));
         }

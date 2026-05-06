@@ -1,0 +1,15 @@
+{
+  "name": "tally-relay-jt",
+  "version": "2.1.0",
+  "description": "Tylgo → TallyPrime relay service with inventory support",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

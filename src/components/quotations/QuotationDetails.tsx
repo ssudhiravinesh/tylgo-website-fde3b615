@@ -55,6 +55,8 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         return "bg-green-100 text-green-800";
       case "draft":
         return "bg-yellow-100 text-yellow-800";
+      case "closed":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-muted text-foreground";
     }
@@ -132,8 +134,8 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         </div>
 
         <div className="flex gap-2">
-          {/* Tally Sync Button */}
-          {(!tallyStatus || tallyStatus === 'pending') && (
+          {/* Tally Sync Button — only visible for approved quotations */}
+          {quotation.status === 'approved' && (!tallyStatus || tallyStatus === 'pending') && (
             <Button
               onClick={() => queueForTally(quotation.id)}
               disabled={isQueuing}
@@ -144,7 +146,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
               {isQueuing ? 'Sending...' : 'Send to Billing'}
             </Button>
           )}
-          {tallyStatus === 'failed' && (
+          {quotation.status === 'approved' && tallyStatus === 'failed' && (
             <Button
               onClick={() => retryTallySync(quotation.id)}
               disabled={isRetrying}
