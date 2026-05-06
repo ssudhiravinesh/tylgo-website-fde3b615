@@ -7,8 +7,9 @@
  * the vertical surfaces (front face of each step).
  */
 
-import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { Dialog, DialogContent, DialogClose, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X } from "lucide-react";
 
 interface VisTile {
   id: string;
@@ -40,6 +41,18 @@ export const StaircaseVisualizer = ({
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [lastPinchDist, setLastPinchDist] = useState(0);
+  const sceneRef = useRef<HTMLDivElement>(null);
+
+  // Prevent browser-level pinch-zoom on the canvas (needs non-passive listener)
+  useEffect(() => {
+    const el = sceneRef.current;
+    if (!el) return;
+    const preventZoom = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    };
+    el.addEventListener("touchmove", preventZoom, { passive: false });
+    return () => el.removeEventListener("touchmove", preventZoom);
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -198,13 +211,18 @@ export const StaircaseVisualizer = ({
                 Drag to Rotate
               </span>
             </div>
+            <DialogClose className="ml-2 flex-shrink-0 rounded-full p-1.5 bg-muted/80 hover:bg-muted border border-border/40 transition-colors">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </DialogClose>
           </div>
         </DialogHeader>
 
         {/* 3D Scene Container */}
         <div
+          ref={sceneRef}
           className="relative w-full h-[65vh] overflow-hidden cursor-move bg-gradient-to-br from-[#eae6df] to-[#d8d4cd]"
-          style={{ perspective: "1200px" }}
+          style={{ perspective: "1200px", touchAction: "none" }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
