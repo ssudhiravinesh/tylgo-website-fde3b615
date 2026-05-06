@@ -29,16 +29,34 @@ export const RoomVisualizer = ({
   const [lastPinchDist, setLastPinchDist] = useState(0);
   const sceneRef = useRef<HTMLDivElement>(null);
 
-  // Prevent browser-level pinch-zoom on the canvas (needs non-passive listener)
+  // Prevent browser-level pinch-zoom while dialog is open (document-level)
   useEffect(() => {
-    const el = sceneRef.current;
-    if (!el) return;
-    const preventZoom = (e: TouchEvent) => {
+    if (!isOpen) return;
+
+    // Lock viewport to prevent browser zoom
+    const viewport = document.querySelector('meta[name="viewport"]');
+    const originalContent = viewport?.getAttribute("content") || "";
+    viewport?.setAttribute("content", "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no");
+
+    const preventTouchZoom = (e: TouchEvent) => {
       if (e.touches.length >= 2) e.preventDefault();
     };
-    el.addEventListener("touchmove", preventZoom, { passive: false });
-    return () => el.removeEventListener("touchmove", preventZoom);
-  }, []);
+    const preventGesture = (e: Event) => e.preventDefault();
+
+    document.addEventListener("touchmove", preventTouchZoom, { passive: false });
+    document.addEventListener("touchstart", preventTouchZoom, { passive: false });
+    document.addEventListener("gesturestart", preventGesture);
+    document.addEventListener("gesturechange", preventGesture);
+
+    return () => {
+      // Restore original viewport
+      viewport?.setAttribute("content", originalContent);
+      document.removeEventListener("touchmove", preventTouchZoom);
+      document.removeEventListener("touchstart", preventTouchZoom);
+      document.removeEventListener("gesturestart", preventGesture);
+      document.removeEventListener("gesturechange", preventGesture);
+    };
+  }, [isOpen]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
