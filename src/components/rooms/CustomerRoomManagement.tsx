@@ -444,6 +444,45 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                           <p className="text-xs text-muted-foreground">Risers</p>
                         </div>
                       </div>
+
+                      {/* Step & Riser Dimensions */}
+                      {(staircase.step_length || staircase.riser_height) && (
+                        <div className="space-y-2">
+                          {staircase.step_length && staircase.step_width && (
+                            <div className="bg-muted p-2 rounded-md border border-border">
+                              <div className="flex items-center gap-1 mb-1">
+                                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                                  <Footprints className="h-3 w-3" />
+                                  Step Dimensions
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground text-xs">Each step:</span>
+                                <span className="text-xs font-medium" style={{ fontFamily: "'Manrope', sans-serif", color: "black" }}>
+                                  {staircase.step_length} × {staircase.step_width} {staircase.unit || 'mm'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          {staircase.riser_height && staircase.riser_width && (
+                            <div className="bg-muted p-2 rounded-md border border-border">
+                              <div className="flex items-center gap-1 mb-1">
+                                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                                  <Calculator className="h-3 w-3" />
+                                  Riser Dimensions
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground text-xs">Each riser:</span>
+                                <span className="text-xs font-medium" style={{ fontFamily: "'Manrope', sans-serif", color: "black" }}>
+                                  {staircase.riser_height} × {staircase.riser_width} {staircase.unit || 'mm'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="pt-2 border-t border-border">
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-1">

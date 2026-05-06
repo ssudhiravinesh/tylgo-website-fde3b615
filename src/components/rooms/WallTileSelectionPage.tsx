@@ -458,7 +458,6 @@ export const WallTileSelectionPage = ({
     const drawWallTile = (x: number, y: number, tileData: Tile, layerIdx: number) => {
       if (tileData.image_url && tileData.image_url.trim() !== '') {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
 
         img.onload = () => {
           try {

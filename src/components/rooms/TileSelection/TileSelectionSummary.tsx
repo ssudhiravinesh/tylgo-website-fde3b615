@@ -30,13 +30,13 @@ interface TileCalcResult {
 interface StaircaseCalcResult {
   staircase: { name: string };
   stepTile?: {
-    tile: { code: string };
+    tile: { code: string; size_length?: number; size_breadth?: number; pieces_per_box?: number };
     tilesNeeded: number;
     boxesNeeded: number;
     totalPrice: number;
   };
   riserTile?: {
-    tile: { code: string };
+    tile: { code: string; size_length?: number; size_breadth?: number; pieces_per_box?: number };
     tilesNeeded: number;
     boxesNeeded: number;
     totalPrice: number;
@@ -209,7 +209,28 @@ export const TileSelectionSummary = ({
               </div>
 
               {/* Staircase breakdown */}
-              {staircaseCalculations.length > 0 && (
+              {staircaseCalculations.length > 0 && (() => {
+                // Helper: check if tile is 1:1 (square) — only square tiles come in boxes at ANUJ
+                const isTileSquare = (tile: { size_length?: number; size_breadth?: number }) => {
+                  const l = tile.size_length || 0;
+                  const b = tile.size_breadth || 0;
+                  if (l === 0 || b === 0) return false;
+                  const ratio = Math.max(l, b) / Math.min(l, b);
+                  return ratio < 1.15;
+                };
+
+                const formatQuantity = (
+                  tile: { size_length?: number; size_breadth?: number; pieces_per_box?: number },
+                  tilesNeeded: number,
+                  boxesNeeded: number
+                ) => {
+                  if (isTileSquare(tile)) {
+                    return `${tilesNeeded} tiles (${boxesNeeded} ${boxesNeeded === 1 ? 'box' : 'boxes'})`;
+                  }
+                  return `${tilesNeeded} tiles (loose)`;
+                };
+
+                return (
                 <div className="space-y-2 pt-2 border-t mt-2">
                   <h4 className="text-sm font-semibold text-orange-800">Staircases:</h4>
                   <div className="max-h-48 overflow-y-auto space-y-2">
@@ -221,7 +242,7 @@ export const TileSelectionSummary = ({
                           <div className="mb-2 pl-2 border-l-2 border-orange-200">
                             <p className="text-gray-600">Step: <span className="font-medium text-gray-900">{calc.stepTile.tile.code}</span></p>
                             <div className="flex justify-between text-gray-500 mt-0.5">
-                              <span>{calc.stepTile.tilesNeeded} tiles ({calc.stepTile.boxesNeeded} boxes)</span>
+                              <span>{formatQuantity(calc.stepTile.tile, calc.stepTile.tilesNeeded, calc.stepTile.boxesNeeded)}</span>
                               <span>₹{calc.stepTile.totalPrice.toLocaleString()}</span>
                             </div>
                           </div>
@@ -231,7 +252,7 @@ export const TileSelectionSummary = ({
                           <div className="pl-2 border-l-2 border-orange-200">
                             <p className="text-gray-600">Riser: <span className="font-medium text-gray-900">{calc.riserTile.tile.code}</span></p>
                             <div className="flex justify-between text-gray-500 mt-0.5">
-                              <span>{calc.riserTile.tilesNeeded} tiles ({calc.riserTile.boxesNeeded} boxes)</span>
+                              <span>{formatQuantity(calc.riserTile.tile, calc.riserTile.tilesNeeded, calc.riserTile.boxesNeeded)}</span>
                               <span>₹{calc.riserTile.totalPrice.toLocaleString()}</span>
                             </div>
                           </div>
@@ -240,7 +261,8 @@ export const TileSelectionSummary = ({
                     ))}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* Products breakdown */}
               {(productSelections.length > 0 || customerProducts.length > 0) && (

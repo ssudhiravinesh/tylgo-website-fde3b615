@@ -25,6 +25,8 @@ export const RoomVisualizer = ({
   const [isDragging, setIsDragging] = useState(false);
   const [rotation, setRotation] = useState({ x: -15, y: 35 });
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [lastPinchDist, setLastPinchDist] = useState(0);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -37,16 +39,63 @@ export const RoomVisualizer = ({
     const dy = e.clientY - startPos.y;
     
     setRotation(prev => ({
-      // Limit X rotation so we don't flip upside down
-      x: Math.max(-45, Math.min(15, prev.x - dy * 0.5)),
-      // Allow Y rotation to look around the room
-      y: Math.max(-20, Math.min(80, prev.y + dx * 0.5))
+      x: prev.x - dy * 0.5,
+      y: prev.y + dx * 0.5,
     }));
     
     setStartPos({ x: e.clientX, y: e.clientY });
   };
 
   const handleMouseUp = () => setIsDragging(false);
+
+  // Touch support (drag + pinch-to-zoom)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    } else if (e.touches.length === 2) {
+      setIsDragging(false);
+      const dist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
+      );
+      setLastPinchDist(dist);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
+      );
+      if (lastPinchDist > 0) {
+        const scale = dist / lastPinchDist;
+        setZoom((prev) => Math.max(0.3, Math.min(3, prev * scale)));
+      }
+      setLastPinchDist(dist);
+      return;
+    }
+    if (!isDragging || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - startPos.x;
+    const dy = e.touches[0].clientY - startPos.y;
+
+    setRotation((prev) => ({
+      x: prev.x - dy * 0.5,
+      y: prev.y + dx * 0.5,
+    }));
+
+    setStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    setLastPinchDist(0);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    setZoom((prev) => Math.max(0.3, Math.min(3, prev - e.deltaY * 0.002)));
+  };
 
   // Real-world scale factor: 400px (wall height in CSS) = 3000mm (standard 10ft wall)
   const SCALE = 400 / 3000;
@@ -123,9 +172,30 @@ export const RoomVisualizer = ({
                 {wallTile ? `Walls: ${wallTile.code}` : ''}
               </p>
             </div>
-            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 border border-primary/20 text-primary-dark">
-              Drag to Rotate
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center rounded-md border border-border/40 bg-muted/50">
+                <button
+                  onClick={() => setZoom((prev) => Math.max(0.3, prev - 0.15))}
+                  className="px-2 py-1 text-xs font-bold hover:bg-muted transition-colors rounded-l-md"
+                  aria-label="Zoom out"
+                >
+                  −
+                </button>
+                <span className="px-2 py-1 text-xs font-semibold text-muted-foreground border-x border-border/40 min-w-[3rem] text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  onClick={() => setZoom((prev) => Math.min(3, prev + 0.15))}
+                  className="px-2 py-1 text-xs font-bold hover:bg-muted transition-colors rounded-r-md"
+                  aria-label="Zoom in"
+                >
+                  +
+                </button>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 border border-primary/20 text-primary-dark">
+                Drag to Rotate
+              </span>
+            </div>
           </div>
         </DialogHeader>
 
@@ -137,13 +207,17 @@ export const RoomVisualizer = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onWheel={handleWheel}
         >
           {/* Room Coordinate System (800x400x600 Cuboid) */}
           <div 
             className="absolute top-1/2 left-1/2 w-[800px] h-[400px] -ml-[400px] -mt-[200px]"
             style={{
               transformStyle: 'preserve-3d',
-              transform: `translateZ(-400px) rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+              transform: `translateZ(-400px) scale(${zoom}) rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
               transition: isDragging ? 'none' : 'transform 0.1s ease-out'
             }}
           >
@@ -205,7 +279,7 @@ export const RoomVisualizer = ({
         {/* Footer */}
         <div className="px-6 py-3 border-t border-border/40 bg-card z-10 relative">
           <p className="text-xs text-muted-foreground text-center font-medium">
-            True CSS 3D Engine · Drag to look around · Seamless texture mapping
+            True CSS 3D Engine · Drag to look around · Scroll to zoom · Seamless texture mapping
           </p>
         </div>
       </DialogContent>
