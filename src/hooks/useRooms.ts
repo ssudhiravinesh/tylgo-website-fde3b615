@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getShowroomId } from './useShowroom';
+import type { CanvasCell, CanvasEdge } from '@/types/canvas.types';
 
 export interface MeasurementSet {
   id: number;
@@ -29,6 +30,11 @@ export interface Room {
   unit: 'metre' | 'inches' | 'mm' | 'feet';
   showroom_id?: string;
   created_at: string;
+
+  // Canvas grid drawing data (null for manual-input rooms)
+  canvas_cells?: CanvasCell[] | null;
+  canvas_edges?: CanvasEdge[] | null;
+  canvas_unit_ratio?: number | null;
 }
 
 export interface CreateRoomData {
@@ -44,6 +50,11 @@ export interface CreateRoomData {
   wall_measurements?: MeasurementSet[];
   unit: 'metre' | 'inches' | 'mm' | 'feet';
   room_type: 'room';
+
+  // Canvas grid drawing data
+  canvas_cells?: CanvasCell[];
+  canvas_edges?: CanvasEdge[];
+  canvas_unit_ratio?: number;
 }
 
 export interface UpdateRoomData extends CreateRoomData {

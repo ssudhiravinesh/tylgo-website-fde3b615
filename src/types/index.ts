@@ -12,6 +12,7 @@ export type { Room, MeasurementSet, CreateRoomData, UpdateRoomData, RoomTileSele
 export type { Tile } from './tile.types';
 export type { Staircase, StaircaseUnit, CreateStaircaseData, UpdateStaircaseData, StaircaseTileSelection as StaircaseDBTileSelection } from './staircase.types';
 export type { Product, RoomProductSelection } from './product.types';
+export type { CanvasCell, CanvasEdge, CanvasRoomShape } from './canvas.types';
 export type {
   Quotation,
   QuotationItem,

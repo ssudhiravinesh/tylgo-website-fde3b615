@@ -9,9 +9,12 @@ import { FeetInchInput } from "@/components/ui/feet-inches-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorUtils";
-import { Plus, Trash2, Ruler, Loader2, Layers } from "lucide-react";
+import { Plus, Trash2, Ruler, Loader2, Layers, PenTool } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Room } from "@/hooks/useRooms";
+import type { CanvasRoomShape } from "@/types/canvas.types";
+import { CanvasGrid } from "./CanvasGrid";
+import { calculateCanvasArea, calculateCanvasPerimeter, validateShape } from "@/utils/canvasShapeEngine";
 
 // Room name suggestions — no more FLOOR/WALL suffixes
 const DEFAULT_ROOM_OPTIONS = [
@@ -62,6 +65,10 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     has_floor: true,
     has_wall: false,
   });
+
+  // Canvas mode state
+  const [inputMode, setInputMode] = useState<'manual' | 'canvas'>('manual');
+  const [canvasShape, setCanvasShape] = useState<CanvasRoomShape | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   
@@ -118,6 +125,21 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         has_floor: room.has_floor,
         has_wall: room.has_wall,
       });
+
+      // Detect canvas-mode room and restore canvas state
+      if (room.canvas_cells && Array.isArray(room.canvas_cells) && room.canvas_cells.length > 0) {
+        setInputMode('canvas');
+        setCanvasShape({
+          cells: room.canvas_cells,
+          edges: room.canvas_edges ?? [],
+          unitRatio: room.canvas_unit_ratio ?? null,
+          height: room.wall_height ?? null,
+          unit: room.unit,
+        });
+      } else {
+        setInputMode('manual');
+        setCanvasShape(null);
+      }
       
       // Load floor measurements
       if (room.has_floor) {
@@ -156,6 +178,8 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         has_floor: true,
         has_wall: false,
       });
+      setInputMode('manual');
+      setCanvasShape(null);
       setFloorMeasurements([{ id: Date.now(), length: "", width: "" }]);
       setWallMeasurements([{ id: Date.now() + 1, length: "", width: "" }]);
     }
@@ -231,32 +255,76 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       return;
     }
 
-    // Validate enabled surfaces
-    if (formData.has_floor && !validateMeasurements(floorMeasurements, "floor")) return;
-    if (formData.has_wall && !validateMeasurements(wallMeasurements, "wall")) return;
+    // Canvas mode validation
+    if (inputMode === 'canvas' && formData.has_floor && canvasShape) {
+      const validation = validateShape(canvasShape);
+      if (!validation.valid) {
+        validation.errors.forEach(err => toast.error(err));
+        return;
+      }
+    }
+
+    // Manual mode validation
+    if (inputMode === 'manual') {
+      if (formData.has_floor && !validateMeasurements(floorMeasurements, "floor")) return;
+    }
+    if (formData.has_wall && inputMode === 'manual' && !validateMeasurements(wallMeasurements, "wall")) return;
 
     setIsLoading(true);
 
     try {
-      const roomData = {
-        name: formData.name.trim().toUpperCase(),
-        customer_id: customerId,
-        unit: formData.unit,
-        room_type: 'room' as const,
-        has_floor: formData.has_floor,
-        has_wall: formData.has_wall,
-        
-        // Floor dimensions (aggregated total area as length, width=1)
-        length: formData.has_floor ? floorArea : 0,
-        width: formData.has_floor ? 1 : 0,
-        measurements: formData.has_floor ? floorMeasurements : undefined,
-        
-        // Wall dimensions: wall_length = perimeter, wall_height = actual height
-        // NOT aggregated area — the layer calculator needs real height for row count
-        wall_length: formData.has_wall ? parseFloat(wallMeasurements[0]?.length || '0') : undefined,
-        wall_height: formData.has_wall ? parseFloat(wallMeasurements[0]?.width || '0') : undefined,
-        wall_measurements: formData.has_wall ? wallMeasurements : undefined,
-      };
+      let roomData;
+
+      if (inputMode === 'canvas' && canvasShape && formData.has_floor) {
+        // Canvas mode: derive backwards-compatible fields from canvas shape
+        const canvasArea = calculateCanvasArea(canvasShape);
+        const canvasPerimeter = calculateCanvasPerimeter(canvasShape);
+        const hasWall = canvasShape.height != null && canvasShape.height > 0;
+
+        roomData = {
+          name: formData.name.trim().toUpperCase(),
+          customer_id: customerId,
+          unit: formData.unit,
+          room_type: 'room' as const,
+          has_floor: true,
+          has_wall: hasWall,
+          // Backwards-compatible: existing tile calculators use length × width
+          length: canvasArea,
+          width: 1,
+          measurements: undefined as undefined,
+          // Wall dimensions from canvas perimeter + height
+          wall_length: hasWall ? canvasPerimeter : undefined as number | undefined,
+          wall_height: hasWall ? canvasShape.height! : undefined as number | undefined,
+          wall_measurements: undefined as undefined,
+          // Canvas-specific columns
+          canvas_cells: canvasShape.cells,
+          canvas_edges: canvasShape.edges,
+          canvas_unit_ratio: canvasShape.unitRatio ?? undefined,
+        };
+      } else {
+        // Manual mode: existing logic
+        roomData = {
+          name: formData.name.trim().toUpperCase(),
+          customer_id: customerId,
+          unit: formData.unit,
+          room_type: 'room' as const,
+          has_floor: formData.has_floor,
+          has_wall: formData.has_wall,
+          // Floor dimensions (aggregated total area as length, width=1)
+          length: formData.has_floor ? floorArea : 0,
+          width: formData.has_floor ? 1 : 0,
+          measurements: formData.has_floor ? floorMeasurements : undefined,
+          // Wall dimensions: wall_length = perimeter, wall_height = actual height
+          // NOT aggregated area — the layer calculator needs real height for row count
+          wall_length: formData.has_wall ? parseFloat(wallMeasurements[0]?.length || '0') : undefined,
+          wall_height: formData.has_wall ? parseFloat(wallMeasurements[0]?.width || '0') : undefined,
+          wall_measurements: formData.has_wall ? wallMeasurements : undefined,
+          // Clear canvas columns when switching to manual
+          canvas_cells: undefined as undefined,
+          canvas_edges: undefined as undefined,
+          canvas_unit_ratio: undefined as undefined,
+        };
+      }
 
       if (room) {
         await updateRoomMutation.mutateAsync({
@@ -446,14 +514,24 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
   };
 
   // Check if form can submit
+  const canvasReady = inputMode === 'canvas' && canvasShape
+    ? canvasShape.cells.length > 0 && canvasShape.unitRatio !== null
+    : false;
+
   const canSubmit = formData.name.trim().length > 0 &&
     (formData.has_floor || formData.has_wall) &&
-    (!formData.has_floor || floorArea > 0) &&
-    (!formData.has_wall || wallArea > 0);
+    (
+      inputMode === 'canvas'
+        ? canvasReady
+        : (
+            (!formData.has_floor || floorArea > 0) &&
+            (!formData.has_wall || wallArea > 0)
+          )
+    );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`max-h-[90vh] overflow-y-auto ${inputMode === 'canvas' ? 'sm:max-w-2xl' : 'sm:max-w-lg'}`}>
         <DialogHeader>
           <DialogTitle>
             {room ? "Edit Room" : "Add New Room"}
@@ -548,58 +626,104 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                   <Layers className="h-4 w-4 text-primary" />
                   Floor Surface
                 </Label>
-                {formData.has_floor && floorArea > 0 && (
+                {formData.has_floor && inputMode === 'manual' && floorArea > 0 && (
                   <span className="ml-auto text-xs font-medium text-primary">
                     {floorArea.toFixed(2)} {formData.unit}²
+                  </span>
+                )}
+                {formData.has_floor && inputMode === 'canvas' && canvasShape?.unitRatio !== null && canvasShape?.unitRatio !== undefined && (
+                  <span className="ml-auto text-xs font-medium text-primary">
+                    {calculateCanvasArea(canvasShape).toFixed(2)} {formData.unit}²
                   </span>
                 )}
               </div>
               
               {formData.has_floor && (
                 <div className="px-3 pb-3 pt-1 border-t border-border/50">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-muted-foreground">Floor Dimensions</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
-                    </span>
+                  {/* Mode Toggle */}
+                  <div className="flex gap-1 bg-muted p-1 rounded-lg mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setInputMode('manual')}
+                      className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                        inputMode === 'manual'
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Ruler className="h-3 w-3" />
+                      Manual Input
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInputMode('canvas')}
+                      className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                        inputMode === 'canvas'
+                          ? 'bg-background shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <PenTool className="h-3 w-3" />
+                      Draw on Grid
+                    </button>
                   </div>
-                  {renderMeasurementSection('floor', floorMeasurements, 'Length', 'Width')}
+
+                  {inputMode === 'manual' ? (
+                    <>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs text-muted-foreground">Floor Dimensions</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
+                        </span>
+                      </div>
+                      {renderMeasurementSection('floor', floorMeasurements, 'Length', 'Width')}
+                    </>
+                  ) : (
+                    <CanvasGrid
+                      unit={formData.unit}
+                      initialShape={canvasShape ?? undefined}
+                      onShapeChange={setCanvasShape}
+                      disabled={isLoading}
+                    />
+                  )}
                 </div>
               )}
             </div>
 
-            {/* --- Wall Surface Section --- */}
-            <div className={`rounded-lg border transition-colors ${formData.has_wall ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
-              <div className="flex items-center gap-3 p-3">
-                <Checkbox
-                  id="has_wall"
-                  checked={formData.has_wall}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_wall: checked === true }))}
-                  disabled={isLoading}
-                />
-                <Label htmlFor="has_wall" className="flex items-center gap-2 cursor-pointer text-sm font-semibold">
-                  <Layers className="h-4 w-4 text-primary" />
-                  Wall Surface
-                </Label>
-                {formData.has_wall && wallArea > 0 && (
-                  <span className="ml-auto text-xs font-medium text-primary">
-                    {wallArea.toFixed(2)} {formData.unit}²
-                  </span>
+            {/* --- Wall Surface Section (hidden in canvas mode — height is inside canvas) --- */}
+            {inputMode === 'manual' && (
+              <div className={`rounded-lg border transition-colors ${formData.has_wall ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
+                <div className="flex items-center gap-3 p-3">
+                  <Checkbox
+                    id="has_wall"
+                    checked={formData.has_wall}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_wall: checked === true }))}
+                    disabled={isLoading}
+                  />
+                  <Label htmlFor="has_wall" className="flex items-center gap-2 cursor-pointer text-sm font-semibold">
+                    <Layers className="h-4 w-4 text-primary" />
+                    Wall Surface
+                  </Label>
+                  {formData.has_wall && wallArea > 0 && (
+                    <span className="ml-auto text-xs font-medium text-primary">
+                      {wallArea.toFixed(2)} {formData.unit}²
+                    </span>
+                  )}
+                </div>
+                
+                {formData.has_wall && (
+                  <div className="px-3 pb-3 pt-1 border-t border-border/50">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-muted-foreground">Wall Dimensions</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
+                      </span>
+                    </div>
+                    {renderMeasurementSection('wall', wallMeasurements, 'Wall Perimeter', 'Wall Height', true)}
+                  </div>
                 )}
               </div>
-              
-              {formData.has_wall && (
-                <div className="px-3 pb-3 pt-1 border-t border-border/50">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-muted-foreground">Wall Dimensions</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
-                    </span>
-                  </div>
-                  {renderMeasurementSection('wall', wallMeasurements, 'Wall Perimeter', 'Wall Height', true)}
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Validation hint */}
             {!formData.has_floor && !formData.has_wall && (

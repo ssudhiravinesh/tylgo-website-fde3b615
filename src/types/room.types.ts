@@ -1,3 +1,5 @@
+import type { CanvasCell, CanvasEdge } from './canvas.types';
+
 export type UnitType = 'metre' | 'inches' | 'mm' | 'feet';
 
 export interface MeasurementSet {
@@ -27,6 +29,11 @@ export interface Room {
   unit: UnitType;
   showroom_id?: string;
   created_at: string;
+
+  // Canvas grid drawing data (null for manual-input rooms)
+  canvas_cells?: CanvasCell[] | null;
+  canvas_edges?: CanvasEdge[] | null;
+  canvas_unit_ratio?: number | null;
 }
 
 export interface CreateRoomData {
@@ -44,6 +51,11 @@ export interface CreateRoomData {
   wall_measurements?: MeasurementSet[];
   unit: UnitType;
   room_type: 'room';
+
+  // Canvas grid drawing data
+  canvas_cells?: CanvasCell[];
+  canvas_edges?: CanvasEdge[];
+  canvas_unit_ratio?: number;
 }
 
 export interface UpdateRoomData extends CreateRoomData {

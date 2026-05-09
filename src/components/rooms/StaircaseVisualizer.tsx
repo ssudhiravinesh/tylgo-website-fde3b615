@@ -273,13 +273,13 @@ export const StaircaseVisualizer = ({
                 <div
                   key={stepIndex}
                   style={{
-                    transformStyle: "preserve-3d",
                     position: "absolute",
-                    left: 0,
-                    bottom: 0,
                     width: `${STEP_LENGTH}px`,
                     height: `${RISER_HEIGHT}px`,
-                    transform: `translateY(-${yOffset}px) translateZ(${zOffset}px)`,
+                    bottom: `${yOffset}px`,
+                    left: 0,
+                    transformStyle: "preserve-3d",
+                    transform: `translateZ(${zOffset}px)`,
                   }}
                 >
                   {/* STEP TOP (horizontal surface - where you walk) */}

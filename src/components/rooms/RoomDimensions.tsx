@@ -7,9 +7,12 @@
  * Updated for unified room model: rooms can have both floor and wall surfaces.
  */
 
-import { Layers, Ruler } from "lucide-react";
+import { Layers, Ruler, PenTool } from "lucide-react";
 import { formatArea, decimalFeetToFeetInches, calculateAreaInSquareFeet } from "@/utils/unitConversions";
+import { Badge } from "@/components/ui/badge";
 import type { Room } from "@/hooks/useRooms";
+import type { CanvasCell } from "@/types/canvas.types";
+import { calculateCanvasArea, calculateCanvasPerimeter } from "@/utils/canvasShapeEngine";
 
 interface RoomDimensionsProps {
   room: Room;
@@ -117,6 +120,15 @@ export const RoomDimensions = ({ room, variant = 'compact', surface = 'both' }: 
     );
   };
 
+  // ── Canvas-mode display ────────────────────────────────────────────────────
+  const isCanvasRoom =
+    room.canvas_cells && Array.isArray(room.canvas_cells) && room.canvas_cells.length > 0;
+
+  if (isCanvasRoom) {
+    return <CanvasRoomDisplay room={room} variant={variant} />;
+  }
+
+  // ── Manual-mode display (existing logic) ──────────────────────────────────
   return (
     <div className="space-y-2">
       {/* Floor dimensions */}
@@ -143,3 +155,101 @@ export const RoomDimensions = ({ room, variant = 'compact', surface = 'both' }: 
     </div>
   );
 };
+
+// ─── Canvas Room Display Sub-component ──────────────────────────────────────
+
+function CanvasRoomDisplay({ room, variant }: { room: Room; variant: 'compact' | 'detailed' }) {
+  const cells = room.canvas_cells as CanvasCell[];
+  const unitAbbr =
+    room.unit === 'feet' ? 'ft' : room.unit === 'metre' ? 'm' : room.unit === 'inches' ? 'in' : 'mm';
+
+  // Build canvas shape for calculations
+  const shape = {
+    cells,
+    edges: (room.canvas_edges ?? []) as any[],
+    unitRatio: room.canvas_unit_ratio ?? null,
+    height: room.wall_height ?? null,
+    unit: room.unit,
+  };
+
+  const area = calculateCanvasArea(shape);
+  const perimeter = calculateCanvasPerimeter(shape);
+
+  // Compute bounding box for SVG mini-preview
+  let minRow = Infinity, maxRow = -Infinity;
+  let minCol = Infinity, maxCol = -Infinity;
+  for (const { row, col } of cells) {
+    minRow = Math.min(minRow, row);
+    maxRow = Math.max(maxRow, row);
+    minCol = Math.min(minCol, col);
+    maxCol = Math.max(maxCol, col);
+  }
+  const gridW = maxCol - minCol + 1;
+  const gridH = maxRow - minRow + 1;
+
+
+  const svgCellSize = variant === 'detailed' ? 8 : 6;
+  const svgGap = 1;
+  const svgW = gridW * (svgCellSize + svgGap) - svgGap;
+  const svgH = gridH * (svgCellSize + svgGap) - svgGap;
+
+  return (
+    <div className="space-y-2">
+      {/* Badge + Mini shape */}
+      <div className="flex items-start gap-2">
+        <svg
+          width={svgW}
+          height={svgH}
+          viewBox={`0 0 ${svgW} ${svgH}`}
+          className="shrink-0 mt-0.5"
+          aria-label="Room shape preview"
+        >
+          {cells.map(({ row, col }) => (
+            <rect
+              key={`${row}-${col}`}
+              x={(col - minCol) * (svgCellSize + svgGap)}
+              y={(row - minRow) * (svgCellSize + svgGap)}
+              width={svgCellSize}
+              height={svgCellSize}
+              rx={1}
+              className="fill-primary/30 stroke-primary/50"
+              strokeWidth={0.5}
+            />
+          ))}
+        </svg>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-1">
+              <PenTool className="h-2.5 w-2.5" />
+              Canvas
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Area</span>
+              <span className="text-xs font-bold text-foreground tabular-nums">
+                {area.toFixed(2)} {unitAbbr}²
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Perimeter</span>
+              <span className="text-xs font-bold text-foreground tabular-nums">
+                {perimeter.toFixed(2)} {unitAbbr}
+              </span>
+            </div>
+            {room.wall_height && room.wall_height > 0 && (
+              <div className="flex flex-col col-span-2 mt-0.5">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Wall Height</span>
+                <span className="text-xs font-bold text-foreground tabular-nums">
+                  {room.unit === 'feet' ? decimalFeetToFeetInches(room.wall_height) : `${room.wall_height} ${unitAbbr}`}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
