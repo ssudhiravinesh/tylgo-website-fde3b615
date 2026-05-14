@@ -195,14 +195,12 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
             <ISINVOICE>Yes</ISINVOICE>
             <VOUCHERNUMBER>${escapeXml(quotation.quotation_number)}</VOUCHERNUMBER>
             <NARRATION>${escapeXml(fullNarration)}</NARRATION>
-            <PARTYLEDGERNAME>${partyName}</PARTYLEDGERNAME>${inventoryXml}
-            <LEDGERENTRIES.LIST>
+            <PARTYLEDGERNAME>${partyName}</PARTYLEDGERNAME>
+            <ALLLEDGERENTRIES.LIST>
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
-              <ISLASTDEEMEDPOSITIVE>Yes</ISLASTDEEMEDPOSITIVE>
               <AMOUNT>-${partyTotal.toFixed(2)}</AMOUNT>
-            </LEDGERENTRIES.LIST>
+            </ALLLEDGERENTRIES.LIST>${inventoryXml}
           </VOUCHER>
         </TALLYMESSAGE>
       </REQUESTDATA>
