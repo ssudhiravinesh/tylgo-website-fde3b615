@@ -187,11 +187,9 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
       </REQUESTDESC>
       <REQUESTDATA>
         <TALLYMESSAGE xmlns:UDF="TallyUDF">
-          <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Invoice Voucher View">
+          <VOUCHER VCHTYPE="Sales" ACTION="Create">
             <DATE>${dateStr}</DATE>
             <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
-            <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>
-            <VCHENTRYMODE>Item Invoice</VCHENTRYMODE>
             <ISINVOICE>Yes</ISINVOICE>
             <VOUCHERNUMBER>${escapeXml(quotation.quotation_number)}</VOUCHERNUMBER>
             <NARRATION>${escapeXml(fullNarration)}</NARRATION>
@@ -199,6 +197,11 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
             <ALLLEDGERENTRIES.LIST>
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>${partyTotal.toFixed(2)}</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>${salesLedger}</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
               <AMOUNT>${partyTotal.toFixed(2)}</AMOUNT>
             </ALLLEDGERENTRIES.LIST>${inventoryXml}
           </VOUCHER>
