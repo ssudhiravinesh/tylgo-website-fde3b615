@@ -252,7 +252,7 @@ export function CanvasGrid({ initialShape, unit, onShapeChange, disabled }: Canv
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-3" ref={containerRef}>
+    <div data-canvas-form className="space-y-4" ref={containerRef}>
       <CanvasToolbar cellCount={cells.size} onClear={handleClear} onUndo={handleUndo} canUndo={history.length > 0} disabled={disabled} />
 
       <div

@@ -78,17 +78,16 @@ export function CanvasAreaSummary({
               }}
               placeholder="0 0"
               disabled={disabled}
+              data-height-input="true"
             />
           ) : (
             <Input
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="any"
-              min="0"
-              value={shape.height !== null ? shape.height : ''}
+              value={shape.height !== null ? String(shape.height) : ''}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === '') {
+                if (val === '' || val === '.') {
                   onHeightChange(null);
                 } else {
                   const parsed = parseFloat(val);
@@ -97,7 +96,8 @@ export function CanvasAreaSummary({
               }}
               placeholder={unitAbbr}
               disabled={disabled}
-              className="h-8 text-xs"
+              data-height-input="true"
+              className="h-8 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           )}
         </div>

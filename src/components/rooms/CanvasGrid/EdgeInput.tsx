@@ -22,6 +22,17 @@ export function EdgeList({ edges, unitRatio, unit, onMeasure, disabled }: EdgeLi
   const hEdges = edges.filter(e => e.direction === 'h');
   const vEdges = edges.filter(e => e.direction === 'v');
 
+  // Interleave H and V edges row-by-row so Tab order is H1→V1→H2→V2→…
+  // This matches the natural eye-scan and Tally-style keyboard navigation.
+  const maxLen = Math.max(hEdges.length, vEdges.length);
+  const rows = Array.from({ length: maxLen }, (_, i) => ({
+    h: hEdges[i] ?? null,
+    v: vEdges[i] ?? null,
+  }));
+
+  const hasH = hEdges.length > 0;
+  const hasV = vEdges.length > 0;
+
   return (
     <div className="space-y-2">
       <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -30,34 +41,40 @@ export function EdgeList({ edges, unitRatio, unit, onMeasure, disabled }: EdgeLi
           <span className="text-primary animate-pulse text-[10px] font-normal">— enter one to set the scale</span>
         )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Horizontal sides column */}
-        {hEdges.length > 0 && (
-          <div className="space-y-1.5">
+
+      {/* Column headers */}
+      {(hasH || hasV) && (
+        <div data-edge-list className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {hasH && (
             <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pb-0.5 border-b border-border/40">
-              <span className="text-primary">↔</span>
-              Horizontal Sides
+              <span className="text-primary">↔</span> Horizontal Sides
             </div>
-            {hEdges.map(edge => (
-              <EdgeRow key={edge.id} edge={edge} unitRatio={unitRatio} dims={dims} unitAbbr={unitAbbr}
-                isFirstUnmeasured={isFirstUnmeasured} onMeasure={onMeasure} disabled={disabled} />
-            ))}
-          </div>
-        )}
-        {/* Vertical sides column */}
-        {vEdges.length > 0 && (
-          <div className="space-y-1.5">
+          )}
+          {hasV && (
             <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pb-0.5 border-b border-border/40">
-              <span className="text-primary">↕</span>
-              Vertical Sides
+              <span className="text-primary">↕</span> Vertical Sides
             </div>
-            {vEdges.map(edge => (
-              <EdgeRow key={edge.id} edge={edge} unitRatio={unitRatio} dims={dims} unitAbbr={unitAbbr}
+          )}
+        </div>
+      )}
+
+      {/* Interleaved rows — DOM order: H1, V1, H2, V2, … for correct Tab flow */}
+      {rows.map((row, i) => (
+        <div key={i} data-edge-list className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            {row.h && (
+              <EdgeRow edge={row.h} unitRatio={unitRatio} dims={dims} unitAbbr={unitAbbr}
                 isFirstUnmeasured={isFirstUnmeasured} onMeasure={onMeasure} disabled={disabled} />
-            ))}
+            )}
           </div>
-        )}
-      </div>
+          <div>
+            {row.v && (
+              <EdgeRow edge={row.v} unitRatio={unitRatio} dims={dims} unitAbbr={unitAbbr}
+                isFirstUnmeasured={isFirstUnmeasured} onMeasure={onMeasure} disabled={disabled} />
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -86,7 +103,52 @@ function EdgeRow({ edge, unitRatio, dims, unitAbbr, isFirstUnmeasured, onMeasure
   }, [localValue, edge.id, onMeasure]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') { e.preventDefault(); commitValue(); inputRef.current?.blur(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitValue();
+      inputRef.current?.blur();
+    } else if (e.key === 'Tab') {
+      // Prevent default tab so we can commit first, then manually move focus.
+      // Without this, blur fires → onMeasure → re-render → browser loses track of next focusable.
+      e.preventDefault();
+      commitValue();
+
+      // Find all edge inputs by walking up to the nearest [data-edge-list] ancestors
+      // then querying the shared parent that contains all of them.
+      const current = inputRef.current;
+      if (!current) return;
+
+      // Walk up to find the outermost edge-list section (the space-y-2 div)
+      let container: HTMLElement | null = current.parentElement;
+      while (container && !container.dataset.edgeList) {
+        const parent = container.parentElement;
+        // Keep going up until we find a data-edge-list ancestor or the section root
+        if (parent && (parent.dataset.edgeList || parent.querySelector('[data-edge-list]') === container)) {
+          container = parent.closest('[class*="space-y-2"]') ?? parent;
+          break;
+        }
+        container = parent;
+      }
+
+      // Collect all inputs inside the edge measurements section
+      const section = current.closest('.space-y-2');
+      if (!section) return;
+      const inputs = Array.from(section.querySelectorAll<HTMLInputElement>('input:not([disabled])'));
+      const idx = inputs.indexOf(current);
+      const next = e.shiftKey ? inputs[idx - 1] : inputs[idx + 1];
+      if (next) {
+        // Use setTimeout to let any React state update settle before focusing
+        setTimeout(() => next.focus(), 0);
+      } else if (!e.shiftKey) {
+        // Last edge input — fall through to the height input in CanvasAreaSummary.
+        // We use document.querySelector because commitValue() might trigger a React re-render
+        // that briefly detaches `current` from the DOM before closest() can find the ancestor.
+        const heightInput = document.querySelector<HTMLInputElement>('[data-height-input]');
+        if (heightInput) {
+          setTimeout(() => heightInput.focus(), 0);
+        }
+      }
+    }
   };
 
   const isHorizontal = edge.direction === 'h';
@@ -108,14 +170,13 @@ function EdgeRow({ edge, unitRatio, dims, unitAbbr, isFirstUnmeasured, onMeasure
           {edge.cells} cell{edge.cells > 1 ? 's' : ''}
         </span>
       </div>
-      <input ref={inputRef} type="number" inputMode="decimal" step="any" min="0"
+      <input ref={inputRef} type="text" inputMode="decimal"
         value={localValue} onChange={e => setLocalValue(e.target.value)}
         onBlur={commitValue} onKeyDown={handleKeyDown} disabled={disabled}
         placeholder={derivedValue ?? unitAbbr}
         className={`flex-1 h-7 min-w-0 text-xs text-center font-medium rounded border bg-background shadow-sm
           outline-none transition-all duration-150 placeholder:text-muted-foreground/40
           focus:ring-2 focus:ring-primary/40 focus:border-primary disabled:opacity-40
-          [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
           ${isFirstUnmeasured && !hasValue ? 'border-primary/50 ring-1 ring-primary/20' : hasValue ? 'border-primary/30 font-semibold' : 'border-border/60'}`}
       />
       <span className="text-[10px] text-muted-foreground font-medium min-w-[16px]">{unitAbbr}</span>

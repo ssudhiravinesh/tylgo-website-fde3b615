@@ -338,13 +338,13 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       }
       
       onClose();
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error("Error saving room:", error);
       const msg = getErrorMessage(error, 'Failed to save room');
-      if (msg.includes('duplicate') || (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === '23505')) {
+      if (msg.includes('duplicate') || (error && error.code === '23505')) {
         toast.error("A room with this name already exists for this customer");
       } else {
-        toast.error("Failed to save room");
+        toast.error(error?.message || msg || "Failed to save room");
       }
     } finally {
       setIsLoading(false);

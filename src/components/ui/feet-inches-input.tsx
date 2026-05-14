@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 
-interface FeetInchInputProps {
+interface FeetInchInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -12,7 +12,8 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
   value,
   onChange,
   placeholder = "20 5",
-  disabled = false
+  disabled = false,
+  ...props
 }) => {
   const [inputValue, setInputValue] = useState<string>('');
 
@@ -123,6 +124,7 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
           placeholder={placeholder}
           disabled={disabled}
           className="font-mono"
+          {...props}
         />
         {inputValue && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-xs text-muted-foreground">
