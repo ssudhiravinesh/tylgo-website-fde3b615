@@ -260,18 +260,91 @@ export interface CellDimensions {
 }
 
 /**
+ * Solve a set of linear constraints over integer-indexed variables.
+ *
+ * Each constraint says: sum of variables[indices[i]] = total.
+ * Uses iterative propagation:
+ *   Phase 1 — Solve any constraint with exactly 1 unknown (direct solve).
+ *   Phase 2 — When stuck, distribute remaining unknowns evenly for the
+ *             shortest partially-unknown constraint (heuristic for
+ *             under-determined systems), then loop back to Phase 1.
+ *
+ * Guarantees convergence because each Phase-2 step reduces the unknown
+ * count by at least 1, and Phase 1 never increases it.
+ */
+function solveLinearConstraints(
+  constraints: Array<{ indices: number[]; total: number }>,
+  values: Map<number, number>
+): void {
+  const MAX_ITER = 50;
+  let iter = 0;
+
+  while (iter < MAX_ITER) {
+    iter++;
+
+    // ── Phase 1: Exact solves (constraints with exactly 1 unknown) ──
+    let exactProgress = true;
+    while (exactProgress) {
+      exactProgress = false;
+      for (const constraint of constraints) {
+        let knownSum = 0;
+        const unknowns: number[] = [];
+        for (const idx of constraint.indices) {
+          if (values.has(idx)) knownSum += values.get(idx)!;
+          else unknowns.push(idx);
+        }
+        if (unknowns.length === 1) {
+          values.set(unknowns[0], constraint.total - knownSum);
+          exactProgress = true;
+        }
+      }
+    }
+
+    // ── Phase 2: Distribute evenly for the shortest unsolved constraint ──
+    let bestConstraint: { indices: number[]; total: number } | null = null;
+    let bestUnknowns: number[] = [];
+    let bestKnownSum = 0;
+
+    for (const constraint of constraints) {
+      let knownSum = 0;
+      const unknowns: number[] = [];
+      for (const idx of constraint.indices) {
+        if (values.has(idx)) knownSum += values.get(idx)!;
+        else unknowns.push(idx);
+      }
+      // Need at least 2 unknowns (1-unknown case was handled in Phase 1)
+      if (unknowns.length >= 2 && (!bestConstraint || unknowns.length < bestUnknowns.length)) {
+        bestConstraint = constraint;
+        bestUnknowns = unknowns;
+        bestKnownSum = knownSum;
+      }
+    }
+
+    if (!bestConstraint) break; // All constraints satisfied or no progress possible
+
+    const remaining = bestConstraint.total - bestKnownSum;
+    const perVar = remaining / bestUnknowns.length;
+    for (const idx of bestUnknowns) values.set(idx, perVar);
+    // Loop back — Phase 1 may now be able to solve more
+  }
+}
+
+/**
  * Compute per-column widths and per-row heights from edge measurements.
  *
- * Uses a constraint approach:
- * 1. Process edges in order (first entered → first processed)
- * 2. For each edge with a measurement, check which cols/rows are already set
- * 3. Distribute the REMAINING length to un-set cols/rows
+ * Uses iterative constraint propagation:
+ * 1. Each measured horizontal edge → constraint: Σ colWidth[c] = edge.length
+ * 2. Each measured vertical edge → constraint: Σ rowHeight[r] = edge.length
+ * 3. Solve each axis independently using solveLinearConstraints()
  * 4. Un-covered cols/rows fall back to unitRatio
  *
- * Example: L-shape with 3 cells = 8 ft (top), 5 cells = 12 ft (bottom):
- *   - Top: cols A,B,C each → 8/3 ft
- *   - Bottom: cols A,B,C already set (= 8 ft), D,E get (12-8)/2 = 2 ft each
- *   - Step edge (D,E): derived = 2+2 = 4 ft ← this is what the user expects
+ * This correctly handles L-shapes and composite rooms where the old
+ * sequential single-pass approach produced inconsistent column widths.
+ *
+ * Example: L-shape with edges H1(cols 3-6) = 12ft, H2(cols 3-7) = 15ft:
+ *   Phase 1: no 1-unknown constraints
+ *   Phase 2: H1 is shortest → cols 3,4,5 = 4ft each
+ *   Phase 1: H2 has 1 unknown (col 6) → col 6 = 15 - 12 = 3ft ✓
  */
 export function computeCellDimensions(
   edges: CanvasEdge[],
@@ -280,42 +353,31 @@ export function computeCellDimensions(
   const colWidths = new Map<number, number>();
   const rowHeights = new Map<number, number>();
 
+  // Build constraints from measured edges
+  const colConstraints: Array<{ indices: number[]; total: number }> = [];
+  const rowConstraints: Array<{ indices: number[]; total: number }> = [];
+
   for (const edge of edges) {
     if (edge.length === null) continue;
 
     if (edge.direction === 'h') {
-      // Find which columns in this edge's span are already set
-      let consumed = 0;
-      let unsetCols: number[] = [];
-      for (let c = edge.startCol; c < edge.endCol; c++) {
-        if (colWidths.has(c)) {
-          consumed += colWidths.get(c)!;
-        } else {
-          unsetCols.push(c);
-        }
-      }
-      if (unsetCols.length > 0) {
-        const remaining = edge.length - consumed;
-        const perCol = remaining / unsetCols.length;
-        for (const c of unsetCols) colWidths.set(c, perCol);
-      }
+      const indices: number[] = [];
+      for (let c = edge.startCol; c < edge.endCol; c++) indices.push(c);
+      colConstraints.push({ indices, total: edge.length });
     } else {
-      let consumed = 0;
-      let unsetRows: number[] = [];
-      for (let r = edge.startRow; r < edge.endRow; r++) {
-        if (rowHeights.has(r)) {
-          consumed += rowHeights.get(r)!;
-        } else {
-          unsetRows.push(r);
-        }
-      }
-      if (unsetRows.length > 0) {
-        const remaining = edge.length - consumed;
-        const perRow = remaining / unsetRows.length;
-        for (const r of unsetRows) rowHeights.set(r, perRow);
-      }
+      const indices: number[] = [];
+      for (let r = edge.startRow; r < edge.endRow; r++) indices.push(r);
+      rowConstraints.push({ indices, total: edge.length });
     }
   }
+
+  // Sort by span length — shorter constraints are more constrained, solve first
+  colConstraints.sort((a, b) => a.indices.length - b.indices.length);
+  rowConstraints.sort((a, b) => a.indices.length - b.indices.length);
+
+  // Solve each axis independently
+  solveLinearConstraints(colConstraints, colWidths);
+  solveLinearConstraints(rowConstraints, rowHeights);
 
   return { colWidths, rowHeights };
 }

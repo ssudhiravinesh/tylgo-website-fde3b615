@@ -476,8 +476,14 @@ async function fetchAndAggregateItems(quotationId) {
     const totalPrice = parseFloat(item.total_price) || 0;
     const pricePerBox = parseFloat(item.price_per_box) || 0;
     const tileCode = item.tiles?.code || 'Unknown';
-    // Use tile.name directly as Tally stock item name
-    const tallyStockName = item.tiles?.name || null;
+    const tileName = item.tiles?.name || '';
+    // Construct Tally stock name as: "{tile.code} {PRE nT suffix}"
+    // e.g. code="JF 1200X600 PGVT 24001", name="PGVT 24001 PRE 2T"
+    //   → Tally stock name = "JF 1200X600 PGVT 24001 PRE 2T"
+    const preMatch = tileName.match(/(PRE\s+\d+T.*)$/i);
+    const tallyStockName = tileCode && preMatch
+      ? `${tileCode} ${preMatch[1]}`
+      : (tileName || null);
 
     if (tileMap.has(tileId)) {
       const existing = tileMap.get(tileId);
