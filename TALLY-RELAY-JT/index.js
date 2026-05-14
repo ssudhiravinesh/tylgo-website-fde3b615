@@ -161,14 +161,14 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
               <ISPRIMARYITEM>No</ISPRIMARYITEM>
               <ISSCRAP>No</ISSCRAP>
               <RATE>${effectiveRate.toFixed(2)}/BOX</RATE>
-              <AMOUNT>${amount.toFixed(2)}</AMOUNT>
+              <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
               <ACTUALQTY> ${boxes.toFixed(2)} BOX</ACTUALQTY>
               <BILLEDQTY> ${boxes.toFixed(2)} BOX</BILLEDQTY>
               <ACCOUNTINGALLOCATIONS.LIST>
                 <LEDGERNAME>${salesLedger}</LEDGERNAME>
                 <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
                 <ISPARTYLEDGER>No</ISPARTYLEDGER>
-                <AMOUNT>${amount.toFixed(2)}</AMOUNT>
+                <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
               </ACCOUNTINGALLOCATIONS.LIST>
             </ALLINVENTORYENTRIES.LIST>`;
     }
