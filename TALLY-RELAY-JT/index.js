@@ -194,16 +194,17 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
             <VOUCHERNUMBER>${escapeXml(quotation.quotation_number)}</VOUCHERNUMBER>
             <NARRATION>${escapeXml(fullNarration)}</NARRATION>
             <PARTYLEDGERNAME>${partyName}</PARTYLEDGERNAME>
-            <ALLLEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
               <AMOUNT>${partyTotal.toFixed(2)}</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
-            <ALLLEDGERENTRIES.LIST>
+            </LEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>${salesLedger}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
               <AMOUNT>${partyTotal.toFixed(2)}</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>${inventoryXml}
+            </LEDGERENTRIES.LIST>${inventoryXml}
           </VOUCHER>
         </TALLYMESSAGE>
       </REQUESTDATA>
@@ -233,16 +234,17 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
             <VOUCHERNUMBER>${escapeXml(quotation.quotation_number)}</VOUCHERNUMBER>
             <NARRATION>${escapeXml(fullNarration)}</NARRATION>
             <PARTYLEDGERNAME>${partyName}</PARTYLEDGERNAME>
-            <ALLLEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
               <AMOUNT>${totalAmount}</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
-            <ALLLEDGERENTRIES.LIST>
+            </LEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>${salesLedger}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
               <AMOUNT>${totalAmount}</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
+            </LEDGERENTRIES.LIST>
           </VOUCHER>
         </TALLYMESSAGE>
       </REQUESTDATA>
