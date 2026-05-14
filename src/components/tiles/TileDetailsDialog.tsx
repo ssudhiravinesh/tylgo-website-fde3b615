@@ -2,7 +2,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Grid3X3, Ruler, IndianRupee, Package, Square, Download, QrCode } from "lucide-react";
+import { Grid3X3, Ruler, IndianRupee, Package, Square, Download, QrCode, Warehouse, Clock } from "lucide-react";
 import { useGenerateQRForTile } from "@/hooks/useTileManagement";
 import { useState } from "react";
 import type { Tile } from "@/hooks/useTiles";
@@ -153,6 +153,44 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
               )}
             </div>
           </div>
+
+          {/* Stock Information */}
+          {tile.last_stock_sync && (
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Warehouse className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground/80">Stock Information</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground block text-xs">Quantity</span>
+                  {tile.stock_quantity !== undefined && tile.stock_quantity !== null ? (
+                    <span className={`font-semibold ${
+                      tile.stock_quantity > 10 ? 'text-green-600' :
+                      tile.stock_quantity > 0 ? 'text-yellow-600' :
+                      'text-red-600'
+                    }`}>
+                      {tile.stock_quantity} {tile.stock_quantity === 1 ? 'box' : 'boxes'}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">N/A</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-xs">Last Synced</span>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs font-medium">
+                      {new Date(tile.last_stock_sync).toLocaleString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* QR Code Section - Only for admin */}
           {(userRole === "admin" || userRole === "super_admin") && (

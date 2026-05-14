@@ -261,3 +261,91 @@ export const parseLedgerNamesResponse = (xml: string): string[] => {
   if (!matches) return [];
   return matches.map(m => m.replace('LEDGER NAME="', '').replace('"', ''));
 };
+
+// ── Stock Balance Query & Parser ───────────────────────────────────────────────
+
+export interface TallyStockBalance {
+  stockItemName: string;
+  closingBalance: number;
+}
+
+/**
+ * Build XML to export stock item names with their closing balances from Tally.
+ * Uses TDL COLLECTION to fetch NAME and CLOSINGBALANCE for all stock items.
+ * 
+ * The relay sends this XML to Tally (POST localhost:9000), parses the response,
+ * then batch-updates tiles.stock_quantity in Supabase via tally_stock_mappings.
+ */
+export const buildStockBalanceExportXml = (): string => {
+  return `<ENVELOPE>
+  <HEADER>
+    <VERSION>1</VERSION>
+    <TALLYREQUEST>EXPORT</TALLYREQUEST>
+    <TYPE>COLLECTION</TYPE>
+    <ID>Stock Item Balance</ID>
+  </HEADER>
+  <BODY>
+    <DESC>
+      <STATICVARIABLES>
+        <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+      </STATICVARIABLES>
+      <TDL>
+        <TDLMESSAGE>
+          <COLLECTION NAME="Stock Item Balance" ISMODIFY="No">
+            <TYPE>StockItem</TYPE>
+            <FETCH>NAME, CLOSINGBALANCE</FETCH>
+          </COLLECTION>
+        </TDLMESSAGE>
+      </TDL>
+    </DESC>
+  </BODY>
+</ENVELOPE>`;
+};
+
+/**
+ * Parse Tally's stock balance export response.
+ * 
+ * Expected response format:
+ * ```xml
+ * <COLLECTION>
+ *   <STOCKITEM NAME="JF 1200X600 PGVT 24001 PRE 2T">
+ *     <NAME>JF 1200X600 PGVT 24001 PRE 2T</NAME>
+ *     <CLOSINGBALANCE>150.00</CLOSINGBALANCE>
+ *   </STOCKITEM>
+ *   ...
+ * </COLLECTION>
+ * ```
+ * 
+ * Returns an array of { stockItemName, closingBalance } objects.
+ * Items with no closing balance or unparseable values default to 0.
+ */
+export const parseStockBalanceResponse = (xml: string): TallyStockBalance[] => {
+  const results: TallyStockBalance[] = [];
+
+  // Match each STOCKITEM block
+  const stockItemRegex = /<STOCKITEM[^>]*NAME="([^"]*)"[^>]*>([\s\S]*?)<\/STOCKITEM>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = stockItemRegex.exec(xml)) !== null) {
+    const name = match[1];
+    const block = match[2];
+
+    // Extract CLOSINGBALANCE value from within this block
+    const balanceMatch = block.match(/<CLOSINGBALANCE>([\s\S]*?)<\/CLOSINGBALANCE>/i);
+    let closingBalance = 0;
+
+    if (balanceMatch) {
+      // Tally may return values like "150.00 Nos" or "150.00 Box" — extract the number
+      const numericPart = balanceMatch[1].trim().replace(/[^0-9.\-]/g, '');
+      const parsed = parseFloat(numericPart);
+      if (!isNaN(parsed)) {
+        closingBalance = parsed;
+      }
+    }
+
+    results.push({ stockItemName: name, closingBalance });
+  }
+
+  return results;
+};
+

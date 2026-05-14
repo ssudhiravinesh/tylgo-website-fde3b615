@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,8 @@ interface EditQuotationDialogProps {
 
 export const EditQuotationDialog = ({ isOpen, onClose, quotation, onSuccess }: EditQuotationDialogProps) => {
   const { updateQuotation, isUpdating } = useQuotations();
+  const { profile } = useAuth();
+  const isManager = profile?.role === 'admin' || profile?.role === 'super_admin';
   const [quotationNumber, setQuotationNumber] = useState("");
   const [status, setStatus] = useState("draft");
   const [notes, setNotes] = useState("");
@@ -166,15 +169,21 @@ const { totalBoxes, mrp, discountAmount, finalTotal } = calculateTotals();
 
                 <div>
                   <Label htmlFor="status">Status</Label>
-                  <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {isManager ? (
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={`mt-1 text-sm capitalize ${status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      {status}
+                    </Badge>
+                  )}
                 </div>
 
                 <div>

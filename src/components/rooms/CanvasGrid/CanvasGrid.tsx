@@ -56,11 +56,15 @@ export function CanvasGrid({ initialShape, unit, onShapeChange, disabled }: Canv
   const unitRatioRef = useRef(unitRatio); unitRatioRef.current = unitRatio;
   const heightRef = useRef(height); heightRef.current = height;
 
-  // ── Proportional column/row sizing ────────────────────────────────────
+  // ── Proportional column/row sizing (normalize-to-fit) ─────────────────
+  //
+  // Strategy: compute real-world sizes for every column/row, then scale
+  // uniformly so the grid fits within its container (like object-fit: contain).
+  // This prevents overflow no matter how extreme the measurements are.
 
   const { colWidths, rowHeights, gridWidth, gridHeight } = useMemo(() => {
     if (unitRatio === null || edges.length === 0) {
-      // Uniform grid
+      // Uniform grid — no measurements yet
       const cw = Array(GRID_COLS).fill(baseCellSize) as number[];
       const rh = Array(GRID_ROWS).fill(baseCellSize) as number[];
       return { colWidths: cw, rowHeights: rh, gridWidth: GRID_COLS * baseCellSize, gridHeight: GRID_ROWS * baseCellSize };
@@ -68,18 +72,31 @@ export function CanvasGrid({ initialShape, unit, onShapeChange, disabled }: Canv
 
     const dims = computeCellDimensions(edges, unitRatio);
 
-    // Convert real-world widths to pixel scale factors
-    // Each column's pixel width = (realWidth / ratio) * baseCellSize
-    const cw = Array.from({ length: GRID_COLS }, (_, c) => {
-      const realW = dims.colWidths.get(c);
-      if (realW === undefined) return baseCellSize;
-      return Math.max(MIN_CELL_PX, Math.round((realW / unitRatio) * baseCellSize));
-    });
-    const rh = Array.from({ length: GRID_ROWS }, (_, r) => {
-      const realH = dims.rowHeights.get(r);
-      if (realH === undefined) return baseCellSize;
-      return Math.max(MIN_CELL_PX, Math.round((realH / unitRatio) * baseCellSize));
-    });
+    // 1. Real-world size for every column and row
+    //    Measured dimensions where available, unitRatio as fallback.
+    //    Clamp to MIN_REAL to prevent negative/zero from conflicting measurements.
+    const MIN_REAL = 0.01;
+    const realCols = Array.from({ length: GRID_COLS }, (_, c) =>
+      Math.max(MIN_REAL, dims.colWidths.get(c) ?? unitRatio)
+    );
+    const realRows = Array.from({ length: GRID_ROWS }, (_, r) =>
+      Math.max(MIN_REAL, dims.rowHeights.get(r) ?? unitRatio)
+    );
+
+    // 2. Total real-world dimensions
+    const totalRealW = realCols.reduce((a, b) => a + b, 0);
+    const totalRealH = realRows.reduce((a, b) => a + b, 0);
+
+    // 3. Available pixel space (uniform grid bounding box)
+    const availW = GRID_COLS * baseCellSize;
+    const availH = GRID_ROWS * baseCellSize;
+
+    // 4. Uniform scale factor — contain mode (fit both axes, preserve proportions)
+    const scale = Math.min(availW / totalRealW, availH / totalRealH);
+
+    // 5. Convert to pixels, enforce minimum cell size
+    const cw = realCols.map(w => Math.max(MIN_CELL_PX, Math.round(w * scale)));
+    const rh = realRows.map(h => Math.max(MIN_CELL_PX, Math.round(h * scale)));
 
     return {
       colWidths: cw,

@@ -80,11 +80,13 @@ function formatTallyDate(date) {
  *   - PERSISTEDVIEW must be "Invoice Voucher View" for invoice mode
  *   - Dr total must equal Cr total
  */
-function buildSalesVoucherXml(quotation, customerName, aggregatedItems) {
+function buildSalesVoucherXml(quotation, customerName, customerMobile, workerName, aggregatedItems) {
   const dateStr = formatTallyDate(quotation.created_at);
   const partyName = escapeXml(customerName);
   const salesLedger = escapeXml(SALES_LEDGER_NAME);
-  const narration = `Tylgo Quotation #${quotation.quotation_number}`;
+
+  // Narration: quotation number + worker name + customer phone number only
+  const fullNarration = `${quotation.quotation_number} | ${workerName || 'N/A'} | ${customerMobile || 'N/A'}`;
 
   // Get discount info from quotation
   const discountPercentage = parseFloat(quotation.discount_percentage) || 0;
@@ -94,15 +96,6 @@ function buildSalesVoucherXml(quotation, customerName, aggregatedItems) {
   // Separate mapped vs unmapped items
   const mappedItems = aggregatedItems.filter(i => i.tallyStockName);
   const unmappedItems = aggregatedItems.filter(i => !i.tallyStockName);
-
-  // Build item details for narration (use Rs. instead of ₹ to avoid encoding issues)
-  const itemNotes = aggregatedItems.map(i =>
-    `${i.tileCode}: ${i.boxes} boxes x Rs.${i.pricePerBox}`
-  ).join(' | ');
-  let fullNarration = `${narration} | ${itemNotes}`;
-  if (hasDiscount) {
-    fullNarration += ` | Discount: ${discountPercentage}% (-Rs.${discountAmount.toFixed(0)})`;
-  }
 
   const hasInventory = mappedItems.length > 0;
 
@@ -527,8 +520,12 @@ async function processQueuedQuotations() {
       discount_amount,
       created_at,
       tally_sync_status,
+      worker_id,
       customers!quotations_customer_id_fkey (
         id, name, mobile
+      ),
+      profiles!quotations_worker_id_fkey (
+        id, name
       )
     `)
     .eq('tally_sync_status', 'queued')
@@ -572,7 +569,9 @@ async function processQueuedQuotations() {
       }
 
       // Step 3: Build and send Sales Voucher XML
-      const voucherXml = buildSalesVoucherXml(quotation, customerName, aggregatedItems);
+      const customerMobile = quotation.customers?.mobile || '';
+      const workerName = quotation.profiles?.name || '';
+      const voucherXml = buildSalesVoucherXml(quotation, customerName, customerMobile, workerName, aggregatedItems);
       console.log(`\n  📄 XML being sent to Tally:\n${voucherXml}\n`);
       const response = await sendToTally(voucherXml);
       const result = parseTallyResponse(response);

@@ -38,7 +38,7 @@ ALTER TABLE tiles ADD COLUMN IF NOT EXISTS stock_quantity NUMERIC DEFAULT 0;
 ALTER TABLE tiles ADD COLUMN IF NOT EXISTS last_stock_sync TIMESTAMPTZ;
 
 -- 3. Add tally tracking to quotations
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS tally_sync_status TEXT DEFAULT 'pending' CHECK (tally_sync_status IN ('pending', 'synced', 'failed', 'ignored'));
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS tally_sync_status TEXT DEFAULT 'pending' CHECK (tally_sync_status IN ('pending', 'queued', 'synced', 'failed', 'ignored'));
 ALTER TABLE quotations ADD COLUMN IF NOT EXISTS tally_voucher_number TEXT;
 ALTER TABLE quotations ADD COLUMN IF NOT EXISTS tally_sync_error TEXT;
 ALTER TABLE quotations ADD COLUMN IF NOT EXISTS tally_synced_at TIMESTAMPTZ;
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS tally_sync_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     brand_id UUID REFERENCES brands(id) ON DELETE CASCADE,
     sync_type TEXT NOT NULL CHECK (sync_type IN ('stock_pull', 'voucher_push')),
-    status TEXT NOT NULL CHECK (status IN ('success', 'failure')),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'success', 'failure')),
     records_processed INTEGER DEFAULT 0,
     error_message TEXT,
     raw_request_payload TEXT,

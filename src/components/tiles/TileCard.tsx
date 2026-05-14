@@ -2,7 +2,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Grid3X3, Ruler, IndianRupee, Check, QrCode, Download, Plus, Package, Square } from "lucide-react";
+import { Grid3X3, Ruler, IndianRupee, Check, QrCode, Download, Plus, Package, Square, Warehouse } from "lucide-react";
 import { Tile } from "@/hooks/useTiles";
 
 interface TileCardProps {
@@ -115,6 +115,26 @@ export const TileCard = ({
               </div>
             )}
           </div>
+
+          {/* Stock Quantity Badge */}
+          {tile.stock_quantity !== undefined && tile.stock_quantity !== null && tile.last_stock_sync ? (
+            <div className="flex items-center gap-1 text-xs mt-1">
+              <Warehouse className="h-3 w-3" />
+              {tile.stock_quantity > 10 ? (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-50 text-green-700 border-green-200">
+                  In Stock ({tile.stock_quantity})
+                </Badge>
+              ) : tile.stock_quantity > 0 ? (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-yellow-50 text-yellow-700 border-yellow-200">
+                  Low Stock ({tile.stock_quantity})
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-50 text-red-700 border-red-200">
+                  Out of Stock
+                </Badge>
+              )}
+            </div>
+          ) : null}
 
           {/* QR Code Section - Only show for admins */}
           {isAdmin && (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,8 @@ interface TileCalculation {
 export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotationPageProps) => {
   const { updateQuotation, isUpdating } = useQuotations();
   const { mutate: updateQuotationItem } = useUpdateQuotationItem();
+  const { profile } = useAuth();
+  const isManager = profile?.role === 'admin' || profile?.role === 'super_admin';
   const { data: quotationItems = [], isLoading: isLoadingItems } = useQuotationItems(quotation.id);
 
   const [quotationNumber, setQuotationNumber] = useState("");
@@ -409,16 +412,22 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
               <div className="space-y-3">
                 <div>
                   <Label htmlFor="status">Status</Label>
-                  <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {isManager ? (
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={`mt-1 text-sm capitalize ${getStatusColor(status)}`}>
+                      {status}
+                    </Badge>
+                  )}
                 </div>
 
                 <div>

@@ -214,3 +214,76 @@ export const useUpsertStockMapping = () => {
     },
   });
 };
+
+// ── Query: Last stock sync status ──────────────────────────────────────────────
+
+export interface LastStockSync {
+  id: string;
+  status: 'success' | 'failure';
+  records_processed: number;
+  error_message: string | null;
+  created_at: string;
+}
+
+/**
+ * Returns the most recent stock_pull sync log entry.
+ * Used to show "Last synced: 5 min ago" in the admin panel and tile catalogue.
+ */
+export const useLastStockSync = () => {
+  return useQuery({
+    queryKey: ['last-stock-sync'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tally_sync_log')
+        .select('id, status, records_processed, error_message, created_at')
+        .eq('sync_type', 'stock_pull')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as LastStockSync | null;
+    },
+    refetchInterval: 30000, // Poll every 30s
+  });
+};
+
+// ── Mutation: Trigger manual stock sync ────────────────────────────────────────
+
+/**
+ * Inserts a 'stock_pull' request into tally_sync_log with status 'pending'.
+ * The Node.js relay polls for these and performs the actual Tally → Supabase sync.
+ * 
+ * This is the manual "Refresh Stock" trigger — the automatic trigger happens
+ * inside the relay after every successful voucher push.
+ */
+export const useTriggerStockSync = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (brandId: string) => {
+      const { data, error } = await supabase
+        .from('tally_sync_log')
+        .insert({
+          brand_id: brandId,
+          sync_type: 'stock_pull',
+          status: 'pending',
+          records_processed: 0,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['last-stock-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['tally-sync-log'] });
+      toast.success('Stock sync requested — the relay will process this shortly');
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to trigger stock sync'));
+    },
+  });
+};
+

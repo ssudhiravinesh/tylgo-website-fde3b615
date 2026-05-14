@@ -56,6 +56,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     }));
 
     if (field === "pincode" && value.length === 6) {
+      // Instant state detection from local pincode ranges
       const detectedState = getStateByPincode(value);
       if (detectedState) {
         setFormData(prev => ({ ...prev, state: detectedState }));
@@ -63,6 +64,49 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
           setErrors(prev => ({ ...prev, state: "" }));
         }
       }
+
+      // Fetch area from India Post API
+      fetch(`https://api.postalpincode.in/pincode/${value}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.[0]?.Status === "Success" && data[0].PostOffice?.length > 0) {
+            const postOffices = data[0].PostOffice;
+
+            // Pick the main area by postal hierarchy:
+            // Head Post Office > Sub Post Office > Branch Post Office
+            const branchPriority: Record<string, number> = {
+              "Head Post Office": 3,
+              "Sub Post Office": 2,
+              "Branch Post Office": 1,
+            };
+
+            const mainPostOffice = postOffices.reduce(
+              (best: typeof postOffices[0], po: typeof postOffices[0]) => {
+                const bestRank = branchPriority[best.BranchType] || 0;
+                const poRank = branchPriority[po.BranchType] || 0;
+                return poRank > bestRank ? po : best;
+              },
+              postOffices[0]
+            );
+
+            const areaName = (mainPostOffice.Name || "").toUpperCase();
+            const apiState = mainPostOffice.State || "";
+
+            setFormData(prev => ({
+              ...prev,
+              area: areaName || prev.area,
+              state: apiState || prev.state,
+            }));
+            setErrors(prev => ({
+              ...prev,
+              area: areaName ? "" : prev.area,
+              state: apiState ? "" : prev.state,
+            }));
+          }
+        })
+        .catch(() => {
+          // Silently fail — local state detection already ran
+        });
     }
 
     if (errors[field as keyof typeof errors]) {

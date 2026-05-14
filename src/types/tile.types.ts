@@ -8,6 +8,8 @@ export interface Tile {
   image_url?: string;
   qr_code_url?: string;
   category?: string;
+  stock_quantity?: number;
+  last_stock_sync?: string;
   created_at?: string;
   updated_at?: string;
 }

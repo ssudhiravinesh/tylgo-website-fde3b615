@@ -30,15 +30,33 @@ export function EdgeList({ edges, unitRatio, unit, onMeasure, disabled }: EdgeLi
           <span className="text-primary animate-pulse text-[10px] font-normal">— enter one to set the scale</span>
         )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-        {hEdges.map(edge => (
-          <EdgeRow key={edge.id} edge={edge} unitRatio={unitRatio} dims={dims} unitAbbr={unitAbbr}
-            isFirstUnmeasured={isFirstUnmeasured} onMeasure={onMeasure} disabled={disabled} />
-        ))}
-        {vEdges.map(edge => (
-          <EdgeRow key={edge.id} edge={edge} unitRatio={unitRatio} dims={dims} unitAbbr={unitAbbr}
-            isFirstUnmeasured={isFirstUnmeasured} onMeasure={onMeasure} disabled={disabled} />
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Horizontal sides column */}
+        {hEdges.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pb-0.5 border-b border-border/40">
+              <span className="text-primary">↔</span>
+              Horizontal Sides
+            </div>
+            {hEdges.map(edge => (
+              <EdgeRow key={edge.id} edge={edge} unitRatio={unitRatio} dims={dims} unitAbbr={unitAbbr}
+                isFirstUnmeasured={isFirstUnmeasured} onMeasure={onMeasure} disabled={disabled} />
+            ))}
+          </div>
+        )}
+        {/* Vertical sides column */}
+        {vEdges.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pb-0.5 border-b border-border/40">
+              <span className="text-primary">↕</span>
+              Vertical Sides
+            </div>
+            {vEdges.map(edge => (
+              <EdgeRow key={edge.id} edge={edge} unitRatio={unitRatio} dims={dims} unitAbbr={unitAbbr}
+                isFirstUnmeasured={isFirstUnmeasured} onMeasure={onMeasure} disabled={disabled} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -97,6 +115,7 @@ function EdgeRow({ edge, unitRatio, dims, unitAbbr, isFirstUnmeasured, onMeasure
         className={`flex-1 h-7 min-w-0 text-xs text-center font-medium rounded border bg-background shadow-sm
           outline-none transition-all duration-150 placeholder:text-muted-foreground/40
           focus:ring-2 focus:ring-primary/40 focus:border-primary disabled:opacity-40
+          [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
           ${isFirstUnmeasured && !hasValue ? 'border-primary/50 ring-1 ring-primary/20' : hasValue ? 'border-primary/30 font-semibold' : 'border-border/60'}`}
       />
       <span className="text-[10px] text-muted-foreground font-medium min-w-[16px]">{unitAbbr}</span>
