@@ -199,7 +199,7 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
             <ALLLEDGERENTRIES.LIST>
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-              <AMOUNT>-${partyTotal.toFixed(2)}</AMOUNT>
+              <AMOUNT>${partyTotal.toFixed(2)}</AMOUNT>
             </ALLLEDGERENTRIES.LIST>${inventoryXml}
           </VOUCHER>
         </TALLYMESSAGE>
@@ -233,7 +233,7 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
             <ALLLEDGERENTRIES.LIST>
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-              <AMOUNT>-${totalAmount}</AMOUNT>
+              <AMOUNT>${totalAmount}</AMOUNT>
             </ALLLEDGERENTRIES.LIST>
             <ALLLEDGERENTRIES.LIST>
               <LEDGERNAME>${salesLedger}</LEDGERNAME>
