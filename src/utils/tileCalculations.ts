@@ -13,6 +13,7 @@ export interface TileCalculationResult {
   boxesNeeded: number;
   totalPrice: number;
   isWallTile?: boolean;
+  isSkirting?: boolean;
   wallLayers?: number[];
   quotationItems?: any[]; // Add this to track individual items
 }
@@ -51,6 +52,9 @@ export interface StaircaseWithDimensions {
   step_width?: number;
   riser_height?: number;
   riser_width?: number;
+  // Landing area — same tile as step
+  landing_length?: number;
+  landing_width?: number;
   unit?: 'mm' | 'inches' | 'feet' | 'metre';
 }
 
@@ -111,7 +115,8 @@ export const calculateTileRequirements = (
   wallSelections: WallTileSelection[],
   rooms: Room[],
   tiles: Tile[],
-  wastagePercentage: number
+  wastagePercentage: number,
+  skirtingTileSelections: Record<string, string> = {}
 ): TileCalculationResult[] => {
   const tileCalculations: { [key: string]: TileCalculationResult } = {};
 
@@ -199,6 +204,39 @@ export const calculateTileRequirements = (
     });
   });
 
+  // Process skirting tiles
+  Object.entries(skirtingTileSelections).forEach(([roomId, tileId]) => {
+    const room = rooms.find(r => r.id === roomId);
+    const tile = tiles.find(t => t.id === tileId);
+    if (!room || !tile || !room.has_skirting) return;
+
+    const skirtingAreaSqFt = calculateAreaInSquareFeet(
+      room.skirting_length || 0,
+      room.skirting_height || 0,
+      room.unit
+    );
+    if (skirtingAreaSqFt <= 0) return;
+
+    const tileKey = `${tileId}_skirting`;
+    if (!tileCalculations[tileKey]) {
+      tileCalculations[tileKey] = {
+        tile,
+        rooms: [],
+        totalArea: 0,
+        rawTilesNeeded: 0,
+        tilesNeeded: 0,
+        fullBoxes: 0,
+        leftoverTiles: 0,
+        boxesNeeded: 0,
+        totalPrice: 0,
+        isWallTile: false,
+        isSkirting: true,
+      };
+    }
+    tileCalculations[tileKey].rooms.push(room);
+    tileCalculations[tileKey].totalArea += skirtingAreaSqFt;
+  });
+
   // Calculate tiles, boxes, and pricing for each tile
   Object.values(tileCalculations).forEach(calc => {
     const tile = calc.tile;
@@ -266,6 +304,7 @@ export const calculateGrandTotal = (calculations: TileCalculationResult[]): numb
 export const prepareQuotationItems = (
   floorSelections: FloorTileSelection[],
   wallSelections: WallTileSelection[],
+  skirtingTileSelections: Record<string, string>,
   rooms: Room[],
   tiles: Tile[],
   wastagePercentage: number
@@ -286,13 +325,14 @@ export const prepareQuotationItems = (
     layer_number?: number;
   }> = [];
 
-  // Get the unified calculations first
+  // Get the unified calculations first (with skirting)
   const calculations = calculateTileRequirements(
     floorSelections,
     wallSelections,
     rooms,
     tiles,
-    wastagePercentage
+    wastagePercentage,
+    skirtingTileSelections
   );
 
   // Floor tiles - calculate proportional pricing per room
@@ -378,6 +418,43 @@ export const prepareQuotationItems = (
     });
   });
 
+  // Skirting tiles — calculated directly per room (no aggregation bucket needed)
+  const validWastage = Math.max(0, Math.min(15, wastagePercentage));
+  Object.entries(skirtingTileSelections).forEach(([roomId, tileId]) => {
+    const room = rooms.find(r => r.id === roomId);
+    const tile = tiles.find(t => t.id === tileId);
+    if (!room || !tile || !room.has_skirting) return;
+
+    const skirtingAreaSqFt = calculateAreaInSquareFeet(
+      room.skirting_length || 0,
+      room.skirting_height || 0,
+      room.unit
+    );
+    if (skirtingAreaSqFt <= 0) return;
+
+    const tileLengthFt = (parseFloat(tile.size_length?.toString()) || 0) / 304.8;
+    const tileBreadthFt = (parseFloat(tile.size_breadth?.toString()) || 0) / 304.8;
+    const tileAreaSqFt = tileLengthFt * tileBreadthFt;
+    const pricePerBox = parseFloat(tile.price_per_box?.toString() || '0');
+    const piecesPerBox = parseInt(tile.pieces_per_box?.toString() || '1');
+
+    let totalPrice = 0;
+    if (tileAreaSqFt > 0 && piecesPerBox > 0) {
+      const rawTiles = Math.ceil(skirtingAreaSqFt / tileAreaSqFt);
+      const tilesWithWastage = Math.ceil(rawTiles * (1 + validWastage / 100));
+      const boxesNeeded = Math.ceil(tilesWithWastage / piecesPerBox);
+      totalPrice = boxesNeeded * pricePerBox;
+    }
+
+    items.push({
+      tile_id: tileId,
+      room_id: roomId,
+      area: skirtingAreaSqFt,
+      price_per_box: pricePerBox,
+      total_price: totalPrice,
+    });
+  });
+
   return items;
 };
 
@@ -446,6 +523,7 @@ export const calculateStaircaseTileRequirements = (
     const hasRiserDimensions = staircase.riser_height && staircase.riser_width;
 
     // Calculate step area in sq ft (if dimensions available)
+    // Landing area is ADDED to step area — landing uses the same tile as step
     const stepAreaSqFt = hasStepDimensions
       ? calculateStaircaseAreaSqFt(
         staircase.step_length,
@@ -454,6 +532,18 @@ export const calculateStaircaseTileRequirements = (
         staircase.unit
       )
       : 0;
+
+    const landingAreaSqFt = (staircase.landing_length && staircase.landing_width)
+      ? calculateStaircaseAreaSqFt(
+        staircase.landing_length,
+        staircase.landing_width,
+        1, // single landing
+        staircase.unit
+      )
+      : 0;
+
+    // Total step-tile area = steps + landing
+    const stepTotalAreaSqFt = stepAreaSqFt + landingAreaSqFt;
 
     // Calculate riser area in sq ft (if dimensions available)
     const riserAreaSqFt = hasRiserDimensions
@@ -470,14 +560,14 @@ export const calculateStaircaseTileRequirements = (
       const tile = tiles.find(t => t.id === selection.stepTileId);
       if (tile) {
         let rawTilesNeeded: number;
-        let areaInSqFt = stepAreaSqFt;
+        let areaInSqFt = stepTotalAreaSqFt;
 
-        if (hasStepDimensions && stepAreaSqFt > 0) {
-          // Area-based calculation: total step area ÷ single tile area
+        if (hasStepDimensions && stepTotalAreaSqFt > 0) {
+          // Area-based calculation: total (step + landing) area ÷ single tile area
           const tileLengthFt = (parseFloat(tile.size_length?.toString()) || 0) / 304.8;
           const tileBreadthFt = (parseFloat(tile.size_breadth?.toString()) || 0) / 304.8;
           const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-          rawTilesNeeded = tileAreaSqFt > 0 ? Math.ceil(stepAreaSqFt / tileAreaSqFt) : 0;
+          rawTilesNeeded = tileAreaSqFt > 0 ? Math.ceil(stepTotalAreaSqFt / tileAreaSqFt) : 0;
         } else {
           // Fallback: count-based calculation using aspect ratio
           const tilesPerUnit = getTilesPerUnit(tile);
@@ -539,7 +629,7 @@ export const calculateStaircaseTileRequirements = (
 
     results.push({
       staircase,
-      stepArea: stepAreaSqFt,
+      stepArea: stepTotalAreaSqFt,
       riserArea: riserAreaSqFt,
       stepTile: stepTileResult,
       riserTile: riserTileResult,

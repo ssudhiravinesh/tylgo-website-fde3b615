@@ -26,6 +26,11 @@ export interface Room {
   wall_height?: number;
   wall_length?: number;
   wall_measurements?: any; // JSON field from database
+
+  // Skirting surface
+  has_skirting: boolean;
+  skirting_length?: number; // total perimeter of skirting run
+  skirting_height?: number; // height of skirting strip
   
   unit: 'metre' | 'inches' | 'mm' | 'feet';
   showroom_id?: string;
@@ -48,6 +53,10 @@ export interface CreateRoomData {
   wall_height?: number;
   wall_length?: number;
   wall_measurements?: MeasurementSet[];
+  // Skirting surface
+  has_skirting?: boolean;
+  skirting_length?: number;
+  skirting_height?: number;
   unit: 'metre' | 'inches' | 'mm' | 'feet';
   room_type: 'room';
 
@@ -67,6 +76,7 @@ export interface RoomTileSelection {
   room_id: string;
   tile_id: string;
   layer_number?: number;
+  tile_type?: string; // 'floor' | 'skirting' — wall layers identified by layer_number > 0
   showroom_id?: string;
   created_at: string;
 }
@@ -113,6 +123,7 @@ const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
     room_type: 'room' as const,
     has_floor: room.has_floor ?? true,
     has_wall: room.has_wall ?? false,
+    has_skirting: room.has_skirting ?? false,
   }));
 };
 
@@ -140,6 +151,7 @@ const createRoom = async (roomData: CreateRoomData): Promise<Room> => {
     room_type: 'room' as const,
     has_floor: data.has_floor ?? true,
     has_wall: data.has_wall ?? false,
+    has_skirting: data.has_skirting ?? false,
   };
 };
 
@@ -164,6 +176,7 @@ const updateRoom = async (roomData: UpdateRoomData): Promise<Room> => {
     room_type: 'room' as const,
     has_floor: data.has_floor ?? true,
     has_wall: data.has_wall ?? false,
+    has_skirting: data.has_skirting ?? false,
   };
 };
 
@@ -240,7 +253,7 @@ const fetchRoomTileSelections = async (customerId: string): Promise<RoomTileSele
   return data || [];
 };
 
-const saveRoomTileSelections = async (selections: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[]): Promise<void> => {
+const saveRoomTileSelections = async (selections: { customer_id: string; room_id: string; tile_id: string; layer_number?: number; tile_type?: string }[]): Promise<void> => {
   if (selections.length === 0) return;
 
   // Get showroom_id
@@ -249,12 +262,16 @@ const saveRoomTileSelections = async (selections: { customer_id: string; room_id
     throw new Error('No showroom assigned to user');
   }
 
-  // Add showroom_id to each selection
-  const selectionsWithShowroom = selections.map(s => ({ ...s, showroom_id }));
+  // Ensure tile_type defaults to 'floor' for all selections
+  const selectionsWithShowroom = selections.map(s => ({
+    ...s,
+    tile_type: s.tile_type ?? 'floor',
+    showroom_id,
+  }));
 
   const { error } = await supabase
     .from('room_tile_selections')
-    .upsert(selectionsWithShowroom, { onConflict: 'room_id,tile_id,layer_number' });
+    .upsert(selectionsWithShowroom, { onConflict: 'room_id,tile_id,layer_number,tile_type' });
 
   if (error) {
     console.error('Error saving room tile selections:', error);
@@ -268,10 +285,25 @@ const deleteRoomTileSelection = async (roomId: string, tileId: string): Promise<
     .delete()
     .eq('room_id', roomId)
     .eq('tile_id', tileId)
-    .is('layer_number', null); // Only delete floor tiles (layer_number is NULL for floor tiles)
+    .is('layer_number', null)
+    .eq('tile_type', 'floor'); // Only delete floor tiles
 
   if (error) {
     console.error('Error deleting room tile selection:', error);
+    throw error;
+  }
+};
+
+const deleteSkirtingTileSelection = async (roomId: string, tileId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('room_tile_selections')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('tile_id', tileId)
+    .eq('tile_type', 'skirting');
+
+  if (error) {
+    console.error('Error deleting skirting tile selection:', error);
     throw error;
   }
 };
@@ -346,6 +378,18 @@ export const useDeleteRoomTileSelection = () => {
   return useMutation({
     mutationFn: ({ roomId, tileId }: { roomId: string; tileId: string }) =>
       deleteRoomTileSelection(roomId, tileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
+    },
+  });
+};
+
+export const useDeleteSkirtingTileSelection = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ roomId, tileId }: { roomId: string; tileId: string }) =>
+      deleteSkirtingTileSelection(roomId, tileId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
     },

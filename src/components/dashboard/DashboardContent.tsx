@@ -64,12 +64,12 @@ export const DashboardContent = ({
                 />
             );
         case "add-customer":
-            return userRole === "worker" ? (
+            return (
                 <CustomerForm
                     onBack={() => setActiveView("customers")}
                     onNewQuote={handleNewQuoteFromForm}
                 />
-            ) : <div>Access denied</div>;
+            );
         case "tiles":
             return <TileManagement userRole={userRole} />;
         case "manage-tiles":
@@ -85,6 +85,7 @@ export const DashboardContent = ({
                 );
             }
             return <AdminTileManagement onBack={() => { }} />;
+
         case "quotations":
             if (userRole === "super_admin") {
                 return (
@@ -117,12 +118,12 @@ export const DashboardContent = ({
             }
             return <ProductCatalog userRole={userRole} />;
         case "rooms":
-            return userRole === "worker" ? (
+            return (
                 <CustomerRoomManagement
                     preSelectedCustomerId={selectedCustomerForQuote}
                     onBack={handleBackFromRooms}
                 />
-            ) : <div>Access denied</div>;
+            );
         default:
             return (
                 <CustomerList

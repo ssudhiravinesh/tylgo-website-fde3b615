@@ -11,7 +11,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package, Plus, Trash2, Check, Eye, Layers, Home } from "lucide-react";
+import { Package, Plus, Trash2, Check, Eye, Layers, Home, Scissors } from "lucide-react";
 import { RoomDimensions } from "../RoomDimensions";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
@@ -22,6 +22,7 @@ interface UnifiedRoomCardProps {
   rooms: Room[];
   floorTileSelections: FloorTileSelection[];
   wallTileSelections: WallTileSelection[];
+  skirtingTileSelections: Record<string, string>; // { roomId: tileId }
   tiles: Tile[];
   selectedFloorRooms: Set<string>;
   productSelections: RoomProductSelection[];
@@ -30,6 +31,8 @@ interface UnifiedRoomCardProps {
   onRemoveFloorTile: (roomId: string, tileId: string) => void;
   onConfigureWallTiles: (roomId: string) => void;
   onClearWallTiles: (roomId: string) => void;
+  onAddSkirtingTile: (roomId: string) => void;
+  onRemoveSkirtingTile: (roomId: string, tileId: string) => void;
   onAddProduct: (roomId: string) => void;
   onRemoveProduct: (selectionId: string) => void;
   onShowPreview: (room: Room, floorTile: Tile | null, wallLayers: Tile[]) => void;
@@ -39,6 +42,7 @@ export const UnifiedRoomCard = ({
   rooms,
   floorTileSelections,
   wallTileSelections,
+  skirtingTileSelections,
   tiles,
   selectedFloorRooms,
   productSelections,
@@ -47,6 +51,8 @@ export const UnifiedRoomCard = ({
   onRemoveFloorTile,
   onConfigureWallTiles,
   onClearWallTiles,
+  onAddSkirtingTile,
+  onRemoveSkirtingTile,
   onAddProduct,
   onRemoveProduct,
   onShowPreview,
@@ -100,6 +106,11 @@ export const UnifiedRoomCard = ({
                       <div className="flex gap-1">
                         {room.has_floor && <Badge variant="default" className="text-[10px] h-5">Floor</Badge>}
                         {room.has_wall && <Badge variant="secondary" className="text-[10px] h-5">Wall</Badge>}
+                        {room.has_skirting && (
+                          <Badge variant="outline" className="text-[10px] h-5 border-amber-400 text-amber-700 dark:text-amber-400">
+                            Skirting
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <RoomDimensions room={room} variant="compact" />
@@ -182,6 +193,68 @@ export const UnifiedRoomCard = ({
                       >
                         <Plus className="h-3 w-3" />
                         Add Floor Tile
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ═══ Skirting Tile Section ═══ */}
+              {room.has_skirting && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between pl-9 mb-2">
+                    <h5 className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                      <Scissors className="h-3 w-3" />
+                      Skirting Tile
+                    </h5>
+                  </div>
+
+                  {skirtingTileSelections[room.id] ? (() => {
+                    const tile = tiles.find(t => t.id === skirtingTileSelections[room.id]);
+                    return tile ? (
+                      <div className="pl-9">
+                        <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800 shadow-sm">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-sm">{tile.code}</p>
+                              <span className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+                                {formatTileDim(tile.size_length, tile.size_breadth)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Skirting tile</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onAddSkirtingTile(room.id)}
+                              className="h-7 text-xs px-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+                            >
+                              Change
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onRemoveSkirtingTile(room.id, skirtingTileSelections[room.id])}
+                              className="h-8 w-8 p-0 hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null;
+                  })() : (
+                    <div className="pl-9 flex items-center justify-between">
+                      <p className="text-sm text-gray-400 italic">No skirting tile selected</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onAddSkirtingTile(room.id)}
+                        className="gap-1 border-amber-300 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Add Skirting Tile
                       </Button>
                     </div>
                   )}

@@ -186,7 +186,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
             </button>
           </div>
 
-          {userRole === 'worker' && (
+          {userRole !== 'super_admin' && (
             <Button onClick={onAddCustomer} className="bg-primary hover:bg-primary/90 text-white gap-2">
               <UserPlus className="h-4 w-4" /> Add Customer
             </Button>
@@ -243,7 +243,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
                     <Button size="sm" variant="outline" onClick={() => handleViewDetails(customer)}>
                       <Eye className="h-4 w-4 mr-1" /> View
                     </Button>
-                    {userRole === 'worker' && (
+                    {userRole !== 'super_admin' && (
                       <Button size="sm" className="bg-primary hover:bg-primary/90 text-white" onClick={() => onNewQuote(customer.id)}>
                         <FileText className="h-4 w-4 mr-1" /> Quote
                       </Button>
@@ -284,7 +284,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
                   <Button size="sm" variant="outline" onClick={() => handleViewDetails(customer)}>
                     <Eye className="h-3 w-3 mr-1" /> View Details
                   </Button>
-                  {userRole === 'worker' && (
+                  {userRole !== 'super_admin' && (
                     <Button size="sm" className="bg-primary hover:bg-primary/90 text-white text-xs" onClick={() => onNewQuote(customer.id)}>
                       <FileText className="h-3 w-3 mr-1" /> New Quote
                     </Button>
@@ -303,7 +303,7 @@ export const CustomerList = ({ onAddCustomer, onNewQuote, userRole, showroomId }
           <p className="text-muted-foreground mb-4">
             {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first customer"}
           </p>
-          {!searchTerm && userRole === 'worker' && (
+          {!searchTerm && userRole !== 'super_admin' && (
             <Button onClick={onAddCustomer} className="bg-primary hover:bg-primary/90 text-white">
               <UserPlus className="h-4 w-4 mr-2" /> Add Your First Customer
             </Button>

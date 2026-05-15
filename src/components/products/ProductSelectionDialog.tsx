@@ -74,22 +74,22 @@ export const ProductSelectionDialog = ({ isOpen, onClose, customerId }: ProductS
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-                <DialogHeader>
+            <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col overflow-hidden">
+                <DialogHeader className="p-6 pb-0">
                     <DialogTitle className="flex items-center gap-2">
-                        <ShoppingBag className="h-5 w-5" />
+                        <ShoppingBag className="h-5 w-5 text-primary" />
                         Select Products from Catalogue
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex flex-col md:flex-row gap-4 my-4">
+                <div className="px-6 py-4 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                         <Input
                             placeholder="Search by name or code..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
+                            className="pl-10 h-10"
                         />
                     </div>
                     <div className="md:w-64">
@@ -97,7 +97,7 @@ export const ProductSelectionDialog = ({ isOpen, onClose, customerId }: ProductS
                             value={selectedCategory}
                             onValueChange={setSelectedCategory}
                         >
-                            <SelectTrigger>
+                            <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Filter by Category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -109,7 +109,7 @@ export const ProductSelectionDialog = ({ isOpen, onClose, customerId }: ProductS
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="flex-1 overflow-y-auto px-6 pb-6 min-h-0">
                     {isLoading ? (
                         <GridLoader className="py-12 min-h-[300px]" loadingText="Loading products..." />
                     ) : filteredProducts.length === 0 ? (
@@ -121,7 +121,7 @@ export const ProductSelectionDialog = ({ isOpen, onClose, customerId }: ProductS
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {filteredProducts.map((product) => (
-                                <div key={product.id} className="border rounded-lg p-3 flex flex-col gap-3 hover:shadow-md transition-shadow bg-card">
+                                <div key={product.id} className="border rounded-lg p-3 flex flex-col gap-3 hover:shadow-md transition-shadow bg-card h-fit">
                                     <div className="flex gap-3">
                                         {product.image_url ? (
                                             <img
@@ -144,7 +144,7 @@ export const ProductSelectionDialog = ({ isOpen, onClose, customerId }: ProductS
                                     </div>
 
                                     <div className="flex items-center gap-2 mt-auto pt-2 border-t">
-                                        <div className="flex items-center border rounded-md">
+                                        <div className="flex items-center border rounded-md h-8">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -166,7 +166,7 @@ export const ProductSelectionDialog = ({ isOpen, onClose, customerId }: ProductS
                                             </Button>
                                         </div>
                                         <Button
-                                            className="flex-1 h-8 text-xs gap-1"
+                                            className="flex-1 h-8 text-xs gap-1 bg-primary hover:bg-primary-dark"
                                             size="sm"
                                             onClick={() => handleAddProduct(product)}
                                         >

@@ -15,6 +15,9 @@ export interface Staircase {
   step_width?: number;
   riser_height?: number;
   riser_width?: number;
+  // Landing area (flat platform between flights) — uses same tile as step
+  landing_length?: number;
+  landing_width?: number;
   unit?: StaircaseUnit;
   showroom_id?: string;
   created_at: string;
@@ -30,6 +33,9 @@ export interface CreateStaircaseData {
   step_width?: number;
   riser_height?: number;
   riser_width?: number;
+  // Landing area — uses same tile as step
+  landing_length?: number;
+  landing_width?: number;
   unit?: StaircaseUnit;
 }
 

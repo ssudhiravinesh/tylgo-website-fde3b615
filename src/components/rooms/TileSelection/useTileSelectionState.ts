@@ -46,6 +46,7 @@ export function useTileSelectionState(
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
   const [wallTileSelections, setWallTileSelections] = useState<WallTileSelection[]>([]);
   const [staircaseTileSelectionsState, setStaircaseTileSelectionsState] = useState<StaircaseTileSelectionType[]>([]);
+  const [skirtingTileSelections, setSkirtingTileSelections] = useState<Record<string, string>>({}); // { roomId: tileId }
   const [wastagePercentage, setWastagePercentage] = useState<string>("0");
   const [selectedFloorRooms, setSelectedFloorRooms] = useState<Set<string>>(new Set());
 
@@ -69,6 +70,8 @@ export function useTileSelectionState(
   const floorRooms = rooms.filter(room => room.has_floor);
   // Rooms with wall surface enabled (for wall tile configuration)
   const wallRooms = rooms.filter(room => room.has_wall);
+  // Rooms with skirting surface enabled
+  const skirtingRooms = rooms.filter(room => room.has_skirting);
 
   const getWastagePercentage = (): number => {
     const parsed = parseFloat(wastagePercentage);
@@ -109,6 +112,7 @@ export function useTileSelectionState(
 
     const floorSelections: FloorTileSelection[] = [];
     const wallSelections: WallTileSelection[] = [];
+    const newSkirtingSelections: Record<string, string> = {};
 
     selections.forEach(selection => {
       const room = rooms.find(r => r.id === selection.room_id);
@@ -116,8 +120,12 @@ export function useTileSelectionState(
 
       const layerNumber = selection.layer_number;
       const isWallSelection = layerNumber !== null && layerNumber !== undefined && layerNumber > 0;
+      const isSkirtingSelection = selection.tile_type === 'skirting';
 
-      if (!isWallSelection && room.has_floor) {
+      if (isSkirtingSelection) {
+        // Skirting tile — store as roomId → tileId map
+        newSkirtingSelections[selection.room_id] = selection.tile_id;
+      } else if (!isWallSelection && room.has_floor) {
         // Floor tile selection (no layer_number or layer_number=0/null)
         const existingFloorSelection = floorSelections.find(
           fs => fs.roomId === selection.room_id && fs.tileId === selection.tile_id
@@ -198,6 +206,11 @@ export function useTileSelectionState(
       const isEqual = JSON.stringify(prev) === JSON.stringify(wallSelections);
       return isEqual ? prev : wallSelections;
     });
+
+    setSkirtingTileSelections(prev => {
+      const isEqual = JSON.stringify(prev) === JSON.stringify(newSkirtingSelections);
+      return isEqual ? prev : newSkirtingSelections;
+    });
   }, [selections, rooms, tiles]);
 
   return {
@@ -213,6 +226,8 @@ export function useTileSelectionState(
     setWallTileSelections,
     staircaseTileSelectionsState,
     setStaircaseTileSelectionsState,
+    skirtingTileSelections,
+    setSkirtingTileSelections,
     
     // Multi-select
     selectedFloorRooms,
@@ -240,6 +255,7 @@ export function useTileSelectionState(
     // Derived
     floorRooms,
     wallRooms,
+    skirtingRooms,
     isLoading,
   };
 }

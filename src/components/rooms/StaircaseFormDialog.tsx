@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { FeetInchInput } from "@/components/ui/feet-inches-input";
 import { useCreateStaircase, useUpdateStaircase } from "@/hooks/useStaircases";
 import { toast } from "sonner";
-import { Loader2, Footprints, Ruler, Calculator } from "lucide-react";
+import { Loader2, Footprints, Ruler, Calculator, SquareStack } from "lucide-react";
 import type { Staircase, StaircaseUnit } from "@/hooks/useStaircases";
 
 interface StaircaseFormDialogProps {
@@ -41,7 +42,9 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
     step_width: "",
     riser_height: "",
     riser_width: "",
-    unit: "mm" as StaircaseUnit,
+    landing_length: "",
+    landing_width: "",
+    unit: "feet" as StaircaseUnit,
   });
   const [wastagePercentage, setWastagePercentage] = useState(5);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +62,9 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
         step_width: staircase.step_width?.toString() || "",
         riser_height: staircase.riser_height?.toString() || "",
         riser_width: staircase.riser_width?.toString() || "",
-        unit: staircase.unit || "mm",
+        landing_length: staircase.landing_length?.toString() || "",
+        landing_width: staircase.landing_width?.toString() || "",
+        unit: staircase.unit || "feet",
       });
     } else {
       setFormData({
@@ -70,7 +75,9 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
         step_width: "",
         riser_height: "",
         riser_width: "",
-        unit: "mm",
+        landing_length: "",
+        landing_width: "",
+        unit: "feet",
       });
       setWastagePercentage(5);
     }
@@ -84,11 +91,14 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
     const stepWidth = parseFloat(formData.step_width) || 0;
     const riserHeight = parseFloat(formData.riser_height) || 0;
     const riserWidth = parseFloat(formData.riser_width) || 0;
+    const landingLength = parseFloat(formData.landing_length) || 0;
+    const landingWidth = parseFloat(formData.landing_width) || 0;
     const conversionFactor = UNIT_TO_SQFT[formData.unit];
 
     const stepAreaSqFt = stepLength * stepWidth * steps * conversionFactor;
     const riserAreaSqFt = riserHeight * riserWidth * risers * conversionFactor;
-    const totalAreaSqFt = stepAreaSqFt + riserAreaSqFt;
+    const landingAreaSqFt = landingLength * landingWidth * conversionFactor;
+    const totalAreaSqFt = stepAreaSqFt + riserAreaSqFt + landingAreaSqFt;
     const totalWithWastage = totalAreaSqFt * (1 + wastagePercentage / 100);
 
     return {
@@ -96,9 +106,11 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
       risers,
       stepAreaSqFt,
       riserAreaSqFt,
+      landingAreaSqFt,
       totalAreaSqFt,
       totalWithWastage,
       hasDimensions: stepLength > 0 && stepWidth > 0 && riserHeight > 0 && riserWidth > 0,
+      hasLanding: landingLength > 0 && landingWidth > 0,
     };
   }, [formData, wastagePercentage]);
 
@@ -140,6 +152,8 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
         step_width: formData.step_width ? parseFloat(formData.step_width) : undefined,
         riser_height: formData.riser_height ? parseFloat(formData.riser_height) : undefined,
         riser_width: formData.riser_width ? parseFloat(formData.riser_width) : undefined,
+        landing_length: formData.landing_length ? parseFloat(formData.landing_length) : undefined,
+        landing_width: formData.landing_width ? parseFloat(formData.landing_width) : undefined,
         unit: formData.unit,
       };
 
@@ -167,6 +181,43 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
     if (!isLoading) {
       onClose();
     }
+  };
+
+  /** Render a dimension input — FeetInchInput for feet, numeric Input otherwise */
+  const renderDimInput = (
+    id: string,
+    label: string,
+    field: keyof typeof formData,
+    placeholder: string
+  ) => {
+    if (formData.unit === "feet") {
+      return (
+        <div className="space-y-1">
+          <Label htmlFor={id} className="text-xs">{label}</Label>
+          <FeetInchInput
+            value={formData[field]}
+            onChange={(val) => setFormData(prev => ({ ...prev, [field]: val }))}
+            placeholder={placeholder}
+            disabled={isLoading}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={id} className="text-xs">{label} ({formData.unit})</Label>
+        <Input
+          id={id}
+          type="number"
+          min="0"
+          step="0.01"
+          value={formData[field]}
+          onChange={(e) => setFormData(prev => ({ ...prev, [field]: e.target.value }))}
+          placeholder={placeholder}
+          disabled={isLoading}
+        />
+      </div>
+    );
   };
 
   return (
@@ -234,32 +285,8 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
                   required
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="step_length" className="text-xs">Length ({formData.unit})</Label>
-                <Input
-                  id="step_length"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.step_length}
-                  onChange={(e) => setFormData(prev => ({ ...prev, step_length: e.target.value }))}
-                  placeholder="900"
-                  disabled={isLoading}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="step_width" className="text-xs">Width ({formData.unit})</Label>
-                <Input
-                  id="step_width"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.step_width}
-                  onChange={(e) => setFormData(prev => ({ ...prev, step_width: e.target.value }))}
-                  placeholder="300"
-                  disabled={isLoading}
-                />
-              </div>
+              {renderDimInput("step_length", "Length", "step_length", "0 0")}
+              {renderDimInput("step_width", "Width", "step_width", "0 0")}
             </div>
             {calculations.stepAreaSqFt > 0 && (
               <p className="text-xs text-primary">
@@ -289,36 +316,38 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
                   required
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="riser_height" className="text-xs">Height ({formData.unit})</Label>
-                <Input
-                  id="riser_height"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.riser_height}
-                  onChange={(e) => setFormData(prev => ({ ...prev, riser_height: e.target.value }))}
-                  placeholder="150"
-                  disabled={isLoading}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="riser_width" className="text-xs">Width ({formData.unit})</Label>
-                <Input
-                  id="riser_width"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.riser_width}
-                  onChange={(e) => setFormData(prev => ({ ...prev, riser_width: e.target.value }))}
-                  placeholder="900"
-                  disabled={isLoading}
-                />
-              </div>
+              {renderDimInput("riser_height", "Height", "riser_height", "0 0")}
+              {renderDimInput("riser_width", "Width", "riser_width", "0 0")}
             </div>
             {calculations.riserAreaSqFt > 0 && (
               <p className="text-xs text-muted-foreground">
                 Total Riser Area: <span className="font-semibold">{calculations.riserAreaSqFt.toFixed(2)} sq ft</span>
+              </p>
+            )}
+          </div>
+
+          {/* Landing Section */}
+          <div className="space-y-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-2 text-foreground font-medium">
+              <SquareStack className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <span>Stair Landing</span>
+              <span className="text-xs font-normal text-muted-foreground ml-1">
+                (flat platform — uses same tile as steps)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {renderDimInput("landing_length", "Length", "landing_length", "0 0")}
+              {renderDimInput("landing_width", "Width / Breadth", "landing_width", "0 0")}
+            </div>
+            {calculations.landingAreaSqFt > 0 && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Landing Area: <span className="font-semibold">{calculations.landingAreaSqFt.toFixed(2)} sq ft</span>
+              </p>
+            )}
+            {!calculations.hasLanding && (
+              <p className="text-xs text-muted-foreground italic">
+                Leave blank if there is no landing
               </p>
             )}
           </div>
@@ -350,7 +379,7 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
                 <Calculator className="h-4 w-4" />
                 <span>Area Summary</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className={`grid gap-2 text-sm ${calculations.hasLanding ? 'grid-cols-2' : 'grid-cols-2'}`}>
                 <div className="bg-card rounded p-2 text-center">
                   <p className="text-lg font-bold text-primary">{calculations.stepAreaSqFt.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground">Step Area (sq ft)</p>
@@ -359,11 +388,17 @@ export const StaircaseFormDialog = ({ isOpen, onClose, staircase, customerId }: 
                   <p className="text-lg font-bold text-foreground">{calculations.riserAreaSqFt.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground">Riser Area (sq ft)</p>
                 </div>
+                {calculations.hasLanding && (
+                  <div className="bg-card rounded p-2 text-center">
+                    <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{calculations.landingAreaSqFt.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">Landing Area (sq ft)</p>
+                  </div>
+                )}
                 <div className="bg-card rounded p-2 text-center">
                   <p className="text-lg font-bold text-foreground">{calculations.totalAreaSqFt.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground">Total Area (sq ft)</p>
                 </div>
-                <div className="bg-card rounded p-2 text-center">
+                <div className={`bg-card rounded p-2 text-center ${calculations.hasLanding ? 'col-span-2' : ''}`}>
                   <p className="text-lg font-bold text-primary">{calculations.totalWithWastage.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground">With Wastage (sq ft)</p>
                 </div>

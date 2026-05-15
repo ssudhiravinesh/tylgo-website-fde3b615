@@ -13,7 +13,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { useSaveRoomTileSelections, useDeleteRoomTileSelection } from "@/hooks/useRooms";
+import { useSaveRoomTileSelections, useDeleteRoomTileSelection, useDeleteSkirtingTileSelection } from "@/hooks/useRooms";
 import { useSaveStaircaseTileSelection, useDeleteStaircaseTileSelection } from "@/hooks/useStaircases";
 import { useSaveRoomProductSelection, useDeleteRoomProductSelection } from "@/hooks/useProductSelections";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
@@ -52,6 +52,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   // ── Mutations ─────────────────────────────────────────────────────
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
+  const deleteSkirtingSelectionMutation = useDeleteSkirtingTileSelection();
   const saveStaircaseSelectionMutation = useSaveStaircaseTileSelection();
   const saveProductSelectionMutation = useSaveRoomProductSelection();
   const deleteProductSelectionMutation = useDeleteRoomProductSelection();
@@ -127,16 +128,29 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         const newSelections = roomsToAdd.map(id => ({ roomId: id, tileId }));
         state.setFloorTileSelections(prev => [...prev, ...newSelections]);
 
-        const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
+        const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number; tile_type?: string }[] = [];
 
         [...state.floorTileSelections, ...newSelections].forEach(fs => {
-          selectionsToSave.push({ customer_id: customerId, room_id: fs.roomId, tile_id: fs.tileId });
+          selectionsToSave.push({ customer_id: customerId, room_id: fs.roomId, tile_id: fs.tileId, tile_type: 'floor' });
+          // Auto-apply floor tile to skirting if room has skirting and no skirting tile yet
+          const room = rooms.find(r => r.id === fs.roomId);
+          if (room?.has_skirting && !state.skirtingTileSelections[fs.roomId]) {
+            selectionsToSave.push({ customer_id: customerId, room_id: fs.roomId, tile_id: fs.tileId, tile_type: 'skirting' });
+            state.setSkirtingTileSelections(prev => ({ ...prev, [fs.roomId]: fs.tileId }));
+          }
         });
 
         state.wallTileSelections.forEach(ws => {
           ws.layers.forEach(layer => {
-            selectionsToSave.push({ customer_id: customerId, room_id: ws.roomId, tile_id: layer.tileId, layer_number: layer.layerNumber });
+            selectionsToSave.push({ customer_id: customerId, room_id: ws.roomId, tile_id: layer.tileId, layer_number: layer.layerNumber, tile_type: 'floor' });
           });
+        });
+
+        // Include existing skirting selections
+        Object.entries(state.skirtingTileSelections).forEach(([roomId, skirtingTileId]) => {
+          if (!selectionsToSave.find(s => s.room_id === roomId && s.tile_type === 'skirting')) {
+            selectionsToSave.push({ customer_id: customerId, room_id: roomId, tile_id: skirtingTileId, tile_type: 'skirting' });
+          }
         });
 
         await saveSelectionsMutation.mutateAsync(selectionsToSave);
@@ -163,6 +177,27 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
     state.setShowTileCatalog(false);
     state.setCatalogContext(null);
+  };
+
+  // ── Handlers: Skirting Tiles ──────────────────────────────────────
+
+  const handleAddSkirtingTile = (roomId: string) => {
+    state.setCatalogContext({ roomId, isWallTile: false, isSkirtingTile: true });
+    state.setShowTileCatalog(true);
+  };
+
+  const handleRemoveSkirtingTile = async (roomId: string, tileId: string) => {
+    try {
+      await deleteSkirtingSelectionMutation.mutateAsync({ roomId, tileId });
+      state.setSkirtingTileSelections(prev => {
+        const next = { ...prev };
+        delete next[roomId];
+        return next;
+      });
+      toast.success("Skirting tile removed");
+    } catch {
+      toast.error("Failed to remove skirting tile");
+    }
   };
 
   // ── Handlers: Wall Tiles ──────────────────────────────────────────
@@ -234,7 +269,21 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
   const handleTileSelected = (tileId: string) => {
     if (!state.catalogContext) return;
-    const { roomId, roomIds, isWallTile, layerNumber } = state.catalogContext;
+    const { roomId, roomIds, isWallTile, layerNumber, isSkirtingTile } = state.catalogContext as typeof state.catalogContext & { isSkirtingTile?: boolean };
+
+    // Skirting tile selection path
+    if (isSkirtingTile && roomId) {
+      const room = rooms.find(r => r.id === roomId);
+      if (room) {
+        state.setSkirtingTileSelections(prev => ({ ...prev, [roomId]: tileId }));
+        saveSelectionsMutation.mutateAsync([
+          { customer_id: customerId, room_id: roomId, tile_id: tileId, tile_type: 'skirting' }
+        ]).then(() => toast.success("Skirting tile saved")).catch(() => toast.error("Failed to save skirting tile"));
+      }
+      state.setShowTileCatalog(false);
+      state.setCatalogContext(null);
+      return;
+    }
 
     if (!isWallTile) {
       if (roomIds && roomIds.length > 0) {
@@ -362,16 +411,21 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   // ── Handlers: Save & Generate ─────────────────────────────────────
 
   const handleSaveSelections = async () => {
-    const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number }[] = [];
+    const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number; tile_type?: string }[] = [];
 
     state.floorTileSelections.forEach(fs => {
-      selectionsToSave.push({ customer_id: customerId, room_id: fs.roomId, tile_id: fs.tileId });
+      selectionsToSave.push({ customer_id: customerId, room_id: fs.roomId, tile_id: fs.tileId, tile_type: 'floor' });
     });
 
     state.wallTileSelections.forEach(ws => {
       ws.layers.forEach(layer => {
-        selectionsToSave.push({ customer_id: customerId, room_id: ws.roomId, tile_id: layer.tileId, layer_number: layer.layerNumber });
+        selectionsToSave.push({ customer_id: customerId, room_id: ws.roomId, tile_id: layer.tileId, layer_number: layer.layerNumber, tile_type: 'floor' });
       });
+    });
+
+    // Include skirting selections
+    Object.entries(state.skirtingTileSelections).forEach(([roomId, tileId]) => {
+      selectionsToSave.push({ customer_id: customerId, room_id: roomId, tile_id: tileId, tile_type: 'skirting' });
     });
 
     try {
@@ -386,9 +440,10 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     const hasFloorTiles = state.floorTileSelections.length > 0;
     const hasWallTiles = state.wallTileSelections.some(ws => ws.layers.length > 0);
     const hasStaircaseTiles = state.staircaseTileSelectionsState.some(s => s.stepTileId || s.riserTileId);
+    const hasSkirtingTiles = Object.keys(state.skirtingTileSelections).length > 0;
     const hasProducts = state.customerProducts.length > 0 || state.productSelections.length > 0;
 
-    if (!hasFloorTiles && !hasWallTiles && !hasStaircaseTiles && !hasProducts) {
+    if (!hasFloorTiles && !hasWallTiles && !hasStaircaseTiles && !hasSkirtingTiles && !hasProducts) {
       toast.error("Please select tiles for at least one room, staircase or add products before generating quotation");
       return;
     }
@@ -402,7 +457,8 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     state.wallTileSelections,
     rooms,
     state.tiles,
-    state.getWastagePercentage()
+    state.getWastagePercentage(),
+    state.skirtingTileSelections
   );
 
   const staircaseCalculations = calculateStaircaseTileRequirements(
@@ -421,6 +477,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     const roomItems = prepareQuotationItems(
       state.floorTileSelections,
       state.wallTileSelections,
+      state.skirtingTileSelections,
       rooms,
       state.tiles,
       state.getWastagePercentage()
@@ -535,6 +592,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
             rooms={rooms}
             floorTileSelections={state.floorTileSelections}
             wallTileSelections={state.wallTileSelections}
+            skirtingTileSelections={state.skirtingTileSelections}
             tiles={state.tiles}
             selectedFloorRooms={state.selectedFloorRooms}
             productSelections={state.productSelections}
@@ -543,6 +601,8 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
             onRemoveFloorTile={handleRemoveFloorTile}
             onConfigureWallTiles={handleConfigureWallTiles}
             onClearWallTiles={handleClearWallTiles}
+            onAddSkirtingTile={handleAddSkirtingTile}
+            onRemoveSkirtingTile={handleRemoveSkirtingTile}
             onAddProduct={handleAddProduct}
             onRemoveProduct={handleRemoveProduct}
             onShowPreview={(room, floorTile, wallLayers) => state.setShowRoomPreview({ room, floorTile, wallLayers })}
@@ -569,7 +629,6 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
           grandTotal={grandTotal}
           productSelections={state.productSelections}
           customerProducts={state.customerProducts}
-          rooms={rooms}
           hasFloorSelections={state.floorTileSelections.length > 0}
           hasWallSelections={state.wallTileSelections.length > 0}
           onSaveSelections={handleSaveSelections}

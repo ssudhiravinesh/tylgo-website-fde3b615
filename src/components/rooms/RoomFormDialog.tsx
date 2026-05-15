@@ -9,7 +9,7 @@ import { FeetInchInput } from "@/components/ui/feet-inches-input";
 import { useCreateRoom, useUpdateRoom } from "@/hooks/useRooms";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/errorUtils";
-import { Plus, Trash2, Ruler, Loader2, Layers, PenTool } from "lucide-react";
+import { Plus, Trash2, Ruler, Loader2, Layers, PenTool, Scissors } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Room } from "@/hooks/useRooms";
 import type { CanvasRoomShape } from "@/types/canvas.types";
@@ -64,11 +64,49 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     unit: "feet" as "metre" | "inches" | "mm" | "feet",
     has_floor: true,
     has_wall: false,
+    has_skirting: false,
   });
 
   // Canvas mode state
   const [inputMode, setInputMode] = useState<'manual' | 'canvas'>('manual');
   const [canvasShape, setCanvasShape] = useState<CanvasRoomShape | null>(null);
+
+  // Skirting dimensions (single measurement set — no multi-shape)
+  const [skirtingLength, setSkirtingLength] = useState("");
+  const [skirtingHeight, setSkirtingHeight] = useState("");
+  // When true, the worker has deliberately changed the skirting length — stop mirroring wall
+  const [skirtingLengthManuallyEdited, setSkirtingLengthManuallyEdited] = useState(false);
+  const [skirtingHeightManuallyEdited, setSkirtingHeightManuallyEdited] = useState(false);
+
+  // Auto-mirror wall perimeter → skirting length (both run along the same perimeter).
+  // Stops mirroring once the worker manually edits the skirting length field.
+  useEffect(() => {
+    if (
+      formData.has_skirting &&
+      !skirtingLengthManuallyEdited &&
+      inputMode === 'manual'
+    ) {
+      // Sum up all wall lengths to get total perimeter
+      const totalWallPerimeter = wallMeasurements.reduce((acc, curr) => {
+        const val = parseFloat(curr.length) || 0;
+        return acc + val;
+      }, 0);
+
+      if (totalWallPerimeter > 0) {
+        setSkirtingLength(totalWallPerimeter.toString());
+      }
+    }
+  }, [wallMeasurements, formData.has_skirting, skirtingLengthManuallyEdited, inputMode]);
+
+  const handleSkirtingLengthChange = (value: string) => {
+    setSkirtingLength(value);
+    setSkirtingLengthManuallyEdited(true);
+  };
+
+  const handleSkirtingHeightChange = (value: string) => {
+    setSkirtingHeight(value);
+    setSkirtingHeightManuallyEdited(true);
+  };
 
   const [isLoading, setIsLoading] = useState(false);
   
@@ -124,7 +162,15 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         unit: room.unit,
         has_floor: room.has_floor,
         has_wall: room.has_wall,
+        has_skirting: room.has_skirting ?? false,
       });
+
+      // Restore skirting dimensions
+      setSkirtingLength(room.skirting_length?.toString() || "");
+      setSkirtingHeight(room.skirting_height?.toString() || "");
+      // For existing rooms, we assume they are "edited" so we don't overwrite saved data
+      setSkirtingLengthManuallyEdited(!!room.skirting_length);
+      setSkirtingHeightManuallyEdited(!!room.skirting_height);
 
       // Detect canvas-mode room and restore canvas state
       if (room.canvas_cells && Array.isArray(room.canvas_cells) && room.canvas_cells.length > 0) {
@@ -177,11 +223,16 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
         unit: "feet",
         has_floor: true,
         has_wall: false,
+        has_skirting: false,
       });
       setInputMode('manual');
       setCanvasShape(null);
       setFloorMeasurements([{ id: Date.now(), length: "", width: "" }]);
       setWallMeasurements([{ id: Date.now() + 1, length: "", width: "" }]);
+      setSkirtingLength("");
+      setSkirtingHeight("");
+      setSkirtingLengthManuallyEdited(false);
+      setSkirtingHeightManuallyEdited(false);
     }
   }, [room, isOpen]);
 
@@ -222,6 +273,9 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
   const floorArea = formData.has_floor ? calculateTotalArea(floorMeasurements) : 0;
   const wallArea = formData.has_wall ? calculateTotalArea(wallMeasurements) : 0;
+  const skirtingArea = formData.has_skirting
+    ? (parseFloat(skirtingLength) || 0) * (parseFloat(skirtingHeight) || 0)
+    : 0;
 
   // --- Validation ---
   const validateMeasurements = (measurements: MeasurementSet[], label: string): boolean => {
@@ -250,8 +304,8 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       return;
     }
 
-    if (!formData.has_floor && !formData.has_wall) {
-      toast.error("Please enable at least one surface (Floor or Wall)");
+    if (!formData.has_floor && !formData.has_wall && !formData.has_skirting) {
+      toast.error("Please enable at least one surface (Floor, Wall, or Skirting)");
       return;
     }
 
@@ -269,6 +323,14 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
       if (formData.has_floor && !validateMeasurements(floorMeasurements, "floor")) return;
     }
     if (formData.has_wall && inputMode === 'manual' && !validateMeasurements(wallMeasurements, "wall")) return;
+    if (formData.has_skirting && inputMode === 'manual') {
+      const sl = parseFloat(skirtingLength);
+      const sh = parseFloat(skirtingHeight);
+      if (isNaN(sl) || sl <= 0 || isNaN(sh) || sh <= 0) {
+        toast.error("Skirting dimensions must be valid numbers greater than 0");
+        return;
+      }
+    }
 
     setIsLoading(true);
 
@@ -288,6 +350,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           room_type: 'room' as const,
           has_floor: true,
           has_wall: hasWall,
+          has_skirting: formData.has_skirting,
           // Backwards-compatible: existing tile calculators use length × width
           length: canvasArea,
           width: 1,
@@ -296,6 +359,9 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           wall_length: hasWall ? canvasPerimeter : undefined as number | undefined,
           wall_height: hasWall ? canvasShape.height! : undefined as number | undefined,
           wall_measurements: undefined as undefined,
+          // Skirting dimensions
+          skirting_length: formData.has_skirting && skirtingLength ? parseFloat(skirtingLength) : undefined,
+          skirting_height: formData.has_skirting && skirtingHeight ? parseFloat(skirtingHeight) : undefined,
           // Canvas-specific columns
           canvas_cells: canvasShape.cells,
           canvas_edges: canvasShape.edges,
@@ -310,6 +376,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           room_type: 'room' as const,
           has_floor: formData.has_floor,
           has_wall: formData.has_wall,
+          has_skirting: formData.has_skirting,
           // Floor dimensions (aggregated total area as length, width=1)
           length: formData.has_floor ? floorArea : 0,
           width: formData.has_floor ? 1 : 0,
@@ -319,6 +386,9 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           wall_length: formData.has_wall ? parseFloat(wallMeasurements[0]?.length || '0') : undefined,
           wall_height: formData.has_wall ? parseFloat(wallMeasurements[0]?.width || '0') : undefined,
           wall_measurements: formData.has_wall ? wallMeasurements : undefined,
+          // Skirting dimensions
+          skirting_length: formData.has_skirting && skirtingLength ? parseFloat(skirtingLength) : undefined,
+          skirting_height: formData.has_skirting && skirtingHeight ? parseFloat(skirtingHeight) : undefined,
           // Clear canvas columns when switching to manual
           canvas_cells: undefined as undefined,
           canvas_edges: undefined as undefined,
@@ -519,13 +589,14 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
     : false;
 
   const canSubmit = formData.name.trim().length > 0 &&
-    (formData.has_floor || formData.has_wall) &&
+    (formData.has_floor || formData.has_wall || formData.has_skirting) &&
     (
       inputMode === 'canvas'
         ? canvasReady
         : (
             (!formData.has_floor || floorArea > 0) &&
-            (!formData.has_wall || wallArea > 0)
+            (!formData.has_wall || wallArea > 0) &&
+            (!formData.has_skirting || skirtingArea > 0)
           )
     );
 
@@ -725,8 +796,99 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
               </div>
             )}
 
+            {/* --- Skirting Surface Section --- */}
+            {inputMode === 'manual' && (
+              <div className={`rounded-lg border transition-colors ${formData.has_skirting ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800' : 'border-border bg-muted/30'}`}>
+                <div className="flex items-center gap-3 p-3">
+                  <Checkbox
+                    id="has_skirting"
+                    checked={formData.has_skirting}
+                    disabled={isLoading}
+                    onCheckedChange={(checked) => {
+                      const isChecked = checked === true;
+                      setFormData(prev => ({ ...prev, has_skirting: isChecked }));
+                      // Set default skirting height (0.75 feet = 9 inches) if empty/not edited when enabled
+                      if (isChecked && (!skirtingHeight || !skirtingHeightManuallyEdited)) {
+                        switch (formData.unit) {
+                          case 'feet': setSkirtingHeight("0.75"); break;
+                          case 'inches': setSkirtingHeight("9"); break;
+                          case 'metre': setSkirtingHeight("0.2286"); break;
+                          case 'mm': setSkirtingHeight("228.6"); break;
+                        }
+                      }
+                    }}
+                  />
+                  <Label htmlFor="has_skirting" className="flex items-center gap-2 cursor-pointer text-sm font-semibold">
+                    <Scissors className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    Skirting Tiles
+                  </Label>
+                  {formData.has_skirting && skirtingArea > 0 && (
+                    <span className="ml-auto text-xs font-medium text-amber-700 dark:text-amber-400">
+                      {skirtingArea.toFixed(2)} {formData.unit}²
+                    </span>
+                  )}
+                </div>
+
+                {formData.has_skirting && (
+                  <div className="px-3 pb-3 pt-1 border-t border-border/50 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">Skirting Dimensions</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Length = total perimeter around room. Height = skirting strip height (e.g. 4 inches).
+                    </p>
+                    <div className="flex items-end gap-2 bg-muted p-2 rounded-md border border-border">
+                      <div className="flex-1 space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground">Length (Perimeter)</span>
+                        {formData.unit === "feet" ? (
+                          <FeetInchInput
+                            value={skirtingLength}
+                            onChange={handleSkirtingLengthChange}
+                            placeholder="40 0"
+                            disabled={isLoading}
+                          />
+                        ) : (
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={skirtingLength}
+                            onChange={(e) => handleSkirtingLengthChange(e.target.value)}
+                            placeholder="0.00"
+                            disabled={isLoading}
+                          />
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <span className="text-xs font-medium text-muted-foreground">Height (Strip)</span>
+                        {formData.unit === "feet" ? (
+                          <FeetInchInput
+                            value={skirtingHeight}
+                            onChange={handleSkirtingHeightChange}
+                            placeholder="0 4"
+                            disabled={isLoading}
+                          />
+                        ) : (
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={skirtingHeight}
+                            onChange={(e) => handleSkirtingHeightChange(e.target.value)}
+                            placeholder="0.00"
+                            disabled={isLoading}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Validation hint */}
-            {!formData.has_floor && !formData.has_wall && (
+            {!formData.has_floor && !formData.has_wall && !formData.has_skirting && (
               <p className="text-xs text-destructive font-medium">
                 At least one surface must be enabled
               </p>
@@ -734,7 +896,8 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           </div>
 
           {/* Total Area Summary */}
-          {(formData.has_floor || formData.has_wall) && (floorArea > 0 || wallArea > 0) && (
+          {(formData.has_floor || formData.has_wall || formData.has_skirting) &&
+           (floorArea > 0 || wallArea > 0 || skirtingArea > 0) && (
             <div className="p-3 rounded-lg border bg-primary/8 border-primary/20 text-foreground">
               <div className="flex items-center gap-2 text-sm font-medium mb-2">
                 <Ruler className="h-4 w-4" />
@@ -753,10 +916,10 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                     <span className="font-bold">{wallArea.toFixed(2)} {formData.unit}²</span>
                   </div>
                 )}
-                {formData.has_floor && formData.has_wall && floorArea > 0 && wallArea > 0 && (
-                  <div className="flex justify-between text-sm pt-1 mt-1 border-t border-primary/20">
-                    <span className="font-medium">Combined:</span>
-                    <span className="font-bold text-primary">{(floorArea + wallArea).toFixed(2)} {formData.unit}²</span>
+                {formData.has_skirting && skirtingArea > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Skirting Area:</span>
+                    <span className="font-bold text-amber-700 dark:text-amber-400">{skirtingArea.toFixed(2)} {formData.unit}²</span>
                   </div>
                 )}
               </div>

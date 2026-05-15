@@ -46,7 +46,7 @@ export const TileSelectionDialogs = ({
   return (
     <>
       <Dialog open={showTileCatalog} onOpenChange={onShowTileCatalogChange}>
-        <DialogContent className="max-w-4xl h-[85vh] p-0">
+        <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col overflow-hidden">
           <DialogHeader className="p-6 pb-2 shrink-0">
             <DialogTitle>
               {catalogContext?.roomIds
@@ -57,7 +57,7 @@ export const TileSelectionDialogs = ({
               }
             </DialogTitle>
           </DialogHeader>
-          <div className="overflow-y-auto px-6 pb-6" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+          <div className="flex-1 overflow-y-auto px-6 pb-6 min-h-0">
             <TileCatalog
               isSelectionMode={true}
               onTileSelect={onTileSelected}
