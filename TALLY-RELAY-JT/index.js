@@ -438,7 +438,10 @@ async function ensureCustomerLedger(customerName) {
  * Fetch quotation items and aggregate by tile_id.
  * Same tile used in multiple rooms/layers → single aggregated entry.
  * 
- * Uses tile.name directly as the Tally stock item name (names match exactly).
+ * Priority for Tally Stock Name:
+ * 1. Explicit mapping in tally_stock_mappings table
+ * 2. Reconstructed name: tile.code (dashes to spaces) + PRE suffix from tile.name
+ * 3. Fallback: tile.name
  * 
  * Returns: [{ tileId, tileCode, tallyStockName, boxes, pricePerBox, totalPrice }]
  */
@@ -448,10 +451,25 @@ async function fetchAndAggregateItems(quotationId) {
     .select(`
       id,
       tile_id,
+      product_id,
       price_per_box,
       total_price,
+      quantity,
       tiles!quotation_items_tile_id_fkey (
-        id, code, name, pieces_per_box
+        id, 
+        code, 
+        name, 
+        pieces_per_box,
+        tally_stock_mappings (
+          tally_stock_item_name
+        )
+      ),
+      products:product_id (
+        id,
+        name,
+        tally_stock_mappings (
+          tally_stock_item_name
+        )
       )
     `)
     .eq('quotation_id', quotationId);
@@ -466,45 +484,90 @@ async function fetchAndAggregateItems(quotationId) {
     return [];
   }
 
-  // Aggregate by tile_id: sum total_price, compute boxes
-  const tileMap = new Map();
+  // Aggregate by unique key (tile_id or product_id)
+  const itemMap = new Map();
 
   for (const item of items) {
-    const tileId = item.tile_id;
-    if (!tileId) continue;
+    const isTile = !!item.tile_id;
+    const itemId = isTile ? item.tile_id : item.product_id;
+    if (!itemId) continue;
 
     const totalPrice = parseFloat(item.total_price) || 0;
     const pricePerBox = parseFloat(item.price_per_box) || 0;
-    const tileCode = item.tiles?.code || 'Unknown';
-    const tileName = item.tiles?.name || '';
-    // Construct Tally stock name as: "{tile.code} {PRE nT suffix}"
-    // e.g. code="JF 1200X600 PGVT 24001", name="PGVT 24001 PRE 2T"
-    //   → Tally stock name = "JF 1200X600 PGVT 24001 PRE 2T"
-    const preMatch = tileName.match(/(PRE\s+\d+T.*)$/i);
-    const tallyStockName = tileCode && preMatch
-      ? `${tileCode} ${preMatch[1]}`
-      : (tileName || null);
+    const quantity = parseFloat(item.quantity) || 0;
+    
+    // Determine Tally Stock Name
+    let tallyStockName = null;
+    let displayName = 'Unknown';
+    let unit = 'BOX';
 
-    if (tileMap.has(tileId)) {
-      const existing = tileMap.get(tileId);
-      existing.totalPrice += totalPrice;
+    if (isTile) {
+      const tileCode = item.tiles?.code || 'Unknown';
+      const tileName = item.tiles?.name || '';
+      displayName = tileCode;
+      
+      // Priority 1: Explicit mapping
+      if (item.tiles?.tally_stock_mappings && item.tiles.tally_stock_mappings.length > 0) {
+        tallyStockName = item.tiles.tally_stock_mappings[0].tally_stock_item_name;
+      } 
+      
+      // Priority 2: Reconstructed (e.g. "JF-1200X600-PGVT-24001" + "PRE 2T" -> "JF 1200X600 PGVT 24001 PRE 2T")
+      if (!tallyStockName) {
+        const preMatch = tileName.match(/(PRE\s+\d+T.*)$/i);
+        if (tileCode && tileCode !== 'Unknown' && preMatch) {
+          const cleanCode = tileCode.replace(/-/g, ' '); 
+          tallyStockName = `${cleanCode} ${preMatch[1]}`;
+        }
+      }
+
+      // Priority 3: Use tile name directly
+      if (!tallyStockName) {
+        tallyStockName = tileName || null;
+      }
     } else {
-      tileMap.set(tileId, {
-        tileId,
-        tileCode,
+      // It's a non-tile product (Basin, sink, etc.)
+      const productName = item.products?.name || 'Unknown Product';
+      displayName = productName;
+      unit = 'Nos'; // Non-tile products usually use Nos in Tally
+
+      // Priority 1: Explicit mapping
+      if (item.products?.tally_stock_mappings && item.products.tally_stock_mappings.length > 0) {
+        tallyStockName = item.products.tally_stock_mappings[0].tally_stock_item_name;
+      }
+
+      // Priority 2: Direct name match (Products in Tally usually match Tylgo names exactly)
+      if (!tallyStockName) {
+        tallyStockName = productName;
+      }
+    }
+
+    if (itemMap.has(itemId)) {
+      const existing = itemMap.get(itemId);
+      existing.totalPrice += totalPrice;
+      existing.quantity += quantity;
+    } else {
+      itemMap.set(itemId, {
+        id: itemId,
+        isTile,
+        displayName,
         tallyStockName,
         pricePerBox,
         totalPrice,
+        quantity,
+        unit
       });
     }
   }
 
-  // Calculate boxes for each aggregated tile
+  // Calculate units (boxes/nos) for each aggregated item
   const aggregated = [];
-  for (const item of tileMap.values()) {
-    const boxes = item.pricePerBox > 0
-      ? Math.round(item.totalPrice / item.pricePerBox)
-      : 0;
+  for (const item of itemMap.values()) {
+    let boxes = 0;
+    if (item.isTile) {
+      boxes = item.pricePerBox > 0 ? Math.round(item.totalPrice / item.pricePerBox) : 0;
+    } else {
+      boxes = item.quantity;
+    }
     aggregated.push({ ...item, boxes });
   }
 
