@@ -308,6 +308,32 @@ const deleteSkirtingTileSelection = async (roomId: string, tileId: string): Prom
   }
 };
 
+const deleteWallTileSelections = async (roomId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('room_tile_selections')
+    .delete()
+    .eq('room_id', roomId)
+    .gt('layer_number', 0); // Wall tiles have layer_number > 0
+
+  if (error) {
+    console.error('Error deleting wall tile selections:', error);
+    throw error;
+  }
+};
+
+const deleteWallTileLayerSelection = async (roomId: string, layerNumber: number): Promise<void> => {
+  const { error } = await supabase
+    .from('room_tile_selections')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('layer_number', layerNumber);
+
+  if (error) {
+    console.error('Error deleting wall tile layer selection:', error);
+    throw error;
+  }
+};
+
 export const useRoomsByCustomer = (customerId: string) => {
   return useQuery({
     queryKey: ['rooms', customerId],
@@ -390,6 +416,29 @@ export const useDeleteSkirtingTileSelection = () => {
   return useMutation({
     mutationFn: ({ roomId, tileId }: { roomId: string; tileId: string }) =>
       deleteSkirtingTileSelection(roomId, tileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
+    },
+  });
+};
+
+export const useDeleteWallTileSelections = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (roomId: string) => deleteWallTileSelections(roomId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
+    },
+  });
+};
+
+export const useDeleteWallTileLayerSelection = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ roomId, layerNumber }: { roomId: string; layerNumber: number }) =>
+      deleteWallTileLayerSelection(roomId, layerNumber),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-tile-selections'] });
     },

@@ -335,7 +335,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
       />
 
       {/* Category Grid View or Tile Table View */}
-      {selectedCategoryForView === null ? (
+      {selectedCategoryForView === null && !searchTerm ? (
         /* Category Grid View */
         <div className="space-y-4">
           <Card>
@@ -382,7 +382,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
           </Card>
         </div>
       ) : (
-        /* Tile Table View (filtered by category) */
+        /* Tile Table View (filtered by category or search) */
         <div className="space-y-4">
           <Button
             variant="outline"
@@ -400,7 +400,7 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Grid3X3 className="h-5 w-5 text-primary" />
-                {selectedCategoryForView} ({filteredTiles.length} tiles)
+                {selectedCategoryForView || (searchTerm ? "Search Results" : "All Tiles")} ({filteredTiles.length} tiles)
               </CardTitle>
             </CardHeader>
             <CardContent>

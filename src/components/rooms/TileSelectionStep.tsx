@@ -13,7 +13,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { useSaveRoomTileSelections, useDeleteRoomTileSelection, useDeleteSkirtingTileSelection } from "@/hooks/useRooms";
+import { useSaveRoomTileSelections, useDeleteRoomTileSelection, useDeleteSkirtingTileSelection, useDeleteWallTileSelections } from "@/hooks/useRooms";
 import { useSaveStaircaseTileSelection, useDeleteStaircaseTileSelection } from "@/hooks/useStaircases";
 import { useSaveRoomProductSelection, useDeleteRoomProductSelection } from "@/hooks/useProductSelections";
 import { QuotationForm } from "@/components/quotations/QuotationForm";
@@ -53,6 +53,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   const saveSelectionsMutation = useSaveRoomTileSelections();
   const deleteSelectionMutation = useDeleteRoomTileSelection();
   const deleteSkirtingSelectionMutation = useDeleteSkirtingTileSelection();
+  const deleteWallSelectionsMutation = useDeleteWallTileSelections();
   const saveStaircaseSelectionMutation = useSaveStaircaseTileSelection();
   const saveProductSelectionMutation = useSaveRoomProductSelection();
   const deleteProductSelectionMutation = useDeleteRoomProductSelection();
@@ -214,14 +215,20 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     state.setShowWallTileSelection({ roomId, room });
   };
 
-  const handleClearWallTiles = (roomId: string) => {
-    state.setWallTileSelections(prev =>
-      prev.map(ws =>
-        ws.roomId === roomId
-          ? { ...ws, baseTileId: null, layers: [], totalLayers: 0 }
-          : ws
-      )
-    );
+  const handleClearWallTiles = async (roomId: string) => {
+    try {
+      await deleteWallSelectionsMutation.mutateAsync(roomId);
+      state.setWallTileSelections(prev =>
+        prev.map(ws =>
+          ws.roomId === roomId
+            ? { ...ws, baseTileId: null, layers: [], totalLayers: 0 }
+            : ws
+        )
+      );
+      toast.success("Wall tiles cleared");
+    } catch {
+      toast.error("Failed to clear wall tiles");
+    }
   };
 
   const calculateWallLayers = (roomId: string, baseTileId: string) => {

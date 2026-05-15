@@ -8,6 +8,7 @@ import { RoomVisualizer } from "./RoomVisualizer";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { Html5QRScanner } from "@/components/qr/Html5QRScanner";
 import { toast } from "sonner";
+import { useDeleteWallTileLayerSelection } from "@/hooks/useRooms";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 import { type WallTileSelection, type WallTileLayer } from "@/utils/tileCalculations";
@@ -37,6 +38,7 @@ export const WallTileSelectionPage = ({
   const [showPreview, setShowPreview] = useState(false);
   const [showRoomView, setShowRoomView] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const deleteLayerMutation = useDeleteWallTileLayerSelection();
 
   // Convert wall layers to VisTile array for the 3D visualizer
   const wallVisLayers = [...wallSelection.layers]
@@ -170,24 +172,34 @@ export const WallTileSelectionPage = ({
     toast.success("Tile copied to all layers");
   };
 
-  const handleDeleteLayer = (layerNumber: number) => {
+  const handleDeleteLayer = async (layerNumber: number) => {
     if (wallSelection.layers.length <= 1) {
       toast.error("Cannot delete the last layer");
       return;
     }
 
-    const updatedLayers = wallSelection.layers.filter(layer =>
-      layer.layerNumber !== layerNumber
-    );
+    try {
+      // Persist deletion to DB if it's already saved
+      await deleteLayerMutation.mutateAsync({ 
+        roomId: room.id, 
+        layerNumber 
+      });
 
-    const updatedSelection = {
-      ...wallSelection,
-      layers: updatedLayers,
-      totalLayers: Math.max(1, wallSelection.totalLayers - 1)
-    };
+      const updatedLayers = wallSelection.layers.filter(layer =>
+        layer.layerNumber !== layerNumber
+      );
 
-    onUpdateSelection(updatedSelection);
-    toast.success(`Layer ${layerNumber} deleted`);
+      const updatedSelection = {
+        ...wallSelection,
+        layers: updatedLayers,
+        totalLayers: Math.max(1, wallSelection.totalLayers - 1)
+      };
+
+      onUpdateSelection(updatedSelection);
+      toast.success(`Layer ${layerNumber} deleted`);
+    } catch {
+      toast.error("Failed to delete layer from database");
+    }
   };
 
   const handleAddLayer = () => {
