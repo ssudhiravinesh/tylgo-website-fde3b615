@@ -198,7 +198,7 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
-              <AMOUNT>-${partyTotal.toFixed(2)}</AMOUNT>
+              <AMOUNT>${partyTotal.toFixed(2)}</AMOUNT>
             </ALLLEDGERENTRIES.LIST>${inventoryXml}
           </VOUCHER>
         </TALLYMESSAGE>
@@ -632,7 +632,7 @@ async function processQueuedQuotations() {
 
       for (const item of aggregatedItems) {
         const status = item.tallyStockName ? '✅' : '⚠️';
-        console.log(`     ${status} ${item.tileCode}: ${item.boxes} boxes × ₹${item.pricePerBox} = ₹${item.totalPrice}${item.tallyStockName ? ` → ${item.tallyStockName}` : ' (NO MAPPING)'}`);
+        console.log(`     ${status} ${item.displayName}: ${item.boxes} ${item.unit} × ₹${item.pricePerBox} = ₹${item.totalPrice}${item.tallyStockName ? ` → ${item.tallyStockName}` : ' (NO MAPPING)'}`);
       }
 
       // Step 3: Build and send Sales Voucher XML
