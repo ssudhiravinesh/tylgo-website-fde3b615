@@ -100,19 +100,22 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
   const hasInventory = mappedItems.length > 0;
 
   // ═══════════════════════════════════════════════════════════════════
-  // CONFIRMED WORKING FORMAT (2026-05-16)
+  // CORRECT TALLY STRUCTURE FOR ISINVOICE=Yes WITH INVENTORY
   //
-  // WITH inventory:
-  //   Party ALLLEDGERENTRIES: AMOUNT = -total (NEGATIVE), ISDEEMEDPOSITIVE=Yes
-  //     → Registers as Dr 46,754
-  //   ALLINVENTORYENTRIES:    AMOUNT = +amount (POSITIVE), ISDEEMEDPOSITIVE=No
-  //     → ISDEEMEDPOSITIVE=No already signals outgoing/credit.
-  //     → Positive amount. Double negative would cancel and Tally drops it.
-  //   ACCOUNTINGALLOCATIONS:  AMOUNT = +amount (POSITIVE), ISDEEMEDPOSITIVE=No
+  // Tally's balance check ONLY reads ALLLEDGERENTRIES for Dr/Cr.
+  // ACCOUNTINGALLOCATIONS is a stock-to-ledger LINKAGE, not a balance entry.
+  //
+  // LEDGER SIDE (ALLLEDGERENTRIES — balance-checked by Tally):
+  //   ① Party: AMOUNT=-total, ISDEEMEDPOSITIVE=Yes  → Dr 46,754
+  //   ② Sales: AMOUNT=+total, ISDEEMEDPOSITIVE=No   → Cr 46,754
+  //
+  // INVENTORY SIDE (ALLINVENTORYENTRIES — stock movement, NOT balance-checked):
+  //   ③ Each item: AMOUNT=-item (negative, stock goes out)
+  //      └── ACCOUNTINGALLOCATIONS: AMOUNT=-item, links stock to Sales ledger
   //
   // WITHOUT inventory (accounting-only):
-  //   Party LEDGERENTRIES:  AMOUNT = +total (POSITIVE), ISDEEMEDPOSITIVE=Yes
-  //   Sales LEDGERENTRIES:  AMOUNT = +total (POSITIVE), ISDEEMEDPOSITIVE=No
+  //   Party LEDGERENTRIES:  AMOUNT=+total, ISDEEMEDPOSITIVE=Yes
+  //   Sales LEDGERENTRIES:  AMOUNT=+total, ISDEEMEDPOSITIVE=No
   // ═══════════════════════════════════════════════════════════════════
 
   if (hasInventory) {
@@ -128,7 +131,7 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
       ? (preDscountInventoryTotal - discountAmount) / preDscountInventoryTotal
       : 1;
 
-    // Build inventory entries — ALL AMOUNTS POSITIVE (post-discount)
+    // Build inventory entries — AMOUNTS NEGATIVE (stock goes out)
     let inventoryXml = '';
     let discountedInventoryTotal = 0;
 
@@ -163,14 +166,14 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
               <ISPRIMARYITEM>No</ISPRIMARYITEM>
               <ISSCRAP>No</ISSCRAP>
               <RATE>${effectiveRate.toFixed(2)}/${item.unit}</RATE>
-              <AMOUNT>${amount.toFixed(2)}</AMOUNT>
+              <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
               <ACTUALQTY> ${boxes.toFixed(2)} ${item.unit}</ACTUALQTY>
               <BILLEDQTY> ${boxes.toFixed(2)} ${item.unit}</BILLEDQTY>
               <ACCOUNTINGALLOCATIONS.LIST>
                 <LEDGERNAME>${salesLedger}</LEDGERNAME>
                 <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
                 <ISPARTYLEDGER>No</ISPARTYLEDGER>
-                <AMOUNT>${amount.toFixed(2)}</AMOUNT>
+                <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
               </ACCOUNTINGALLOCATIONS.LIST>
             </ALLINVENTORYENTRIES.LIST>`;
     }
@@ -201,6 +204,12 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
               <AMOUNT>-${partyTotal.toFixed(2)}</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>${salesLedger}</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <ISPARTYLEDGER>No</ISPARTYLEDGER>
+              <AMOUNT>${partyTotal.toFixed(2)}</AMOUNT>
             </ALLLEDGERENTRIES.LIST>${inventoryXml}
           </VOUCHER>
         </TALLYMESSAGE>
