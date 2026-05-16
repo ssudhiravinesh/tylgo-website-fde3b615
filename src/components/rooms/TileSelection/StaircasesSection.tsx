@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Footprints, Layers, Eye, Ruler, Package, Hash } from "lucide-react";
+import { Footprints, Layers, Eye, Ruler, Package, Hash, Trash2 } from "lucide-react";
 import { StaircaseVisualizer } from "@/components/rooms/StaircaseVisualizer";
 import type { Staircase } from "@/hooks/useStaircases";
 import type { Tile } from "@/hooks/useTiles";
@@ -13,6 +13,7 @@ interface StaircasesSectionProps {
   staircaseTileSelectionsState: StaircaseTileSelectionType[];
   tiles: Tile[];
   handleSelectStaircaseTile: (staircaseId: string, tileType: 'step' | 'riser') => void;
+  handleRemoveStaircaseTile: (staircaseId: string, tileType: 'step' | 'riser') => void;
 }
 
 /**
@@ -95,7 +96,8 @@ export const StaircasesSection = ({
   staircases, 
   staircaseTileSelectionsState, 
   tiles, 
-  handleSelectStaircaseTile 
+  handleSelectStaircaseTile,
+  handleRemoveStaircaseTile
 }: StaircasesSectionProps) => {
   const [visualizerData, setVisualizerData] = useState<{
     isOpen: boolean;
@@ -220,13 +222,25 @@ export const StaircasesSection = ({
                         )}
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSelectStaircaseTile(staircase.id, 'step')}
-                    >
-                      {stepTile ? 'Change' : 'Select'}
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {stepTile && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => handleRemoveStaircaseTile(staircase.id, 'step')}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSelectStaircaseTile(staircase.id, 'step')}
+                      >
+                        {stepTile ? 'Change' : 'Select'}
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Risers Selection */}
@@ -257,13 +271,25 @@ export const StaircasesSection = ({
                         )}
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSelectStaircaseTile(staircase.id, 'riser')}
-                    >
-                      {riserTile ? 'Change' : 'Select'}
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {riserTile && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => handleRemoveStaircaseTile(staircase.id, 'riser')}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSelectStaircaseTile(staircase.id, 'riser')}
+                      >
+                        {riserTile ? 'Change' : 'Select'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

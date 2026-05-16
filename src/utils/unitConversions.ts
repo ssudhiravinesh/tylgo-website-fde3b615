@@ -39,7 +39,8 @@ export const calculateAreaInSquareFeet = (length: number, width: number, unit: U
 };
 
 export const formatDimensions = (length: number, width: number, unit: Unit): string => {
-  return `${length} × ${width} ${unit}`;
+  const fmt = (n: number) => parseFloat(n.toFixed(4));
+  return `${fmt(length)} × ${fmt(width)} ${unit}`;
 };
 
 export const formatArea = (area: number): string => {

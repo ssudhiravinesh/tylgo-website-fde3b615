@@ -191,21 +191,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
 
     const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
       if (!sizeLength || !sizeBreadth) return 'N/A';
-
-      const lengthInMm = sizeLength;
-      const widthInMm = sizeBreadth;
-
-      if (lengthInMm >= 1000 || widthInMm >= 1000) {
-        const lengthInM = (lengthInMm / 1000).toFixed(1);
-        const widthInM = (widthInMm / 1000).toFixed(1);
-        return `${lengthInM} × ${widthInM} m`;
-      } else if (lengthInMm >= 100 || widthInMm >= 100) {
-        const lengthInCm = (lengthInMm / 10).toFixed(0);
-        const widthInCm = (widthInMm / 10).toFixed(0);
-        return `${lengthInCm} × ${widthInCm} cm`;
-      } else {
-        return `${lengthInMm} × ${widthInMm} mm`;
-      }
+      return `${sizeLength} × ${sizeBreadth} mm`;
     };
 
 
@@ -805,7 +791,7 @@ export const generateTilesHTML = (tiles: TileData[]): string => {
           <tr>
             <th>Code</th>
             <th>Category</th>
-            <th>Size (cm)</th>
+            <th>Size (mm)</th>
             <th>Price/Box</th>
             <th>Pieces/Box</th>
           </tr>
@@ -815,7 +801,7 @@ export const generateTilesHTML = (tiles: TileData[]): string => {
             <tr>
               <td><strong>${tile.code}</strong></td>
               <td>${tile.category || 'N/A'}</td>
-              <td>${(tile.size_length / 10).toFixed(1)} × ${(tile.size_breadth / 10).toFixed(1)}</td>
+              <td>${tile.size_length} × ${tile.size_breadth}</td>
               <td>${tile.price_per_box != null ? `₹${tile.price_per_box.toLocaleString('en-IN')}` : 'N/A'}</td>
               <td>${tile.pieces_per_box || 'N/A'}</td>
             </tr>

@@ -55,6 +55,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   const deleteSkirtingSelectionMutation = useDeleteSkirtingTileSelection();
   const deleteWallSelectionsMutation = useDeleteWallTileSelections();
   const saveStaircaseSelectionMutation = useSaveStaircaseTileSelection();
+  const deleteStaircaseSelectionMutation = useDeleteStaircaseTileSelection();
   const saveProductSelectionMutation = useSaveRoomProductSelection();
   const deleteProductSelectionMutation = useDeleteRoomProductSelection();
 
@@ -388,6 +389,28 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     state.setCatalogContext(null);
   };
 
+  const handleRemoveStaircaseTile = async (staircaseId: string, tileType: 'step' | 'riser') => {
+    // Optimistic UI update
+    state.setStaircaseTileSelectionsState(prev => {
+      return prev.map(s => {
+        if (s.staircaseId === staircaseId) {
+          const newState = { ...s };
+          if (tileType === 'step') newState.stepTileId = undefined;
+          if (tileType === 'riser') newState.riserTileId = undefined;
+          return newState;
+        }
+        return s;
+      });
+    });
+
+    try {
+      await deleteStaircaseSelectionMutation.mutateAsync({ staircaseId, tileType });
+      toast.success(`${tileType === 'step' ? 'Step' : 'Riser'} tile removed`);
+    } catch {
+      toast.error('Failed to remove tile selection');
+    }
+  };
+
   // ── Handlers: Products ────────────────────────────────────────────
 
   const handleAddProduct = (roomId: string) => {
@@ -622,6 +645,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
             staircaseTileSelectionsState={state.staircaseTileSelectionsState}
             tiles={state.tiles}
             handleSelectStaircaseTile={handleSelectStaircaseTile}
+            handleRemoveStaircaseTile={handleRemoveStaircaseTile}
           />
         </div>
 

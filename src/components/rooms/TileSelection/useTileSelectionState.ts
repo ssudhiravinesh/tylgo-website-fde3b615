@@ -160,25 +160,31 @@ export function useTileSelectionState(
             // Do NOT fall back to room.length — that's the floor area (area-hack), not perimeter.
             const wallLength = room.wall_length || 0;
 
-            let tileHeightInRoomUnit: number;
-            let tileLengthInRoomUnit: number;
+            // Wall tiles are laid horizontally:
+            //   size_length (longer side) → runs along the wall horizontally
+            //   size_breadth (shorter side) → runs vertically against wall height
+            // ∴ layerCount = ceil(wallHeight / size_breadth)  ← vertical dimension
+            let tileVerticalInRoomUnit: number;  // shorter side, against wall height
+            let tileHorizontalInRoomUnit: number; // longer side, along wall length
 
             if (room.unit === "feet") {
-              tileHeightInRoomUnit = (baseTile.size_length || 0) / 304.8;
-              tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
+              tileVerticalInRoomUnit   = (baseTile.size_breadth || 0) / 304.8;
+              tileHorizontalInRoomUnit = (baseTile.size_length  || 0) / 304.8;
             } else if (room.unit === "metre") {
-              tileHeightInRoomUnit = (baseTile.size_length || 0) / 1000;
-              tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 1000;
+              tileVerticalInRoomUnit   = (baseTile.size_breadth || 0) / 1000;
+              tileHorizontalInRoomUnit = (baseTile.size_length  || 0) / 1000;
             } else {
-              tileHeightInRoomUnit = baseTile.size_length || 0;
-              tileLengthInRoomUnit = baseTile.size_breadth || 0;
+              // mm (room dimensions stored in mm)
+              tileVerticalInRoomUnit   = baseTile.size_breadth || 0;
+              tileHorizontalInRoomUnit = baseTile.size_length  || 0;
             }
 
-            if (tileHeightInRoomUnit > 0 && tileLengthInRoomUnit > 0) {
+            if (tileVerticalInRoomUnit > 0 && tileHorizontalInRoomUnit > 0) {
               const totalArea = wallHeight * wallLength;
-              const tileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
+              const tileArea = tileVerticalInRoomUnit * tileHorizontalInRoomUnit;
               const totalTiles = Math.ceil(totalArea / tileArea);
-              const layerCount = Math.max(1, Math.ceil(wallHeight / tileHeightInRoomUnit));
+              // Number of horizontal rows = wall height ÷ tile's vertical dimension
+              const layerCount = Math.max(1, Math.ceil(wallHeight / tileVerticalInRoomUnit));
               tilesNeeded = totalTiles / layerCount;
             }
           }

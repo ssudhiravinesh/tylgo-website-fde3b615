@@ -101,21 +101,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
   const formatTileSize = (sizeLength?: number, sizeBreadth?: number) => {
     if (!sizeLength || !sizeBreadth) return 'N/A';
-
-    const lengthInMm = sizeLength;
-    const widthInMm = sizeBreadth;
-
-    if (lengthInMm >= 1000 || widthInMm >= 1000) {
-      const lengthInM = (lengthInMm / 1000).toFixed(2);
-      const widthInM = (widthInMm / 1000).toFixed(2);
-      return `${lengthInM} × ${widthInM} m`;
-    } else if (lengthInMm >= 100 || widthInMm >= 100) {
-      const lengthInCm = (lengthInMm / 10).toFixed(1);
-      const widthInCm = (widthInMm / 10).toFixed(1);
-      return `${lengthInCm} × ${widthInCm} cm`;
-    } else {
-      return `${lengthInMm} × ${widthInMm} mm`;
-    }
+    return `${sizeLength} × ${sizeBreadth} mm`;
   };
 
   const calculateTileRequirements = (): { calculations: TileCalculation[]; wastagePercentage: number } => {

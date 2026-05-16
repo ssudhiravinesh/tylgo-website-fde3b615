@@ -44,21 +44,7 @@ export const TileDetailsDialog = ({ tile, isOpen, onClose, userRole }: TileDetai
 
   const formatTileSize = () => {
     if (!tile.size_length || !tile.size_breadth) return 'N/A';
-
-    const lengthInMm = tile.size_length;
-    const widthInMm = tile.size_breadth;
-
-    if (lengthInMm >= 1000 || widthInMm >= 1000) {
-      const lengthInM = (lengthInMm / 1000).toFixed(2);
-      const widthInM = (widthInMm / 1000).toFixed(2);
-      return `${lengthInM} × ${widthInM} m`;
-    } else if (lengthInMm >= 100 || widthInMm >= 100) {
-      const lengthInCm = (lengthInMm / 10).toFixed(1);
-      const widthInCm = (widthInMm / 10).toFixed(1);
-      return `${lengthInCm} × ${widthInCm} cm`;
-    } else {
-      return `${lengthInMm} × ${widthInMm} mm`;
-    }
+    return `${tile.size_length} × ${tile.size_breadth} mm`;
   };
 
   const calculatePricePerSqFt = () => {
