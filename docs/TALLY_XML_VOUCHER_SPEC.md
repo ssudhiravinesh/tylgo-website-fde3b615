@@ -1,6 +1,6 @@
 # TallyPrime XML Import — Sales Voucher with Inventory
 
-> **Status:** Confirmed working as of 2026-05-14  
+> **Status:** Confirmed working as of 2026-05-16  
 > **Relay version:** `TALLY-RELAY-JT v2.1`  
 > **Tally version:** TallyPrime (Cloud, port 9000)
 
@@ -8,12 +8,17 @@
 
 ## The Core Rule (Do Not Change This)
 
-TallyPrime's XML import parser for Sales Vouchers with inventory has one strict rule that overrides everything else:
+TallyPrime XML import uses **mixed sign convention** for inventory vouchers:
 
-> **All `<AMOUNT>` values must be NEGATIVE.**  
-> `<ISDEEMEDPOSITIVE>` carries the Debit/Credit meaning — the sign is always `-`.
+| Entry | Amount sign | Why |
+|---|---|---|
+| Party (customer debit) | **NEGATIVE** (`-46754`) | Tally reads a negative ISDEEMEDPOSITIVE=Yes as a Debit |
+| Inventory items | **POSITIVE** (`+4768`) | `ISDEEMEDPOSITIVE=No` already signals outgoing/credit — don't double-negate |
+| ACCOUNTINGALLOCATIONS | **POSITIVE** (`+4768`) | Same rule — ISDEEMEDPOSITIVE=No handles the sign |
 
-This is counter-intuitive and poorly documented by Tally. It took 10 days of debugging to confirm.
+> ⚠️ **The trap:** If you make inventory amounts negative AND set `ISDEEMEDPOSITIVE=No`, Tally double-negates them and either drops the credit or reads it as a debit. You will see `Dr: 46754 Cr: (empty)` in the error.
+
+This is the rule that took the most iterations to nail down because Tally's documentation doesn't explain the interaction between ISDEEMEDPOSITIVE and the AMOUNT sign for ALLINVENTORYENTRIES.
 
 ---
 
@@ -46,7 +51,7 @@ This is counter-intuitive and poorly documented by Tally. It took 10 days of deb
               <LEDGERNAME>CUSTOMER NAME</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
-              <AMOUNT>-1000.00</AMOUNT>   ← NEGATIVE
+              <AMOUNT>-1000.00</AMOUNT>   ← NEGATIVE (party debit)
             </ALLLEDGERENTRIES.LIST>
 
             <!-- ② INVENTORY CREDIT (Cr) — one block per stock item -->
@@ -61,7 +66,7 @@ This is counter-intuitive and poorly documented by Tally. It took 10 days of deb
               <ISPRIMARYITEM>No</ISPRIMARYITEM>
               <ISSCRAP>No</ISSCRAP>
               <RATE>1000.00/BOX</RATE>
-              <AMOUNT>-1000.00</AMOUNT>   ← NEGATIVE
+              <AMOUNT>1000.00</AMOUNT>   ← POSITIVE (ISDEEMEDPOSITIVE=No handles credit direction)
               <ACTUALQTY> 1.00 BOX</ACTUALQTY>
               <BILLEDQTY> 1.00 BOX</BILLEDQTY>
 
@@ -70,7 +75,7 @@ This is counter-intuitive and poorly documented by Tally. It took 10 days of deb
                 <LEDGERNAME>Sales Account</LEDGERNAME>
                 <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
                 <ISPARTYLEDGER>No</ISPARTYLEDGER>
-                <AMOUNT>-1000.00</AMOUNT>   ← NEGATIVE
+                <AMOUNT>1000.00</AMOUNT>   ← POSITIVE (same rule)
               </ACCOUNTINGALLOCATIONS.LIST>
             </ALLINVENTORYENTRIES.LIST>
 
@@ -88,11 +93,13 @@ This is counter-intuitive and poorly documented by Tally. It took 10 days of deb
 
 | Entry | Tag | `ISDEEMEDPOSITIVE` | `AMOUNT` | Tally Effect |
 |---|---|---|---|---|
-| Party (customer) | `ALLLEDGERENTRIES.LIST` | `Yes` | **-total** | Debit (Dr) |
-| Stock item | `ALLINVENTORYENTRIES.LIST` | `No` | **-amount** | Credit (Cr) |
-| Sales ledger | `ACCOUNTINGALLOCATIONS.LIST` | `No` | **-amount** | Sub-allocation of the inventory credit |
+| Party (customer) | `ALLLEDGERENTRIES.LIST` | `Yes` | **-total (NEGATIVE)** | Debit (Dr) |
+| Stock item | `ALLINVENTORYENTRIES.LIST` | `No` | **+amount (POSITIVE)** | Credit (Cr) — ISDEEMEDPOSITIVE=No handles sign |
+| Sales ledger | `ACCOUNTINGALLOCATIONS.LIST` | `No` | **+amount (POSITIVE)** | Sub-allocation of the inventory credit |
 
 **Key insight:** `ACCOUNTINGALLOCATIONS.LIST` does **not** add a second credit. It only specifies which ledger the inventory credit flows into. Tally counts it as part of the same `ALLINVENTORYENTRIES.LIST` credit.
+
+**The double-negative trap:** Setting `ISDEEMEDPOSITIVE=No` AND `AMOUNT=-1000` causes Tally to cancel the signs and either drop the entry or read it as a debit. Result: `Dr: 46754 Cr: (empty)`.
 
 ---
 
@@ -171,10 +178,10 @@ When a quotation has no mapped stock items, a simpler structure is used:
 
 | Tally Error | What It Means | Fix |
 |---|---|---|
-| `Dr: (blank) Cr: 1,000.00 Cr Diff: 1,000.00` | Party debit not registered | Wrong tag (`LEDGERENTRIES.LIST`), or positive amount on party |
-| `Dr: (blank) Cr: 3,000.00 Cr Diff: 3,000.00` | Sales Account credited 3× | Duplicate top-level Sales ledger entry + positive inventory amounts |
-| `Dr: 1,000.00 Dr Cr: (blank) Dr Diff: 1,000.00` | Credit side not registered | Wrong `ISDEEMEDPOSITIVE` or wrong tag on inventory |
-| Voucher silently imported but Sales Account missing | `ACCOUNTINGALLOCATIONS.LIST` missing inside `ALLINVENTORYENTRIES.LIST` | Add sub-allocation |
+| `Dr: (empty) Cr: 46754` | Party debit not registered | Wrong tag (`LEDGERENTRIES.LIST` instead of `ALLLEDGERENTRIES.LIST`), or positive amount on party entry |
+| `Dr: 46754 Cr: (empty)` | Inventory credits not registered | Inventory AMOUNT is negative + ISDEEMEDPOSITIVE=No → double negative → Tally drops it. **Make inventory AMOUNT positive.** |
+| `Dr: (empty) Cr: 2×amount` | Credits doubled | Duplicate top-level `ALLLEDGERENTRIES.LIST` for Sales Account (already covered by ACCOUNTINGALLOCATIONS) |
+| Voucher imported but no line items | `ACCOUNTINGALLOCATIONS.LIST` missing inside `ALLINVENTORYENTRIES.LIST` | Add the sub-allocation block |
 
 ---
 
