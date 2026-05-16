@@ -100,17 +100,19 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
   const hasInventory = mappedItems.length > 0;
 
   // ═══════════════════════════════════════════════════════════════════
-  // FORMAT REVERSE-ENGINEERED FROM REAL TALLYPRIME EXPORT (2026-05-06)
+  // CONFIRMED WORKING FORMAT (2026-05-16)
   //
   // WITH inventory:
-  //   Party LEDGERENTRIES:   AMOUNT = -total (NEGATIVE), ISDEEMEDPOSITIVE=Yes
-  //   NO Sales Account LEDGERENTRIES
-  //   ALLINVENTORYENTRIES:   AMOUNT = +amount (POSITIVE!), ISDEEMEDPOSITIVE=No
-  //   ACCOUNTINGALLOCATIONS: AMOUNT = +amount (POSITIVE!)
+  //   Party ALLLEDGERENTRIES: AMOUNT = -total (NEGATIVE), ISDEEMEDPOSITIVE=Yes
+  //     → Registers as Dr 46,754
+  //   ALLINVENTORYENTRIES:    AMOUNT = +amount (POSITIVE), ISDEEMEDPOSITIVE=No
+  //     → ISDEEMEDPOSITIVE=No already signals outgoing/credit.
+  //     → Positive amount. Double negative would cancel and Tally drops it.
+  //   ACCOUNTINGALLOCATIONS:  AMOUNT = +amount (POSITIVE), ISDEEMEDPOSITIVE=No
   //
   // WITHOUT inventory (accounting-only):
-  //   Party ALLLEDGERENTRIES:  AMOUNT = -total (NEGATIVE)
-  //   Sales ALLLEDGERENTRIES:  AMOUNT = +total (POSITIVE)
+  //   Party LEDGERENTRIES:  AMOUNT = +total (POSITIVE), ISDEEMEDPOSITIVE=Yes
+  //   Sales LEDGERENTRIES:  AMOUNT = +total (POSITIVE), ISDEEMEDPOSITIVE=No
   // ═══════════════════════════════════════════════════════════════════
 
   if (hasInventory) {
@@ -161,14 +163,14 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
               <ISPRIMARYITEM>No</ISPRIMARYITEM>
               <ISSCRAP>No</ISSCRAP>
               <RATE>${effectiveRate.toFixed(2)}/${item.unit}</RATE>
-              <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
+              <AMOUNT>${amount.toFixed(2)}</AMOUNT>
               <ACTUALQTY> ${boxes.toFixed(2)} ${item.unit}</ACTUALQTY>
               <BILLEDQTY> ${boxes.toFixed(2)} ${item.unit}</BILLEDQTY>
               <ACCOUNTINGALLOCATIONS.LIST>
                 <LEDGERNAME>${salesLedger}</LEDGERNAME>
                 <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
                 <ISPARTYLEDGER>No</ISPARTYLEDGER>
-                <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
+                <AMOUNT>${amount.toFixed(2)}</AMOUNT>
               </ACCOUNTINGALLOCATIONS.LIST>
             </ALLINVENTORYENTRIES.LIST>`;
     }
