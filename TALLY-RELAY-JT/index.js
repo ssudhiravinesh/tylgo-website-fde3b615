@@ -85,53 +85,42 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
   const partyName = escapeXml(customerName);
   const salesLedger = escapeXml(SALES_LEDGER_NAME);
 
-  // Narration: quotation number + worker name + customer phone number only
   const fullNarration = `${quotation.quotation_number} | ${workerName || 'N/A'} | ${customerMobile || 'N/A'}`;
 
-  // Get discount info from quotation
   const discountPercentage = parseFloat(quotation.discount_percentage) || 0;
   const discountAmount = parseFloat(quotation.discount_amount) || 0;
   const hasDiscount = discountPercentage > 0 && discountAmount > 0;
 
-  // Separate mapped vs unmapped items
   const mappedItems = aggregatedItems.filter(i => i.tallyStockName);
-  const unmappedItems = aggregatedItems.filter(i => !i.tallyStockName);
-
   const hasInventory = mappedItems.length > 0;
 
   // ═══════════════════════════════════════════════════════════════════
-  // CORRECT TALLY STRUCTURE FOR ISINVOICE=Yes WITH INVENTORY
+  // STRUCTURE CONFIRMED FROM TALLY EXPORT (tally-export-sales.xml, 2026-05-16)
   //
-  // Tally's balance check ONLY reads ALLLEDGERENTRIES for Dr/Cr.
-  // ACCOUNTINGALLOCATIONS is a stock-to-ledger LINKAGE, not a balance entry.
+  // Item Invoice mode (with inventory):
+  //   VOUCHER tag: OBJVIEW="Invoice Voucher View"
+  //   PERSISTEDVIEW, VCHENTRYMODE=Item Invoice
+  //   ALLINVENTORYENTRIES.LIST FIRST (before LEDGERENTRIES):
+  //     AMOUNT = +item (POSITIVE), ISDEEMEDPOSITIVE=No
+  //     ACCOUNTINGALLOCATIONS: LEDGERNAME, AMOUNT=+item (POSITIVE), ISLASTDEEMEDPOSITIVE=No
+  //   LEDGERENTRIES.LIST (party only, NO separate Sales Account entry):
+  //     ISDEEMEDPOSITIVE=Yes, ISPARTYLEDGER=Yes, ISLASTDEEMEDPOSITIVE=Yes
+  //     AMOUNT = -total (NEGATIVE)
   //
-  // LEDGER SIDE (ALLLEDGERENTRIES — balance-checked by Tally):
-  //   ① Party: AMOUNT=-total, ISDEEMEDPOSITIVE=Yes  → Dr 46,754
-  //   ② Sales: AMOUNT=+total, ISDEEMEDPOSITIVE=No   → Cr 46,754
-  //
-  // INVENTORY SIDE (ALLINVENTORYENTRIES — stock movement, NOT balance-checked):
-  //   ③ Each item: AMOUNT=-item (negative, stock goes out)
-  //      └── ACCOUNTINGALLOCATIONS: AMOUNT=-item, links stock to Sales ledger
-  //
-  // WITHOUT inventory (accounting-only):
-  //   Party LEDGERENTRIES:  AMOUNT=+total, ISDEEMEDPOSITIVE=Yes
-  //   Sales LEDGERENTRIES:  AMOUNT=+total, ISDEEMEDPOSITIVE=No
+  // Accounting-only mode (no inventory):
+  //   LEDGERENTRIES.LIST party: AMOUNT=+total (POSITIVE), ISDEEMEDPOSITIVE=Yes
+  //   LEDGERENTRIES.LIST sales: AMOUNT=-total (NEGATIVE), ISDEEMEDPOSITIVE=No
   // ═══════════════════════════════════════════════════════════════════
 
   if (hasInventory) {
-    // Compute pre-discount total from mapped items
-    const preDscountInventoryTotal = Math.round(
+    const preDiscountInventoryTotal = Math.round(
       mappedItems.reduce((sum, i) => sum + Math.abs(i.totalPrice), 0) * 100
     ) / 100;
 
-    // Apply discount proportionally across inventory items.
-    // The party (customer) pays the POST-DISCOUNT amount,
-    // so each item's amount in Tally must reflect its share of the discount.
-    const discountMultiplier = hasDiscount && preDscountInventoryTotal > 0
-      ? (preDscountInventoryTotal - discountAmount) / preDscountInventoryTotal
+    const discountMultiplier = hasDiscount && preDiscountInventoryTotal > 0
+      ? (preDiscountInventoryTotal - discountAmount) / preDiscountInventoryTotal
       : 1;
 
-    // Build inventory entries — AMOUNTS NEGATIVE (stock goes out)
     let inventoryXml = '';
     let discountedInventoryTotal = 0;
 
@@ -143,15 +132,12 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
 
       let amount;
       if (idx === mappedItems.length - 1) {
-        // Last item absorbs rounding remainder so totals balance exactly
-        const targetTotal = Math.round((preDscountInventoryTotal - discountAmount) * 100) / 100;
+        const targetTotal = Math.round((preDiscountInventoryTotal - discountAmount) * 100) / 100;
         amount = Math.round((targetTotal - discountedInventoryTotal) * 100) / 100;
       } else {
         amount = Math.round(preDiscountAmount * discountMultiplier * 100) / 100;
       }
       discountedInventoryTotal += amount;
-
-      // Effective rate after discount
       const effectiveRate = boxes > 0 ? Math.round((amount / boxes) * 100) / 100 : item.pricePerBox;
 
       inventoryXml += `
@@ -166,19 +152,19 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
               <ISPRIMARYITEM>No</ISPRIMARYITEM>
               <ISSCRAP>No</ISSCRAP>
               <RATE>${effectiveRate.toFixed(2)}/${item.unit}</RATE>
-              <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
+              <AMOUNT>${amount.toFixed(2)}</AMOUNT>
               <ACTUALQTY> ${boxes.toFixed(2)} ${item.unit}</ACTUALQTY>
               <BILLEDQTY> ${boxes.toFixed(2)} ${item.unit}</BILLEDQTY>
               <ACCOUNTINGALLOCATIONS.LIST>
                 <LEDGERNAME>${salesLedger}</LEDGERNAME>
                 <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
                 <ISPARTYLEDGER>No</ISPARTYLEDGER>
-                <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
+                <ISLASTDEEMEDPOSITIVE>No</ISLASTDEEMEDPOSITIVE>
+                <AMOUNT>${amount.toFixed(2)}</AMOUNT>
               </ACCOUNTINGALLOCATIONS.LIST>
             </ALLINVENTORYENTRIES.LIST>`;
     }
 
-    // Party ledger = post-discount total (what the customer actually pays)
     const partyTotal = Math.round(discountedInventoryTotal * 100) / 100;
 
     return `<ENVELOPE>
@@ -192,25 +178,22 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
       </REQUESTDESC>
       <REQUESTDATA>
         <TALLYMESSAGE xmlns:UDF="TallyUDF">
-          <VOUCHER VCHTYPE="Sales" ACTION="Create">
+          <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Invoice Voucher View">
             <DATE>${dateStr}</DATE>
             <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
+            <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>
+            <VCHENTRYMODE>Item Invoice</VCHENTRYMODE>
             <ISINVOICE>Yes</ISINVOICE>
             <VOUCHERNUMBER>${escapeXml(quotation.quotation_number)}</VOUCHERNUMBER>
             <NARRATION>${escapeXml(fullNarration)}</NARRATION>
-            <PARTYLEDGERNAME>${partyName}</PARTYLEDGERNAME>
-            <ALLLEDGERENTRIES.LIST>
+            <PARTYLEDGERNAME>${partyName}</PARTYLEDGERNAME>${inventoryXml}
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+              <ISLASTDEEMEDPOSITIVE>Yes</ISLASTDEEMEDPOSITIVE>
               <AMOUNT>-${partyTotal.toFixed(2)}</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
-            <ALLLEDGERENTRIES.LIST>
-              <LEDGERNAME>${salesLedger}</LEDGERNAME>
-              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-              <ISPARTYLEDGER>No</ISPARTYLEDGER>
-              <AMOUNT>${partyTotal.toFixed(2)}</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>${inventoryXml}
+            </LEDGERENTRIES.LIST>
           </VOUCHER>
         </TALLYMESSAGE>
       </REQUESTDATA>
@@ -219,7 +202,7 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
 </ENVELOPE>`;
   }
 
-  // ── No inventory: accounting-only (confirmed working) ──
+  // Accounting-only (no inventory) — confirmed from Tally export
   const totalAmount = Math.abs(parseFloat(quotation.total_cost));
 
   return `<ENVELOPE>
@@ -244,12 +227,15 @@ function buildSalesVoucherXml(quotation, customerName, customerMobile, workerNam
               <LEDGERNAME>${partyName}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
-              <AMOUNT>${totalAmount}</AMOUNT>
+              <ISLASTDEEMEDPOSITIVE>Yes</ISLASTDEEMEDPOSITIVE>
+              <AMOUNT>${totalAmount.toFixed(2)}</AMOUNT>
             </LEDGERENTRIES.LIST>
             <LEDGERENTRIES.LIST>
               <LEDGERNAME>${salesLedger}</LEDGERNAME>
               <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-              <AMOUNT>${totalAmount}</AMOUNT>
+              <ISPARTYLEDGER>No</ISPARTYLEDGER>
+              <ISLASTDEEMEDPOSITIVE>No</ISLASTDEEMEDPOSITIVE>
+              <AMOUNT>-${totalAmount.toFixed(2)}</AMOUNT>
             </LEDGERENTRIES.LIST>
           </VOUCHER>
         </TALLYMESSAGE>
