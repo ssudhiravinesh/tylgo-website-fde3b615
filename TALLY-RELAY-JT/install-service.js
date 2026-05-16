@@ -30,10 +30,12 @@ const svc = new Service({
   // Pass env variables so the relay doesn't need a .env file at runtime.
   // Edit these values to match the actual .env before running this script.
   env: [
-    { name: "SUPABASE_URL",      value: "https://onucizagpgwdpcakskat.supabase.co" },
-    { name: "SUPABASE_ANON_KEY", value: "YOUR_SUPABASE_ANON_KEY_HERE" },
-    { name: "TALLY_URL",         value: "http://localhost:9000" },
-    { name: "POLL_INTERVAL_MS",  value: "10000" },
+    { name: "SUPABASE_URL",         value: "https://onucizagpgwdpcakskat.supabase.co" },
+    { name: "SUPABASE_SERVICE_KEY", value: "YOUR_SUPABASE_SERVICE_KEY_HERE" },   // ← paste the service role key here
+    { name: "TALLY_HOST",           value: "localhost" },
+    { name: "TALLY_PORT",           value: "9000" },
+    { name: "POLL_INTERVAL_MS",     value: "5000" },
+    { name: "SALES_LEDGER_NAME",    value: "Sales Account" },                    // ← must match Tally exactly
   ],
 
   // Restart the service if it crashes
