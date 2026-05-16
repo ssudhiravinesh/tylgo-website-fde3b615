@@ -1,5 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Quotation } from '@/hooks/useQuotations';
+import {
+  calculateFromQuotationItems,
+  type TileCalcResult,
+  type ProductCalcResult,
+} from '@/utils/calculations/quotationItemCalculator';
 
 export interface TileData {
   id: string;
@@ -90,104 +95,79 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
 
     const chromeFixCSS = ''; // Placeholder for any specific Chrome print CSS fixes
 
-    // Calculate tile requirements
+    // ── Delegate all calculation to the unified calculator ──────────────
+    // This is the SAME engine used in QuotationDetails, so numbers will always match.
+    const { calculations: unifiedCalcs } = calculateFromQuotationItems(
+      quotation_items as any[],
+      wastage_percentage
+    );
+
+    // Re-shape into the HTML template's expected `tileCalculations` / `productCalculations` maps
     const tileCalculations: Record<string, any> = {};
     const productCalculations: any[] = [];
 
-    // Process Items
-    quotation_items.forEach((item) => {
-      // 1. Tile Items (Rooms/Staircases)
-      if (item.tile_id) {
-        const tileId = item.tile_id;
-        if (!tileCalculations[tileId]) {
-          tileCalculations[tileId] = {
-            type: 'tile',
-            tile: item.tile || { code: 'Unknown', size_length: 0, size_breadth: 0, price_per_box: 0, pieces_per_box: 0 },
-            totalArea: 0,
-            customBoxAdjustment: 0,
-            rooms: [],
-            staircases: [],
-            totalPrice: 0,
-            tilesNeeded: 0,
-            boxesNeeded: 0
-          };
-        }
-
-        // Only add area for rooms if room exists
-        if (item.room) {
-          tileCalculations[tileId].totalArea += Number(item.area || 0);
-          tileCalculations[tileId].rooms.push({
-            ...item.room,
-            layerNumber: item.layer_number,
-            measurements: item.room.measurements
-          });
-        }
-
-        // Staircases
-        const staircase = (item as any).staircase || item.staircases;
-        if (staircase) {
-          tileCalculations[tileId].staircases.push({
-            ...staircase,
-            quantity: (item as any).quantity || 0,
-            tile_type: (item as any).tile_type
-          });
-        }
-
-        // Custom boxes
-        tileCalculations[tileId].customBoxAdjustment += Number(item.custom_boxes || 0);
-
-      } else if (item.product_id) {
-        // 2. Product Items
+    for (const calc of unifiedCalcs) {
+      if (calc.type === 'tile') {
+        const tc = calc as TileCalcResult;
+        // Reconstruct rooms list with layerNumber for the display breakdown
+        const rooms = tc.rooms.map(r => ({
+          ...r,
+          layerNumber: r.layerNumber ?? null,
+        }));
+        tileCalculations[tc.tile.id] = {
+          type: 'tile',
+          tile: tc.tile,
+          totalArea: tc.totalArea,
+          customBoxAdjustment: tc.customBoxAdjustment,
+          rooms,
+          staircases: tc.staircases.map(s => ({
+            name: s.name,
+            quantity: s.quantity,
+            tile_type: s.type,
+          })),
+          tilesNeeded: tc.tilesNeeded,
+          boxesNeeded: tc.boxesNeeded,
+          totalPrice: tc.totalPrice,
+          tile_image_direct_url: '', // filled below
+        };
+      } else {
+        const pc = calc as ProductCalcResult;
         productCalculations.push({
           type: 'product',
-          product: item.product,
-          quantity: item.quantity,
-          totalPrice: (item.total_price) || ((item.product?.price || 0) * (item.quantity || 0)),
-          imageUrl: item.product?.image_url // Store image URL
+          product: pc.product,
+          quantity: pc.quantity,
+          totalPrice: pc.totalPrice,
+          product_image_direct_url: '', // filled below
         });
       }
-    });
+    }
 
-    // Process images
-    const totalTiles = Object.keys(tileCalculations).length;
-
-    // Fix: Use Promise.all to wait for all async operations to complete
+    // ── Image processing ─────────────────────────────────────────────────
+    // Tile images
     await Promise.all(Object.entries(tileCalculations).map(async ([tileId, calc]) => {
-      let imageUrl = getDirectImageUrl(calc.tile.image_url);
-      let finalUrl: string = '';
-
+      const imageUrl = getDirectImageUrl(calc.tile.image_url);
       if (imageUrl) {
         try {
-          // Convert to base64 for reliable PDF rendering
           const base64Url = await urlToBase64(imageUrl);
-          if (base64Url) {
-            finalUrl = base64Url;
-          } else {
-            finalUrl = imageUrl;
-          }
+          calc.tile_image_direct_url = base64Url || imageUrl;
         } catch (e) {
           console.warn(`[PDF Generation] Error processing image for tile ${tileId}`, e);
-          finalUrl = imageUrl;
+          calc.tile_image_direct_url = imageUrl;
         }
       }
-
-      tileCalculations[tileId].tile_image_direct_url = finalUrl;
     }));
 
-
-    // Process logo
+    // Logo
     const logoUrl = '/tylgo.svg';
     let logoBase64 = '';
     try {
       const base64 = await urlToBase64(logoUrl);
-      if (base64) {
-        logoBase64 = base64;
-      }
+      if (base64) logoBase64 = base64;
     } catch (e) {
       console.warn('[PDF Generation] Error processing logo:', e);
     }
 
-    // Process product images
+    // Product images
     await Promise.all(productCalculations.map(async (calc) => {
       if (calc.product?.image_url) {
         try {
@@ -200,38 +180,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
       }
     }));
 
-
-    // Calculate requirements for each tile
-    Object.values(tileCalculations).forEach((calc: any) => {
-      const tile = calc.tile;
-      if (tile && tile.size_length && tile.size_breadth && tile.pieces_per_box && tile.price_per_box) {
-        const tileLengthFt = (tile.size_length || 0) / 304.8;
-        const tileBreadthFt = (tile.size_breadth || 0) / 304.8;
-        const tileAreaSqFt = tileLengthFt * tileBreadthFt;
-
-        // Base tiles from Area (Rooms)
-        let totalTilesNeeded = 0;
-
-        if (calc.totalArea > 0 && tileAreaSqFt > 0) {
-          const basicTilesFromArea = Math.ceil(calc.totalArea / tileAreaSqFt);
-          totalTilesNeeded += Math.ceil(basicTilesFromArea * (1 + (wastage_percentage / 100)));
-        }
-
-        // Add tiles from Staircases (Direct Quantity)
-        if (calc.staircases && calc.staircases.length > 0) {
-          const staircaseTiles = calc.staircases.reduce((sum: number, s: any) => sum + (Number(s.quantity) || 0), 0);
-          totalTilesNeeded += Math.ceil(staircaseTiles * (1 + (wastage_percentage / 100)));
-        }
-
-        if (totalTilesNeeded > 0) {
-          calc.tilesNeeded = totalTilesNeeded;
-          const baseBoxes = Math.ceil(calc.tilesNeeded / tile.pieces_per_box);
-          calc.boxesNeeded = Math.max(0, baseBoxes + calc.customBoxAdjustment);
-          calc.totalPrice = calc.boxesNeeded * tile.price_per_box;
-        }
-      }
-    });
-
+    // ── Totals ────────────────────────────────────────────────────────────
     const tileItems = Object.values(tileCalculations);
     const allItems = [...tileItems, ...productCalculations];
 

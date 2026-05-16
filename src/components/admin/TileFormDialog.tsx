@@ -11,14 +11,16 @@ import { useImageUpload } from "@/hooks/useImageUpload";
 
 const tileSchema = z.object({
   code: z.string().min(1, "Code is required"),
-  size_length: z.number().min(1, "Length must be greater than 0"),
-  size_breadth: z.number().min(1, "Breadth must be greater than 0"),
-  price_per_box: z.number().min(0, "Price must be 0 or greater").optional(),
-  pieces_per_box: z.number().min(1, "Pieces per box must be greater than 0").optional(),
+  size_length: z.number().min(1, "Length must be greater than 0").nullable().optional(),
+  size_breadth: z.number().min(1, "Breadth must be greater than 0").nullable().optional(),
+  price_per_box: z.number().min(0, "Price must be 0 or greater").nullable().optional(),
+  pieces_per_box: z.number().min(1, "Pieces per box must be greater than 0").nullable().optional(),
   image_url: z.string().optional(),
   category: z.string().min(1, "Category is required"),
 }).transform((data) => ({
   ...data,
+  size_length: data.size_length || undefined,
+  size_breadth: data.size_breadth || undefined,
   price_per_box: data.price_per_box || undefined,
   pieces_per_box: data.pieces_per_box || undefined,
 }));
@@ -48,6 +50,7 @@ export const TileFormDialog = ({
   const [imagePreview, setImagePreview] = useState<string>("");
   const [categoryInput, setCategoryInput] = useState("");
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
+  const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(-1);
   const categoryInputRef = useRef<HTMLInputElement>(null);
   
   const { uploadImage, isUploading } = useImageUpload();
@@ -160,10 +163,10 @@ export const TileFormDialog = ({
                         inputMode="numeric"
                         pattern="[0-9]*"
                         placeholder="600"
-                        value={field.value || ""}
+                        value={field.value ?? ""}
                         onChange={(e) => {
                           const value = e.target.value;
-                          field.onChange(value === "" ? undefined : Number(value));
+                          field.onChange(value === "" ? null : Number(value));
                         }}
                         className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -184,10 +187,10 @@ export const TileFormDialog = ({
                         inputMode="numeric"
                         pattern="[0-9]*"
                         placeholder="600"
-                        value={field.value || ""}
+                        value={field.value ?? ""}
                         onChange={(e) => {
                           const value = e.target.value;
-                          field.onChange(value === "" ? undefined : Number(value));
+                          field.onChange(value === "" ? null : Number(value));
                         }}
                         className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -208,10 +211,10 @@ export const TileFormDialog = ({
                         inputMode="decimal"
                         pattern="[0-9]*\.?[0-9]*"
                         placeholder="450"
-                        value={field.value || ""}
+                        value={field.value ?? ""}
                         onChange={(e) => {
                           const value = e.target.value;
-                          field.onChange(value === "" ? undefined : Number(value));
+                          field.onChange(value === "" ? null : Number(value));
                         }}
                         className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -232,10 +235,10 @@ export const TileFormDialog = ({
                         inputMode="numeric"
                         pattern="[0-9]*"
                         placeholder="4"
-                        value={field.value || ""}
+                        value={field.value ?? ""}
                         onChange={(e) => {
                           const value = e.target.value;
-                          field.onChange(value === "" ? undefined : Number(value));
+                          field.onChange(value === "" ? null : Number(value));
                         }}
                         className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -257,24 +260,55 @@ export const TileFormDialog = ({
                       {...field}
                       ref={categoryInputRef}
                       placeholder="e.g., Bathroom, Kitchen, Living Room"
-                      onFocus={() => setShowCategorySuggestions(true)}
+                      onFocus={() => {
+                        setShowCategorySuggestions(true);
+                        setSelectedCategoryIndex(-1);
+                      }}
                       onChange={(e) => {
                         const upperValue = e.target.value.toUpperCase();
                         field.onChange(upperValue);
                         setCategoryInput(upperValue);
                         setShowCategorySuggestions(true);
+                        setSelectedCategoryIndex(-1);
                       }}
                       onBlur={() => {
                         setTimeout(() => setShowCategorySuggestions(false), 200);
+                      }}
+                      onKeyDown={(e) => {
+                        if (!showCategorySuggestions || filteredCategories.length === 0) return;
+                        
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setSelectedCategoryIndex((prev) => 
+                            prev < filteredCategories.length - 1 ? prev + 1 : 0
+                          );
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setSelectedCategoryIndex((prev) => 
+                            prev > 0 ? prev - 1 : filteredCategories.length - 1
+                          );
+                        } else if (e.key === "Enter" && selectedCategoryIndex >= 0) {
+                          e.preventDefault();
+                          const selected = filteredCategories[selectedCategoryIndex];
+                          field.onChange(selected);
+                          setCategoryInput(selected);
+                          setShowCategorySuggestions(false);
+                        } else if (e.key === "Escape") {
+                          setShowCategorySuggestions(false);
+                        }
                       }}
                     />
                   </FormControl>
                   {showCategorySuggestions && filteredCategories.length > 0 && (
                     <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-auto">
-                      {filteredCategories.map((category) => (
+                      {filteredCategories.map((category, index) => (
                         <div
                           key={category}
-                          className="px-4 py-2 cursor-pointer hover:bg-muted text-sm"
+                          className={`px-4 py-2 cursor-pointer text-sm transition-colors ${
+                            index === selectedCategoryIndex 
+                              ? "bg-primary text-primary-foreground" 
+                              : "hover:bg-muted"
+                          }`}
                           onClick={() => {
                             field.onChange(category);
                             setCategoryInput(category);

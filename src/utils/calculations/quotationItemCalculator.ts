@@ -256,10 +256,11 @@ export function calculateFromQuotationItems(
     }
 
     // Tiles from staircases (quantity-based)
+    // NOTE: quantity stored in DB is already post-wastage (applied at save time in tileCalculations.ts).
+    // Do NOT apply wastage again — that was causing double-wastage on staircase tiles.
     let staircaseTilesNeeded = 0;
     if (calc.staircases.length > 0) {
-      const rawQuantity = calc.staircases.reduce((sum, s) => sum + s.quantity, 0);
-      staircaseTilesNeeded = Math.ceil(rawQuantity * (1 + (wastagePercentage / 100)));
+      staircaseTilesNeeded = calc.staircases.reduce((sum, s) => sum + s.quantity, 0);
     }
 
     // Combine

@@ -156,7 +156,9 @@ export function useTileSelectionState(
 
           if (baseTile && room) {
             const wallHeight = room.wall_height || 0;
-            const wallLength = room.wall_length || room.length || 0;
+            // wall_length = wall perimeter (explicitly set by worker).
+            // Do NOT fall back to room.length — that's the floor area (area-hack), not perimeter.
+            const wallLength = room.wall_length || 0;
 
             let tileHeightInRoomUnit: number;
             let tileLengthInRoomUnit: number;

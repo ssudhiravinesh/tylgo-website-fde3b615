@@ -164,10 +164,16 @@ export const calculateTileRequirements = (
       layersByTile[layer.tileId].push(layer.layerNumber);
     });
 
-    // Calculate area per layer (prevent division by zero)
+    // wall_length = total wall perimeter (set explicitly by worker).
+    // Do NOT fall back to room.length — room.length is total floor AREA (area-hack),
+    // using it as perimeter produces completely wrong tile counts.
+    if (!room.wall_length) {
+      console.warn(`[Wall calc] Room "${room.name}" has no wall_length set. Skipping wall tile area calculation.`);
+      return;
+    }
     const wallAreaSqFt = calculateAreaInSquareFeet(
       room.wall_height || 0,
-      room.wall_length || room.length || 0,
+      room.wall_length,
       room.unit
     );
     const areaPerLayer = ws.totalLayers > 0 ? wallAreaSqFt / ws.totalLayers : 0;
@@ -369,9 +375,15 @@ export const prepareQuotationItems = (
     const room = rooms.find(r => r.id === ws.roomId);
     if (!room) return;
 
+    // wall_length = total wall perimeter (set explicitly by worker).
+    // Do NOT fall back to room.length — room.length is total floor AREA (area-hack).
+    if (!room.wall_length) {
+      console.warn(`[prepareQuotationItems] Room "${room.name}" missing wall_length. Skipping wall items for this room.`);
+      return;
+    }
     const wallAreaSqFt = calculateAreaInSquareFeet(
       room.wall_height || 0,
-      room.wall_length || room.length || 0,
+      room.wall_length,
       room.unit
     );
     const areaPerLayer = ws.totalLayers > 0 ? wallAreaSqFt / ws.totalLayers : 0;
@@ -582,7 +594,7 @@ export const calculateStaircaseTileRequirements = (
 
         stepTileResult = {
           tile,
-          tilesNeeded: rawTilesNeeded,
+          tilesNeeded: tilesNeeded, // post-wastage — this is what gets saved as quantity in DB
           areaInSqFt: areaInSqFt,
           boxesNeeded,
           totalPrice: price
@@ -618,7 +630,7 @@ export const calculateStaircaseTileRequirements = (
 
         riserTileResult = {
           tile,
-          tilesNeeded: rawTilesNeeded,
+          tilesNeeded: tilesNeeded, // post-wastage — this is what gets saved as quantity in DB
           areaInSqFt: areaInSqFt,
           boxesNeeded,
           totalPrice: price

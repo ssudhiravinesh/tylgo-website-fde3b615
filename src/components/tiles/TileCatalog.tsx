@@ -87,12 +87,9 @@ export const TileCatalog = ({
     if (searchTerm || alphabeticalIndex) {
       setCatalogView('tiles');
     } else if (!activeCategoryFilter) {
-      // Only go back to categories if we aren't specifically inside a category
-      // Actually, let's keep it simple: If search is cleared and no category selected, maybe go back?
-      // But user might have just cleared search to see the category they tapped.
-      // So: Only force to tiles if there IS a search.
+      setCatalogView('categories');
     }
-  }, [searchTerm, alphabeticalIndex]);
+  }, [searchTerm, alphabeticalIndex, activeCategoryFilter]);
 
 
   const getAlphaKey = (tile: Tile): string => {
