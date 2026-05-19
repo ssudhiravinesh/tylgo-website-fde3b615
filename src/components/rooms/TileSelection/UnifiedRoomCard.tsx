@@ -25,8 +25,10 @@ interface UnifiedRoomCardProps {
   skirtingTileSelections: Record<string, string>; // { roomId: tileId }
   tiles: Tile[];
   selectedFloorRooms: Set<string>;
+  selectedWallRooms: Set<string>;
   productSelections: RoomProductSelection[];
   onToggleRoomSelection: (roomId: string) => void;
+  onToggleWallRoomSelection: (roomId: string) => void;
   onAddFloorTile: (roomId: string) => void;
   onRemoveFloorTile: (roomId: string, tileId: string) => void;
   onConfigureWallTiles: (roomId: string) => void;
@@ -45,8 +47,10 @@ export const UnifiedRoomCard = ({
   skirtingTileSelections,
   tiles,
   selectedFloorRooms,
+  selectedWallRooms,
   productSelections,
   onToggleRoomSelection,
+  onToggleWallRoomSelection,
   onAddFloorTile,
   onRemoveFloorTile,
   onConfigureWallTiles,
@@ -68,7 +72,6 @@ export const UnifiedRoomCard = ({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Home className="h-5 w-5 text-primary" />
           Rooms ({rooms.length})
         </CardTitle>
       </CardHeader>
@@ -77,11 +80,18 @@ export const UnifiedRoomCard = ({
           const floorSelections = floorTileSelections.filter(fs => fs.roomId === room.id);
           const wallSelection = wallTileSelections.find(ws => ws.roomId === room.id);
           const isSelected = selectedFloorRooms.has(room.id);
+          const isWallSelected = selectedWallRooms.has(room.id);
 
           return (
             <div
               key={room.id}
-              className={`border rounded-lg p-4 transition-colors ${isSelected ? 'bg-primary/8 border-primary/30 ring-1 ring-primary/20' : 'bg-muted/30 hover:border-primary/30'}`}
+              className={`border rounded-lg p-4 transition-colors ${
+                isSelected || isWallSelected
+                  ? isSelected
+                    ? 'bg-primary/8 border-primary/30 ring-1 ring-primary/20'
+                    : 'bg-teal-500/8 border-teal-500/30 ring-1 ring-teal-500/20'
+                  : 'bg-muted/30 hover:border-primary/30'
+              }`}
             >
               {/* Room header */}
               <div className="flex items-center justify-between mb-4">
@@ -94,18 +104,30 @@ export const UnifiedRoomCard = ({
                         ? "bg-primary border-primary"
                         : "border-border bg-card hover:border-primary/40"
                         }`}
-                      title={isSelected ? "Deselect Room" : "Select Room to Add Tile"}
+                      title={isSelected ? "Deselect Floor" : "Select for Bulk Floor Tile"}
                     >
                       {isSelected && <Check className="h-4 w-4 text-white stroke-[3]" />}
                     </div>
                   )}
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-base text-gray-800">{room.name}</h4>
-                      <div className="flex gap-1">
-                        {room.has_floor && <Badge variant="default" className="text-[10px] h-5">Floor</Badge>}
-                        {room.has_wall && <Badge variant="secondary" className="text-[10px] h-5">Wall</Badge>}
+                  {/* Checkbox for bulk wall tile selection */}
+                  {room.has_wall && (
+                    <div
+                      onClick={() => onToggleWallRoomSelection(room.id)}
+                      className={`h-6 w-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all shadow-sm ${isWallSelected
+                        ? "bg-teal-600 border-teal-600"
+                        : "border-teal-300 bg-card hover:border-teal-400"
+                        }`}
+                      title={isWallSelected ? "Deselect Wall" : "Select for Bulk Wall Tile"}
+                    >
+                      {isWallSelected && <Check className="h-4 w-4 text-white stroke-[3]" />}
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h4 className="font-semibold text-base text-gray-800 truncate" title={room.name}>{room.name}</h4>
+                      <div className="flex gap-1 shrink-0">
                         {room.has_skirting && (
                           <Badge variant="outline" className="text-[10px] h-5 border-amber-400 text-amber-700 dark:text-amber-400">
                             Skirting

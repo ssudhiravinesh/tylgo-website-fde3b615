@@ -1,5 +1,5 @@
 // src/components/tiles/TileCatalog.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useDeferredValue, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
   ArrowLeft,
   Layers
 } from "lucide-react";
-import { useTiles } from "@/hooks/useTiles";
+import { useTiles, useTileCategories } from "@/hooks/useTiles";
 import { TileCard } from "./TileCard";
 import { TileDetailsDialog } from "./TileDetailsDialog";
 import { EmptyTileState } from "./EmptyTileState";
@@ -47,6 +47,8 @@ interface TileCatalogProps {
   onAssignTile?: (tile: Tile) => void;
 }
 
+const TILES_PER_PAGE = 60;
+
 export const TileCatalog = ({
   isSelectionMode = false,
   onTileSelect,
@@ -55,12 +57,12 @@ export const TileCatalog = ({
   onNavigateBack,
   onAssignTile
 }: TileCatalogProps) => {
-  const { data: tiles, totalCount, isLoading: loading, error, refetch } = useTiles();
-
-
-  console.log(`Received ${tiles.length} tiles out of total ${totalCount}`);
+  // --- DATA HOOKS ---
+  // Lightweight: fetches only category column for the initial categories view
+  const { categories: catStats, totalCount: catTotalCount, isLoading: catLoading, error: catError } = useTileCategories();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
@@ -77,10 +79,15 @@ export const TileCatalog = ({
 
   const [alphabeticalIndex, setAlphabeticalIndex] = useState<string>('');
   const [showAlphabetNav, setShowAlphabetNav] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(TILES_PER_PAGE);
 
-  // --- NEW: Category View State ---
+  // --- Category View State ---
   const [catalogView, setCatalogView] = useState<'categories' | 'tiles'>('categories');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
+
+  // Heavy: fetches ALL tile data. Only enabled when we actually need it (tiles view or searching).
+  const needsTiles = catalogView === 'tiles' || !!deferredSearchTerm;
+  const { data: tiles, totalCount, isLoading: tilesLoading, isFetching: tilesFetching, error: tilesError, refetch } = useTiles(false, undefined, needsTiles);
 
   // Auto-switch to tiles view if searching
   useEffect(() => {
@@ -90,6 +97,11 @@ export const TileCatalog = ({
       setCatalogView('categories');
     }
   }, [searchTerm, alphabeticalIndex, activeCategoryFilter]);
+
+  // Reset visible count when filters change so user sees fresh results from the top
+  useEffect(() => {
+    setVisibleCount(TILES_PER_PAGE);
+  }, [deferredSearchTerm, activeCategoryFilter, alphabeticalIndex, priceRange, sortBy, sortOrder]);
 
 
   const getAlphaKey = (tile: Tile): string => {
@@ -201,15 +213,21 @@ export const TileCatalog = ({
     }
   };
 
-  // --- DERIVE CATEGORIES ---
+  // categoryStats: use lightweight catStats from useTileCategories when in categories view,
+  // fall back to deriving from full tiles data when tiles are loaded (for consistency)
   const categoryStats = useMemo(() => {
-    const stats = new Map<string, number>();
-    tiles.forEach(tile => {
-      const cat = tile.category || 'Uncategorized';
-      stats.set(cat, (stats.get(cat) || 0) + 1);
-    });
-    return Array.from(stats.entries()).map(([name, count]) => ({ name, count }));
-  }, [tiles]);
+    if (tiles.length > 0) {
+      // Derive from full tile data if available (more accurate after tiles are loaded)
+      const stats = new Map<string, number>();
+      tiles.forEach(tile => {
+        const cat = tile.category || 'Uncategorized';
+        stats.set(cat, (stats.get(cat) || 0) + 1);
+      });
+      return Array.from(stats.entries()).map(([name, count]) => ({ name, count }));
+    }
+    // Use lightweight category stats before tiles are loaded
+    return catStats;
+  }, [tiles, catStats]);
 
 
   const tilesForAlphabetNav = useMemo(() => {
@@ -220,7 +238,7 @@ export const TileCatalog = ({
         if (cat !== activeCategoryFilter) return false;
       }
 
-      const term = searchTerm.toLowerCase();
+      const term = deferredSearchTerm.toLowerCase();
       const code = (tile.code || '').toLowerCase();
 
       const matchesSearch = code.includes(term);
@@ -229,7 +247,7 @@ export const TileCatalog = ({
 
       return matchesSearch && matchesPrice;
     });
-  }, [tiles, activeCategoryFilter, searchTerm, priceRange]);
+  }, [tiles, activeCategoryFilter, deferredSearchTerm, priceRange]);
 
   const filteredAndSortedTiles = useMemo(() => {
     // 1. FILTERING
@@ -239,8 +257,8 @@ export const TileCatalog = ({
 
     // 2. SORTING
     filtered.sort((a, b) => {
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
+      if (deferredSearchTerm) {
+        const term = deferredSearchTerm.toLowerCase();
         const aCode = (a.code || '').toLowerCase();
         const bCode = (b.code || '').toLowerCase();
         const aStartsWith = aCode.startsWith(term);
@@ -271,7 +289,7 @@ export const TileCatalog = ({
     });
 
     return filtered;
-  }, [tilesForAlphabetNav, searchTerm, sortBy, sortOrder, alphabeticalIndex]);
+  }, [tilesForAlphabetNav, deferredSearchTerm, sortBy, sortOrder, alphabeticalIndex]);
 
   // Simple view toggle component
   const ViewToggle = ({ viewMode, setViewMode }: { viewMode: "grid" | "list", setViewMode: (mode: "grid" | "list") => void }) => (
@@ -369,15 +387,17 @@ export const TileCatalog = ({
   };
 
 
-  if (loading) {
+  // Show loading only when the categories view is loading (the initial lightweight fetch)
+  if (catLoading) {
     return <GridLoader loadingText="Loading..." />;
   }
 
-  if (error) {
+  const displayError = catError || tilesError;
+  if (displayError) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-destructive mb-2">Error loading tiles: {error.message}</p>
+          <p className="text-destructive mb-2">Error loading tiles: {displayError.message}</p>
           <Button onClick={() => window.location.reload()}>
             Try Again
           </Button>
@@ -400,7 +420,7 @@ export const TileCatalog = ({
             <h1 className="text-2xl font-bold text-foreground">
               {activeCategoryFilter ? `${activeCategoryFilter} Tiles` : 'Tile Catalog'}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground hidden lg:block">
               {activeCategoryFilter
                 ? `Browsing ${activeCategoryFilter} collection`
                 : 'Browse and search through our tile collection'}
@@ -408,9 +428,11 @@ export const TileCatalog = ({
           </div>
         </div>
         <div className="flex gap-2">
-          <Badge variant="outline">
-            {filteredAndSortedTiles.length} tiles
-            {catalogView === 'categories' && ` in ${categoryStats.length} categories`}
+          <Badge variant="outline" className="hidden lg:inline-flex">
+            {catalogView === 'categories'
+              ? `${catTotalCount} tiles in ${categoryStats.length} categories`
+              : `${filteredAndSortedTiles.length} tiles`
+            }
           </Badge>
 
           {cart.size > 0 && (
@@ -431,13 +453,19 @@ export const TileCatalog = ({
       {/* Search and Controls - Visible in both views or just Tile view? 
           Let's make it visible in both, but typing changes view to 'tiles' */}
       <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex items-center gap-2">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                 <Input
                   placeholder="Search all tiles by name, code, or SKU..."
+                  type="search"
+                  inputMode="search"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -447,24 +475,28 @@ export const TileCatalog = ({
             <div className="flex gap-2">
               <Button
                 variant="outline"
+                size="icon"
                 onClick={() => setIsQRScannerOpen(true)}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center sm:w-auto sm:px-4"
               >
-                <QrCode className="h-4 w-4" />
+                <QrCode className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Scan QR</span>
               </Button>
               {catalogView === 'tiles' && (
                 <Button
                   variant="outline"
+                  size="icon"
                   onClick={() => setIsFilterOpen(true)}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center sm:w-auto sm:px-4"
                 >
-                  <Filter className="h-4 w-4" />
+                  <Filter className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">Filter</span>
                 </Button>
               )}
               {catalogView === 'tiles' && (
-                <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                <div className="hidden sm:block">
+                  <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                </div>
               )}
             </div>
           </div>
@@ -484,7 +516,7 @@ export const TileCatalog = ({
                 <Grid className="h-6 w-6 text-primary" />
               </div>
               <h3 className="font-semibold text-foreground">All Tiles</h3>
-              <p className="text-sm text-muted-foreground mt-1">{tiles.length} items</p>
+              <p className="text-sm text-muted-foreground mt-1">{catTotalCount} items</p>
             </CardContent>
           </Card>
 
@@ -511,13 +543,18 @@ export const TileCatalog = ({
       {/* VIEW: TILES */}
       {catalogView === 'tiles' && (
         <>
-          {/* Alphabetical Navigation */}
-          <AlphabeticalNavigation
+          {/* Loading indicator while full tile data is being fetched */}
+          {(tilesLoading || tilesFetching) && tiles.length === 0 && (
+            <GridLoader loadingText="Loading tiles..." />
+          )}
+
+          {/* Alphabetical Navigation — only show when tiles are loaded */}
+          {tiles.length > 0 && <AlphabeticalNavigation
             navTiles={tilesForAlphabetNav} 
             displayedCount={filteredAndSortedTiles.length}
             onLetterClick={setAlphabeticalIndex}
             activeLetter={alphabeticalIndex}
-          />
+          />}
 
 
           {/* Active Filters */}
@@ -581,30 +618,48 @@ export const TileCatalog = ({
           {filteredAndSortedTiles.length === 0 ? (
             <EmptyTileState />
           ) : (
-            <div className={
-              viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8"
-                : "space-y-4 pb-8"
-            }>
-              {filteredAndSortedTiles.map((tile) => (
-                <TileCard
-                  key={tile.id}
-                  tile={tile}
-                  isSelected={false}
-                  isAdmin={false}
-                  showAssignButton={!!onAssignTile}
-                  onTileSelect={() => handleTileClick(tile)}
-                  onGenerateQR={() => { }}
-                  onDownloadQR={() => { }}
-                  onViewDetails={() => handleTileClick(tile)}
-                  onAssignClick={(e) => {
-                    e.stopPropagation();
-                    onAssignTile?.(tile);
-                  }}
-                  isGeneratingQR={false}
-                />
-              ))}
-            </div>
+            <>
+              <div className={
+                viewMode === "grid"
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-4"
+                  : "space-y-4 pb-4"
+              }>
+                {filteredAndSortedTiles.slice(0, visibleCount).map((tile) => (
+                  <TileCard
+                    key={tile.id}
+                    tile={tile}
+                    isSelected={false}
+                    isAdmin={false}
+                    showAssignButton={!!onAssignTile}
+                    onTileSelect={() => handleTileClick(tile)}
+                    onGenerateQR={() => { }}
+                    onDownloadQR={() => { }}
+                    onViewDetails={() => handleTileClick(tile)}
+                    onAssignClick={(e) => {
+                      e.stopPropagation();
+                      onAssignTile?.(tile);
+                    }}
+                    isGeneratingQR={false}
+                  />
+                ))}
+              </div>
+
+              {/* Load More */}
+              {visibleCount < filteredAndSortedTiles.length && (
+                <div className="flex flex-col items-center gap-2 pb-8">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {Math.min(visibleCount, filteredAndSortedTiles.length)} of {filteredAndSortedTiles.length} tiles
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCount(prev => prev + TILES_PER_PAGE)}
+                    className="px-8"
+                  >
+                    Load More
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

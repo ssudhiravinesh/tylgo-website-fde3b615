@@ -381,10 +381,11 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
           length: formData.has_floor ? floorArea : 0,
           width: formData.has_floor ? 1 : 0,
           measurements: formData.has_floor ? floorMeasurements : undefined,
-          // Wall dimensions: wall_length = perimeter, wall_height = actual height
-          // NOT aggregated area — the layer calculator needs real height for row count
-          wall_length: formData.has_wall ? parseFloat(wallMeasurements[0]?.length || '0') : undefined,
-          wall_height: formData.has_wall ? parseFloat(wallMeasurements[0]?.width || '0') : undefined,
+          // Wall dimensions: aggregate total wall area from all shapes
+          // wall_length = total wall area (sum of each shape's length × height), wall_height = 1
+          // The WallTileSelectionPage will use wall_measurements for per-shape details
+          wall_length: formData.has_wall ? wallArea : undefined,
+          wall_height: formData.has_wall ? 1 : undefined,
           wall_measurements: formData.has_wall ? wallMeasurements : undefined,
           // Skirting dimensions
           skirting_length: formData.has_skirting && skirtingLength ? parseFloat(skirtingLength) : undefined,
@@ -686,17 +687,17 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
 
             {/* --- Floor Surface Section --- */}
             <div className={`rounded-lg border transition-colors ${formData.has_floor ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
-              <div className="flex items-center gap-3 p-3">
+              <label htmlFor="has_floor" className="flex items-center gap-3 p-3 cursor-pointer">
                 <Checkbox
                   id="has_floor"
                   checked={formData.has_floor}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_floor: checked === true }))}
                   disabled={isLoading}
                 />
-                <Label htmlFor="has_floor" className="flex items-center gap-2 cursor-pointer text-sm font-semibold">
+                <div className="flex items-center gap-2 text-sm font-semibold">
                   <Layers className="h-4 w-4 text-primary" />
                   Floor Surface
-                </Label>
+                </div>
                 {formData.has_floor && inputMode === 'manual' && floorArea > 0 && (
                   <span className="ml-auto text-xs font-medium text-primary">
                     {floorArea.toFixed(2)} {formData.unit}²
@@ -707,7 +708,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                     {calculateCanvasArea(canvasShape).toFixed(2)} {formData.unit}²
                   </span>
                 )}
-              </div>
+              </label>
               
               {formData.has_floor && (
                 <div className="px-3 pb-3 pt-1 border-t border-border/50">
@@ -764,23 +765,23 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             {/* --- Wall Surface Section (hidden in canvas mode — height is inside canvas) --- */}
             {inputMode === 'manual' && (
               <div className={`rounded-lg border transition-colors ${formData.has_wall ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
-                <div className="flex items-center gap-3 p-3">
+                <label htmlFor="has_wall" className="flex items-center gap-3 p-3 cursor-pointer">
                   <Checkbox
                     id="has_wall"
                     checked={formData.has_wall}
                     onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_wall: checked === true }))}
                     disabled={isLoading}
                   />
-                  <Label htmlFor="has_wall" className="flex items-center gap-2 cursor-pointer text-sm font-semibold">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
                     <Layers className="h-4 w-4 text-primary" />
                     Wall Surface
-                  </Label>
+                  </div>
                   {formData.has_wall && wallArea > 0 && (
                     <span className="ml-auto text-xs font-medium text-primary">
                       {wallArea.toFixed(2)} {formData.unit}²
                     </span>
                   )}
-                </div>
+                </label>
                 
                 {formData.has_wall && (
                   <div className="px-3 pb-3 pt-1 border-t border-border/50">
@@ -790,7 +791,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                         {formData.unit === "feet" ? "(feet inches)" : `(${formData.unit})`}
                       </span>
                     </div>
-                    {renderMeasurementSection('wall', wallMeasurements, 'Wall Perimeter', 'Wall Height', true)}
+                    {renderMeasurementSection('wall', wallMeasurements, 'Wall Length', 'Wall Height')}
                   </div>
                 )}
               </div>
@@ -799,7 +800,7 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
             {/* --- Skirting Surface Section --- */}
             {inputMode === 'manual' && (
               <div className={`rounded-lg border transition-colors ${formData.has_skirting ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800' : 'border-border bg-muted/30'}`}>
-                <div className="flex items-center gap-3 p-3">
+                <label htmlFor="has_skirting" className="flex items-center gap-3 p-3 cursor-pointer">
                   <Checkbox
                     id="has_skirting"
                     checked={formData.has_skirting}
@@ -818,16 +819,16 @@ export const RoomFormDialog = ({ isOpen, onClose, room, customerId }: RoomFormDi
                       }
                     }}
                   />
-                  <Label htmlFor="has_skirting" className="flex items-center gap-2 cursor-pointer text-sm font-semibold">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
                     <Scissors className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                     Skirting Tiles
-                  </Label>
+                  </div>
                   {formData.has_skirting && skirtingArea > 0 && (
                     <span className="ml-auto text-xs font-medium text-amber-700 dark:text-amber-400">
                       {skirtingArea.toFixed(2)} {formData.unit}²
                     </span>
                   )}
-                </div>
+                </label>
 
                 {formData.has_skirting && (
                   <div className="px-3 pb-3 pt-1 border-t border-border/50 space-y-3">

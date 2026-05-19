@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw, Eye, QrCode, Box } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { ArrowLeft, Layers, Copy, Minus, Plus, RotateCcw, Eye, QrCode, Box, RectangleHorizontal, RectangleVertical } from "lucide-react";
 import { RoomVisualizer } from "./RoomVisualizer";
 import { TileCatalog } from "@/components/tiles/TileCatalog";
 import { Html5QRScanner } from "@/components/qr/Html5QRScanner";
@@ -12,6 +13,70 @@ import { useDeleteWallTileLayerSelection } from "@/hooks/useRooms";
 import type { Room } from "@/hooks/useRooms";
 import type { Tile } from "@/hooks/useTiles";
 import { type WallTileSelection, type WallTileLayer } from "@/utils/tileCalculations";
+
+// ---------------------------------------------------------------------------
+// Tile Variant Finder
+// ---------------------------------------------------------------------------
+// ANUJ tile codes follow the pattern:
+//   {prefix} {size} ANUJ {number} {variant_suffix}
+// e.g. "JW 18X12 ANUJ 1010 LIGHT", "JW 18X12 ANUJ 1010 HL1", "JW 18X12 ANUJ 1010 DARK"
+// This utility strips the variant suffix to find sibling tiles in the same series.
+
+const VARIANT_SUFFIX_RE = /\s+(?:LIGHT|DARK|HL\S*|K-?\d\S*)(?:\s+KT)?$/i;
+const COMPOUND_KT_RE = /\s+KT$/i;
+
+function extractTileBase(code: string): string | null {
+  // First try stripping compound "HL1 KT" / "HLD KT" patterns
+  let stripped = code.replace(VARIANT_SUFFIX_RE, '');
+  if (stripped !== code) return stripped;
+
+  // Fallback: strip trailing KT alone (some codes end with just KT)
+  stripped = code.replace(COMPOUND_KT_RE, '');
+  if (stripped !== code) {
+    const again = stripped.replace(VARIANT_SUFFIX_RE, '');
+    if (again !== stripped) return again;
+  }
+
+  return null;
+}
+
+interface TileVariant {
+  tile: Tile;
+  label: string; // e.g. "L", "D", "HL1", "HL2"
+}
+
+/** Short display label for a variant suffix */
+function variantLabel(code: string, base: string): string {
+  const suffix = code.substring(base.length).trim().toUpperCase();
+  if (suffix === 'LIGHT') return 'L';
+  if (suffix === 'DARK') return 'D';
+  return suffix || 'BASE';
+}
+
+function findTileVariants(baseTile: Tile, allTiles: Tile[]): TileVariant[] {
+  const base = extractTileBase(baseTile.code);
+  if (!base) return [];
+
+  return allTiles
+    .filter(
+      t =>
+        t.id !== baseTile.id &&
+        (t.code === base || t.code.startsWith(base + ' ')) &&
+        t.size_length === baseTile.size_length &&
+        t.size_breadth === baseTile.size_breadth
+    )
+    .map(t => ({ tile: t, label: variantLabel(t.code, base) }))
+    .sort((a, b) => {
+      // Sort order: L first, then HL variants alphabetically, then D last
+      const order = (l: string) => {
+        if (l === 'L') return 0;
+        if (l === 'D') return 99;
+        return 1; // HL variants in the middle
+      };
+      const diff = order(a.label) - order(b.label);
+      return diff !== 0 ? diff : a.label.localeCompare(b.label);
+    });
+}
 
 interface WallTileSelectionPageProps {
   room: Room;
@@ -40,6 +105,22 @@ export const WallTileSelectionPage = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const deleteLayerMutation = useDeleteWallTileLayerSelection();
 
+  // Pre-compute variant map: for every tile currently used in a layer,
+  // cache its sibling variants so we don't recompute on every render.
+  const variantMap = useMemo(() => {
+    const map = new Map<string, TileVariant[]>();
+    const seen = new Set<string>();
+    for (const layer of wallSelection.layers) {
+      if (!layer.tileId || seen.has(layer.tileId)) continue;
+      seen.add(layer.tileId);
+      const tile = tiles.find(t => t.id === layer.tileId);
+      if (tile) {
+        map.set(tile.id, findTileVariants(tile, tiles));
+      }
+    }
+    return map;
+  }, [wallSelection.layers, tiles]);
+
   // Convert wall layers to VisTile array for the 3D visualizer
   const wallVisLayers = [...wallSelection.layers]
     .sort((a, b) => a.layerNumber - b.layerNumber)
@@ -56,35 +137,63 @@ export const WallTileSelectionPage = ({
     }
   }, [wallSelection.layers]);
 
-  const calculateWallLayers = (baseTileId: string) => {
+  // Derive wall dimensions from wall_measurements (multi-shape) or legacy single-shape
+  const getWallDimensions = () => {
+    const measurements = room.wall_measurements;
+    if (measurements && Array.isArray(measurements) && measurements.length > 0) {
+      // Multi-shape: each measurement is { length: "wallLength", width: "wallHeight" }
+      let totalArea = 0;
+      let maxHeight = 0;
+      measurements.forEach((m: { length: string; width: string }) => {
+        const l = parseFloat(m.length) || 0;
+        const h = parseFloat(m.width) || 0;
+        totalArea += l * h;
+        if (h > maxHeight) maxHeight = h;
+      });
+      return { totalArea, maxHeight };
+    }
+    // Legacy single-shape fallback
+    const wallHeight = room.wall_height || 0;
+    const wallLength = room.wall_length || 0;
+    return { totalArea: wallHeight * wallLength, maxHeight: wallHeight };
+  };
+
+  const { totalArea } = getWallDimensions();
+
+  const calculateWallLayers = (baseTileId: string, orientationOverride?: 'horizontal' | 'vertical') => {
     const baseTile = tiles.find(t => t.id === baseTileId);
 
     if (!room || !baseTile) return;
 
-    const wallHeight = room.wall_height || 0;
-    const wallLength = room.wall_length || room.length || 0;
+    const { totalArea: totalWallArea, maxHeight: wallHeight } = getWallDimensions();
 
-    // Convert tile dimensions from mm to the room's unit
-    let tileHeightInRoomUnit: number;
-    let tileLengthInRoomUnit: number;
+    // Convert tile dimensions from mm to the room's unit.
+    // Orientation determines which physical dimension is vertical on the wall:
+    //   horizontal (default) → size_breadth is vertical, size_length is horizontal
+    //   vertical             → size_length is vertical, size_breadth is horizontal
+    const orientation = orientationOverride || wallSelection.orientation || 'horizontal';
+    const tileVerticalMm  = orientation === 'horizontal' ? (baseTile.size_breadth || 0) : (baseTile.size_length || 0);
+    const tileHorizontalMm = orientation === 'horizontal' ? (baseTile.size_length || 0) : (baseTile.size_breadth || 0);
+
+    let tileHeightInRoomUnit: number; // vertical side of tile on wall
+    let tileLengthInRoomUnit: number; // horizontal side of tile on wall
 
     if (room.unit === "feet") {
-      tileHeightInRoomUnit = (baseTile.size_length || 0) / 304.8; // mm to feet
-      tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
+      tileHeightInRoomUnit = tileVerticalMm / 304.8; // mm to feet
+      tileLengthInRoomUnit = tileHorizontalMm / 304.8;
     } else if (room.unit === "metre") {
-      tileHeightInRoomUnit = (baseTile.size_length || 0) / 1000; // mm to metres
-      tileLengthInRoomUnit = (baseTile.size_breadth || 0) / 1000;
+      tileHeightInRoomUnit = tileVerticalMm / 1000; // mm to metres
+      tileLengthInRoomUnit = tileHorizontalMm / 1000;
     } else {
-      tileHeightInRoomUnit = baseTile.size_length || 0; // mm
-      tileLengthInRoomUnit = baseTile.size_breadth || 0;
+      tileHeightInRoomUnit = tileVerticalMm; // mm
+      tileLengthInRoomUnit = tileHorizontalMm;
     }
 
     // -------------------------------------------------------------
-    // FIX: Area-Based Calculation Logic (No Double Rounding)
+    // Area-Based Calculation Logic (No Double Rounding)
     // -------------------------------------------------------------
 
     // 1. Calculate Grand Total based on Area
-    const totalWallArea = wallHeight * wallLength;
     const singleTileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
 
     // Safety check to avoid division by zero
@@ -95,12 +204,12 @@ export const WallTileSelectionPage = ({
 
     const grandTotalTilesNeeded = Math.ceil(totalWallArea / singleTileArea);
 
-    // 2. Calculate Visual Layers (Rows)
-    // We still need layers for visual representation and different tile assignments
-    const layerCount = Math.max(1, Math.ceil(wallHeight / tileHeightInRoomUnit));
+    // 2. Calculate Visual Layers (Rows) based on the tallest wall shape
+    const layerCount = wallHeight > 0 && tileHeightInRoomUnit > 0
+      ? Math.max(1, Math.round(wallHeight / tileHeightInRoomUnit))
+      : 1;
 
     // 3. Distribute Grand Total across Layers
-    // Instead of rounding per row, we use the precise fraction so the sum is exact.
     const tilesPerLayer = grandTotalTilesNeeded / layerCount;
 
     const layers: WallTileLayer[] = [];
@@ -108,7 +217,7 @@ export const WallTileSelectionPage = ({
       layers.push({
         layerNumber: i,
         tileId: baseTileId,
-        tilesNeeded: tilesPerLayer // This might be a float (e.g. 12.75), which is correct for pricing
+        tilesNeeded: tilesPerLayer
       });
     }
 
@@ -116,7 +225,8 @@ export const WallTileSelectionPage = ({
       ...wallSelection,
       baseTileId,
       layers,
-      totalLayers: layerCount
+      totalLayers: layerCount,
+      orientation,
     };
 
     // Store original layers for reset functionality
@@ -300,18 +410,72 @@ export const WallTileSelectionPage = ({
     toast.success("Layers reset to original configuration");
   };
 
+  const handleToggleOrientation = () => {
+    const current = wallSelection.orientation || 'horizontal';
+    const next = current === 'horizontal' ? 'vertical' : 'horizontal';
+
+    // Recalculate layers with new orientation if a base tile is selected
+    if (wallSelection.baseTileId) {
+      // Pass the new orientation directly so it doesn't depend on stale state
+      calculateWallLayers(wallSelection.baseTileId, next);
+    } else {
+      // No base tile yet — just update the orientation flag
+      onUpdateSelection({ ...wallSelection, orientation: next });
+    }
+
+    toast.success(`Tiles rotated to ${next} laying`);
+  };
+
   /* ============================================================
      Industrial Craft — Wall Preview Canvas Renderer
      ============================================================ */
+
+  // Variant-aware color palette for tiles without images
+  const VARIANT_COLORS: Record<string, { fill: string; fillEnd: string; text: string; accent: string }> = {
+    'L':    { fill: '#F8F4EE', fillEnd: '#EDE8DF', text: '#8C8278', accent: '#D4CCC0' },   // Warm ivory
+    'D':    { fill: '#4A4541', fillEnd: '#3A3633', text: '#C8C0B4', accent: '#5C5650' },   // Rich charcoal
+    'HL':   { fill: '#E8D5C0', fillEnd: '#D9C4AD', text: '#7A6650', accent: '#C9A882' },   // Warm sand
+    'HL1':  { fill: '#D4C4AA', fillEnd: '#C7B599', text: '#6B5A3E', accent: '#B89E78' },   // Golden tan
+    'HL2':  { fill: '#C8BFA8', fillEnd: '#B8AD94', text: '#635840', accent: '#A89670' },   // Deeper tan
+    'HL3':  { fill: '#BEB4A0', fillEnd: '#AEA490', text: '#5C5038', accent: '#9E8E6A' },   // Earthy brown
+    'HLA':  { fill: '#D8CCBA', fillEnd: '#CABCA8', text: '#6E6048', accent: '#BAA888' },   // Warm beige
+    'HLB':  { fill: '#CCBFA8', fillEnd: '#BEB098', text: '#635840', accent: '#A89878' },   // Sandy clay
+    'HLC':  { fill: '#C4B8A0', fillEnd: '#B6A890', text: '#5A5038', accent: '#9E9068' },   // Olive stone
+    'HLD':  { fill: '#B8AE9A', fillEnd: '#AAA08A', text: '#504830', accent: '#948660' },   // Dark clay
+    '_DEFAULT': { fill: '#E2DCD4', fillEnd: '#D6CFC4', text: '#6E6860', accent: '#C0B8AA' }, // Neutral
+  };
+
+  function getVariantColorKey(tileCode: string): string {
+    const base = extractTileBase(tileCode);
+    if (!base) return '_DEFAULT';
+    const suffix = tileCode.substring(base.length).trim().toUpperCase();
+    if (suffix === 'LIGHT') return 'L';
+    if (suffix === 'DARK') return 'D';
+    // Try exact match first (HL1, HL2, HLA, HLB, etc.)
+    if (VARIANT_COLORS[suffix]) return suffix;
+    // Try prefix match (HL2A → HL2, HLAP1 → HLA)
+    if (suffix.startsWith('HL')) {
+      for (const key of ['HL3', 'HL2', 'HL1', 'HLD', 'HLC', 'HLB', 'HLA', 'HL']) {
+        if (suffix.startsWith(key)) return key;
+      }
+      return 'HL';
+    }
+    return '_DEFAULT';
+  }
+
+  function getShortVariantLabel(tileCode: string): string {
+    const base = extractTileBase(tileCode);
+    if (!base) return '';
+    const suffix = tileCode.substring(base.length).trim().toUpperCase();
+    if (suffix === 'LIGHT') return 'L';
+    if (suffix === 'DARK') return 'D';
+    return suffix || '';
+  }
+
   const WALL_PREVIEW = {
-    grout: { color: '#C8BFB3', width: 2 },
-    backdrop: '#F5F2ED',
-    fallback: {
-      fills: ['#E8E2D9', '#DED6C8', '#D4CCC0', '#E2DDD5', '#DAD3C7', '#E5DFD6'],
-      textColor: '#4A4541',
-      codeBg: 'rgba(74, 69, 65, 0.06)',
-    },
-    font: { family: 'Manrope, system-ui, sans-serif', weight: '600', sizeRatio: 0.11 },
+    grout: { color: '#A89E90', width: 2 },
+    backdrop: '#F0ECE6',
+    font: { family: 'Manrope, system-ui, sans-serif', weight: '700', sizeRatio: 0.18 },
     padding: 32,
     labelWidth: 48,
   } as const;
@@ -328,20 +492,33 @@ export const WallTileSelectionPage = ({
     const firstTile = tiles.find(t => t.id === wallSelection.layers[0]?.tileId);
     if (!firstTile) return;
 
-    const tileLength = firstTile.size_length || 600;
-    const tileBreadth = firstTile.size_breadth || 600;
-    const aspectRatio = tileBreadth / tileLength;
+    // Use orientation to decide which physical dimension is horizontal vs vertical on the wall
+    const orientation = wallSelection.orientation || 'horizontal';
+    // Horizontal laying: size_length runs horizontally (wider tiles), size_breadth is vertical height
+    // Vertical laying:   size_breadth runs horizontally, size_length is vertical height (taller tiles)
+    const wallTileW = orientation === 'horizontal'
+      ? (firstTile.size_length || 600)
+      : (firstTile.size_breadth || 600);
+    const wallTileH = orientation === 'horizontal'
+      ? (firstTile.size_breadth || 600)
+      : (firstTile.size_length || 600);
+
+    // wallTileW = horizontal span, wallTileH = vertical span
+    // Preview tile should be landscape for horizontal laying (W > H)
+    const whRatio = wallTileW / wallTileH; // e.g. 450/300 = 1.5 for horizontal
 
     const tilesPerLayer = 6;
     const baseSize = 200;
     let tileWidth: number, tileHeight: number;
 
-    if (aspectRatio > 1) {
+    if (whRatio >= 1) {
+      // Wider than tall (landscape) — cap width at baseSize
       tileWidth = baseSize;
-      tileHeight = baseSize / aspectRatio;
+      tileHeight = baseSize / whRatio;
     } else {
+      // Taller than wide (portrait) — cap height at baseSize
       tileHeight = baseSize;
-      tileWidth = baseSize * aspectRatio;
+      tileWidth = baseSize * whRatio;
     }
 
     const layerCount = wallSelection.layers.length;
@@ -400,19 +577,40 @@ export const WallTileSelectionPage = ({
     const scaledTileH = tileHeight * scale;
     const scaledGrout = groutW * scale;
 
-    // Depth helper
-    const addTileDepth = (x: number, y: number, w: number, h: number) => {
-      const topGrad = ctx.createLinearGradient(x, y, x, y + h * 0.12);
-      topGrad.addColorStop(0, 'rgba(255, 255, 255, 0.10)');
+    // Enhanced depth/bevel helper
+    const addTileDepth = (x: number, y: number, w: number, h: number, isDark: boolean) => {
+      // Top edge highlight
+      const topGrad = ctx.createLinearGradient(x, y, x, y + h * 0.15);
+      topGrad.addColorStop(0, isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.25)');
       topGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = topGrad;
-      ctx.fillRect(x, y, w, h * 0.12);
+      ctx.fillRect(x, y, w, h * 0.15);
 
-      const btmGrad = ctx.createLinearGradient(x, y + h * 0.88, x, y + h);
+      // Left edge highlight
+      const leftGrad = ctx.createLinearGradient(x, y, x + w * 0.08, y);
+      leftGrad.addColorStop(0, isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.12)');
+      leftGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = leftGrad;
+      ctx.fillRect(x, y, w * 0.08, h);
+
+      // Bottom edge shadow
+      const btmGrad = ctx.createLinearGradient(x, y + h * 0.82, x, y + h);
       btmGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      btmGrad.addColorStop(1, 'rgba(0, 0, 0, 0.05)');
+      btmGrad.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.08)');
       ctx.fillStyle = btmGrad;
-      ctx.fillRect(x, y + h * 0.88, w, h * 0.12);
+      ctx.fillRect(x, y + h * 0.82, w, h * 0.18);
+
+      // Right edge shadow
+      const rightGrad = ctx.createLinearGradient(x + w * 0.92, y, x + w, y);
+      rightGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      rightGrad.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0.10)' : 'rgba(0, 0, 0, 0.04)');
+      ctx.fillStyle = rightGrad;
+      ctx.fillRect(x + w * 0.92, y, w * 0.08, h);
+
+      // Inner edge (1px inset glow)
+      ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
     };
 
     // Sort layers and reverse for bottom-up (Layer 1 at bottom)
@@ -481,17 +679,17 @@ export const WallTileSelectionPage = ({
                   resizeQuality: 'high'
                 }).then(bitmap => {
                   ctx.drawImage(bitmap, x, y, scaledTileW, scaledTileH);
-                  addTileDepth(x, y, scaledTileW, scaledTileH);
+                  addTileDepth(x, y, scaledTileW, scaledTileH, false);
                   bitmap.close();
                   checkComplete();
                 }).catch(() => {
                   ctx.drawImage(img, x, y, scaledTileW, scaledTileH);
-                  addTileDepth(x, y, scaledTileW, scaledTileH);
+                  addTileDepth(x, y, scaledTileW, scaledTileH, false);
                   checkComplete();
                 });
               } else {
                 ctx.drawImage(img, x, y, scaledTileW, scaledTileH);
-                addTileDepth(x, y, scaledTileW, scaledTileH);
+                addTileDepth(x, y, scaledTileW, scaledTileH, false);
                 checkComplete();
               }
             } else {
@@ -509,59 +707,68 @@ export const WallTileSelectionPage = ({
       }
     };
 
-    const drawWallFallback = (x: number, y: number, tileData: Tile, layerIdx: number) => {
-      const fills = WALL_PREVIEW.fallback.fills;
-      ctx.fillStyle = fills[layerIdx % fills.length];
+    const drawWallFallback = (x: number, y: number, tileData: Tile, _layerIdx: number) => {
+      const colorKey = getVariantColorKey(tileData.code);
+      const colors = VARIANT_COLORS[colorKey] || VARIANT_COLORS['_DEFAULT'];
+      const isDark = colorKey === 'D';
+
+      // Gradient fill (top-to-bottom for a subtle ceramic look)
+      const tileGrad = ctx.createLinearGradient(x, y, x, y + scaledTileH);
+      tileGrad.addColorStop(0, colors.fill);
+      tileGrad.addColorStop(0.6, colors.fill);
+      tileGrad.addColorStop(1, colors.fillEnd);
+      ctx.fillStyle = tileGrad;
       ctx.fillRect(x, y, scaledTileW, scaledTileH);
 
-      // Subtle grain
-      ctx.strokeStyle = 'rgba(180, 170, 158, 0.4)';
-      ctx.lineWidth = 0.5;
-      const lines = Math.max(3, Math.floor(scaledTileH / 18));
-      for (let i = 0; i < lines; i++) {
-        const ly = y + (i * scaledTileH / lines) + (scaledTileH / lines / 2);
+      // Subtle diagonal grain (ceramic texture simulation)
+      ctx.save();
+      ctx.globalAlpha = isDark ? 0.06 : 0.08;
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = 0.6;
+      const grainStep = Math.max(6, scaledTileH / 8);
+      for (let i = -scaledTileW; i < scaledTileH + scaledTileW; i += grainStep) {
         ctx.beginPath();
-        ctx.moveTo(x + 8, ly);
-        ctx.lineTo(x + scaledTileW - 8, ly);
+        ctx.moveTo(x, y + i);
+        ctx.lineTo(x + scaledTileW, y + i - scaledTileW * 0.3);
         ctx.stroke();
       }
+      ctx.restore();
 
-      // Code label
-      const fontSize = Math.min(scaledTileW, scaledTileH) * WALL_PREVIEW.font.sizeRatio;
-      ctx.font = `${WALL_PREVIEW.font.weight} ${fontSize}px ${WALL_PREVIEW.font.family}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // Variant label — clean, centered, readable
+      const label = getShortVariantLabel(tileData.code);
+      if (label) {
+        const fontSize = Math.min(scaledTileW, scaledTileH) * WALL_PREVIEW.font.sizeRatio;
+        ctx.font = `${WALL_PREVIEW.font.weight} ${fontSize}px ${WALL_PREVIEW.font.family}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
 
-      const code = tileData.code || 'TILE';
-      const maxLen = Math.floor(scaledTileW / (fontSize * 0.55));
-      const displayCode = code.length > maxLen ? code.substring(0, maxLen) : code;
+        const tm = ctx.measureText(label);
+        const pillW = tm.width + fontSize * 1.2;
+        const pillH = fontSize * 1.8;
+        const pillX = x + scaledTileW / 2 - pillW / 2;
+        const pillY = y + scaledTileH / 2 - pillH / 2;
+        const pillR = pillH * 0.3;
 
-      // Code pill
-      const tm = ctx.measureText(displayCode);
-      const pW = tm.width + fontSize * 0.8;
-      const pH = fontSize * 1.6;
-      const pX = x + scaledTileW / 2 - pW / 2;
-      const pY = y + scaledTileH / 2 - pH / 2;
-      const pr = pH * 0.25;
+        // Pill background with opacity
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)';
+        ctx.beginPath();
+        ctx.moveTo(pillX + pillR, pillY);
+        ctx.lineTo(pillX + pillW - pillR, pillY);
+        ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + pillR);
+        ctx.lineTo(pillX + pillW, pillY + pillH - pillR);
+        ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - pillR, pillY + pillH);
+        ctx.lineTo(pillX + pillR, pillY + pillH);
+        ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - pillR);
+        ctx.lineTo(pillX, pillY + pillR);
+        ctx.quadraticCurveTo(pillX, pillY, pillX + pillR, pillY);
+        ctx.closePath();
+        ctx.fill();
 
-      ctx.fillStyle = WALL_PREVIEW.fallback.codeBg;
-      ctx.beginPath();
-      ctx.moveTo(pX + pr, pY);
-      ctx.lineTo(pX + pW - pr, pY);
-      ctx.quadraticCurveTo(pX + pW, pY, pX + pW, pY + pr);
-      ctx.lineTo(pX + pW, pY + pH - pr);
-      ctx.quadraticCurveTo(pX + pW, pY + pH, pX + pW - pr, pY + pH);
-      ctx.lineTo(pX + pr, pY + pH);
-      ctx.quadraticCurveTo(pX, pY + pH, pX, pY + pH - pr);
-      ctx.lineTo(pX, pY + pr);
-      ctx.quadraticCurveTo(pX, pY, pX + pr, pY);
-      ctx.closePath();
-      ctx.fill();
+        ctx.fillStyle = colors.text;
+        ctx.fillText(label, x + scaledTileW / 2, y + scaledTileH / 2);
+      }
 
-      ctx.fillStyle = WALL_PREVIEW.fallback.textColor;
-      ctx.fillText(displayCode, x + scaledTileW / 2, y + scaledTileH / 2);
-
-      addTileDepth(x, y, scaledTileW, scaledTileH);
+      addTileDepth(x, y, scaledTileW, scaledTileH, isDark);
       checkComplete();
     };
 
@@ -586,179 +793,253 @@ export const WallTileSelectionPage = ({
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Rooms
-        </Button>
-        <div className="flex-1">
-          <h2 className="text-3xl font-bold text-foreground">Configure Wall Tiles</h2>
-          <p className="text-muted-foreground">{room.name} - Layer Management</p>
+      {/* Compact Top Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-4 rounded-xl border shadow-sm mb-6">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={onBack} size="sm" className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          
+          <Separator orientation="vertical" className="h-8 mx-1 hidden sm:block" />
+          
+          <div>
+            <h2 className="text-xl font-bold tracking-tight leading-none mb-1">Configure Wall Tiles</h2>
+            <p className="text-xs text-muted-foreground font-medium">
+              {room.name} &bull; {wallSelection.layers.length} Layer{wallSelection.layers.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6 bg-muted/40 px-6 py-2 rounded-lg border text-sm">
+          <div className="flex flex-col items-center">
+             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Measurements</span>
+             <div className="flex flex-col items-center">
+               {room.wall_measurements && Array.isArray(room.wall_measurements) && room.wall_measurements.length > 0 ? (
+                 room.wall_measurements.slice(0, 2).map((m: { length: string; width: string }, idx: number) => (
+                   <span key={idx} className="font-bold text-foreground leading-tight whitespace-nowrap">
+                     {m.length} × {m.width} {room.unit}
+                   </span>
+                 ))
+               ) : (
+                 <span className="font-bold text-foreground whitespace-nowrap">
+                   {room.wall_length || 0} × {room.wall_height || 0} {room.unit}
+                 </span>
+               )}
+               {room.wall_measurements && Array.isArray(room.wall_measurements) && room.wall_measurements.length > 2 && (
+                 <span className="text-[10px] text-muted-foreground">+{room.wall_measurements.length - 2} more</span>
+               )}
+             </div>
+          </div>
+          
+          <Separator orientation="vertical" className="h-10 opacity-30" />
+          
+          <div className="flex flex-col items-center justify-center">
+             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Total Wall Area</span>
+             <span className="font-bold text-foreground text-base leading-none whitespace-nowrap">
+               {totalArea.toFixed(2)} <span className="text-[10px] uppercase font-medium">sq {room.unit}</span>
+             </span>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Room Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-primary" />
-              Room Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-primary/10 p-4 rounded-lg">
-              <h3 className="font-semibold text-lg">{room.name}</h3>
-              <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                <p>Wall Height: {room.wall_height || 'Not specified'} {room.unit}</p>
-                <p>Wall Perimeter: {room.wall_length || room.length || 'Not specified'} {room.unit}</p>
-                <p>Wall Area: {((room.wall_height || 0) * (room.wall_length || room.length || 0)).toFixed(2)} sq {room.unit}</p>
-              </div>
-            </div>
-
-            {!wallSelection.baseTileId ? (
-              <div className="space-y-2">
-                <Button
-                  onClick={handleSelectBaseTile}
-                  className="w-full"
-                  size="lg"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Select Base Tile
-                </Button>
-                <Button
-                  onClick={handleScanQRForBaseTile}
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                >
-                  <QrCode className="h-4 w-4 mr-2" />
-                  Scan QR Code
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Layers: {wallSelection.layers.length}</span>
-                  <Button
-                    onClick={handleAddLayer}
-                    size="sm"
-                    variant="outline"
-                    className="gap-1"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add Layer
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Layer Configuration */}
-        <Card>
-          <CardHeader>
+      <div className="max-w-3xl mx-auto">
+        {/* Layer Configuration Card */}
+        <Card className="shadow-md border-primary/10">
+          <CardHeader className="border-b bg-muted/20 pb-4">
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-green-600" />
+                <Layers className="h-5 w-5 text-primary" />
                 Layer Configuration
               </div>
-              {wallSelection.layers.length > 0 && originalLayers.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleResetLayers}
-                  className="gap-1"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  Reset
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {wallSelection.baseTileId && (
+                  <>
+                    <Button onClick={handleAddLayer} size="sm" className="gap-1.5 h-8">
+                      <Plus className="h-3.5 w-3.5" />
+                      Add Layer
+                    </Button>
+                    <Button
+                      onClick={handleToggleOrientation}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 h-8 border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground shadow-sm"
+                      title={`Currently: ${(wallSelection.orientation || 'horizontal')} laying. Click to switch.`}
+                    >
+                      {(wallSelection.orientation || 'horizontal') === 'horizontal' ? (
+                        <RectangleHorizontal className="h-3.5 w-3.5" />
+                      ) : (
+                        <RectangleVertical className="h-3.5 w-3.5" />
+                      )}
+                      {(wallSelection.orientation || 'horizontal') === 'horizontal' ? 'Horizontal' : 'Vertical'}
+                    </Button>
+                    {wallSelection.layers.length > 0 && (
+                      <Button
+                        onClick={handlePreview}
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 h-8 border-primary/20 hover:bg-primary/5 text-primary shadow-sm"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Preview
+                      </Button>
+                    )}
+                  </>
+                )}
+                {wallSelection.layers.length > 0 && originalLayers.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleResetLayers}
+                    className="gap-1.5 h-8 text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset
+                  </Button>
+                )}
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {wallSelection.layers.length > 0 ? (
-              <div className="space-y-3">
-                <div className="flex justify-center mb-3">
-                  <Button
-                    onClick={handlePreview}
-                    className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
-                    size="sm"
-                  >
-                    <Eye className="h-4 w-4 text-white" />
-                    Preview Wall
-                  </Button>
-
+          <CardContent className="pt-6">
+            {!wallSelection.baseTileId ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
+                <div className="bg-primary/5 p-6 rounded-full">
+                  <Box className="h-12 w-12 text-primary/40" />
                 </div>
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-w-xs">
+                  <h3 className="text-lg font-semibold mb-2">No Base Tile Selected</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Select a base tile to automatically calculate and generate wall layers.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+                  <Button
+                    onClick={handleSelectBaseTile}
+                    className="flex-1 gap-2"
+                    size="lg"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Select Base Tile
+                  </Button>
+                  <Button
+                    onClick={handleScanQRForBaseTile}
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    size="lg"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    Scan QR Code
+                  </Button>
+                </div>
+              </div>
+            ) : wallSelection.layers.length > 0 ? (
+              <div className="space-y-6">
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted">
                   {wallSelection.layers
                     .sort((a, b) => a.layerNumber - b.layerNumber)
                     .map(layer => {
                       const tile = tiles.find(t => t.id === layer.tileId);
                       return tile ? (
-                        <div key={layer.layerNumber} className="flex items-center justify-between bg-muted p-3 rounded-lg border">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="text-xs">
-                                Layer {layer.layerNumber}
-                              </Badge>
+                        <div key={layer.layerNumber} className="bg-card rounded-xl border border-border/60 hover:border-primary/30 hover:shadow-sm transition-all group">
+                          <div className="flex items-center justify-between p-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0">
+                                  Layer {layer.layerNumber}
+                                </Badge>
+                              </div>
+                              <p className="font-bold text-foreground truncate">{tile.code}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {layer.tilesNeeded.toFixed(2)} tiles estimated
+                              </p>
                             </div>
-                            <p className="font-medium truncate">{tile.code}</p>
-                            <p className="text-sm text-muted-foreground">{tile.code}</p>
-                            <p className="text-xs text-muted-foreground/70">
-                              {layer.tilesNeeded.toFixed(2)} tiles needed
-                            </p>
-                          </div>
 
-                          <div className="flex gap-1 ml-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleChangeLayerTile(layer.layerNumber)}
-                              className="h-8 w-8 p-0"
-                              title="Change tile"
-                            >
-                              <Layers className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleScanQRForLayer(layer.layerNumber)}
-                              className="h-8 w-8 p-0"
-                              title="Scan QR for this layer"
-                            >
-                              <QrCode className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleCopyTileToAllLayers(layer.tileId)}
-                              className="h-8 w-8 p-0"
-                              title="Copy to all layers"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            {wallSelection.layers.length > 1 && (
+                            <div className="flex gap-1 ml-4 opacity-70 group-hover:opacity-100 transition-opacity">
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDeleteLayer(layer.layerNumber)}
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                                title="Delete layer"
+                                onClick={() => handleChangeLayerTile(layer.layerNumber)}
+                                className="h-9 w-9 p-0 rounded-lg hover:bg-primary/10 hover:text-primary"
+                                title="Change tile"
                               >
-                                <Minus className="h-4 w-4" />
+                                <Layers className="h-4 w-4" />
                               </Button>
-                            )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleScanQRForLayer(layer.layerNumber)}
+                                className="h-9 w-9 p-0 rounded-lg hover:bg-primary/10 hover:text-primary"
+                                title="Scan QR for this layer"
+                              >
+                                <QrCode className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleCopyTileToAllLayers(layer.tileId)}
+                                className="h-9 w-9 p-0 rounded-lg hover:bg-primary/10 hover:text-primary"
+                                title="Copy to all layers"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              {wallSelection.layers.length > 1 && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteLayer(layer.layerNumber)}
+                                  className="h-9 w-9 p-0 rounded-lg hover:bg-red-50 hover:text-red-600"
+                                  title="Delete layer"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
+
+                          {/* Variant Quick-Select Chips */}
+                          {(() => {
+                            const variants = variantMap.get(layer.tileId) || [];
+                            if (variants.length === 0) return null;
+                            return (
+                              <div className="px-4 pb-3 pt-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mr-1">Variants</span>
+                                  {variants.map(v => (
+                                    <button
+                                      key={v.tile.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const updatedLayers = wallSelection.layers.map(l =>
+                                          l.layerNumber === layer.layerNumber
+                                            ? { ...l, tileId: v.tile.id }
+                                            : l
+                                        );
+                                        onUpdateSelection({ ...wallSelection, layers: updatedLayers });
+                                        toast.success(`Layer ${layer.layerNumber} → ${v.label}`);
+                                      }}
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide border transition-all cursor-pointer
+                                        bg-muted/50 border-border/60 text-muted-foreground
+                                        hover:bg-primary/10 hover:border-primary/30 hover:text-primary
+                                        active:scale-95"
+                                      title={v.tile.code}
+                                    >
+                                      {v.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       ) : null;
                     })}
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground/70">
-                <Layers className="h-12 w-12 mx-auto mb-4" />
-                <p>Select a base tile to start configuring layers</p>
+              <div className="text-center py-12 text-muted-foreground">
+                <Layers className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>No layers configured yet.</p>
+                <p className="text-sm">Add a layer or select a base tile to get started.</p>
               </div>
             )}
           </CardContent>

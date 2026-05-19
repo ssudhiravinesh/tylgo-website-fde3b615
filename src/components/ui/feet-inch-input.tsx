@@ -174,6 +174,7 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     <div className="space-y-1">
       <Input
         type="text"
+        inputMode="decimal"
         value={displayValue}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}

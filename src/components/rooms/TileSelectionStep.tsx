@@ -13,6 +13,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { GridLoader } from "@/components/ui/GridLoader";
 import { useSaveRoomTileSelections, useDeleteRoomTileSelection, useDeleteSkirtingTileSelection, useDeleteWallTileSelections } from "@/hooks/useRooms";
 import { useSaveStaircaseTileSelection, useDeleteStaircaseTileSelection } from "@/hooks/useStaircases";
 import { useSaveRoomProductSelection, useDeleteRoomProductSelection } from "@/hooks/useProductSelections";
@@ -31,6 +32,7 @@ import {
   calculateGrandTotal,
   prepareQuotationItems,
   type FloorTileSelection,
+  type WallTileSelection,
   type WallTileLayer,
   calculateStaircaseTileRequirements,
   prepareStaircaseQuotationItems
@@ -43,9 +45,10 @@ interface TileSelectionStepProps {
   rooms: Room[];
   staircases?: Staircase[];
   onBack: () => void;
+  onQuotationCreated?: () => void;
 }
 
-export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }: TileSelectionStepProps) => {
+export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack, onQuotationCreated }: TileSelectionStepProps) => {
   // ── State (hook) ──────────────────────────────────────────────────
   const state = useTileSelectionState(customerId, rooms, staircases);
 
@@ -79,6 +82,30 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     state.setCatalogContext({
       roomIds: Array.from(state.selectedFloorRooms),
       isWallTile: false
+    });
+    state.setShowTileCatalog(true);
+  };
+
+  // ── Handlers: Wall Tiles (Bulk) ──────────────────────────────────
+
+  const toggleWallRoomSelection = (roomId: string) => {
+    const newSet = new Set(state.selectedWallRooms);
+    if (newSet.has(roomId)) {
+      newSet.delete(roomId);
+    } else {
+      newSet.add(roomId);
+    }
+    state.setSelectedWallRooms(newSet);
+  };
+
+  const handleBulkAddWallTile = () => {
+    if (state.selectedWallRooms.size === 0) {
+      toast.error("Please select at least one wall room");
+      return;
+    }
+    state.setCatalogContext({
+      roomIds: Array.from(state.selectedWallRooms),
+      isWallTile: true
     });
     state.setShowTileCatalog(true);
   };
@@ -175,6 +202,131 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         toast.error("Failed to save tile assignment");
         return;
       }
+    } else if (isWallTile && roomIds && roomIds.length > 0) {
+      // ── Bulk wall tile assignment ───────────────────────────────
+      // Calculate layers independently for each room using that room's wall dimensions
+      const baseTile = state.tiles.find(t => t.id === tileId);
+      if (!baseTile) {
+        toast.error("Tile not found");
+        return;
+      }
+
+      try {
+        const newWallSelections: WallTileSelection[] = [];
+        const selectionsToSave: { customer_id: string; room_id: string; tile_id: string; layer_number?: number; tile_type?: string }[] = [];
+
+        for (const targetRoomId of targetRoomIds) {
+          const room = rooms.find(r => r.id === targetRoomId && r.has_wall);
+          if (!room) continue;
+
+          // Derive wall dimensions (multi-shape aware)
+          let totalWallArea: number;
+          let wallHeight: number;
+          const measurements = room.wall_measurements;
+          if (measurements && Array.isArray(measurements) && measurements.length > 0) {
+            totalWallArea = 0;
+            wallHeight = 0;
+            (measurements as { length: string; width: string }[]).forEach((m) => {
+              const l = parseFloat(m.length) || 0;
+              const h = parseFloat(m.width) || 0;
+              totalWallArea += l * h;
+              if (h > wallHeight) wallHeight = h;
+            });
+          } else {
+            wallHeight = room.wall_height || 0;
+            const wallLength = room.wall_length || 0;
+            totalWallArea = wallHeight * wallLength;
+          }
+
+          // Convert tile dimensions from mm to room unit
+          let tileHeightInRoomUnit: number;
+          let tileLengthInRoomUnit: number;
+          if (room.unit === "feet") {
+            tileHeightInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
+            tileLengthInRoomUnit = (baseTile.size_length || 0) / 304.8;
+          } else if (room.unit === "metre") {
+            tileHeightInRoomUnit = (baseTile.size_breadth || 0) / 1000;
+            tileLengthInRoomUnit = (baseTile.size_length || 0) / 1000;
+          } else {
+            tileHeightInRoomUnit = baseTile.size_breadth || 0;
+            tileLengthInRoomUnit = baseTile.size_length || 0;
+          }
+
+          const singleTileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
+          if (singleTileArea <= 0) continue;
+
+          const grandTotalTiles = Math.ceil(totalWallArea / singleTileArea);
+          const layerCount = wallHeight > 0 && tileHeightInRoomUnit > 0
+            ? Math.max(1, Math.round(wallHeight / tileHeightInRoomUnit))
+            : 1;
+          const tilesPerLayer = grandTotalTiles / layerCount;
+
+          const layers: WallTileLayer[] = [];
+          for (let i = 1; i <= layerCount; i++) {
+            layers.push({ layerNumber: i, tileId: tileId, tilesNeeded: tilesPerLayer });
+            selectionsToSave.push({
+              customer_id: customerId,
+              room_id: targetRoomId,
+              tile_id: tileId,
+              layer_number: i,
+              tile_type: 'floor' // wall layers stored with tile_type='floor' + layer_number>0
+            });
+          }
+
+          newWallSelections.push({
+            roomId: targetRoomId,
+            baseTileId: tileId,
+            layers,
+            totalLayers: layerCount,
+          });
+        }
+
+        if (newWallSelections.length === 0) {
+          toast.info("No valid wall rooms to assign");
+          return;
+        }
+
+        // Merge new wall selections with existing ones (replace if room already has wall config)
+        state.setWallTileSelections(prev => {
+          const updated = [...prev];
+          for (const newSel of newWallSelections) {
+            const existingIdx = updated.findIndex(ws => ws.roomId === newSel.roomId);
+            if (existingIdx >= 0) {
+              updated[existingIdx] = newSel;
+            } else {
+              updated.push(newSel);
+            }
+          }
+          return updated;
+        });
+
+        // Also include all existing floor + skirting + other wall selections in save payload
+        state.floorTileSelections.forEach(fs => {
+          selectionsToSave.push({ customer_id: customerId, room_id: fs.roomId, tile_id: fs.tileId, tile_type: 'floor' });
+        });
+
+        // Existing wall selections for rooms NOT in the bulk target
+        state.wallTileSelections.forEach(ws => {
+          if (!targetRoomIds.includes(ws.roomId)) {
+            ws.layers.forEach(layer => {
+              selectionsToSave.push({ customer_id: customerId, room_id: ws.roomId, tile_id: layer.tileId, layer_number: layer.layerNumber, tile_type: 'floor' });
+            });
+          }
+        });
+
+        Object.entries(state.skirtingTileSelections).forEach(([sRoomId, skirtingTileId]) => {
+          selectionsToSave.push({ customer_id: customerId, room_id: sRoomId, tile_id: skirtingTileId, tile_type: 'skirting' });
+        });
+
+        await saveSelectionsMutation.mutateAsync(selectionsToSave);
+
+        const tileName = baseTile.code || 'Tile';
+        toast.success(`${tileName} assigned as wall tile to ${newWallSelections.length} room${newWallSelections.length > 1 ? 's' : ''} successfully!`);
+        state.setSelectedWallRooms(new Set());
+      } catch {
+        toast.error("Failed to save wall tile assignment");
+        return;
+      }
     }
 
     state.setShowTileCatalog(false);
@@ -260,7 +412,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
     if (tileArea <= 0) return;
 
     const grandTotalTilesNeeded = Math.ceil(totalArea / tileArea);
-    const layerCount = Math.max(1, Math.ceil(wallHeight / tileHeightInRoomUnit));
+    const layerCount = Math.max(1, Math.round(wallHeight / tileHeightInRoomUnit));
     const tilesPerLayer = grandTotalTilesNeeded / layerCount;
 
     const layers: WallTileLayer[] = [];
@@ -279,7 +431,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
 
   const handleTileSelected = (tileId: string) => {
     if (!state.catalogContext) return;
-    const { roomId, roomIds, isWallTile, layerNumber, isSkirtingTile } = state.catalogContext as typeof state.catalogContext & { isSkirtingTile?: boolean };
+    const { roomId, roomIds, isWallTile, layerNumber, isSkirtingTile } = state.catalogContext;
 
     // Skirting tile selection path
     if (isSkirtingTile && roomId) {
@@ -319,6 +471,99 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
           state.setFloorTileSelections(prev => [...prev, { roomId, tileId }]);
           toast.success("Floor tile added to room");
         }
+      }
+    } else if (isWallTile && roomIds && roomIds.length > 0) {
+      // ── Bulk wall tile assignment (via handleTileSelected) ─────────
+      // Calculate layers independently for each room, overwriting any existing wall config
+      const baseTile = state.tiles.find(t => t.id === tileId);
+      if (!baseTile) {
+        toast.error("Tile not found");
+        state.setShowTileCatalog(false);
+        state.setCatalogContext(null);
+        return;
+      }
+
+      const newWallSelections: WallTileSelection[] = [];
+
+      for (const targetRoomId of roomIds) {
+        const room = rooms.find(r => r.id === targetRoomId && r.has_wall);
+        if (!room) continue;
+
+        // Derive wall dimensions (multi-shape aware)
+        let totalWallArea: number;
+        let wallHeight: number;
+        const measurements = room.wall_measurements;
+        if (measurements && Array.isArray(measurements) && measurements.length > 0) {
+          totalWallArea = 0;
+          wallHeight = 0;
+          (measurements as { length: string; width: string }[]).forEach((m) => {
+            const l = parseFloat(m.length) || 0;
+            const h = parseFloat(m.width) || 0;
+            totalWallArea += l * h;
+            if (h > wallHeight) wallHeight = h;
+          });
+        } else {
+          wallHeight = room.wall_height || 0;
+          const wallLength = room.wall_length || 0;
+          totalWallArea = wallHeight * wallLength;
+        }
+
+        // Convert tile dims mm → room unit
+        let tileHeightInRoomUnit: number;
+        let tileLengthInRoomUnit: number;
+        if (room.unit === "feet") {
+          tileHeightInRoomUnit = (baseTile.size_breadth || 0) / 304.8;
+          tileLengthInRoomUnit = (baseTile.size_length || 0) / 304.8;
+        } else if (room.unit === "metre") {
+          tileHeightInRoomUnit = (baseTile.size_breadth || 0) / 1000;
+          tileLengthInRoomUnit = (baseTile.size_length || 0) / 1000;
+        } else {
+          tileHeightInRoomUnit = baseTile.size_breadth || 0;
+          tileLengthInRoomUnit = baseTile.size_length || 0;
+        }
+
+        const singleTileArea = tileHeightInRoomUnit * tileLengthInRoomUnit;
+        if (singleTileArea <= 0) continue;
+
+        const grandTotalTiles = Math.ceil(totalWallArea / singleTileArea);
+        const layerCount = wallHeight > 0 && tileHeightInRoomUnit > 0
+          ? Math.max(1, Math.round(wallHeight / tileHeightInRoomUnit))
+          : 1;
+        const tilesPerLayer = grandTotalTiles / layerCount;
+
+        const layers: WallTileLayer[] = [];
+        for (let i = 1; i <= layerCount; i++) {
+          layers.push({ layerNumber: i, tileId, tilesNeeded: tilesPerLayer });
+        }
+
+        newWallSelections.push({
+          roomId: targetRoomId,
+          baseTileId: tileId,
+          layers,
+          totalLayers: layerCount,
+        });
+      }
+
+      if (newWallSelections.length > 0) {
+        // Merge: overwrite existing wall config for these rooms, keep others
+        state.setWallTileSelections(prev => {
+          const updated = [...prev];
+          for (const newSel of newWallSelections) {
+            const existingIdx = updated.findIndex(ws => ws.roomId === newSel.roomId);
+            if (existingIdx >= 0) {
+              updated[existingIdx] = newSel;
+            } else {
+              updated.push(newSel);
+            }
+          }
+          return updated;
+        });
+
+        const tileName = baseTile.code || 'Tile';
+        toast.success(`${tileName} applied as wall tile to ${newWallSelections.length} room${newWallSelections.length > 1 ? 's' : ''}`);
+        state.setSelectedWallRooms(new Set());
+      } else {
+        toast.error("No valid wall rooms found for tile assignment");
       }
     } else if (roomId) {
       const wallSelection = state.wallTileSelections.find(ws => ws.roomId === roomId);
@@ -546,16 +791,7 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
   // ── Loading ───────────────────────────────────────────────────────
 
   if (state.isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500 text-base font-medium mb-4">Loading...</p>
-          <div className="w-48 h-1 bg-gray-200 rounded overflow-hidden mx-auto">
-            <div className="h-full w-full bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 bg-[length:200%_100%] animate-[progressFlow_2s_linear_infinite]" />
-          </div>
-        </div>
-      </div>
-    );
+    return <GridLoader loadingText="Loading selection data..." isOverlay />;
   }
 
   // ── Sub-page: Wall tile configuration ─────────────────────────────
@@ -596,7 +832,11 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         onSuccess={() => {
           state.setShowQuotationForm(false);
           toast.success("Quotation generated successfully!");
-          onBack();
+          if (onQuotationCreated) {
+            onQuotationCreated();
+          } else {
+            onBack();
+          }
         }}
       />
     );
@@ -627,8 +867,10 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
             skirtingTileSelections={state.skirtingTileSelections}
             tiles={state.tiles}
             selectedFloorRooms={state.selectedFloorRooms}
+            selectedWallRooms={state.selectedWallRooms}
             productSelections={state.productSelections}
             onToggleRoomSelection={toggleFloorRoomSelection}
+            onToggleWallRoomSelection={toggleWallRoomSelection}
             onAddFloorTile={handleAddFloorTile}
             onRemoveFloorTile={handleRemoveFloorTile}
             onConfigureWallTiles={handleConfigureWallTiles}
@@ -653,7 +895,9 @@ export const TileSelectionStep = ({ customerId, rooms, staircases = [], onBack }
         <TileSelectionSummary
           rooms={rooms}
           selectedFloorRooms={state.selectedFloorRooms}
+          selectedWallRooms={state.selectedWallRooms}
           onBulkAddTile={handleBulkAddTile}
+          onBulkAddWallTile={handleBulkAddWallTile}
           wastagePercentage={state.wastagePercentage}
           onWastageChange={state.setWastagePercentage}
           getWastagePercentage={state.getWastagePercentage}

@@ -34,6 +34,8 @@ export interface WallTileSelection {
   baseTileId: string | null;
   layers: WallTileLayer[];
   totalLayers: number;
+  /** Tile laying orientation on the wall. Default 'horizontal' (longer side runs horizontally). */
+  orientation?: 'horizontal' | 'vertical';
 }
 
 export interface StaircaseTileSelection {
@@ -164,9 +166,11 @@ export const calculateTileRequirements = (
       layersByTile[layer.tileId].push(layer.layerNumber);
     });
 
-    // wall_length = total wall perimeter (set explicitly by worker).
+    // wall_length stores total wall area (sum of all shapes' L×H) with wall_height=1.
+    // For legacy single-shape rooms, wall_length is perimeter and wall_height is actual height.
+    // Either way, wall_height × wall_length = total wall area.
     // Do NOT fall back to room.length — room.length is total floor AREA (area-hack),
-    // using it as perimeter produces completely wrong tile counts.
+    // using it as wall area produces completely wrong tile counts.
     if (!room.wall_length) {
       console.warn(`[Wall calc] Room "${room.name}" has no wall_length set. Skipping wall tile area calculation.`);
       return;
@@ -375,8 +379,9 @@ export const prepareQuotationItems = (
     const room = rooms.find(r => r.id === ws.roomId);
     if (!room) return;
 
-    // wall_length = total wall perimeter (set explicitly by worker).
-    // Do NOT fall back to room.length — room.length is total floor AREA (area-hack).
+    // wall_length stores total wall area (wall_height=1) for multi-shape,
+    // or perimeter (with real wall_height) for legacy single-shape.
+    // Either way, wall_height × wall_length = total wall area.
     if (!room.wall_length) {
       console.warn(`[prepareQuotationItems] Room "${room.name}" missing wall_length. Skipping wall items for this room.`);
       return;

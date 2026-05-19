@@ -88,7 +88,6 @@ export const ReferencesView = ({ onBack }: ReferencesViewProps) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
-                        <User className="h-4 w-4 text-primary" />
                         Reference Information
                       </h4>
                       <p className="text-sm text-muted-foreground">

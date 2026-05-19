@@ -69,7 +69,7 @@ export const ProductCatalog = ({ userRole, onSelect, brandId, showroomId }: Prod
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-foreground">Product Catalog</h1>
-                        <p className="text-muted-foreground mt-1">Manage non-tile inventory items</p>
+                        <p className="text-muted-foreground mt-1 hidden lg:block">Manage non-tile inventory items</p>
                     </div>
                     {isAdmin && (
                         <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
@@ -79,35 +79,37 @@ export const ProductCatalog = ({ userRole, onSelect, brandId, showroomId }: Prod
                     )}
                 </div>
 
-                <Card className="p-4 shadow-sm border-border">
-                    <div className="flex flex-col md:flex-row gap-4">
+                <Card className="p-3 sm:p-4 shadow-sm border-border">
+                    <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                             <Input
                                 placeholder="Search by name or code..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
+                                className="pl-10 h-10"
                             />
                         </div>
-                        <div className="md:w-64">
-                            <Select
-                                value={selectedCategory}
-                                onValueChange={setSelectedCategory}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Filter by Category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {CATEGORIES.map(cat => (
-                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="flex gap-2">
+                            <div className="flex-1 sm:w-64">
+                                <Select
+                                    value={selectedCategory}
+                                    onValueChange={setSelectedCategory}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Filter by Category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {CATEGORIES.map(cat => (
+                                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh" className="h-10 w-10 shrink-0">
+                                <RefreshCw className="h-4 w-4" />
+                            </Button>
                         </div>
-                        <Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh">
-                            <RefreshCw className="h-4 w-4" />
-                        </Button>
                     </div>
                 </Card>
             </div>

@@ -62,9 +62,48 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
     const parts = input.trim().split(/\s+/).filter(part => part !== '');
     
     if (parts.length === 0) return '';
-    if (parts.length === 1) return `${parts[0]}'`;
+    
+    if (parts.length === 1) {
+      const val = parseFloat(parts[0]);
+      // If it's a decimal, show the feet-inches equivalent so the worker
+      // can verify their intent (e.g., 9.6 ft ≈ 9' 7", not 9' 6")
+      if (!isNaN(val) && parts[0].includes('.') && val > 0) {
+        const feet = Math.floor(val);
+        const inches = Math.round((val - feet) * 12);
+        if (inches === 0) return `= ${feet}' 0"`;
+        if (inches >= 12) return `= ${feet + 1}' 0"`;
+        return `= ${feet}' ${inches}"`;
+      }
+      return `${parts[0]}'`;
+    }
     
     return `${parts[0]}' ${parts[1]}"`;
+  };
+
+  // Detect when a decimal input could be confused with feet-inches.
+  // e.g., typing "9.6" probably means "9 ft 6 in" but the system reads it as 9.6 ft (= 9' 7")
+  const getDecimalAmbiguityHint = (): { equivalent: string; suggestion: string } | null => {
+    const parts = inputValue.trim().split(/\s+/).filter(part => part !== '');
+    if (parts.length !== 1 || !parts[0].includes('.')) return null;
+
+    const val = parseFloat(parts[0]);
+    if (isNaN(val) || val <= 0) return null;
+
+    const feet = Math.floor(val);
+    const decimalStr = parts[0].split('.')[1] || '';
+    const typedDecimal = parseInt(decimalStr);
+    const actualInches = Math.round((val - feet) * 12);
+
+    // Only show hint if the typed decimal digits look like inches (1–11)
+    // and the actual inch conversion differs — that's where confusion lives
+    if (typedDecimal >= 1 && typedDecimal <= 11 && typedDecimal !== actualInches) {
+      return {
+        equivalent: `${val} ft = ${feet}' ${actualInches}"`,
+        suggestion: `For ${feet}' ${typedDecimal}", type "${feet} ${typedDecimal}"`
+      };
+    }
+
+    return null;
   };
 
   // Initialize input value from decimal feet
@@ -169,6 +208,7 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
       <div className="relative">
         <Input
           type="text"
+          inputMode="decimal"
           value={inputValue}
           onChange={handleInputChange}
           placeholder={placeholder}
@@ -182,9 +222,22 @@ export const FeetInchInput: React.FC<FeetInchInputProps> = ({
           </div>
         )}
       </div>
-      <div className="text-xs text-muted-foreground">
-        Enter feet and inches separated by space (e.g., "20 5" or "20.5")
-      </div>
+      {(() => {
+        const hint = getDecimalAmbiguityHint();
+        if (hint) {
+          return (
+            <div className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 bg-amber-50 dark:bg-amber-950/30 px-2 py-1.5 rounded-md border border-amber-200 dark:border-amber-800/50">
+              <span className="shrink-0 mt-px">⚠️</span>
+              <span>{hint.equivalent} — {hint.suggestion}</span>
+            </div>
+          );
+        }
+        return (
+          <div className="text-xs text-muted-foreground">
+            Enter feet and inches separated by space (e.g., "20 5" or "20.5")
+          </div>
+        );
+      })()}
     </div>
   );
 };

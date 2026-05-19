@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { DashboardContent } from "./DashboardContent";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface User {
   id: string;
@@ -27,22 +28,30 @@ export type ActiveView =
 
 export const Dashboard = ({ user, onLogout }: DashboardProps) => {
   const [activeView, setActiveView] = useState<ActiveView>("customers");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedCustomerForQuote, setSelectedCustomerForQuote] = useState<string | null>(null);
+
+  const handleViewChange = (view: ActiveView) => {
+    setActiveView(view);
+    if (isSidebarOpen) {
+      setIsSidebarOpen(false);
+    }
+  };
 
   const handleNewQuote = (customerId: string) => {
     setSelectedCustomerForQuote(customerId);
-    setActiveView("rooms");
+    handleViewChange("rooms");
   };
 
   const handleNewQuoteFromForm = (customerId: string) => {
     setSelectedCustomerForQuote(customerId);
-    setActiveView("rooms");
+    handleViewChange("rooms");
   };
 
   const handleBackFromRooms = () => {
     setSelectedCustomerForQuote(null);
-    setActiveView("customers");
+    handleViewChange("customers");
   };
 
   return (
@@ -50,7 +59,7 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
       <Sidebar
         isOpen={isSidebarOpen}
         activeView={activeView}
-        onViewChange={setActiveView}
+        onViewChange={handleViewChange}
         userRole={user.role}
       />
 
@@ -65,7 +74,7 @@ export const Dashboard = ({ user, onLogout }: DashboardProps) => {
           <DashboardContent
             activeView={activeView}
             userRole={user.role}
-            setActiveView={setActiveView}
+            setActiveView={handleViewChange}
             handlers={{
               handleNewQuote,
               handleNewQuoteFromForm,

@@ -60,6 +60,7 @@ export interface Quotation {
   wastage_percentage?: number;
   discount_percentage?: number;
   discount_amount?: number;
+  round_off_amount?: number;
   created_at: string;
   updated_at: string;
   customer?: {
@@ -89,6 +90,7 @@ export interface CreateQuotationData {
   wastage_percentage?: number;
   discount_percentage?: number;
   discount_amount?: number;
+  round_off_amount?: number;
   items: Omit<QuotationItem, 'id' | 'quotation_id'>[];
 }
 

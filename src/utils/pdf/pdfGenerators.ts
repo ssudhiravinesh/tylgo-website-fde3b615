@@ -89,6 +89,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
       wastage_percentage = 0,
       discount_percentage: discountPercentage = 0,
       discount_amount: discountAmount = 0,
+      round_off_amount: roundOffAmount = 0,
       created_at,
       quotation_items = []
     } = quotation;
@@ -158,7 +159,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
     }));
 
     // Logo
-    const logoUrl = '/tylgo.svg';
+    const logoUrl = '/tylgo-logo.png';
     let logoBase64 = '';
     try {
       const base64 = await urlToBase64(logoUrl);
@@ -185,7 +186,28 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
     const allItems = [...tileItems, ...productCalculations];
 
     const mrp = allItems.reduce((sum: number, calc: any) => sum + calc.totalPrice, 0);
-    const finalTotal = mrp - discountAmount;
+
+    // Compute per-item discounted prices with Math.round()
+    if (discountPercentage > 0) {
+      tileItems.forEach((calc: any) => {
+        const originalPricePerBox = calc.tile.price_per_box || 0;
+        calc.discountedPricePerBox = Math.round(originalPricePerBox * (1 - discountPercentage / 100));
+        calc.discountedTotalPrice = calc.boxesNeeded * calc.discountedPricePerBox;
+      });
+      productCalculations.forEach((calc: any) => {
+        const originalPrice = calc.product?.price || 0;
+        calc.discountedPricePerUnit = Math.round(originalPrice * (1 - discountPercentage / 100));
+        calc.discountedTotalPrice = calc.quantity * calc.discountedPricePerUnit;
+      });
+    }
+
+    // Grand total: sum of per-item discounted totals (or MRP if no discount)
+    const finalTotal = discountPercentage > 0
+      ? allItems.reduce((sum: number, calc: any) => sum + (calc.discountedTotalPrice ?? calc.totalPrice), 0)
+      : mrp;
+    const computedDiscountAmount = mrp - finalTotal;
+    const displayTotal = finalTotal - roundOffAmount;
+
     const totalBoxes = tileItems.reduce((sum: number, calc: any) => sum + calc.boxesNeeded, 0);
     const totalTileTypes = Object.keys(tileCalculations).length;
 
@@ -201,6 +223,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
       <head>
         <meta charset="UTF-8">
         <title>Quotation ${quotation_number}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
           ${chromeFixCSS}   
           @media print {
@@ -209,10 +232,10 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
               size: A4;
             }
             body { 
-              font-family: Arial, sans-serif; 
+              font-family: 'Manrope', sans-serif; 
               font-size: 12px; 
               line-height: 1.4;
-              color: #000;
+              color: #1a1f2e;
               margin: 0;
               padding: 0;
               -webkit-print-color-adjust: exact;
@@ -221,48 +244,81 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           }
           
           body { 
-            font-family: Arial, sans-serif; 
+            font-family: 'Manrope', sans-serif; 
             font-size: 12px; 
-            line-height: 1.4;
-            color: #000;
+            line-height: 1.5;
+            color: #1a1f2e;
             margin: 0;
             padding: 20px;
-            background: white;
+            background: #faf8f5;
+            letter-spacing: -0.01em;
           }
           
           .container {
             max-width: 800px;
             margin: 0 auto;
             background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
           }
           
           .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 10px;
+            background: #161B26;
+            color: white;
+            padding: 20px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+          
+          .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
           }
           
           .company-name {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2563eb;
+            font-size: 22px;
+            font-weight: 800;
+            color: white;
             margin: 0;
+            letter-spacing: -0.04em;
+          }
+          
+          .company-name .accent {
+            color: #F59E0B;
           }
           
           .document-type {
-            font-size: 16px;
-            color: #666;
-            margin: 5px 0 0 0;
-            font-weight: normal;
+            font-size: 11px;
+            color: #F59E0B;
+            margin: 0;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+          }
+          
+          .header-right {
+            text-align: right;
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+          }
+          
+          .header-right strong {
+            color: white;
+            font-weight: 700;
           }
           
           .meta-info {
             display: flex;
             justify-content: space-between;
             font-size: 10px;
-            color: #666;
+            color: #78716c;
             margin-bottom: 15px;
+            padding: 12px 28px;
+            background: #faf8f5;
+            border-bottom: 1px solid #e8e2db;
           }
           
           .details-section {
@@ -270,28 +326,37 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             margin-bottom: 20px;
+            padding: 0 28px;
           }
           
           .details-box h3 {
-            color: #2563eb;
-            font-size: 14px;
+            color: #161B26;
+            font-size: 11px;
             margin: 0 0 10px 0;
-            font-weight: bold;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.10em;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #F59E0B;
+            display: inline-block;
           }
           
           .details-box p {
-            margin: 3px 0;
+            margin: 4px 0;
             font-size: 12px;
+            color: #44403c;
           }
           
           .details-box strong {
             display: inline-block;
-            width: 80px;
-            font-weight: bold;
+            width: 85px;
+            font-weight: 600;
+            color: #1a1f2e;
           }
           
           .table-container {
             margin-top: 20px;
+            padding: 0 28px;
           }
           
           table {
@@ -302,19 +367,33 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           }
           
           th {
-            background-color: #f8f9fa;
-            border: 1px solid #ddd;
-            padding: 8px 6px;
+            background: #161B26;
+            color: rgba(255,255,255,0.9);
+            border: none;
+            padding: 9px 6px;
             text-align: center;
-            font-weight: bold;
-            font-size: 10px;
+            font-weight: 600;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
           }
           
+          th:first-child { border-radius: 4px 0 0 0; }
+          th:last-child { border-radius: 0 4px 0 0; }
+          
           td {
-            border: 1px solid #ddd;
-            padding: 6px;
+            border-bottom: 1px solid #e8e2db;
+            padding: 8px 6px;
             text-align: center;
             vertical-align: top;
+          }
+          
+          tr:last-child td {
+            border-bottom: none;
+          }
+          
+          tbody tr:nth-child(even) {
+            background: #faf8f5;
           }
           
           .room-cell {
@@ -328,23 +407,23 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           }
           
           .tile-code {
-            font-weight: bold;
-            color: #000;
+            font-weight: 700;
+            color: #161B26;
           }
           
           .tile-name {
-            color: #666;
+            color: #78716c;
             margin: 2px 0;
           }
           
           .tile-size {
-            color: #888;
+            color: #a8a29e;
             font-size: 9px;
           }
           
           .price-cell {
             text-align: right;
-            font-weight: bold;
+            font-weight: 600;
           }
           
           .image-cell {
@@ -358,7 +437,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
             height: 50px;
             object-fit: cover;
             border-radius: 4px;
-            border: 1px solid #ddd;
+            border: 1px solid #e8e2db;
             background-color: #fff;
             display: block;
             margin: 0 auto;
@@ -371,53 +450,62 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           .no-image-placeholder {
             width: 50px;
             height: 40px;
-            background: #f8f9fa;
-            border: 1px solid #ddd;
+            background: #faf8f5;
+            border: 1px solid #e8e2db;
             border-radius: 4px;
             margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 9px;
-            color: #999;
+            color: #a8a29e;
             text-align: center;
           }
           
           .summary-section {
             margin-top: 15px;
             text-align: right;
+            padding: 0 28px 20px;
           }
           
           .summary-line {
             margin: 5px 0;
             font-size: 12px;
+            color: #78716c;
           }
           
           .total-amount {
             font-size: 16px;
-            font-weight: bold;
-            color: #2563eb;
-            border-top: 2px solid #2563eb;
-            padding-top: 5px;
+            font-weight: 800;
+            color: #161B26;
+            border-top: 2px solid #F59E0B;
+            padding-top: 8px;
             margin-top: 10px;
+            letter-spacing: -0.02em;
           }
           
           .footer-notes {
-            margin-top: 30px;
+            margin-top: 0;
             font-size: 10px;
-            color: #666;
+            color: #78716c;
             text-align: center;
-            border-top: 1px solid #ddd;
-            padding-top: 15px;
+            background: #161B26;
+            padding: 16px 28px;
           }
           
           .footer-notes p {
             margin: 3px 0;
+            color: rgba(255,255,255,0.6);
+          }
+          
+          .footer-notes .footer-brand {
+            color: #F59E0B;
+            font-weight: 700;
           }
           
           .wastage-note {
             color: #e11d48;
-            font-weight: bold;
+            font-weight: 700;
           }
         </style>
         ${logoBase64 ? `<link rel="icon" href="${logoBase64}" type="image/svg+xml">` : ''}
@@ -425,16 +513,22 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
       <body>
         <div class="container">
           <div class="header">
-            ${logoBase64 ?
-        `<img src="${logoBase64}" alt="TYLGO" style="height: 40px; margin-bottom: 5px;">` :
-        `<h1 class="company-name">TYLGO</h1>`
+            <div class="header-left">
+              ${logoBase64 ?
+        `<img src="${logoBase64}" alt="TYLGO" style="height: 40px; border-radius: 6px; background: rgba(255,255,255,0.95); padding: 3px;">` :
+        `<h1 class="company-name">TYL<span class="accent">GO</span></h1>`
       }
-            <h2 class="document-type">QUOTATION</h2>
+              <h2 class="document-type">Quotation</h2>
+            </div>
+            <div class="header-right">
+              <div><strong>${quotation_number}</strong></div>
+              <div>${new Date(created_at).toLocaleDateString('en-GB')}</div>
+            </div>
           </div>
           
           <div class="meta-info">
-            <span>${new Date().toLocaleDateString('en-GB')}, ${new Date().toLocaleTimeString('en-US', { hour12: true })}</span>
-            <span>Quotation ${quotation_number}</span>
+            <span>Generated: ${new Date().toLocaleDateString('en-GB')}, ${new Date().toLocaleTimeString('en-US', { hour12: true })}</span>
+            <span>Powered by Tylgo</span>
           </div>
           
           <div class="details-section">
@@ -450,7 +544,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
             <p><strong>Date:</strong> ${new Date(created_at).toLocaleDateString('en-GB')}</p>
             <p><strong>Status:</strong> ${quotation.status?.toUpperCase() || 'DRAFT'}</p>
             <p><strong>Created by:</strong> ${worker?.name || 'SAMPLE WORKER'}</p>
-            <p><strong>Wastage:</strong> ${wastage_percentage}%</p>
+            ${wastage_percentage > 0 ? `<p><strong>Wastage:</strong> ${wastage_percentage}%</p>` : ''}
             ${discountPercentage > 0 ? `
               <p><strong>Discount:</strong> ${discountPercentage}%</p>
             ` : ''}
@@ -463,13 +557,14 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
               <table>
                 <thead>
                   <tr>
-                    <th style="width: 20%;">Room(s) & Area</th>
-                    <th style="width: 25%;">Tile Details</th>
+                    <th style="width: ${discountPercentage > 0 ? '18%' : '20%'};">Room(s) & Area</th>
+                    <th style="width: ${discountPercentage > 0 ? '22%' : '25%'};">Tile Details</th>
                     <th style="width: 8%;">Image</th>
-                    <th style="width: 12%;">Tiles Required</th>
-                    <th style="width: 8%;">Boxes</th>
-                    <th style="width: 12%;">Price/Box</th>
-                    <th style="width: 15%;">Total Amount</th>
+                    <th style="width: ${discountPercentage > 0 ? '10%' : '12%'};">Tiles Required</th>
+                    <th style="width: 7%;">Boxes</th>
+                    <th style="width: ${discountPercentage > 0 ? '10%' : '12%'};">MRP Price/Box</th>
+                    ${discountPercentage > 0 ? `<th style="width: 10%;">Disc. Price/Box</th>` : ''}
+                    <th style="width: 13%;">Total Amount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -583,12 +678,13 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
               return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''} and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}`;
             }
             return `${fullBoxes} box${fullBoxes !== 1 ? 'es' : ''}`;
-          })()})</small><br>
-                        <small class="wastage-note">+${wastage_percentage}% wastage</small>
+          })()})</small>${wastage_percentage > 0 ? `<br>
+                        <small class="wastage-note">+${wastage_percentage}% wastage</small>` : ''}
                       </td>
                       <td>${calc.boxesNeeded}</td>
                       <td class="price-cell">₹${tile.price_per_box}</td>
-                      <td class="price-cell">₹${calc.totalPrice.toLocaleString()}</td>
+                      ${discountPercentage > 0 ? `<td class="price-cell" style="color: #15803d; font-weight: 700;">₹${calc.discountedPricePerBox}</td>` : ''}
+                      <td class="price-cell">₹${(discountPercentage > 0 ? calc.discountedTotalPrice : calc.totalPrice).toLocaleString()}</td>
                     </tr>
                   `;
       }).join('')}
@@ -597,16 +693,17 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
             ` : '<tr><td colspan="7" style="text-align:center; padding: 20px;">No tiles in this quotation</td></tr>'}
 
             ${productCalculations.length > 0 ? `
-            <div style="margin-top: 30px;">
-                <h3 style="color: #2563eb; font-size: 14px; margin-bottom: 10px; font-weight: bold;">Product Selection</h3>
+            <div style="margin-top: 30px; padding: 0 28px;">
+                <h3 style="color: #161B26; font-size: 11px; margin-bottom: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.10em; border-bottom: 2px solid #F59E0B; display: inline-block; padding-bottom: 4px;">Product Selection</h3>
                 <table>
                   <thead>
                     <tr>
-                      <th style="width: 35%;">Product Details</th>
-                      <th style="width: 15%;">Code</th>
+                      <th style="width: ${discountPercentage > 0 ? '30%' : '35%'};">Product Details</th>
+                      <th style="width: 12%;">Code</th>
                       <th style="width: 10%;">Image</th>
-                      <th style="width: 15%;">Quantity</th>
-                      <th style="width: 10%;">Price/Unit</th>
+                      <th style="width: 10%;">Quantity</th>
+                      <th style="width: ${discountPercentage > 0 ? '10%' : '10%'};">MRP Price/Unit</th>
+                      ${discountPercentage > 0 ? `<th style="width: 12%;">Disc. Price/Unit</th>` : ''}
                       <th style="width: 15%;">Total Amount</th>
                     </tr>
                   </thead>
@@ -635,7 +732,8 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
                             ${calc.quantity} units
                           </td>
                           <td class="price-cell">₹${calc.product?.price?.toLocaleString() || 0}</td>
-                          <td class="price-cell">₹${calc.totalPrice.toLocaleString()}</td>
+                          ${discountPercentage > 0 ? `<td class="price-cell" style="color: #15803d; font-weight: 700;">₹${calc.discountedPricePerUnit}</td>` : ''}
+                          <td class="price-cell">₹${(discountPercentage > 0 ? calc.discountedTotalPrice : calc.totalPrice).toLocaleString()}</td>
                         </tr>
                     `).join('')}
                   </tbody>
@@ -645,28 +743,34 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           </div>
           
          <div class="summary-section">
-          <div class="summary-line">Summary: ${totalTileTypes} tile type(s) | ${totalBoxes} boxes total</div>
-          <div class="summary-row">
-            <span class="summary-label">MRP (Before Discount):</span>
-            <span class="summary-value">₹${mrp.toLocaleString('en-IN')}</span>
+          <div class="summary-line">${totalTileTypes} tile type(s) · ${totalBoxes} boxes total</div>
+          <div style="font-size: 12px; margin: 4px 0; color: #44403c;">
+            <span>MRP Total:</span>
+            <span style="font-weight: 600; margin-left: 6px;">₹${mrp.toLocaleString('en-IN')}</span>
           </div>
           ${discountPercentage > 0 ? `
-            <div class="summary-row discount-row">
-              <span class="summary-label">Discount (${discountPercentage}%):</span>
-              <span class="summary-value">-₹${discountAmount.toLocaleString('en-IN')}</span>
+            <div style="font-size: 12px; margin: 4px 0; color: #15803d;">
+              <span>Discount (${discountPercentage}%):</span>
+              <span style="font-weight: 600; margin-left: 6px;">-₹${computedDiscountAmount.toLocaleString('en-IN')}</span>
+            </div>
+          ` : ''}
+          ${roundOffAmount > 0 ? `
+            <div style="font-size: 11px; margin: 4px 0; color: #78716c;">
+              <span>Round-off:</span>
+              <span style="font-weight: 600; margin-left: 6px;">-₹${roundOffAmount.toLocaleString('en-IN')}</span>
             </div>
           ` : ''}
           <div class="total-amount">
-            ${discountPercentage > 0 ? 'Final Grand Total:' : 'Total Amount:'} ₹${finalTotal.toLocaleString('en-IN')}
+            ${(discountPercentage > 0 || roundOffAmount > 0) ? 'Final Grand Total:' : 'Total Amount:'} ₹${displayTotal.toLocaleString('en-IN')}
           </div>
         </div>
 
           
           <div class="footer-notes">
-            <p><strong>Thank you for choosing Tile Solutions!</strong></p>
+            <p class="footer-brand">Thank you for choosing TYLGO</p>
             <p>This quotation is valid for 30 days from the date of issue.</p>
-            <p><strong>Note:</strong> All tile quantities include a ${wastage_percentage}% wastage allowance.</p>
-            <p>All calculations are based on square feet measurements for accuracy.</p>
+            ${wastage_percentage > 0 ? `<p>All tile quantities include a ${wastage_percentage}% wastage allowance.</p>` : ''}
+            <p>Calculations based on sq ft · tylgo.store</p>
           </div>
         </div>
         
@@ -686,6 +790,7 @@ export const generateTilesHTML = (tiles: TileData[]): string => {
     <head>
     <meta charset="UTF-8">
     <title>Tiles Inventory Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
       @media print {
         body { margin: 0; }
@@ -693,80 +798,123 @@ export const generateTilesHTML = (tiles: TileData[]): string => {
       }
 
       body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        line-height: 1.4;
-        color: #333;
+        font-family: 'Manrope', sans-serif;
+        line-height: 1.5;
+        color: #1a1f2e;
         max-width: 800px;
         margin: 0 auto;
         padding: 20px;
+        background: #faf8f5;
+        letter-spacing: -0.01em;
+      }
+      
+      .container {
         background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
       }
       
       .header {
-        text-align: center;
-        border-bottom: 3px solid #3B82F6;
-        padding-bottom: 20px;
-        margin-bottom: 30px;
+        background: #161B26;
+        color: white;
+        padding: 20px 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
       }
       
       .company-name {
-        font-size: 28px;
-        font-weight: bold;
-        color: #3B82F6;
-        margin-bottom: 5px;
+        font-size: 22px;
+        font-weight: 800;
+        color: white;
+        letter-spacing: -0.04em;
+      }
+      
+      .company-name .accent {
+        color: #F59E0B;
       }
       
       .report-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: #1F2937;
-        margin-bottom: 10px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #F59E0B;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
       }
       
       .report-info {
-        font-size: 14px;
-        color: #6B7280;
-        margin-bottom: 20px;
+        font-size: 13px;
+        color: #78716c;
+        padding: 16px 28px;
+        background: #faf8f5;
+        border-bottom: 1px solid #e8e2db;
+      }
+      
+      .report-info p {
+        margin: 4px 0;
+      }
+      
+      .report-info strong {
+        color: #1a1f2e;
+        font-weight: 600;
+      }
+      
+      .table-wrap {
+        padding: 0 28px 20px;
       }
       
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-top: 16px;
       }
       
       th {
-        background: #3B82F6;
-        color: white;
-        padding: 12px 8px;
+        background: #161B26;
+        color: rgba(255,255,255,0.9);
+        padding: 10px 8px;
         text-align: left;
         font-weight: 600;
-        font-size: 13px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
       }
       
+      th:first-child { border-radius: 4px 0 0 0; }
+      th:last-child { border-radius: 0 4px 0 0; }
+      
       td {
-        padding: 12px 8px;
-        border-bottom: 1px solid #E5E7EB;
+        padding: 10px 8px;
+        border-bottom: 1px solid #e8e2db;
         vertical-align: top;
         font-size: 13px;
+        color: #44403c;
+      }
+      
+      tr:last-child td {
+        border-bottom: none;
       }
       
       tr:nth-child(even) {
-        background: #F9FAFB;
-      }
-      
-      tr:hover {
-        background: #F3F4F6;
+        background: #faf8f5;
       }
       
       .footer {
-        margin-top: 40px;
+        background: #161B26;
         text-align: center;
         font-size: 11px;
-        color: #6B7280;
-        border-top: 1px solid #E5E7EB;
-        padding-top: 20px;
+        padding: 14px 28px;
+      }
+      
+      .footer p {
+        margin: 2px 0;
+        color: rgba(255,255,255,0.5);
+      }
+      
+      .footer .brand {
+        color: #F59E0B;
+        font-weight: 700;
       }
       
       @page {
@@ -776,41 +924,48 @@ export const generateTilesHTML = (tiles: TileData[]): string => {
     </style>
     </head>
     <body>
-      <div class="header">
-        <div class="company-name">Tile Solutions</div>
-        <div class="report-title">TILES INVENTORY REPORT</div>
-      </div>
-      
-      <div class="report-info">
-        <p><strong>Generated on:</strong> ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}</p>
-        <p><strong>Total Tiles:</strong> ${tiles.length}</p>
-      </div>
-      
-      <table>
-        <thead>
-          <tr>
-            <th>Code</th>
-            <th>Category</th>
-            <th>Size (mm)</th>
-            <th>Price/Box</th>
-            <th>Pieces/Box</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tiles.map(tile => `
-            <tr>
-              <td><strong>${tile.code}</strong></td>
-              <td>${tile.category || 'N/A'}</td>
-              <td>${tile.size_length} × ${tile.size_breadth}</td>
-              <td>${tile.price_per_box != null ? `₹${tile.price_per_box.toLocaleString('en-IN')}` : 'N/A'}</td>
-              <td>${tile.pieces_per_box || 'N/A'}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      
-      <div class="footer">
-        <p>This is a computer-generated report.</p>
+      <div class="container">
+        <div class="header">
+          <div>
+            <div class="company-name">TYL<span class="accent">GO</span></div>
+            <div class="report-title">Tiles Inventory Report</div>
+          </div>
+        </div>
+        
+        <div class="report-info">
+          <p><strong>Generated on:</strong> ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}</p>
+          <p><strong>Total Tiles:</strong> ${tiles.length}</p>
+        </div>
+        
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Category</th>
+                <th>Size (mm)</th>
+                <th>Price/Box</th>
+                <th>Pieces/Box</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tiles.map(tile => `
+                <tr>
+                  <td><strong style="color: #161B26;">${tile.code}</strong></td>
+                  <td>${tile.category || 'N/A'}</td>
+                  <td>${tile.size_length} × ${tile.size_breadth}</td>
+                  <td>${tile.price_per_box != null ? `₹${tile.price_per_box.toLocaleString('en-IN')}` : 'N/A'}</td>
+                  <td>${tile.pieces_per_box || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="footer">
+          <p class="brand">TYLGO</p>
+          <p>Computer-generated report · tylgo.store</p>
+        </div>
       </div>
       
       <script>

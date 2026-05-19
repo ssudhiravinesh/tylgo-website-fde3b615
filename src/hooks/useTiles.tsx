@@ -65,6 +65,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getBrandId } from './useShowroom';
+import { getSessionInfo } from '@/utils/sessionCache';
 
 export interface Tile {
   id: string;
@@ -85,29 +86,10 @@ export interface Tile {
 async function fetchTiles(includeInactive = false, overrideBrandId?: string): Promise<{ tiles: Tile[]; totalCount: number }> {
   console.log('🔄 Starting to fetch tiles...', { includeInactive, overrideBrandId });
   try {
-    // Determine the effective brand_id to filter by
-    let targetBrandId: string | null = null;
-
-    if (overrideBrandId) {
-      targetBrandId = overrideBrandId;
-    } else {
-      // Only fetch implicit brand_id if no override provided
-      targetBrandId = await getBrandId();
-    }
-
-    // Check if user is super_admin
-    const { data: { user } } = await supabase.auth.getUser();
-    let isSuperAdmin = false;
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (profile?.role === 'super_admin') {
-        isSuperAdmin = true;
-      }
-    }
+    // Single cached call replaces ~5 separate Supabase requests
+    const session = await getSessionInfo();
+    const targetBrandId = overrideBrandId || session.brandId;
+    const isSuperAdmin = session.isSuperAdmin;
 
     // Step 1: Get total tile count
     let countQuery = supabase
@@ -204,19 +186,130 @@ async function fetchTiles(includeInactive = false, overrideBrandId?: string): Pr
   }
 }
 
-export const useTiles = (includeInactive = false, overrideBrandId?: string) => {
+export const useTiles = (includeInactive = false, overrideBrandId?: string, enabled = true) => {
   const query = useQuery({
     queryKey: ['tiles', includeInactive, overrideBrandId],
     queryFn: () => fetchTiles(includeInactive, overrideBrandId),
     staleTime: 1000 * 60 * 5, // 5 mins caching
-    refetchOnWindowFocus: false,
+    enabled,
   });
 
   return {
     data: query.data?.tiles ?? [],
     totalCount: query.data?.totalCount ?? 0,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     error: query.error,
     refetch: query.refetch,
   };
+};
+
+// ---------------------------------------------------------------------------
+// Lightweight hook: fetches ONLY the category column to derive category stats.
+// Used by TileCatalog's initial "categories" view so the user doesn't wait
+// for all 1500+ full tile rows to load just to see category cards.
+// ---------------------------------------------------------------------------
+
+export interface TileCategoryStats {
+  name: string;
+  count: number;
+}
+
+async function fetchTileCategories(): Promise<{ categories: TileCategoryStats[]; totalCount: number }> {
+  try {
+    // Single cached call replaces ~4 separate Supabase requests
+    const session = await getSessionInfo();
+    const targetBrandId = session.brandId;
+
+    // Fetch only the category column — extremely lightweight vs select('*')
+    let query = supabase
+      .from('tiles')
+      .select('category')
+      .eq('is_active', true);
+
+    if (targetBrandId) {
+      query = query.eq('brand_id', targetBrandId);
+    }
+
+    // Supabase has a 1000-row default limit; paginate to get all categories
+    let allCategories: string[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await query.range(from, from + batchSize - 1);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        allCategories = allCategories.concat(data.map(row => row.category || 'Uncategorized'));
+        from += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    // Aggregate counts
+    const statsMap = new Map<string, number>();
+    allCategories.forEach(cat => {
+      statsMap.set(cat, (statsMap.get(cat) || 0) + 1);
+    });
+
+    const categories = Array.from(statsMap.entries()).map(([name, count]) => ({ name, count }));
+    return { categories, totalCount: allCategories.length };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error fetching tile categories';
+    toast.error(`Failed to load categories: ${message}`);
+    throw err;
+  }
+}
+
+export const useTileCategories = () => {
+  const query = useQuery({
+    queryKey: ['tile-categories'],
+    queryFn: fetchTileCategories,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return {
+    categories: query.data?.categories ?? [],
+    totalCount: query.data?.totalCount ?? 0,
+    isLoading: query.isLoading,
+    error: query.error,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Lightweight hook: fetches ONLY the tiles matching the given IDs.
+// Used by TileSelectionStep so it doesn't load all 1500+ tiles upfront —
+// only the ~1-10 tiles actually referenced in the customer's selections.
+// ---------------------------------------------------------------------------
+
+async function fetchTilesByIds(tileIds: string[]): Promise<Tile[]> {
+  if (tileIds.length === 0) return [];
+
+  // Supabase .in() supports up to 100+ IDs easily; no pagination needed
+  const { data, error } = await supabase
+    .from('tiles')
+    .select('*')
+    .in('id', tileIds);
+
+  if (error) {
+    console.error('Error fetching tiles by IDs:', error);
+    throw error;
+  }
+
+  return (data || []) as Tile[];
+}
+
+export const useTilesByIds = (tileIds: string[]) => {
+  // Sort IDs for stable query key
+  const sortedIds = [...tileIds].sort();
+
+  return useQuery({
+    queryKey: ['tiles-by-ids', sortedIds],
+    queryFn: () => fetchTilesByIds(sortedIds),
+    enabled: sortedIds.length > 0,
+    staleTime: 1000 * 60 * 5, // 5 min — tile data rarely changes
+  });
 };

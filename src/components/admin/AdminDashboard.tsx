@@ -2,13 +2,22 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridLoader } from "@/components/ui/GridLoader";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   Users,
   FileText,
   Grid3X3,
   TrendingUp,
   Calendar,
-  BarChart3
+  BarChart3,
+  PieChart
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -208,34 +217,60 @@ export const AdminDashboard = () => {
     return <GridLoader className="py-12 min-h-[300px]" loadingText="Loading dashboard..." />;
   }
 
+  const StatsGrid = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {stats.map((stat, index) => {
+        const Icon = stat.icon;
+        return (
+          <Card key={index} className="border-border">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                  <Badge variant="outline" className="text-xs text-green-600 border-green-200">
+                    {stat.change}
+                  </Badge>
+                </div>
+                <Icon className={`h-8 w-8 ${stat.color}`} />
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Monitor your business performance and manage system settings</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
+          <p className="text-muted-foreground">Monitor your business performance and manage system settings</p>
+        </div>
+        
+        {/* Mobile Analytics Button */}
+        <div className="lg:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <PieChart className="h-4 w-4" />
+                Analytics
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
+              <SheetHeader className="mb-4">
+                <SheetTitle>Dashboard Analytics</SheetTitle>
+              </SheetHeader>
+              <StatsGrid />
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="border-border">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <Badge variant="outline" className="text-xs text-green-600 border-green-200">
-                      {stat.change}
-                    </Badge>
-                  </div>
-                  <Icon className={`h-8 w-8 ${stat.color}`} />
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Desktop Stats Grid */}
+      <div className="hidden lg:block">
+        <StatsGrid />
       </div>
     </div>
   );

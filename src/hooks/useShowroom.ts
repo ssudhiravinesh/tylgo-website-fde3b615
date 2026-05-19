@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getSessionInfo } from '@/utils/sessionCache';
 
 export interface Showroom {
   id: string;
@@ -47,29 +48,15 @@ export const useShowroom = () => {
 };
 
 // Helper function to get showroom_id for use in mutations
+// Now uses the session cache — resolves instantly after first call.
 export const getShowroomId = async (): Promise<string | null> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('showroom_id')
-    .eq('id', user.id)
-    .single();
-
-  return profile?.showroom_id || null;
+  const session = await getSessionInfo();
+  return session.showroomId;
 };
 
 // Helper function to get brand_id for brand-level tile/product filtering
+// Now uses the session cache — resolves instantly after first call.
 export const getBrandId = async (): Promise<string | null> => {
-  const showroomId = await getShowroomId();
-  if (!showroomId) return null;
-
-  const { data: showroom } = await supabase
-    .from('showrooms')
-    .select('brand_id')
-    .eq('id', showroomId)
-    .single();
-
-  return showroom?.brand_id || null;
+  const session = await getSessionInfo();
+  return session.brandId;
 };

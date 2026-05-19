@@ -1,4 +1,5 @@
 
+import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ interface TileCardProps {
   children?: React.ReactNode;
 }
 
-export const TileCard = ({
+export const TileCard = React.memo(({
   tile,
   isSelected,
   isAdmin,
@@ -203,4 +204,6 @@ export const TileCard = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+TileCard.displayName = 'TileCard';

@@ -40,7 +40,8 @@ export const useRoomProductSelections = (customerId: string) => {
 
             return data as RoomProductSelection[];
         },
-        enabled: !!customerId
+        enabled: !!customerId,
+        staleTime: 1000 * 60 * 2, // 2 min
     });
 };
 

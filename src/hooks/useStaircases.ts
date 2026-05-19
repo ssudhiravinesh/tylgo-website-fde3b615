@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getShowroomId } from './useShowroom';
+import { getSessionInfo } from '@/utils/sessionCache';
 
 export type StaircaseUnit = 'mm' | 'inches' | 'feet' | 'metre';
 
@@ -56,20 +57,8 @@ export interface StaircaseTileSelection {
 const fetchStaircasesByCustomer = async (customerId: string): Promise<Staircase[]> => {
   if (!customerId) return [];
 
-  const showroom_id = await getShowroomId();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  let isSuperAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (profile?.role === 'super_admin') {
-      isSuperAdmin = true;
-    }
-  }
+  // Single cached call replaces 4 separate Supabase requests
+  const { showroomId, isSuperAdmin } = await getSessionInfo();
 
   let query = supabase
     .from('staircases')
@@ -77,8 +66,8 @@ const fetchStaircasesByCustomer = async (customerId: string): Promise<Staircase[
     .eq('customer_id', customerId)
     .order('name');
 
-  if (showroom_id && !isSuperAdmin) {
-    query = query.eq('showroom_id', showroom_id);
+  if (showroomId && !isSuperAdmin) {
+    query = query.eq('showroom_id', showroomId);
   }
 
   const { data, error } = await query;
@@ -145,28 +134,16 @@ const deleteStaircase = async (staircaseId: string): Promise<void> => {
 const fetchStaircaseTileSelections = async (customerId: string): Promise<StaircaseTileSelection[]> => {
   if (!customerId) return [];
 
-  const showroom_id = await getShowroomId();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  let isSuperAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (profile?.role === 'super_admin') {
-      isSuperAdmin = true;
-    }
-  }
+  // Single cached call replaces 4 separate Supabase requests
+  const { showroomId, isSuperAdmin } = await getSessionInfo();
 
   let query = supabase
     .from('staircase_tile_selections')
     .select('*')
     .eq('customer_id', customerId);
 
-  if (showroom_id && !isSuperAdmin) {
-    query = query.eq('showroom_id', showroom_id);
+  if (showroomId && !isSuperAdmin) {
+    query = query.eq('showroom_id', showroomId);
   }
 
   const { data, error } = await query;
@@ -229,6 +206,7 @@ export const useStaircasesByCustomer = (customerId: string) => {
     queryKey: ['staircases', customerId],
     queryFn: () => fetchStaircasesByCustomer(customerId),
     enabled: !!customerId,
+    staleTime: 1000 * 60 * 2, // 2 min
   });
 };
 
@@ -270,6 +248,7 @@ export const useStaircaseTileSelections = (customerId: string) => {
     queryKey: ['staircase-tile-selections', customerId],
     queryFn: () => fetchStaircaseTileSelections(customerId),
     enabled: !!customerId,
+    staleTime: 1000 * 60 * 2, // 2 min
   });
 };
 

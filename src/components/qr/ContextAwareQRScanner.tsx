@@ -162,7 +162,6 @@ export const ContextAwareQRScanner: React.FC<ContextAwareQRScannerProps> = ({
 
             {selectedRoomNames.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-primary/80">
-                <Home className="h-4 w-4" />
                 <span>Rooms: {selectedRoomNames.join(', ')}</span>
               </div>
             )}

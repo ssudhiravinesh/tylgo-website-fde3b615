@@ -46,11 +46,18 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
 
   const initializeScanner = async () => {
     try {
+      // Guard: mediaDevices is undefined on HTTP (non-secure context) on mobile
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast.error(
+          'Camera not available. Please open this app over HTTPS (e.g., tylgo.store) on your mobile device.',
+          { duration: 6000 }
+        );
+        return;
+      }
+
       // Request camera permissions first
-      await navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          stream.getTracks().forEach(track => track.stop());
-        });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(track => track.stop());
 
       // Get available cameras
       const devices = await Html5Qrcode.getCameras();
@@ -67,10 +74,10 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
       } else {
         toast.error('No cameras found on this device');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting cameras:', error);
-      if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
-        toast.error('Camera permission denied. Please allow camera access and refresh the page.');
+      if (error.name === 'NotAllowedError' || error.message?.includes('Permission denied')) {
+        toast.error('Camera permission denied. Please allow camera access in your browser settings.');
       } else if (error.name === 'NotFoundError') {
         toast.error('No camera found on this device.');
       } else {
@@ -110,38 +117,71 @@ export const Html5QRScanner: React.FC<Html5QRScannerProps> = ({
         scannerRef.current = new Html5Qrcode(elementId);
       }
 
-      // Determine facing mode based on camera type
-      const facingMode = currentCameraType === 'back' ? 'environment' : 'user';
+      const qrboxSize = Math.min(250, window.innerWidth - 80);
 
+      // NOTE: Do NOT include facingMode in videoConstraints when passing an explicit
+      // deviceId — mobile browsers (iOS Safari, Android Chrome) treat them as
+      // conflicting constraints and reject the stream with OverconstrainedError.
+      // We rely on the deviceId alone to select the correct camera.
       const config = {
         fps: 8,
-        qrbox: { width: Math.min(250, window.innerWidth - 80), height: Math.min(250, window.innerWidth - 80) },
+        qrbox: { width: qrboxSize, height: qrboxSize },
         aspectRatio: 1.0,
         disableFlip: false,
         videoConstraints: {
-          facingMode: facingMode,
-          width: { ideal: 640 },
-          height: { ideal: 480 }
+          deviceId: { exact: cameraId },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
       };
 
-      await scannerRef.current.start(
-        cameraId,
-        config,
-        (decodedText) => {
-          console.log('QR Code detected:', decodedText);
-          handleScanSuccess(decodedText);
-        },
-        (errorMessage) => {
-          // Ignore frequent scan errors
-        }
-      );
+      try {
+        await scannerRef.current.start(
+          cameraId,
+          config,
+          (decodedText) => {
+            console.log('QR Code detected:', decodedText);
+            handleScanSuccess(decodedText);
+          },
+          (_errorMessage) => {
+            // Ignore frequent scan errors (no QR code in frame)
+          }
+        );
+      } catch (deviceErr: any) {
+        // Fallback: if exact deviceId fails (e.g. some Android browsers), try
+        // facingMode-only constraint which is more broadly supported.
+        console.warn('Exact deviceId start failed, falling back to facingMode:', deviceErr);
+        const facingMode = currentCameraType === 'back' ? 'environment' : 'user';
+        const fallbackConfig = {
+          fps: 8,
+          qrbox: { width: qrboxSize, height: qrboxSize },
+          aspectRatio: 1.0,
+          disableFlip: false,
+        };
+        await scannerRef.current.start(
+          { facingMode },
+          fallbackConfig,
+          (decodedText) => {
+            console.log('QR Code detected (fallback):', decodedText);
+            handleScanSuccess(decodedText);
+          },
+          (_errorMessage) => {
+            // Ignore frequent scan errors
+          }
+        );
+      }
 
       setIsScanning(true);
       toast.success(`Scanner ready! Using ${currentCameraType} camera.`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting scanner:', error);
-      toast.error('Failed to start camera. Please check permissions and try again.');
+      if (error.name === 'NotAllowedError') {
+        toast.error('Camera permission denied. Please allow camera access and try again.');
+      } else if (error.name === 'OverconstrainedError') {
+        toast.error('Camera constraints not satisfied. Try switching cameras.');
+      } else {
+        toast.error('Failed to start camera. Please check permissions and try again.');
+      }
     }
   };
 

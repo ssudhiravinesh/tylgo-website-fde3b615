@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Percent, PlusSquare } from "lucide-react";
+import { Calculator, Percent, PlusSquare, Layers } from "lucide-react";
 import { formatTileBreakdown } from "@/utils/tileCalculations";
 import type { Room } from "@/hooks/useRooms";
 import type { RoomProductSelection } from "@/hooks/useProductSelections";
@@ -18,7 +18,7 @@ interface TileCalcResult {
     code: string;
     pieces_per_box?: number;
   };
-  isWallTile: boolean;
+  isWallTile?: boolean;
   wallLayers?: number[];
   rawTilesNeeded: number;
   fullBoxes: number;
@@ -57,7 +57,9 @@ interface TileSelectionSummaryProps {
   // Room selection for bulk tile add
   rooms: Room[];
   selectedFloorRooms: Set<string>;
+  selectedWallRooms: Set<string>;
   onBulkAddTile: () => void;
+  onBulkAddWallTile: () => void;
   
   // Wastage
   wastagePercentage: string;
@@ -83,7 +85,9 @@ interface TileSelectionSummaryProps {
 export const TileSelectionSummary = ({
   rooms,
   selectedFloorRooms,
+  selectedWallRooms,
   onBulkAddTile,
+  onBulkAddWallTile,
   wastagePercentage,
   onWastageChange,
   getWastagePercentage,
@@ -114,6 +118,20 @@ export const TileSelectionSummary = ({
           {selectedFloorRooms.size === 0
             ? "Select Rooms to Add Tile"
             : `Add Tile to ${selectedFloorRooms.size} Rooms`}
+        </Button>
+      )}
+
+      {/* Bulk add wall tile button */}
+      {rooms.filter(r => r.has_wall).length > 0 && (
+        <Button
+          onClick={onBulkAddWallTile}
+          disabled={selectedWallRooms.size === 0}
+          className="w-full bg-teal-600 hover:bg-teal-700 gap-2 shadow-md py-6 text-lg transition-all transform hover:-translate-y-0.5"
+        >
+          <Layers className="h-5 w-5" />
+          {selectedWallRooms.size === 0
+            ? "Select Wall Rooms to Add Tile"
+            : `Add Wall Tile to ${selectedWallRooms.size} Rooms`}
         </Button>
       )}
 

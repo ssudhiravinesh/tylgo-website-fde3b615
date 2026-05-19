@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Calendar, IndianRupee, User, Plus, LayoutList, LayoutGrid, MapPin } from "lucide-react";
+import { Search, FileText, Calendar, IndianRupee, User, Plus, LayoutList, LayoutGrid, MapPin, Filter, ChevronDown, ChevronUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useQuotations } from "@/hooks/useQuotations";
 import { QuotationDetails } from "./QuotationDetails";
 import { DeleteQuotationDialog } from "./DeleteQuotationDialog";
@@ -39,6 +40,8 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
   const [viewMode, setViewMode] = useState<'list' | 'card'>('card');
   const [areaFilter, setAreaFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("all");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showMobileStats, setShowMobileStats] = useState(false);
 
   const { data: quotations = [], isLoading, refetch, deleteQuotation, isDeleting } = useQuotations({
     quickSort,
@@ -265,17 +268,17 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Quotations</h1>
-            <p className="text-muted-foreground">Manage customer quotations and proposals</p>
+            <p className="text-muted-foreground hidden lg:block">Manage customer quotations and proposals</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center space-x-2">
-              <div className="relative">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 sm:flex-none">
+              <div className="relative flex-1 sm:w-36">
                 <input
                   placeholder="Filter by area..."
                   list="area-list"
                   value={areaFilter}
                   onChange={(e) => setAreaFilter(e.target.value)}
-                  className="h-10 w-36 px-3 text-sm border border-border rounded-md focus:border-primary focus:ring-primary"
+                  className="h-10 w-full sm:w-36 px-2 sm:px-3 text-[11px] sm:text-sm border border-border rounded-md focus:border-primary focus:ring-primary"
                 />
                 <datalist id="area-list">
                   {uniqueAreas.map(area => (
@@ -286,9 +289,9 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
               <select
                 value={stateFilter}
                 onChange={(e) => setStateFilter(e.target.value)}
-                className="h-10 w-32 px-3 text-sm border border-border rounded-md focus:border-primary focus:ring-primary"
+                className="h-10 flex-1 sm:w-32 px-1 sm:px-3 text-[11px] sm:text-sm border border-border rounded-md focus:border-primary focus:ring-primary"
               >
-                <option value="all">All States</option>
+                <option value="all">States</option>
                 {uniqueStates.map(state => (
                   <option key={state} value={state}>
                     {state}
@@ -296,80 +299,122 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
                 ))}
               </select>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <button
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${viewMode === 'list'
-                  ? 'bg-primary text-white'
-                  : 'bg-muted text-muted-foreground hover:bg-secondary'
-                  }`}
+                className={cn(
+                  "flex items-center gap-1 px-2 sm:px-3 py-2 rounded-md transition-colors",
+                  viewMode === 'list'
+                    ? 'bg-primary text-white'
+                    : 'bg-muted text-muted-foreground hover:bg-secondary'
+                )}
+                title="List View"
               >
-                <LayoutList className="h-4 w-4" />
-                <span className="text-sm">List</span>
+                <LayoutList className="h-4 w-4 shrink-0" />
+                <span className="text-sm hidden md:inline">List</span>
               </button>
               <button
                 onClick={() => setViewMode('card')}
-                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors ${viewMode === 'card'
-                  ? 'bg-primary text-white'
-                  : 'bg-muted text-muted-foreground hover:bg-secondary'
-                  }`}
+                className={cn(
+                  "flex items-center gap-1 px-2 sm:px-3 py-2 rounded-md transition-colors",
+                  viewMode === 'card'
+                    ? 'bg-primary text-white'
+                    : 'bg-muted text-muted-foreground hover:bg-secondary'
+                )}
+                title="Card View"
               >
-                <LayoutGrid className="h-4 w-4" />
-                <span className="text-sm">Card</span>
+                <LayoutGrid className="h-4 w-4 shrink-0" />
+                <span className="text-sm hidden md:inline">Card</span>
               </button>
             </div>
           </div>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
-          <Input
-            placeholder="Search quotations by customer name, ID, or mobile..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-12 border-border focus:border-primary focus:ring-primary"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
+            <Input
+              placeholder="Search quotations by customer name, ID, or mobile..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-12 border-border focus:border-primary focus:ring-primary"
+            />
+          </div>
+          <Button
+            variant="outline"
+            className="lg:hidden h-12 flex gap-2 items-center justify-center border-border px-3"
+            onClick={() => setShowMobileFilters(!showMobileFilters)}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">{showMobileFilters ? "Hide" : "Filter"}</span>
+          </Button>
         </div>
 
         {/* Enhanced Filtering Controls */}
-        <QuotationFilters
-          onQuickSortChange={handleQuickSortChange}
-          onPreciseFilterChange={handlePreciseFilterChange}
-          onWorkerFilterChange={handleWorkerFilterChange}
-          onStatusFilterChange={handleStatusFilterChange}
-          onDateRangeChange={handleDateRangeChange}
-          onClearFilters={clearAllFilters}
-          currentQuickSort={quickSort}
-          currentYear={filterYear}
-          currentMonth={filterMonth}
-          currentWorker={selectedWorker}
-          currentStatus={selectedStatus}
-          startDate={startDate}
-          endDate={endDate}
-          availableWorkers={uniqueWorkers}
-        />
+        <div className={cn(
+          "lg:block transition-all duration-300",
+          showMobileFilters ? "block" : "hidden"
+        )}>
+          <QuotationFilters
+            onQuickSortChange={handleQuickSortChange}
+            onPreciseFilterChange={handlePreciseFilterChange}
+            onWorkerFilterChange={handleWorkerFilterChange}
+            onStatusFilterChange={handleStatusFilterChange}
+            onDateRangeChange={handleDateRangeChange}
+            onClearFilters={clearAllFilters}
+            currentQuickSort={quickSort}
+            currentYear={filterYear}
+            currentMonth={filterMonth}
+            currentWorker={selectedWorker}
+            currentStatus={selectedStatus}
+            startDate={startDate}
+            endDate={endDate}
+            availableWorkers={uniqueWorkers}
+          />
+        </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="lg:hidden">
+          <Button
+            variant="outline"
+            className="w-full flex justify-between items-center bg-card border border-border px-4 py-3 h-auto rounded-lg shadow-sm"
+            onClick={() => setShowMobileStats(!showMobileStats)}
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-sm">Quotation Details</span>
+            </div>
+            {showMobileStats ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+        </div>
+
+        <div className={cn(
+          "grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 transition-all duration-300",
+          showMobileStats ? "grid" : "hidden lg:grid"
+        )}>
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-4">
               <div className="flex items-center">
-                <FileText className="h-8 w-8 text-primary" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Total Quotations</p>
-                  <p className="text-2xl font-bold">{filteredQuotations.length}</p>
+                <FileText className="h-6 w-6 text-primary" />
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-muted-foreground">Total Quotations</p>
+                  <p className="text-xl font-bold">{filteredQuotations.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-4">
               <div className="flex items-center">
-                <FileText className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Approved</p>
-                  <p className="text-2xl font-bold">
+                <FileText className="h-6 w-6 text-green-600" />
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-muted-foreground">Approved</p>
+                  <p className="text-xl font-bold">
                     {filteredQuotations.filter(q => q.status === 'approved').length}
                   </p>
                 </div>
@@ -378,12 +423,12 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-4">
               <div className="flex items-center">
-                <FileText className="h-8 w-8 text-yellow-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold">
+                <FileText className="h-6 w-6 text-yellow-600" />
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-muted-foreground">Pending</p>
+                  <p className="text-xl font-bold">
                     {filteredQuotations.filter(q => q.status === 'draft').length}
                   </p>
                 </div>
@@ -392,12 +437,12 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-4">
               <div className="flex items-center">
-                <FileText className="h-8 w-8 text-red-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Closed</p>
-                  <p className="text-2xl font-bold">
+                <FileText className="h-6 w-6 text-red-600" />
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-muted-foreground">Closed</p>
+                  <p className="text-xl font-bold">
                     {filteredQuotations.filter(q => q.status === 'closed').length}
                   </p>
                 </div>
@@ -407,12 +452,12 @@ export const QuotationList = ({ userRole, showroomId }: QuotationListProps) => {
 
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-4">
               <div className="flex items-center">
-                <IndianRupee className="h-8 w-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Total Value</p>
-                  <p className="text-2xl font-bold">
+                <IndianRupee className="h-6 w-6 text-purple-600" />
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-muted-foreground">Total Value</p>
+                  <p className="text-xl font-bold text-nowrap">
                     ₹{filteredQuotations.reduce((sum, q) => sum + (q.total_cost || 0), 0).toLocaleString()}
                   </p>
                 </div>

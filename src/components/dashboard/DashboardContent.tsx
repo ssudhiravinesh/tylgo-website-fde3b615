@@ -122,6 +122,7 @@ export const DashboardContent = ({
                 <CustomerRoomManagement
                     preSelectedCustomerId={selectedCustomerForQuote}
                     onBack={handleBackFromRooms}
+                    onQuotationCreated={() => setActiveView("quotations")}
                 />
             );
         default:

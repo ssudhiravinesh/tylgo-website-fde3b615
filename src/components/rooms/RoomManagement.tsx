@@ -103,27 +103,26 @@ export const RoomManagement = ({ customerId = "" }: RoomManagementProps) => {
           {rooms.map((room) => (
             <Card key={room.id} className="content-card">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Home className="h-5 w-5 text-primary" />
-                    {room.name}
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg min-w-0 flex-1">
+                    <span className="truncate" title={room.name}>{room.name}</span>
                   </CardTitle>
-                  <div className="flex gap-1">
+                  <div className="flex gap-2 shrink-0">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleEdit(room)}
-                      className="h-8 w-8 p-0 hover:bg-primary/15"
+                      className="h-8 w-8 p-0 border-primary/40 text-primary hover:bg-primary/10 hover:border-primary rounded-md"
                     >
-                      <Edit className="h-4 w-4 text-primary" />
+                      <Edit className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleDelete(room.id, room.name)}
-                      className="h-8 w-8 p-0 hover:bg-destructive/10"
+                      className="h-8 w-8 p-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive rounded-md"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

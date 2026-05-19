@@ -224,8 +224,12 @@ export function calculateFromQuotationItems(
       });
     }
 
-    // Custom box adjustments
-    calc.customBoxAdjustment += Number(item.custom_boxes || 0);
+    // Custom box adjustments — stored identically on all items for the same tile.
+    // Do NOT accumulate (+=) or the adjustment gets multiplied by item count.
+    const itemCustomBoxes = Number(item.custom_boxes || 0);
+    if (itemCustomBoxes !== 0) {
+      calc.customBoxAdjustment = itemCustomBoxes;
+    }
   }
 
   // ── Step 2: Calculate tiles, boxes, pricing ─────────────────────────

@@ -22,9 +22,10 @@ import type { Staircase } from "@/hooks/useStaircases";
 interface CustomerRoomManagementProps {
   preSelectedCustomerId?: string | null;
   onBack?: () => void;
+  onQuotationCreated?: () => void;
 }
 
-export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: CustomerRoomManagementProps) => {
+export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack, onQuotationCreated }: CustomerRoomManagementProps) => {
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preSelectedCustomerId || "");
   const { data: rooms = [], isLoading: roomsLoading } = useRoomsByCustomer(selectedCustomerId);
@@ -160,6 +161,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         rooms={rooms}
         staircases={staircases}
         onBack={handleBackToRooms}
+        onQuotationCreated={onQuotationCreated}
       />
     );
   }
@@ -184,7 +186,7 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
           ) : null}
           <div>
             <h1 className="text-2xl font-bold text-foreground">Customer Room Management</h1>
-            <p className="text-muted-foreground">Manage room dimensions for tile calculations</p>
+            <p className="text-muted-foreground hidden md:block">Manage room dimensions for tile calculations</p>
           </div>
         </div>
       </div>
@@ -193,7 +195,6 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
         <div className="w-full">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Home className="h-5 w-5" />
               Select Customer
             </h2>
           </div>
@@ -208,9 +209,6 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
       {!preSelectedCustomerId && !selectedCustomerId && (
         <div className="mt-8">
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <div className="p-1.5 bg-primary/15 rounded-full">
-              <Home className="h-4 w-4 text-primary" />
-            </div>
             Recent Customers
           </h3>
 
@@ -258,46 +256,41 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
       )}
 
       {selectedCustomer && (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-primary/8 rounded-lg border border-primary/20">
-          <div>
-            <h3 className="font-semibold text-foreground">{selectedCustomer.name}</h3>
-            <p className="text-sm text-muted-foreground">Mobile: {selectedCustomer.mobile}</p>
-            {selectedCustomer.address && (
-              <p className="text-sm text-muted-foreground">Address: {selectedCustomer.address}</p>
-            )}
-          </div>
-          <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-primary/8 rounded-lg border border-primary/20">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full">
             <Button
               onClick={() => setIsFormOpen(true)}
-              className="btn-primary-craft gap-2"
+              className="btn-primary-craft gap-2 w-full h-11"
             >
               <Plus className="h-4 w-4" />
-              Add Room
+              <span className="truncate">Add Room</span>
             </Button>
             <Button
               onClick={() => setIsStaircaseFormOpen(true)}
               variant="outline"
-              className="gap-2 border-border hover:bg-accent"
+              className="gap-2 border-border hover:bg-accent w-full h-11"
             >
               <Footprints className="h-4 w-4" />
-              Add Staircase
+              <span className="truncate">Add Staircase</span>
             </Button>
             <Button
               onClick={() => setIsProductDialogOpen(true)}
               variant="outline"
-              className="gap-2 border-border hover:bg-accent"
+              className="gap-2 border-border hover:bg-accent w-full h-11"
             >
               <ShoppingBag className="h-4 w-4" />
-              Add Product
+              <span className="truncate">Add Product</span>
             </Button>
-            {(rooms.length > 0 || staircases.length > 0 || customerProducts.length > 0) && (
+            {(rooms.length > 0 || staircases.length > 0 || customerProducts.length > 0) ? (
               <Button
                 onClick={handleProceedToTileSelection}
-                className="btn-primary-craft gap-2"
+                className="btn-primary-craft gap-2 w-full h-11"
               >
-                Select Tiles
+                <span className="truncate">Select Tiles</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
+            ) : (
+              <div className="hidden lg:block h-11" /> // Spacer to maintain grid symmetry on desktop
             )}
           </div>
         </div>
@@ -328,38 +321,29 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                   className="content-card"
                 >
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Home className="h-5 w-5 text-primary" />
-                        {room.name}
-                        <div className="flex gap-1">
-                          {room.has_floor && (
-                            <Badge variant="default" className="text-xs">Floor</Badge>
-                          )}
-                          {room.has_wall && (
-                            <Badge variant="secondary" className="text-xs">Wall</Badge>
-                          )}
-                        </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="flex items-center gap-2 text-lg min-w-0 flex-1">
+                        <span className="truncate" title={room.name}>{room.name}</span>
                       </CardTitle>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(room)}
-                          className="flex items-center gap-1 px-2 py-1 h-auto hover:bg-primary/15"
-                        >
-                          <Edit className="h-4 w-4 text-primary" />
-                          <span className="text-primary text-sm">Edit</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteClick(room)}
-                          className="h-8 w-8 p-0 hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(room)}
+                            className="flex items-center gap-1.5 px-2 py-1 h-8 border-primary/40 text-primary hover:bg-primary/10 hover:border-primary rounded-md"
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="text-sm hidden lg:inline">Edit</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteClick(room)}
+                            className="h-8 w-8 p-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive rounded-md"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -407,28 +391,28 @@ export const CustomerRoomManagement = ({ preSelectedCustomerId, onBack }: Custom
                     className="content-card border-primary/15 bg-gradient-to-br from-primary/5 to-card"
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                          <Footprints className="h-5 w-5 text-primary" />
-                          {staircase.name}
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="flex items-center gap-2 text-lg min-w-0 flex-1">
+                          <Footprints className="h-5 w-5 text-primary shrink-0" />
+                          <span className="truncate" title={staircase.name}>{staircase.name}</span>
                         </CardTitle>
-                        <div className="flex gap-1">
+                        <div className="flex gap-2 shrink-0">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleEditStaircase(staircase)}
-                            className="flex items-center gap-1 px-2 py-1 h-auto hover:bg-primary/10"
+                            className="flex items-center gap-1.5 px-2 py-1 h-8 border-primary/40 text-primary hover:bg-primary/10 hover:border-primary rounded-md"
                           >
-                            <Edit className="h-4 w-4 text-primary" />
-                            <span className="text-primary text-sm">Edit</span>
+                            <Edit className="h-4 w-4" />
+                            <span className="text-sm hidden lg:inline">Edit</span>
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleDeleteStaircaseClick(staircase)}
-                            className="h-8 w-8 p-0 hover:bg-destructive/10"
+                            className="h-8 w-8 p-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive rounded-md"
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>

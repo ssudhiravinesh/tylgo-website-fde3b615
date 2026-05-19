@@ -51,6 +51,7 @@ export const useCustomerProducts = (customerId: string) => {
             return data as unknown as CustomerProduct[];
         },
         enabled: !!customerId,
+        staleTime: 1000 * 60 * 2, // 2 min
     });
 };
 

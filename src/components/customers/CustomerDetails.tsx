@@ -33,7 +33,6 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
             Personal Information
           </CardTitle>
         </CardHeader>
@@ -50,6 +49,15 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-green-600" />
                   <p className="text-lg text-foreground">{customer.mobile}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Category</label>
+                <div>
+                  <Badge variant="outline" className="text-sm">
+                    {customer.category || 'Customer'}
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -107,7 +115,6 @@ export const CustomerDetails = ({ customer, onBack }: CustomerDetailsProps) => {
                 <div key={room.id} className="border rounded-lg p-4 bg-muted">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Home className="h-4 w-4 text-primary" />
                       <h4 className="font-medium text-foreground">{room.name}</h4>
                     </div>
                     <div className="flex gap-1">

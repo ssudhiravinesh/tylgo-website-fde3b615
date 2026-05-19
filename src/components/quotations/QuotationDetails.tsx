@@ -71,8 +71,36 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   const wastagePercentage = quotation.wastage_percentage || 0;
   const { calculations, mrp } = calculateFromQuotationItems(quotationItems, wastagePercentage);
   const discountPercentage = quotation.discount_percentage || 0;
-  const discountAmount = quotation.discount_amount || ((mrp * discountPercentage) / 100);
-  const grandTotal = mrp - discountAmount;
+
+  // Compute per-tile discounted prices
+  const discountedCalcData = new Map<string, { discountedPricePerBox: number; discountedTotalPrice: number }>();
+  if (discountPercentage > 0) {
+    for (const calc of calculations) {
+      if (calc.type === 'tile') {
+        const tc = calc as TileCalcResult;
+        const discountedPricePerBox = Math.round(tc.tile.price_per_box * (1 - discountPercentage / 100));
+        const discountedTotalPrice = tc.boxesNeeded * discountedPricePerBox;
+        discountedCalcData.set(tc.tile.id, { discountedPricePerBox, discountedTotalPrice });
+      } else {
+        const pc = calc as ProductCalcResult;
+        const discountedPrice = Math.round((pc.product.price || 0) * (1 - discountPercentage / 100));
+        const discountedTotal = pc.quantity * discountedPrice;
+        discountedCalcData.set(pc.product.id, { discountedPricePerBox: discountedPrice, discountedTotalPrice: discountedTotal });
+      }
+    }
+  }
+
+  // Grand total: sum of per-item discounted totals (or MRP if no discount)
+  const grandTotal = discountPercentage > 0
+    ? calculations.reduce((sum, calc) => {
+        const id = calc.type === 'tile' ? calc.tile.id : (calc as ProductCalcResult).product.id;
+        const dd = discountedCalcData.get(id);
+        return sum + (dd?.discountedTotalPrice ?? calc.totalPrice);
+      }, 0)
+    : mrp;
+  const discountAmount = mrp - grandTotal;
+  const roundOffAmount = quotation.round_off_amount || 0;
+  const finalTotal = grandTotal - roundOffAmount;
 
 
   const handleDownloadPDF = () => {
@@ -112,29 +140,67 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onBack}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to List
-          </Button>
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBack}
+              className="gap-2 shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <div className="flex gap-2 sm:hidden">
+              {/* Tally Sync Button — mobile */}
+              {quotation.status === 'approved' && (!tallyStatus || tallyStatus === 'pending') && (
+                <Button
+                  onClick={() => queueForTally(quotation.id)}
+                  disabled={isQueuing}
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50 shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                  {isQueuing ? '...' : 'Tally'}
+                </Button>
+              )}
+              {quotation.status === 'approved' && tallyStatus === 'failed' && (
+                <Button
+                  onClick={() => retryTallySync(quotation.id)}
+                  disabled={isRetrying}
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 border-red-300 text-red-700 hover:bg-red-50 shrink-0"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  {isRetrying ? '...' : 'Retry'}
+                </Button>
+              )}
+              <Button
+                onClick={handleDownloadPDF}
+                disabled={isGenerating}
+                size="sm"
+                className="gap-2 bg-primary hover:bg-primary/90 disabled:opacity-50 shrink-0"
+              >
+                <Download className="h-4 w-4" />
+                {isGenerating ? 'Gen...' : 'PDF'}
+              </Button>
+            </div>
+          </div>
 
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-lg sm:text-2xl font-bold text-foreground line-clamp-1">
               Quotation {quotation.quotation_number}
             </h1>
-            <p className="text-muted-foreground">View quotation details and items</p>
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">View details and items</p>
           </div>
         </div>
 
-        <div className="flex gap-2">
-          {/* Tally Sync Button — only visible for approved quotations */}
+        <div className="hidden sm:flex gap-2 shrink-0">
+          {/* Tally Sync Button — desktop */}
           {quotation.status === 'approved' && (!tallyStatus || tallyStatus === 'pending') && (
             <Button
               onClick={() => queueForTally(quotation.id)}
@@ -171,33 +237,33 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
 
       {/* Quotation Header */}
       <Card className="border-border shadow-sm">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
           <div className="flex items-start justify-between">
-            <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <FileText className="h-6 w-6 text-primary" />
+            <CardTitle className="text-lg sm:text-xl font-semibold text-foreground flex items-center gap-2">
+              <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               Quotation Details
             </CardTitle>
-            <Badge className={`text-sm capitalize ${getStatusColor(quotation.status)}`}>
+            <Badge className={`text-xs sm:text-sm capitalize ${getStatusColor(quotation.status)}`}>
               {quotation.status}
             </Badge>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
+        <CardContent className="space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
             {/* Customer Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
+            <div className="space-y-3">
+              <h3 className="text-sm sm:text-lg font-semibold text-foreground flex items-center gap-2">
+                <User className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Customer Information
               </h3>
-              <div className="space-y-3 pl-7">
+              <div className="space-y-2 sm:space-y-3 pl-6 sm:pl-7 text-sm sm:text-base">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                   <span className="font-medium">{quotation.customer?.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                   <span>{quotation.customer?.mobile}</span>
                 </div>
                 {(() => {
@@ -258,7 +324,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                   <div className="flex items-center gap-2">
                     <IndianRupee className="h-4 w-4 text-muted-foreground" />
                     <span className="font-bold text-lg text-green-600">
-                      Total: ₹{grandTotal > 0 ? grandTotal.toLocaleString() : (quotation.total_cost || 0).toLocaleString()}
+                      Total: ₹{finalTotal > 0 ? finalTotal.toLocaleString() : (quotation.total_cost || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -305,7 +371,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Calculator className="h-5 w-5 text-primary" />
-            Tile Calculations ({wastagePercentage}% wastage included)
+            Tile Calculations{wastagePercentage > 0 ? ` (${wastagePercentage}% wastage included)` : ''}
           </CardTitle>
         </CardHeader>
 
@@ -450,7 +516,7 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                                   return (
                                     <span className="text-xs text-muted-foreground block">
                                       ({fullBoxes} box{fullBoxes !== 1 ? 'es' : ''}{leftoverTiles > 0 ? ` and ${leftoverTiles} tile${leftoverTiles > 1 ? 's' : ''}` : ''})
-                                      <br />(+{wastagePercentage}% wastage)
+                                      {wastagePercentage > 0 && <><br />(+{wastagePercentage}% wastage)</>}
                                     </span>
                                   );
                                 })()}
@@ -483,7 +549,21 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                             <IndianRupee className="h-4 w-4 text-purple-600" />
                             <div>
                               <p className="text-muted-foreground">Total Cost</p>
-                              <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
+                              {(() => {
+                                const dd = discountedCalcData.get(calc.tile.id);
+                                if (discountPercentage > 0 && dd) {
+                                  return (
+                                    <>
+                                      <p className="text-xs text-muted-foreground line-through">₹{calc.totalPrice.toLocaleString()}</p>
+                                      <p className="font-bold text-green-600">₹{dd.discountedTotalPrice.toLocaleString()}</p>
+                                      <p className="text-[10px] text-muted-foreground">
+                                        MRP/Box: ₹{calc.tile.price_per_box?.toLocaleString()} → ₹{dd.discountedPricePerBox.toLocaleString()}/box
+                                      </p>
+                                    </>
+                                  );
+                                }
+                                return <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>;
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -508,8 +588,26 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                             <div className="text-xs text-primary font-medium mt-1">Product Selection</div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-foreground">₹{productCalc.totalPrice.toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground">₹{productCalc.product.price?.toLocaleString()} / unit</p>
+                            {(() => {
+                              const dd = discountedCalcData.get(productCalc.product.id);
+                              if (discountPercentage > 0 && dd) {
+                                return (
+                                  <>
+                                    <p className="text-xs text-muted-foreground line-through">₹{productCalc.totalPrice.toLocaleString()}</p>
+                                    <p className="font-bold text-green-600">₹{dd.discountedTotalPrice.toLocaleString()}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      ₹{productCalc.product.price?.toLocaleString()} → ₹{dd.discountedPricePerBox.toLocaleString()} / unit
+                                    </p>
+                                  </>
+                                );
+                              }
+                              return (
+                                <>
+                                  <p className="font-bold text-foreground">₹{productCalc.totalPrice.toLocaleString()}</p>
+                                  <p className="text-xs text-muted-foreground">₹{productCalc.product.price?.toLocaleString()} / unit</p>
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -521,7 +619,18 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
                           <div className="col-span-2"></div>
                           <div>
                             <span className="text-xs text-muted-foreground block">Total</span>
-                            <span className="font-medium text-sm">₹{productCalc.totalPrice.toLocaleString()}</span>
+                            {(() => {
+                              const dd = discountedCalcData.get(productCalc.product.id);
+                              if (discountPercentage > 0 && dd) {
+                                return (
+                                  <>
+                                    <span className="font-medium text-sm line-through text-muted-foreground">₹{productCalc.totalPrice.toLocaleString()}</span>
+                                    <span className="font-medium text-sm text-green-600 ml-1">₹{dd.discountedTotalPrice.toLocaleString()}</span>
+                                  </>
+                                );
+                              }
+                              return <span className="font-medium text-sm">₹{productCalc.totalPrice.toLocaleString()}</span>;
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -533,11 +642,18 @@ export const QuotationDetails = ({ quotation, onBack }: QuotationDetailsProps) =
               <div className="border-t pt-4 mt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold text-foreground">Grand Total:</span>
-                  <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</span>
+                  <div className="text-right">
+                    {roundOffAmount > 0 && (
+                      <span className="text-xs text-muted-foreground block">Round-off: -₹{roundOffAmount.toLocaleString()}</span>
+                    )}
+                    <span className="text-xl font-bold text-green-600">₹{finalTotal.toLocaleString()}</span>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  All calculations include {wastagePercentage}% wastage allowance
-                </p>
+                {wastagePercentage > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    All calculations include {wastagePercentage}% wastage allowance
+                  </p>
+                )}
               </div>
             </div>
           ) : (

@@ -6,8 +6,8 @@
  * and check has_floor/has_wall flags per room.
  */
 
-import { useState, useEffect } from "react";
-import { useTiles } from "@/hooks/useTiles";
+import { useState, useEffect, useMemo } from "react";
+import { useTiles, useTilesByIds } from "@/hooks/useTiles";
 import { useRoomTileSelections } from "@/hooks/useRooms";
 import { useStaircaseTileSelections } from "@/hooks/useStaircases";
 import { useCustomerProducts } from "@/hooks/useCustomerProducts";
@@ -27,6 +27,7 @@ export interface CatalogContext {
   staircaseId?: string;
   staircaseTileType?: 'step' | 'riser';
   isWallTile: boolean;
+  isSkirtingTile?: boolean;
   layerNumber?: number;
 }
 
@@ -36,11 +37,30 @@ export function useTileSelectionState(
   staircases: Staircase[]
 ) {
   // ── Data fetching hooks ────────────────────────────────────────────
-  const { data: tiles = [], isLoading: tilesLoading } = useTiles();
   const { data: selections = [], isLoading: selectionsLoading } = useRoomTileSelections(customerId);
   const { data: staircaseSelections = [], isLoading: staircaseSelectionsLoading } = useStaircaseTileSelections(customerId);
   const { data: customerProducts = [] } = useCustomerProducts(customerId);
   const { data: productSelections = [], isLoading: productSelectionsLoading } = useRoomProductSelections(customerId);
+
+  // ── Tile loading strategy ──────────────────────────────────────────
+  // Fast path: fetch ONLY tiles referenced in existing selections (~1-10 tiles).
+  // This renders instantly instead of waiting for all 1500+ tiles.
+  const selectionTileIds = useMemo(() => {
+    const ids = new Set<string>();
+    selections.forEach(s => ids.add(s.tile_id));
+    staircaseSelections.forEach(s => ids.add(s.tile_id));
+    return Array.from(ids);
+  }, [selections, staircaseSelections]);
+
+  const { data: selectedTiles = [] } = useTilesByIds(selectionTileIds);
+
+  // Background: load the full catalogue so handlers (wall tile assignment,
+  // auto-assign, etc.) can look up ANY tile by ID — not just selected ones.
+  // This does NOT block isLoading; it fills in within ~1s via session cache.
+  const { data: allTiles = [] } = useTiles();
+
+  // Merge: prefer full catalogue when available, fall back to selected-only
+  const tiles = allTiles.length > 0 ? allTiles : selectedTiles;
 
   // ── Local state ────────────────────────────────────────────────────
   const [floorTileSelections, setFloorTileSelections] = useState<FloorTileSelection[]>([]);
@@ -49,6 +69,7 @@ export function useTileSelectionState(
   const [skirtingTileSelections, setSkirtingTileSelections] = useState<Record<string, string>>({}); // { roomId: tileId }
   const [wastagePercentage, setWastagePercentage] = useState<string>("0");
   const [selectedFloorRooms, setSelectedFloorRooms] = useState<Set<string>>(new Set());
+  const [selectedWallRooms, setSelectedWallRooms] = useState<Set<string>>(new Set());
 
   // UI state
   const [showTileCatalog, setShowTileCatalog] = useState(false);
@@ -78,7 +99,9 @@ export function useTileSelectionState(
     return isNaN(parsed) ? 0 : Math.max(0, Math.min(15, parsed));
   };
 
-  const isLoading = tilesLoading || selectionsLoading || staircaseSelectionsLoading;
+  // Don't block the entire page on tile loading — selections + staircases
+  // are the structural data; tiles fill in reactively via the useEffect below.
+  const isLoading = selectionsLoading || staircaseSelectionsLoading;
 
   // ── DB → State sync: Staircase selections ─────────────────────────
   useEffect(() => {
@@ -240,6 +263,8 @@ export function useTileSelectionState(
     // Multi-select
     selectedFloorRooms,
     setSelectedFloorRooms,
+    selectedWallRooms,
+    setSelectedWallRooms,
     
     // Wastage
     wastagePercentage,

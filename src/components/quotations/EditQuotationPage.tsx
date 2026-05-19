@@ -50,6 +50,8 @@ interface TileCalculation {
   leftoverTiles: number;
   boxesNeeded: number;
   totalPrice: number;
+  discountedPricePerBox?: number; // Price/box after discount (Math.round)
+  discountedTotalPrice?: number;  // Total after per-tile discount
   customBoxes?: number; // For manual adjustment
 }
 
@@ -65,6 +67,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   const [notes, setNotes] = useState("");
   const [wastagePercentage, setWastagePercentage] = useState<string>("");
   const [discountPercentage, setDiscountPercentage] = useState<string>("");
+  const [roundOffAmount, setRoundOffAmount] = useState<number>(0);
   const [customBoxAdjustments, setCustomBoxAdjustments] = useState<{ [tileId: string]: number }>({});
 
   useEffect(() => {
@@ -74,6 +77,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
       setNotes(quotation.notes || "");
       setWastagePercentage(quotation.wastage_percentage?.toString() || "");
       setDiscountPercentage(quotation.discount_percentage?.toString() || "");
+      setRoundOffAmount(quotation.round_off_amount || 0);
 
       // Initialize custom box adjustments from stored data
       const storedAdjustments: { [tileId: string]: number } = {};
@@ -219,6 +223,13 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
             // Recalculate total price based on current box count
             calc.totalPrice = calc.boxesNeeded * pricePerBox;
+
+            // Calculate per-tile discounted prices
+            const currentDiscount = parseFloat(discountPercentage) || 0;
+            if (currentDiscount > 0) {
+              calc.discountedPricePerBox = Math.round(pricePerBox * (1 - currentDiscount / 100));
+              calc.discountedTotalPrice = calc.boxesNeeded * calc.discountedPricePerBox;
+            }
           }
         }
       });
@@ -233,8 +244,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   const { calculations } = calculateTileRequirements();
   const mrp = calculations.reduce((sum, calc) => sum + calc.totalPrice, 0);
   const discountPercent = parseFloat(discountPercentage) || 0;
-  const discountAmount = (mrp * discountPercent) / 100;
-  const grandTotal = mrp - discountAmount;
+  // Grand total: sum of per-tile discounted totals (or MRP totals if no discount)
+  const grandTotal = discountPercent > 0
+    ? calculations.reduce((sum, calc) => sum + (calc.discountedTotalPrice ?? calc.totalPrice), 0)
+    : mrp;
+  const discountAmount = mrp - grandTotal;
+  const finalTotal = grandTotal - roundOffAmount;
 
   const adjustBoxes = (tileId: string, delta: number) => {
     setCustomBoxAdjustments(prev => ({
@@ -243,30 +258,18 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
     }));
   };
 
-  // --- NEW FEATURE: Round Off Logic ---
+  // --- Round Off Logic (simple ₹10 step deduction) ---
   const handleRoundOff = () => {
-    if (mrp === 0) return;
+    if (grandTotal <= 0) return;
 
-    // Calculate the target rounded number (floor to nearest 100)
-    let targetTotal = Math.floor(grandTotal / 100) * 100;
+    const currentFinal = grandTotal - roundOffAmount;
+    // Floor to nearest 10
+    const target = Math.floor(currentFinal / 10) * 10;
+    // If already at a 10-boundary, step down another 10
+    const newTarget = (Math.abs(currentFinal - target) < 1) ? target - 10 : target;
+    if (newTarget < 0) return;
 
-    // If the current total is already rounded (or effectively rounded due to float precision),
-    // we assume the user wants to go down another step (e.g., 69000 -> 68900)
-    if (Math.abs(grandTotal - targetTotal) < 1) {
-      targetTotal -= 100;
-    }
-
-    // Ensure we don't drop below zero
-    if (targetTotal < 0) targetTotal = 0;
-
-    // Back-calculate the required discount percentage to hit this exact target
-    // Formula: Target = MRP - (MRP * Discount% / 100)
-    // Derived: Discount% = (1 - Target/MRP) * 100
-    const newDiscountPercentage = ((1 - (targetTotal / mrp)) * 100);
-
-    // Update state. We use toFixed(4) to ensure precision when the UI recalculates it,
-    // so the Grand Total hits the integer mark exactly.
-    setDiscountPercentage(newDiscountPercentage.toFixed(4));
+    setRoundOffAmount(grandTotal - newTarget);
   };
   // ------------------------------------
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -274,6 +277,12 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   };
 
   const handleSave = async () => {
+    // Enforce: workers cannot save discounts
+    const effectiveDiscountPercent = isManager ? discountPercent : 0;
+    const effectiveDiscountAmount = isManager ? discountAmount : 0;
+    const effectiveGrandTotal = isManager ? (mrp - effectiveDiscountAmount) : mrp;
+    const effectiveFinalTotal = effectiveGrandTotal - roundOffAmount;
+
     try {
       await updateQuotation({
         id: quotation.id,
@@ -281,9 +290,10 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
         status,
         notes: notes || undefined,
         wastage_percentage: parseFloat(wastagePercentage) || 0,
-        discount_percentage: discountPercent,
-        discount_amount: discountAmount,
-        total_cost: grandTotal,
+        discount_percentage: effectiveDiscountPercent,
+        discount_amount: effectiveDiscountAmount,
+        round_off_amount: roundOffAmount,
+        total_cost: effectiveFinalTotal,
       });
 
       // Update quotation items with new prices and custom box adjustments
@@ -318,31 +328,42 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onBack}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to List
-          </Button>
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBack}
+              className="gap-2 shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isUpdating}
+              size="sm"
+              className="gap-2 bg-primary hover:bg-primary/90 flex sm:hidden shrink-0"
+            >
+              <Save className="h-4 w-4" />
+              {isUpdating ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
 
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Edit Quotation {quotation.quotation_number}
+            <h1 className="text-lg sm:text-2xl font-bold text-foreground line-clamp-1">
+              Edit {quotation.quotation_number}
             </h1>
-            <p className="text-muted-foreground">Modify quotation details and tile quantities</p>
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">Modify details and quantities</p>
           </div>
         </div>
 
         <Button
           onClick={handleSave}
           disabled={isUpdating}
-          className="gap-2 bg-primary hover:bg-primary/90"
+          className="hidden sm:flex gap-2 bg-primary hover:bg-primary/90 shrink-0"
         >
           <Save className="h-4 w-4" />
           {isUpdating ? 'Saving...' : 'Save Changes'}
@@ -351,51 +372,51 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
       {/* Quotation Header with Edit Fields */}
       <Card className="border-border shadow-sm">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
           <div className="flex items-start justify-between">
-            <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <FileText className="h-6 w-6 text-primary" />
+            <CardTitle className="text-lg sm:text-xl font-semibold text-foreground flex items-center gap-2">
+              <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               Quotation Details
             </CardTitle>
-            <Badge className={`text-sm capitalize ${getStatusColor(status)}`}>
+            <Badge className={`text-xs sm:text-sm capitalize ${getStatusColor(status)}`}>
               {status}
             </Badge>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
+        <CardContent className="space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
             {/* Customer Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
+            <div className="space-y-3">
+              <h3 className="text-sm sm:text-lg font-semibold text-foreground flex items-center gap-2">
+                <User className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Customer Information
               </h3>
-              <div className="space-y-3 pl-7">
+              <div className="space-y-2 sm:space-y-3 pl-6 sm:pl-7 text-sm sm:text-base">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                   <span className="font-medium">{quotation.customer?.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                   <span>{quotation.customer?.mobile}</span>
                 </div>
                 {quotation.customer?.address && (
                   <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
-                    <span className="text-sm">{quotation.customer.address}</span>
+                    <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground mt-1" />
+                    <span className="text-xs sm:text-sm">{quotation.customer.address}</span>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Quotation Information with Edit Fields */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
+            <div className="space-y-3">
+              <h3 className="text-sm sm:text-lg font-semibold text-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Quotation Information
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-3 text-sm sm:text-base">
                 <div>
                   <Label htmlFor="status">Status</Label>
                   {isManager ? (
@@ -433,21 +454,27 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   <p className="text-[10px] text-muted-foreground/70 mt-1">Max: 15%</p>
                 </div>
 
-                <div>
-                  <Label htmlFor="discount">Discount Percentage (%)</Label>
-                  <Input
-                    id="discount"
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    max="100" // UPDATED: Upper bound 100
-                    step="0.01"
-                    placeholder="0"
-                    value={discountPercentage}
-                    onChange={(e) => setDiscountPercentage(e.target.value)}
-                    onFocus={handleInputFocus} // UPDATED: Select all on focus
-                  />
-                </div>
+                {isManager ? (
+                  <div>
+                    <Label htmlFor="discount">Discount Percentage (%)</Label>
+                    <Input
+                      id="discount"
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      placeholder="0"
+                      value={discountPercentage}
+                      onChange={(e) => { setDiscountPercentage(e.target.value); setRoundOffAmount(0); }}
+                      onFocus={handleInputFocus}
+                    />
+                  </div>
+                ) : discountPercent > 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    <span>Discount: {discountPercent}%</span>
+                  </div>
+                ) : null}
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4 text-muted-foreground/70" />
@@ -477,24 +504,24 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
       {/* Tile Calculations with Edit Controls */}
       <Card className="border-border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-primary" />
-            Tile Calculations ({parseFloat(wastagePercentage) || 0}% wastage included)
+        <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+          <CardTitle className="text-sm sm:text-lg font-semibold text-foreground flex items-center gap-2">
+            <Calculator className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            Tile Calculations{parseFloat(wastagePercentage) > 0 ? ` (${parseFloat(wastagePercentage)}% wastage)` : ''}
           </CardTitle>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           {isLoadingItems ? (
             <GridLoader className="min-h-[200px]" loadingText="Loading quotation items..." />
           ) : calculations.length > 0 ? (
             <div className="space-y-4">
               {calculations.map((calc) => (
-                <div key={calc.tile.id} className="border rounded-lg p-4 bg-muted">
-                  <div className="flex items-start justify-between mb-3">
+                <div key={calc.tile.id} className="border rounded-lg p-3 sm:p-4 bg-muted">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2 sm:gap-0">
                     <div>
-                      <h4 className="font-semibold text-foreground">{calc.tile.code}</h4>
-                      <p className="text-sm text-muted-foreground">Code: {calc.tile.code}</p>
+                      <h4 className="font-semibold text-sm sm:text-base text-foreground">{calc.tile.code}</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Code: {calc.tile.code}</p>
                       <div className="text-xs text-muted-foreground space-y-1 mt-1">
                         {/* Rooms Details */}
                         {calc.rooms.length > 0 && (
@@ -604,7 +631,17 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                       <IndianRupee className="h-4 w-4 text-purple-600" />
                       <div>
                         <p className="text-muted-foreground">Total Cost</p>
-                        <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
+                        {discountPercent > 0 && calc.discountedTotalPrice !== undefined ? (
+                          <>
+                            <p className="text-xs text-muted-foreground line-through">₹{calc.totalPrice.toLocaleString()}</p>
+                            <p className="font-bold text-green-600">₹{calc.discountedTotalPrice.toLocaleString()}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              MRP/Box: ₹{calc.tile.price_per_box?.toLocaleString()} → ₹{calc.discountedPricePerBox?.toLocaleString()}/box
+                            </p>
+                          </>
+                        ) : (
+                          <p className="font-bold text-purple-600">₹{calc.totalPrice.toLocaleString()}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -620,33 +657,41 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Discount:</span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const current = parseFloat(discountPercentage) || 0;
-                          setDiscountPercentage(Math.max(0, current - 1).toString());
-                        }}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="text-sm font-medium min-w-[2rem] text-center">
+                    {isManager ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const current = parseFloat(discountPercentage) || 0;
+                            setDiscountPercentage(Math.max(0, current - 1).toString());
+                            setRoundOffAmount(0);
+                          }}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="text-sm font-medium min-w-[2rem] text-center">
+                          {parseFloat(discountPercentage || "0").toFixed(1)}%
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const current = parseFloat(discountPercentage) || 0;
+                            setDiscountPercentage(Math.min(100, current + 1).toString());
+                            setRoundOffAmount(0);
+                          }}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium">
                         {parseFloat(discountPercentage || "0").toFixed(1)}%
                       </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const current = parseFloat(discountPercentage) || 0;
-                          setDiscountPercentage(Math.min(100, current + 1).toString());
-                        }}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    )}
                   </div>
                   <span className="text-sm text-red-600">-₹{discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
@@ -654,24 +699,33 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 <div className="flex justify-between items-center border-t pt-2">
                   <div className="flex items-center gap-3">
                     <span className="text-xl font-bold text-foreground">Grand Total:</span>
-                    {/* NEW ROUND OFF BUTTON */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleRoundOff}
-                      className="h-7 text-xs text-muted-foreground hover:text-primary border-border gap-1"
-                      title="Round down to nearest hundred"
-                    >
-                      <ArrowDown className="h-3 w-3" />
-                      Round Off
-                    </Button>
+                    {/* ROUND OFF BUTTON — Admin only */}
+                    {isManager && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRoundOff}
+                        className="h-7 text-xs text-muted-foreground hover:text-primary border-border gap-1"
+                        title="Round down to nearest ₹10"
+                      >
+                        <ArrowDown className="h-3 w-3" />
+                        Round Off
+                      </Button>
+                    )}
                   </div>
-                  <span className="text-xl font-bold text-green-600">₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                  <div className="text-right">
+                    {roundOffAmount > 0 && (
+                      <span className="text-xs text-muted-foreground block">Round-off: -₹{roundOffAmount.toLocaleString()}</span>
+                    )}
+                    <span className="text-xl font-bold text-green-600">₹{finalTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                  </div>
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                  All calculations include {parseFloat(wastagePercentage) || 0}% wastage allowance
-                </p>
+                {parseFloat(wastagePercentage) > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    All calculations include {parseFloat(wastagePercentage)}% wastage allowance
+                  </p>
+                )}
               </div>
             </div>
           ) : (

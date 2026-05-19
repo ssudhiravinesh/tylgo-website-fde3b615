@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, User, MapPin, FileText } from "lucide-react";
+import { ArrowLeft, Save, User, MapPin, FileText, Loader2, Check, MapPinned } from "lucide-react";
 import { useCreateCustomer, useCustomers, Customer } from "@/hooks/useCustomers";
 import { MobileNumberSearch } from "./MobileNumberSearch";
 import { ReferenceNameSearch } from "./ReferenceNameSearch";
 import { toast } from "sonner";
 import { getAllStates, getCitiesByState, getStateByPincode } from "@/utils/indianStatesAndCities";
+
 
 interface CustomerFormProps {
   onBack: () => void;
@@ -38,13 +39,192 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     reference_mobile_no: ""
   });
 
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const previousAreaRef = useRef(formData.area);
+  // When true, the next area change was programmatic (e.g. pincode lookup filled it in)
+  // so we skip the reverse area→pincode lookup to avoid infinite loops
+  const skipAreaLookupRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const createCustomer = useCreateCustomer();
   const allStates = getAllStates();
-
 
   // Helper function to capitalize words
   const capitalizeWords = (str: string): string => {
     return str.replace(/\b\w/g, char => char.toUpperCase());
+  };
+
+  // ── Area → Pincode/State lookup (debounced) ──
+  useEffect(() => {
+    const currentArea = formData.area.trim();
+    const prevArea = previousAreaRef.current.trim();
+
+    // Case-insensitive comparison so capitalize-on-blur doesn't re-trigger
+    if (currentArea.toLowerCase() === prevArea.toLowerCase()) {
+      previousAreaRef.current = formData.area;
+      return;
+    }
+
+    previousAreaRef.current = formData.area;
+
+    // If this area change came from a pincode lookup or suggestion select, skip
+    if (skipAreaLookupRef.current) {
+      skipAreaLookupRef.current = false;
+      return;
+    }
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Abort any in-flight area lookup
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    if (currentArea.length > 2) {
+      setIsFetchingLocation(true);
+      debounceTimerRef.current = setTimeout(() => {
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        fetch(`https://api.postalpincode.in/postoffice/${currentArea}`, {
+          signal: controller.signal,
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (controller.signal.aborted) return;
+
+            if (data?.[0]?.Status === "Success" && data[0].PostOffice?.length > 0) {
+              const postOffices = data[0].PostOffice.filter((po: any) => po.Pincode && po.State);
+              const searchLower = currentArea.toLowerCase();
+
+              // Priority states — ANUJ's customer base
+              const PRIORITY_STATES = ["Tamil Nadu", "Andhra Pradesh"];
+
+              // Score each post office for smart ranking:
+              // 1. Exact name match + priority state  (highest)
+              // 2. Exact name match + other state
+              // 3. Priority state + starts-with match
+              // 4. Priority state + substring match
+              // 5. Other state + starts-with match
+              // 6. Other state + substring match     (lowest)
+              const scored = postOffices.map((po: any) => {
+                const nameLower = (po.Name || "").toLowerCase();
+                const isPriorityState = PRIORITY_STATES.includes(po.State);
+                const isExact = nameLower === searchLower;
+                const isStartsWith = nameLower.startsWith(searchLower);
+
+                let score = 0;
+                if (isExact) score += 100;
+                else if (isStartsWith) score += 50;
+                if (isPriorityState) score += 25;
+
+                return { ...po, _score: score };
+              });
+
+              // Sort by score descending, then alphabetically by name
+              scored.sort((a: any, b: any) => {
+                if (b._score !== a._score) return b._score - a._score;
+                return (a.Name || "").localeCompare(b.Name || "");
+              });
+
+              // Get unique Pincode/State combinations, preferring higher-scored entries
+              const uniqueSuggestions = scored.reduce((acc: any[], po: any) => {
+                const isDuplicate = acc.some(item => item.Pincode === po.Pincode && item.State === po.State);
+                if (!isDuplicate) {
+                  acc.push(po);
+                }
+                return acc;
+              }, []).slice(0, 5); // Limit to top 5 suggestions
+
+              setLocationSuggestions(uniqueSuggestions);
+              
+              if (uniqueSuggestions.length === 1) {
+                // If there's exactly one match, auto-fill it
+                const match = uniqueSuggestions[0];
+                setFormData(prev => ({
+                  ...prev,
+                  state: match.State,
+                  pincode: match.Pincode,
+                }));
+                setErrors(prev => ({
+                  ...prev,
+                  state: "",
+                  pincode: "",
+                }));
+                setShowSuggestions(false);
+              } else if (uniqueSuggestions.length > 1) {
+                // If multiple matches, show suggestions dropdown
+                setShowSuggestions(true);
+                // Use functional updater to read current pincode (avoids stale closure)
+                setFormData(prev => {
+                  const isValidPincode = uniqueSuggestions.some((po: any) => po.Pincode === prev.pincode);
+                  if (!isValidPincode && prev.pincode) {
+                    return { ...prev, pincode: "", state: "" };
+                  }
+                  return prev;
+                });
+              }
+            } else {
+              setLocationSuggestions([]);
+              setShowSuggestions(false);
+              // Smart clearing: if area changed but no results, clear pincode/state if they were previously set
+              setFormData(prev => {
+                if (prev.pincode) {
+                  return { ...prev, pincode: "", state: "" };
+                }
+                return prev;
+              });
+            }
+          })
+          .catch((err) => {
+            if (err.name === "AbortError") return;
+            setLocationSuggestions([]);
+            setShowSuggestions(false);
+          })
+          .finally(() => {
+            if (!controller.signal.aborted) {
+              setIsFetchingLocation(false);
+            }
+          });
+      }, 500); // 500ms debounce (slightly longer to reduce API spam)
+    } else {
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+      setIsFetchingLocation(false);
+    }
+    
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [formData.area]);
+
+  const handleSuggestionSelect = (suggestion: any) => {
+    // Mark next area change as programmatic so we don't re-trigger area lookup
+    skipAreaLookupRef.current = true;
+    const newArea = capitalizeWords(suggestion.Name);
+    previousAreaRef.current = newArea;
+    setFormData(prev => ({
+      ...prev,
+      area: newArea,
+      state: suggestion.State,
+      pincode: suggestion.Pincode,
+    }));
+    setErrors(prev => ({
+      ...prev,
+      area: "",
+      state: "",
+      pincode: "",
+    }));
+    setShowSuggestions(false);
+    setLocationSuggestions([]);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -56,6 +236,15 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
     }));
 
     if (field === "pincode" && value.length === 6) {
+      // Abort any in-flight area lookup — pincode takes priority
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      setIsFetchingLocation(false);
+
       // Instant state detection from local pincode ranges
       const detectedState = getStateByPincode(value);
       if (detectedState) {
@@ -92,6 +281,12 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
             const areaName = (mainPostOffice.Name || "").toUpperCase();
             const apiState = mainPostOffice.State || "";
 
+            // Mark next area change as programmatic to prevent reverse lookup
+            if (areaName) {
+              skipAreaLookupRef.current = true;
+              previousAreaRef.current = areaName;
+            }
+
             setFormData(prev => ({
               ...prev,
               area: areaName || prev.area,
@@ -99,8 +294,8 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
             }));
             setErrors(prev => ({
               ...prev,
-              area: areaName ? "" : prev.area,
-              state: apiState ? "" : prev.state,
+              area: "",
+              state: "",
             }));
           }
         })
@@ -116,6 +311,12 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
 
   const handleInputBlur = (field: string) => {
     if (["name", "reference_name", "area"].includes(field)) {
+      // Sync previousAreaRef BEFORE setting capitalized value
+      // so the useEffect sees no meaningful change
+      if (field === "area") {
+        const capitalized = capitalizeWords(formData[field]);
+        previousAreaRef.current = capitalized;
+      }
       setFormData(prev => ({
         ...prev,
         [field]: capitalizeWords(prev[field as keyof typeof prev]),
@@ -251,7 +452,6 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-lg">
-              <User className="h-5 w-5 text-primary" />
               Customer Information
             </div>
             <Select
@@ -279,7 +479,6 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
             <div className="space-y-2">
               <Label htmlFor="name">Full Name *</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
                 <Input
                   id="name"
                   type="text"
@@ -287,7 +486,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   onBlur={() => handleInputBlur("name")}
-                  className={`pl-10 h-12 border-border ${
+                  className={`h-12 border-border ${
                     errors.name ? "border-red-500" : ""
                   }`}
                 />
@@ -314,18 +513,65 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
               <div className="space-y-2">
                 <Label htmlFor="area">Residing Area *</Label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
+                  <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground/70 z-10" />
                   <Input
                     id="area"
                     type="text"
+                    autoComplete="off"
                     placeholder="e.g., Andheri, Koramangala, CP"
                     value={formData.area}
                     onChange={(e) => handleInputChange("area", e.target.value)}
-                    onBlur={() => handleInputBlur("area")}
-                    className={`pl-10 h-12 border-border ${
+                    onBlur={() => {
+                      // Delay hiding so click on suggestion registers first
+                      setTimeout(() => setShowSuggestions(false), 200);
+                      handleInputBlur("area");
+                    }}
+                    onFocus={() => {
+                      if (locationSuggestions.length > 1) setShowSuggestions(true);
+                    }}
+                    className={`pl-10 pr-10 h-12 border-border w-full ${
                       errors.area ? "border-red-500" : ""
                     }`}
                   />
+                  {isFetchingLocation && (
+                    <div className="absolute right-3 top-3.5 z-10">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+
+                  {/* Live suggestion dropdown */}
+                  {showSuggestions && locationSuggestions.length > 1 && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden">
+                      <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground border-b border-border">
+                        Select exact location
+                      </p>
+                      {locationSuggestions.map((suggestion, idx) => {
+                        const isSelected = formData.pincode === suggestion.Pincode && formData.state === suggestion.State;
+                        return (
+                          <button
+                            key={`${suggestion.Pincode}-${idx}`}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSuggestionSelect(suggestion)}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent transition-colors ${
+                              isSelected ? "bg-accent/50" : ""
+                            }`}
+                          >
+                            <MapPinned className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-medium truncate">{suggestion.Name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {suggestion.State} • {suggestion.Pincode}
+                              </span>
+                            </div>
+                            {isSelected && (
+                              <Check className="ml-auto h-4 w-4 text-primary shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 {errors.area && <p className="text-sm text-red-600">{errors.area}</p>}
               </div>
@@ -356,6 +602,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
                   <Input
                     id="pincode"
                     type="text"
+                    inputMode="numeric"
                     maxLength={6}
                     placeholder="400001"
                     value={formData.pincode}
@@ -387,6 +634,7 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
             <Input
               id="reference_mobile_no"
               type="text"
+              inputMode="numeric"
               placeholder="9876543210"
               value={formData.reference_mobile_no}
               onChange={(e) => handleInputChange("reference_mobile_no", e.target.value.replace(/\D/g, ""))}
@@ -401,26 +649,26 @@ export const CustomerForm = ({ onBack, onNewQuote }: CustomerFormProps) => {
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onBack} className="flex-1">Cancel</Button>
+            <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={onBack} className="flex-1 min-w-[80px]">Cancel</Button>
               <Button
                 type="button"
                 onClick={handleSubmit}
                 disabled={createCustomer.isPending}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white gap-2"
+                className="flex-1 min-w-[80px] bg-gray-600 hover:bg-gray-700 text-white gap-2"
               >
                 <Save className="h-4 w-4" />
-                {createCustomer.isPending ? "Saving..." : "Save Customer"}
+                {createCustomer.isPending ? "Saving..." : "Save"}
               </Button>
               {onNewQuote && (
                 <Button
                   type="button"
                   onClick={handleSaveAndQuote}
                   disabled={createCustomer.isPending}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-white gap-2"
+                  className="flex-1 min-w-[80px] bg-primary hover:bg-primary/90 text-white gap-2"
                 >
                   <FileText className="h-4 w-4" />
-                  {createCustomer.isPending ? "Saving..." : "New Quote"}
+                  {createCustomer.isPending ? "Saving..." : "Quote"}
                 </Button>
               )}
             </div>

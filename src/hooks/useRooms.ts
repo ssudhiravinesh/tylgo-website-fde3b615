@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getShowroomId } from './useShowroom';
+import { getSessionInfo } from '@/utils/sessionCache';
 import type { CanvasCell, CanvasEdge } from '@/types/canvas.types';
 
 export interface MeasurementSet {
@@ -84,21 +85,8 @@ export interface RoomTileSelection {
 const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
   if (!customerId) return [];
 
-  // Get showroom_id to ensure we only fetch rooms for the current showroom
-  const showroom_id = await getShowroomId();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  let isSuperAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (profile?.role === 'super_admin') {
-      isSuperAdmin = true;
-    }
-  }
+  // Single cached call replaces 4 separate Supabase requests
+  const { showroomId, isSuperAdmin } = await getSessionInfo();
 
   let query = supabase
     .from('rooms')
@@ -106,8 +94,8 @@ const fetchRoomsByCustomer = async (customerId: string): Promise<Room[]> => {
     .eq('customer_id', customerId)
     .order('name');
 
-  if (showroom_id && !isSuperAdmin) {
-    query = query.eq('showroom_id', showroom_id);
+  if (showroomId && !isSuperAdmin) {
+    query = query.eq('showroom_id', showroomId);
   }
 
   const { data, error } = await query;
@@ -218,29 +206,16 @@ const deleteRoom = async (roomId: string): Promise<void> => {
 const fetchRoomTileSelections = async (customerId: string): Promise<RoomTileSelection[]> => {
   if (!customerId) return [];
 
-  // Get showroom_id
-  const showroom_id = await getShowroomId();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  let isSuperAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (profile?.role === 'super_admin') {
-      isSuperAdmin = true;
-    }
-  }
+  // Single cached call replaces 4 separate Supabase requests
+  const { showroomId, isSuperAdmin } = await getSessionInfo();
 
   let query = supabase
     .from('room_tile_selections')
     .select('*')
     .eq('customer_id', customerId);
 
-  if (showroom_id && !isSuperAdmin) {
-    query = query.eq('showroom_id', showroom_id);
+  if (showroomId && !isSuperAdmin) {
+    query = query.eq('showroom_id', showroomId);
   }
 
   const { data, error } = await query;
@@ -339,6 +314,7 @@ export const useRoomsByCustomer = (customerId: string) => {
     queryKey: ['rooms', customerId],
     queryFn: () => fetchRoomsByCustomer(customerId),
     enabled: !!customerId,
+    staleTime: 1000 * 60 * 2, // 2 min — rooms don't change often
   });
 };
 
@@ -382,6 +358,7 @@ export const useRoomTileSelections = (customerId: string) => {
     queryKey: ['room-tile-selections', customerId],
     queryFn: () => fetchRoomTileSelections(customerId),
     enabled: !!customerId,
+    staleTime: 1000 * 60 * 2, // 2 min
   });
 };
 

@@ -41,7 +41,6 @@ export const CustomerSearchBar = ({ value, onValueChange, placeholder = "Search 
         >
           {selectedCustomer ? (
             <div className="flex items-center gap-2 text-left">
-              <User className="h-4 w-4 text-primary" />
               <span className="font-medium">{selectedCustomer.name}</span>
               <span className="text-muted-foreground">- {selectedCustomer.mobile}</span>
             </div>
@@ -78,7 +77,6 @@ export const CustomerSearchBar = ({ value, onValueChange, placeholder = "Search 
                   />
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-primary" />
                       <span className="font-medium">{customer.name}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">

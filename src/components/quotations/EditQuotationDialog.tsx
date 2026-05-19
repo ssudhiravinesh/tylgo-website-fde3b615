@@ -47,8 +47,13 @@ const handleSubmit = async (e: React.FormEvent) => {
   
   if (!quotation) return;
 
-  // Calculate totals within the function scope
-  const { mrp, finalTotal } = calculateTotals();
+  // Calculate totals within the function scope (uses per-tile Math.round discount)
+  const { mrp, discountAmount: computedDiscountAmount, finalTotal } = calculateTotals();
+
+  // Enforce: workers cannot save discounts
+  const effectiveDiscount = isManager ? discountPercentage : 0;
+  const effectiveDiscountAmount = isManager ? computedDiscountAmount : 0;
+  const effectiveFinalTotal = isManager ? finalTotal : mrp;
 
   try {
     await updateQuotation({
@@ -57,9 +62,9 @@ const handleSubmit = async (e: React.FormEvent) => {
       status,
       notes: notes || undefined,
       wastage_percentage: wastagePercentage,
-      discount_percentage: discountPercentage,
-      discount_amount: (mrp * discountPercentage) / 100,
-      total_cost: finalTotal,
+      discount_percentage: effectiveDiscount,
+      discount_amount: effectiveDiscountAmount,
+      total_cost: effectiveFinalTotal,
     });
     
     if (onSuccess) {
@@ -90,13 +95,14 @@ const calculateTotals = () => {
   
   let totalBoxes = 0;
   let mrp = 0;
+  let discountedTotal = 0;
   
   // Group by tile to calculate proper totals
-  const tileCalculations: { [tileId: string]: { boxes: number; total: number } } = {};
+  const tileCalculations: { [tileId: string]: { boxes: number; total: number; discountedTotal: number } } = {};
   
   quotation.quotation_items.forEach(item => {
     if (!tileCalculations[item.tile_id]) {
-      tileCalculations[item.tile_id] = { boxes: 0, total: 0 };
+      tileCalculations[item.tile_id] = { boxes: 0, total: 0, discountedTotal: 0 };
     }
     
     // Calculate based on actual stored values
@@ -112,10 +118,18 @@ const calculateTotals = () => {
         const basicTilesNeeded = Math.ceil(area / tileAreaSqFt);
         const tilesWithWastage = Math.ceil(basicTilesNeeded * (1 + (wastagePercentage / 100)));
         const boxes = Math.ceil(tilesWithWastage / tile.pieces_per_box);
-        const total = boxes * parseFloat(tile.price_per_box.toString());
+        const pricePerBox = parseFloat(tile.price_per_box.toString());
+        const total = boxes * pricePerBox;
+        
+        // Per-tile discount with Math.round()
+        const discountedPricePerBox = discountPercentage > 0
+          ? Math.round(pricePerBox * (1 - discountPercentage / 100))
+          : pricePerBox;
+        const tileDiscountedTotal = boxes * discountedPricePerBox;
         
         tileCalculations[item.tile_id].boxes += boxes;
         tileCalculations[item.tile_id].total += total;
+        tileCalculations[item.tile_id].discountedTotal += tileDiscountedTotal;
       }
     }
   });
@@ -123,11 +137,12 @@ const calculateTotals = () => {
   Object.values(tileCalculations).forEach(calc => {
     totalBoxes += calc.boxes;
     mrp += calc.total;
+    discountedTotal += calc.discountedTotal;
   });
   
-  // Calculate discount
-  const discountAmount = (mrp * discountPercentage) / 100;
-  const finalTotal = mrp - discountAmount;
+  // Calculate discount from per-tile Math.round() differences
+  const finalTotal = discountPercentage > 0 ? discountedTotal : mrp;
+  const discountAmount = mrp - finalTotal;
   
   return { totalBoxes, mrp, discountAmount, finalTotal };
 };
@@ -198,22 +213,29 @@ const { totalBoxes, mrp, discountAmount, finalTotal } = calculateTotals();
                     onChange={(e) => setWastagePercentage(parseFloat(e.target.value) || 0)}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="discount" className="flex items-center gap-2">
-                    <Percent className="h-4 w-4" />
-                    Discount Percentage (%)
-                  </Label>
-                  <Input
-                    id="discount"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={discountPercentage}
-                    onChange={(e) => setDiscountPercentage(parseFloat(e.target.value) || 0)}
-                    placeholder="Enter discount percentage"
-                  />
-                </div>
+                {isManager ? (
+                  <div>
+                    <Label htmlFor="discount" className="flex items-center gap-2">
+                      <Percent className="h-4 w-4" />
+                      Discount Percentage (%)
+                    </Label>
+                    <Input
+                      id="discount"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={discountPercentage}
+                      onChange={(e) => setDiscountPercentage(parseFloat(e.target.value) || 0)}
+                      placeholder="Enter discount percentage"
+                    />
+                  </div>
+                ) : discountPercentage > 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    <Percent className="h-4 w-4 inline mr-1" />
+                    Discount: {discountPercentage}%
+                  </div>
+                ) : null}
                 <div>
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
