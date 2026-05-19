@@ -483,7 +483,7 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
 
                 <div className="flex items-center gap-2 text-lg font-bold text-green-600">
                   <IndianRupee className="h-5 w-5" />
-                  <span>Total: ₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                  <span>Total: ₹{finalTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
               </div>
             </div>
