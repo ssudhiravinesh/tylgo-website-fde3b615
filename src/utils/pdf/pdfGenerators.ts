@@ -228,7 +228,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           ${chromeFixCSS}   
           @media print {
             @page { 
-              margin: 0.5in; 
+              margin: 0.4in 0.5in; 
               size: A4;
             }
             body { 
@@ -266,7 +266,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           .header {
             background: #161B26;
             color: white;
-            padding: 20px 28px;
+            padding: 18px 28px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -315,8 +315,8 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
             justify-content: space-between;
             font-size: 10px;
             color: #78716c;
-            margin-bottom: 15px;
-            padding: 12px 28px;
+            margin-bottom: 12px;
+            padding: 10px 28px;
             background: #faf8f5;
             border-bottom: 1px solid #e8e2db;
           }
@@ -324,15 +324,15 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           .details-section {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 20px;
+            gap: 24px;
+            margin-bottom: 16px;
             padding: 0 28px;
           }
           
           .details-box h3 {
             color: #161B26;
             font-size: 11px;
-            margin: 0 0 10px 0;
+            margin: 0 0 8px 0;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.10em;
@@ -342,7 +342,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           }
           
           .details-box p {
-            margin: 4px 0;
+            margin: 3px 0;
             font-size: 12px;
             color: #44403c;
           }
@@ -355,14 +355,14 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           }
           
           .table-container {
-            margin-top: 20px;
+            margin-top: 14px;
             padding: 0 28px;
           }
           
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             font-size: 11px;
           }
           
@@ -370,7 +370,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
             background: #161B26;
             color: rgba(255,255,255,0.9);
             border: none;
-            padding: 9px 6px;
+            padding: 8px 6px;
             text-align: center;
             font-weight: 600;
             font-size: 9px;
@@ -383,7 +383,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           
           td {
             border-bottom: 1px solid #e8e2db;
-            padding: 8px 6px;
+            padding: 6px 6px;
             text-align: center;
             vertical-align: top;
           }
@@ -463,9 +463,9 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           }
           
           .summary-section {
-            margin-top: 15px;
+            margin-top: 12px;
             text-align: right;
-            padding: 0 28px 20px;
+            padding: 0 28px 16px;
           }
           
           .summary-line {
@@ -490,7 +490,9 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
             color: #78716c;
             text-align: center;
             background: #161B26;
-            padding: 16px 28px;
+            padding: 14px 28px;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           
           .footer-notes p {
@@ -623,7 +625,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           }).join('<br><br>');
 
           if (calc.totalArea > 0) {
-            breakdownHTML += `<br><br><span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block;">Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong></span>`;
+            breakdownHTML += `<br><br><span style="border-top: 1px dashed #ccc; padding-top: 4px; display: block; white-space: nowrap;">Total Area: <strong>${calc.totalArea.toFixed(2)} sq ft</strong></span>`;
           }
         }
 
@@ -768,9 +770,7 @@ export const generateQuotationHTML = async (quotation: Quotation) => {
           
           <div class="footer-notes">
             <p class="footer-brand">Thank you for choosing TYLGO</p>
-            <p>This quotation is valid for 30 days from the date of issue.</p>
-            ${wastage_percentage > 0 ? `<p>All tile quantities include a ${wastage_percentage}% wastage allowance.</p>` : ''}
-            <p>Calculations based on sq ft · tylgo.store</p>
+            <p>Valid for 30 days${wastage_percentage > 0 ? ` · Includes ${wastage_percentage}% wastage` : ''} · tylgo.store</p>
           </div>
         </div>
         
