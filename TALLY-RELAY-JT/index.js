@@ -819,11 +819,13 @@ async function processStockPullRequests() {
     // Create a lookup: tally_stock_item_name → tile_id
     const nameToTileId = new Map();
     for (const m of mappings) {
-      nameToTileId.set(m.tally_stock_item_name.toUpperCase(), m.tile_id);
+      if (m.tally_stock_item_name) {
+        nameToTileId.set(m.tally_stock_item_name.trim().toUpperCase(), m.tile_id);
+      }
     }
 
     // Step 3: Fetch current stock quantities for mapped tiles
-    const mappedTileIds = [...new Set(mappings.map(m => m.tile_id))];
+    const mappedTileIds = [...new Set(mappings.map(m => m.tile_id).filter(Boolean))];
     console.log(`  🔍 Mapped tile IDs count: ${mappedTileIds.length}`);
 
     const { data: currentTiles, error: tilesError } = await supabase
@@ -850,11 +852,10 @@ async function processStockPullRequests() {
     const now = new Date().toISOString();
 
     for (const balance of stockBalances) {
-      const upperName = balance.stockItemName.toUpperCase();
+      const upperName = balance.stockItemName.trim().toUpperCase();
       const tileId = nameToTileId.get(upperName);
       if (!tileId) {
-        // Log unmapped items for debugging
-        // console.log(`  ℹ️ No mapping for Tally item: "${balance.stockItemName}"`);
+        console.log(`  ℹ️ No mapping for Tally item: "${balance.stockItemName}"`);
         continue; 
       }
 
