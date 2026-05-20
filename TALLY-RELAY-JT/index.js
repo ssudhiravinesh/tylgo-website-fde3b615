@@ -830,7 +830,7 @@ async function processStockPullRequests() {
 
     const { data: currentTiles, error: tilesError } = await supabase
       .from('tiles')
-      .select('id, code, stock_quantity')
+      .select('id, code, stock_quantity, last_stock_sync')
       .in('id', mappedTileIds);
 
     if (tilesError) {
@@ -841,9 +841,11 @@ async function processStockPullRequests() {
 
     const currentStockMap = new Map();
     const tileCodeMap = new Map();
+    const lastStockSyncMap = new Map();
     for (const t of currentTiles) {
       currentStockMap.set(t.id, parseFloat(t.stock_quantity) || 0);
       tileCodeMap.set(t.id, t.code);
+      lastStockSyncMap.set(t.id, t.last_stock_sync);
     }
 
     // Step 4: Compare and update only changed tiles
@@ -861,8 +863,9 @@ async function processStockPullRequests() {
 
       const currentQty = currentStockMap.get(tileId) ?? 0;
       const newQty = balance.closingBalance;
+      const lastSync = lastStockSyncMap.get(tileId);
 
-      if (currentQty === newQty) {
+      if (currentQty === newQty && lastSync) {
         skippedCount++;
         continue;
       }
