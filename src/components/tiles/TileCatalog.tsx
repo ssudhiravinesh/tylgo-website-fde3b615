@@ -30,6 +30,7 @@ import { Html5QRScanner } from "@/components/qr/Html5QRScanner";
 import { toast } from "sonner";
 import type { Tile } from "@/hooks/useTiles";
 import { GridLoader } from "@/components/ui/GridLoader";
+import { TallyStockSyncButton } from "./TallyStockSyncButton";
 
 // Add to TileCatalogProps interface
 interface TileCatalogProps {
@@ -427,7 +428,9 @@ export const TileCatalog = ({
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <TallyStockSyncButton />
+
           <Badge variant="outline" className="hidden lg:inline-flex">
             {catalogView === 'categories'
               ? `${catTotalCount} tiles in ${categoryStats.length} categories`

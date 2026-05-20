@@ -50,10 +50,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   // Calculate totals within the function scope (uses per-tile Math.round discount)
   const { mrp, discountAmount: computedDiscountAmount, finalTotal } = calculateTotals();
 
-  // Enforce: workers cannot save discounts
-  const effectiveDiscount = isManager ? discountPercentage : 0;
-  const effectiveDiscountAmount = isManager ? computedDiscountAmount : 0;
-  const effectiveFinalTotal = isManager ? finalTotal : mrp;
+  const effectiveDiscount = discountPercentage;
+  const effectiveDiscountAmount = computedDiscountAmount;
+  const effectiveFinalTotal = finalTotal;
 
   try {
     await updateQuotation({
@@ -213,29 +212,22 @@ const { totalBoxes, mrp, discountAmount, finalTotal } = calculateTotals();
                     onChange={(e) => setWastagePercentage(parseFloat(e.target.value) || 0)}
                   />
                 </div>
-                {isManager ? (
-                  <div>
-                    <Label htmlFor="discount" className="flex items-center gap-2">
-                      <Percent className="h-4 w-4" />
-                      Discount Percentage (%)
-                    </Label>
-                    <Input
-                      id="discount"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      value={discountPercentage}
-                      onChange={(e) => setDiscountPercentage(parseFloat(e.target.value) || 0)}
-                      placeholder="Enter discount percentage"
-                    />
-                  </div>
-                ) : discountPercentage > 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    <Percent className="h-4 w-4 inline mr-1" />
-                    Discount: {discountPercentage}%
-                  </div>
-                ) : null}
+                <div>
+                  <Label htmlFor="discount" className="flex items-center gap-2">
+                    <Percent className="h-4 w-4" />
+                    Discount Percentage (%)
+                  </Label>
+                  <Input
+                    id="discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={discountPercentage}
+                    onChange={(e) => setDiscountPercentage(parseFloat(e.target.value) || 0)}
+                    placeholder="Enter discount percentage"
+                  />
+                </div>
                 <div>
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea

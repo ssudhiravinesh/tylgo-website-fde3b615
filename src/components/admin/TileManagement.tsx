@@ -19,6 +19,7 @@ import { useCreateTile, useUpdateTile, useDeleteTile, useGenerateQRForTile } fro
 import { useExcelExport } from "@/hooks/useExcelExport";
 import { useUnifiedPDFGeneration } from '@/hooks/useUnifiedPDFGeneration';
 import { DownloadCatalogueDialog } from "@/components/tiles/DownloadCatalogueDialog";
+import { TallyStockSyncButton } from "@/components/tiles/TallyStockSyncButton";
 
 
 interface TileManagementProps {
@@ -312,6 +313,8 @@ export const TileManagement = ({ onBack, brandId, showroomId }: TileManagementPr
             onDownloadExcel={handleDownloadTilesExcel}
             isGenerating={isPDFGenerating}
           />
+
+          <TallyStockSyncButton />
 
           <Button className="bg-primary hover:bg-primary/90 text-white gap-2" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4" />

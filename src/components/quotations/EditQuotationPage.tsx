@@ -277,10 +277,9 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
   };
 
   const handleSave = async () => {
-    // Enforce: workers cannot save discounts
-    const effectiveDiscountPercent = isManager ? discountPercent : 0;
-    const effectiveDiscountAmount = isManager ? discountAmount : 0;
-    const effectiveGrandTotal = isManager ? (mrp - effectiveDiscountAmount) : mrp;
+    const effectiveDiscountPercent = discountPercent;
+    const effectiveDiscountAmount = discountAmount;
+    const effectiveGrandTotal = mrp - effectiveDiscountAmount;
     const effectiveFinalTotal = effectiveGrandTotal - roundOffAmount;
 
     try {
@@ -454,27 +453,21 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                   <p className="text-[10px] text-muted-foreground/70 mt-1">Max: 15%</p>
                 </div>
 
-                {isManager ? (
-                  <div>
-                    <Label htmlFor="discount">Discount Percentage (%)</Label>
-                    <Input
-                      id="discount"
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      placeholder="0"
-                      value={discountPercentage}
-                      onChange={(e) => { setDiscountPercentage(e.target.value); setRoundOffAmount(0); }}
-                      onFocus={handleInputFocus}
-                    />
-                  </div>
-                ) : discountPercent > 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    <span>Discount: {discountPercent}%</span>
-                  </div>
-                ) : null}
+                <div>
+                  <Label htmlFor="discount">Discount Percentage (%)</Label>
+                  <Input
+                    id="discount"
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    placeholder="0"
+                    value={discountPercentage}
+                    onChange={(e) => { setDiscountPercentage(e.target.value); setRoundOffAmount(0); }}
+                    onFocus={handleInputFocus}
+                  />
+                </div>
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4 text-muted-foreground/70" />
@@ -657,41 +650,35 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Discount:</span>
-                    {isManager ? (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const current = parseFloat(discountPercentage) || 0;
-                            setDiscountPercentage(Math.max(0, current - 1).toString());
-                            setRoundOffAmount(0);
-                          }}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="text-sm font-medium min-w-[2rem] text-center">
-                          {parseFloat(discountPercentage || "0").toFixed(1)}%
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const current = parseFloat(discountPercentage) || 0;
-                            setDiscountPercentage(Math.min(100, current + 1).toString());
-                            setRoundOffAmount(0);
-                          }}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-sm font-medium">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const current = parseFloat(discountPercentage) || 0;
+                          setDiscountPercentage(Math.max(0, current - 1).toString());
+                          setRoundOffAmount(0);
+                        }}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-sm font-medium min-w-[2rem] text-center">
                         {parseFloat(discountPercentage || "0").toFixed(1)}%
                       </span>
-                    )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const current = parseFloat(discountPercentage) || 0;
+                          setDiscountPercentage(Math.min(100, current + 1).toString());
+                          setRoundOffAmount(0);
+                        }}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                   <span className="text-sm text-red-600">-₹{discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
@@ -699,19 +686,16 @@ export const EditQuotationPage = ({ quotation, onBack, onSuccess }: EditQuotatio
                 <div className="flex justify-between items-center border-t pt-2">
                   <div className="flex items-center gap-3">
                     <span className="text-xl font-bold text-foreground">Grand Total:</span>
-                    {/* ROUND OFF BUTTON — Admin only */}
-                    {isManager && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRoundOff}
-                        className="h-7 text-xs text-muted-foreground hover:text-primary border-border gap-1"
-                        title="Round down to nearest ₹10"
-                      >
-                        <ArrowDown className="h-3 w-3" />
-                        Round Off
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRoundOff}
+                      className="h-7 text-xs text-muted-foreground hover:text-primary border-border gap-1"
+                      title="Round down to nearest ₹10"
+                    >
+                      <ArrowDown className="h-3 w-3" />
+                      Round Off
+                    </Button>
                   </div>
                   <div className="text-right">
                     {roundOffAmount > 0 && (

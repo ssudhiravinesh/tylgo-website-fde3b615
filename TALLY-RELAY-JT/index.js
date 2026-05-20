@@ -695,6 +695,201 @@ async function logSync(syncType, status, recordsProcessed, errorMessage, request
   }
 }
 
+// ── Stock Balance Sync (Tally → Supabase) ─────────────────────────────────────
+
+/**
+ * Build XML to export stock item closing balances from Tally.
+ * Uses TDL COLLECTION to fetch NAME and CLOSINGBALANCE for all stock items.
+ */
+function buildStockBalanceExportXml() {
+  return `<ENVELOPE>
+  <HEADER>
+    <VERSION>1</VERSION>
+    <TALLYREQUEST>EXPORT</TALLYREQUEST>
+    <TYPE>COLLECTION</TYPE>
+    <ID>Stock Item Balance</ID>
+  </HEADER>
+  <BODY>
+    <DESC>
+      <STATICVARIABLES>
+        <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+      </STATICVARIABLES>
+      <TDL>
+        <TDLMESSAGE>
+          <COLLECTION NAME="Stock Item Balance" ISMODIFY="No">
+            <TYPE>StockItem</TYPE>
+            <FETCH>NAME, CLOSINGBALANCE</FETCH>
+          </COLLECTION>
+        </TDLMESSAGE>
+      </TDL>
+    </DESC>
+  </BODY>
+</ENVELOPE>`;
+}
+
+/**
+ * Parse Tally's stock balance export response.
+ * Extracts { stockItemName, closingBalance } from each STOCKITEM block.
+ */
+function parseStockBalanceResponse(xml) {
+  const results = [];
+  const stockItemRegex = /<STOCKITEM[^>]*NAME="([^"]*)"[^>]*>([\s\S]*?)<\/STOCKITEM>/gi;
+  let match;
+
+  while ((match = stockItemRegex.exec(xml)) !== null) {
+    const name = match[1];
+    const block = match[2];
+
+    const balanceMatch = block.match(/<CLOSINGBALANCE>([\s\S]*?)<\/CLOSINGBALANCE>/i);
+    let closingBalance = 0;
+
+    if (balanceMatch) {
+      // Tally may return values like "150.00 Nos" or "150.00 Box" — extract the number
+      const numericPart = balanceMatch[1].trim().replace(/[^0-9.\-]/g, '');
+      const parsed = parseFloat(numericPart);
+      if (!isNaN(parsed)) {
+        closingBalance = parsed;
+      }
+    }
+
+    results.push({ stockItemName: name, closingBalance });
+  }
+
+  return results;
+}
+
+/**
+ * Process pending stock_pull requests from tally_sync_log.
+ * 1. Fetch pending stock_pull entries
+ * 2. Query Tally for all stock item closing balances
+ * 3. Look up tally_stock_mappings to match stock items → tiles
+ * 4. Only update tiles where the stock quantity has actually changed
+ * 5. Update sync log status
+ */
+async function processStockPullRequests() {
+  const { data: pendingRequests, error } = await supabase
+    .from('tally_sync_log')
+    .select('id, brand_id')
+    .eq('sync_type', 'stock_pull')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (error) {
+    console.error('❌ Error fetching stock_pull requests:', error.message);
+    return;
+  }
+
+  if (!pendingRequests || pendingRequests.length === 0) {
+    return;
+  }
+
+  const request = pendingRequests[0];
+  console.log(`\n📊 Processing stock_pull request: ${request.id}`);
+
+  try {
+    // Step 1: Fetch closing balances from Tally
+    console.log('  🔄 Fetching stock balances from Tally...');
+    const xml = buildStockBalanceExportXml();
+    const response = await sendToTally(xml);
+    const stockBalances = parseStockBalanceResponse(response);
+    console.log(`  📦 Received ${stockBalances.length} stock items from Tally`);
+
+    if (stockBalances.length === 0) {
+      await supabase.from('tally_sync_log').update({
+        status: 'failure',
+        error_message: 'Tally returned 0 stock items — check if the company is loaded',
+        raw_response_payload: response.substring(0, 5000),
+      }).eq('id', request.id);
+      console.error('  ❌ No stock items returned from Tally');
+      return;
+    }
+
+    // Step 2: Fetch all stock mappings from Supabase
+    const { data: mappings, error: mappingError } = await supabase
+      .from('tally_stock_mappings')
+      .select('tile_id, tally_stock_item_name');
+
+    if (mappingError) {
+      throw new Error(`Failed to fetch stock mappings: ${mappingError.message}`);
+    }
+
+    // Create a lookup: tally_stock_item_name → tile_id
+    const nameToTileId = new Map();
+    for (const m of mappings) {
+      nameToTileId.set(m.tally_stock_item_name.toUpperCase(), m.tile_id);
+    }
+
+    // Step 3: Fetch current stock quantities for mapped tiles
+    const mappedTileIds = [...new Set(mappings.map(m => m.tile_id))];
+    const { data: currentTiles, error: tilesError } = await supabase
+      .from('tiles')
+      .select('id, code, stock_quantity')
+      .in('id', mappedTileIds);
+
+    if (tilesError) {
+      throw new Error(`Failed to fetch current tile data: ${tilesError.message}`);
+    }
+
+    const currentStockMap = new Map();
+    const tileCodeMap = new Map();
+    for (const t of currentTiles) {
+      currentStockMap.set(t.id, parseFloat(t.stock_quantity) || 0);
+      tileCodeMap.set(t.id, t.code);
+    }
+
+    // Step 4: Compare and update only changed tiles
+    let updatedCount = 0;
+    let skippedCount = 0;
+    const now = new Date().toISOString();
+
+    for (const balance of stockBalances) {
+      const tileId = nameToTileId.get(balance.stockItemName.toUpperCase());
+      if (!tileId) continue; // No mapping for this Tally item
+
+      const currentQty = currentStockMap.get(tileId) ?? 0;
+      const newQty = balance.closingBalance;
+
+      if (currentQty === newQty) {
+        skippedCount++;
+        continue;
+      }
+
+      const tileCode = tileCodeMap.get(tileId) || 'unknown';
+      console.log(`  📝 ${tileCode}: ${currentQty} → ${newQty}`);
+
+      const { error: updateError } = await supabase
+        .from('tiles')
+        .update({ stock_quantity: newQty, last_stock_sync: now })
+        .eq('id', tileId);
+
+      if (updateError) {
+        console.error(`  ⚠️  Failed to update ${tileCode}: ${updateError.message}`);
+      } else {
+        updatedCount++;
+      }
+    }
+
+    // Step 5: Update sync log
+    await supabase.from('tally_sync_log').update({
+      status: 'success',
+      records_processed: updatedCount,
+      raw_request_payload: xml.substring(0, 5000),
+      raw_response_payload: response.substring(0, 5000),
+    }).eq('id', request.id);
+
+    console.log(`  ✅ Stock sync complete: ${updatedCount} updated, ${skippedCount} unchanged`);
+
+  } catch (err) {
+    const errorMsg = `Stock sync error: ${err.message}`;
+    await supabase.from('tally_sync_log').update({
+      status: 'failure',
+      error_message: errorMsg,
+    }).eq('id', request.id);
+    console.error(`  ❌ ${errorMsg}`);
+  }
+}
+
 // ── Health Check ───────────────────────────────────────────────────────────────
 
 async function checkTallyConnection() {
@@ -729,11 +924,12 @@ async function main() {
     console.log('   Make sure VCC Client is connected and showing green status.\n');
   }
 
-  console.log(`🔄 Polling Supabase every ${POLL_INTERVAL_MS / 1000}s for queued quotations...\n`);
+  console.log(`🔄 Polling Supabase every ${POLL_INTERVAL_MS / 1000}s for queued quotations & stock sync requests...\n`);
 
   const poll = async () => {
     try {
       await processQueuedQuotations();
+      await processStockPullRequests();
     } catch (err) {
       console.error('❌ Unexpected error in poll cycle:', err.message);
     }
