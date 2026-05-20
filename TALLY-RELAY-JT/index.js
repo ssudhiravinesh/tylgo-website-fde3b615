@@ -769,7 +769,8 @@ function parseStockBalanceResponse(xml) {
     let closingBalance = 0;
 
     // Try multiple patterns for CLOSINGBALANCE
-    const balanceMatch = block.match(/<CLOSINGBALANCE>([\s\S]*?)<\/CLOSINGBALANCE>/i);
+    // Note: Tally adds TYPE="Quantity" attribute, so we need [^>]* to match it
+    const balanceMatch = block.match(/<CLOSINGBALANCE[^>]*>([\s\S]*?)<\/CLOSINGBALANCE>/i);
     
     if (balanceMatch) {
       const rawValue = balanceMatch[1].trim();
