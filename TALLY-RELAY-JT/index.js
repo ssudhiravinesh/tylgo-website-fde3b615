@@ -814,6 +814,8 @@ async function processStockPullRequests() {
       throw new Error(`Failed to fetch stock mappings: ${mappingError.message}`);
     }
 
+    console.log(`  🔍 Loaded ${mappings?.length || 0} stock mappings from Supabase`);
+
     // Create a lookup: tally_stock_item_name → tile_id
     const nameToTileId = new Map();
     for (const m of mappings) {
@@ -822,6 +824,8 @@ async function processStockPullRequests() {
 
     // Step 3: Fetch current stock quantities for mapped tiles
     const mappedTileIds = [...new Set(mappings.map(m => m.tile_id))];
+    console.log(`  🔍 Mapped tile IDs count: ${mappedTileIds.length}`);
+
     const { data: currentTiles, error: tilesError } = await supabase
       .from('tiles')
       .select('id, code, stock_quantity')
@@ -830,6 +834,8 @@ async function processStockPullRequests() {
     if (tilesError) {
       throw new Error(`Failed to fetch current tile data: ${tilesError.message}`);
     }
+
+    console.log(`  🔍 Loaded ${currentTiles?.length || 0} tiles from Supabase`);
 
     const currentStockMap = new Map();
     const tileCodeMap = new Map();
@@ -844,8 +850,13 @@ async function processStockPullRequests() {
     const now = new Date().toISOString();
 
     for (const balance of stockBalances) {
-      const tileId = nameToTileId.get(balance.stockItemName.toUpperCase());
-      if (!tileId) continue; // No mapping for this Tally item
+      const upperName = balance.stockItemName.toUpperCase();
+      const tileId = nameToTileId.get(upperName);
+      if (!tileId) {
+        // Log unmapped items for debugging
+        // console.log(`  ℹ️ No mapping for Tally item: "${balance.stockItemName}"`);
+        continue; 
+      }
 
       const currentQty = currentStockMap.get(tileId) ?? 0;
       const newQty = balance.closingBalance;
