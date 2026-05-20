@@ -699,26 +699,44 @@ async function logSync(syncType, status, recordsProcessed, errorMessage, request
 
 /**
  * Build XML to export stock item closing balances from Tally.
- * Uses TDL COLLECTION to fetch NAME and CLOSINGBALANCE for all stock items.
+ * Uses TDL COLLECTION with NATIVEMETHOD (not FETCH) because CLOSINGBALANCE
+ * is a computed property, not a stored attribute.
+ * FETCH only returns stored attributes — that's why it was returning empty.
+ * NATIVEMETHOD tells Tally to compute these values at runtime.
+ * Date range covers a wide financial period so Tally has context for computation.
  */
 function buildStockBalanceExportXml() {
+  // Use a wide date range to ensure we cover the current financial year
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-indexed
+  // Indian financial year: April to March
+  const fyStartYear = currentMonth >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const fromDate = `${fyStartYear}0401`;
+  const toDate = formatTallyDate(now);
+
   return `<ENVELOPE>
   <HEADER>
     <VERSION>1</VERSION>
     <TALLYREQUEST>EXPORT</TALLYREQUEST>
     <TYPE>COLLECTION</TYPE>
-    <ID>Stock Item Balance</ID>
+    <ID>StockClosingBal</ID>
   </HEADER>
   <BODY>
     <DESC>
       <STATICVARIABLES>
         <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+        <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
+        <SVTODATE TYPE="Date">${toDate}</SVTODATE>
       </STATICVARIABLES>
       <TDL>
         <TDLMESSAGE>
-          <COLLECTION NAME="Stock Item Balance" ISMODIFY="No">
-            <TYPE>StockItem</TYPE>
-            <FETCH>NAME, CLOSINGBALANCE</FETCH>
+          <COLLECTION NAME="StockClosingBal" ISMODIFY="No">
+            <TYPE>Stock Item</TYPE>
+            <NATIVEMETHOD>NAME</NATIVEMETHOD>
+            <NATIVEMETHOD>BASEUNITS</NATIVEMETHOD>
+            <NATIVEMETHOD>CLOSINGBALANCE</NATIVEMETHOD>
+            <NATIVEMETHOD>CLOSINGVALUE</NATIVEMETHOD>
+            <NATIVEMETHOD>CLOSINGRATE</NATIVEMETHOD>
           </COLLECTION>
         </TDLMESSAGE>
       </TDL>
@@ -730,25 +748,38 @@ function buildStockBalanceExportXml() {
 /**
  * Parse Tally's stock balance export response.
  * Extracts { stockItemName, closingBalance } from each STOCKITEM block.
+ * 
+ * Handles multiple possible formats from Tally:
+ * 1. NATIVEMETHOD format: <CLOSINGBALANCE> 100.00 BOX</CLOSINGBALANCE>
+ * 2. Plain numeric: <CLOSINGBALANCE>100.00</CLOSINGBALANCE>
+ * 3. Nested format with child tags
  */
 function parseStockBalanceResponse(xml) {
   const results = [];
+  
+  // Log first 3000 chars of raw response for debugging
+  console.log(`  🔍 Raw Tally response (first 3000 chars):\n${xml.substring(0, 3000)}\n`);
+
   const stockItemRegex = /<STOCKITEM[^>]*?NAME="([^"]*)"[^>]*>([\s\S]*?)<\/STOCKITEM>/gi;
   let match;
 
   while ((match = stockItemRegex.exec(xml)) !== null) {
     const name = match[1];
     const block = match[2];
-
-    const balanceMatch = block.match(/<CLOSINGBALANCE>([\s\S]*?)<\/CLOSINGBALANCE>/i);
     let closingBalance = 0;
 
+    // Try multiple patterns for CLOSINGBALANCE
+    const balanceMatch = block.match(/<CLOSINGBALANCE>([\s\S]*?)<\/CLOSINGBALANCE>/i);
+    
     if (balanceMatch) {
-      // Tally may return values like "150.00 Nos" or "150.00 Box" — extract the number
-      const numericPart = balanceMatch[1].trim().replace(/[^0-9.\-]/g, '');
-      const parsed = parseFloat(numericPart);
-      if (!isNaN(parsed)) {
-        closingBalance = parsed;
+      const rawValue = balanceMatch[1].trim();
+      // Extract numeric part — Tally may return "100.00 BOX", " 100.00", "100", or "-11.00 BOX"
+      const numericMatch = rawValue.match(/(-?[\d.]+)/);
+      if (numericMatch) {
+        const parsed = parseFloat(numericMatch[1]);
+        if (!isNaN(parsed)) {
+          closingBalance = parsed;
+        }
       }
     }
 
