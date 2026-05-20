@@ -733,7 +733,7 @@ function buildStockBalanceExportXml() {
  */
 function parseStockBalanceResponse(xml) {
   const results = [];
-  const stockItemRegex = /<STOCKITEM[^>]*NAME="([^"]*)"[^>]*>([\s\S]*?)<\/STOCKITEM>/gi;
+  const stockItemRegex = /<STOCKITEM[^>]*?NAME="([^"]*)"[^>]*>([\s\S]*?)<\/STOCKITEM>/gi;
   let match;
 
   while ((match = stockItemRegex.exec(xml)) !== null) {
